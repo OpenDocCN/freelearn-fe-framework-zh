@@ -4,22 +4,22 @@
 > 
 > 如果奇迹没有出现，那就去创造一个。——兔斯基
 
-* [在线阅读](https://vue.apachecn.org)
+* [在线阅读](https://vue.flygon.net)
 ## 下载
 
 ### Docker
 
 ```
-docker pull apachecn0/apachecn-vue-zh
-docker run -tid -p <port>:80 apachecn0/apachecn-vue-zh
+docker pull apachecn0/flygon-vue-zh
+docker run -tid -p <port>:80 apachecn0/flygon-vue-zh
 # 访问 http://localhost:{port} 查看文档
 ```
 
 ### NPM
 
 ```
-npm install -g apachecn-vue-zh
-apachecn-vue-zh <port>
+npm install -g flygon-vue-zh
+flygon-vue-zh <port>
 # 访问 http://localhost:{port} 查看文档
 ```
 

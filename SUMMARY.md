@@ -3,7 +3,6 @@
 +   [Vue2 Web 开发完全手册](docs/cpl-vue2-web-dev/README.md)
 +   [NuxtJS Web 开发实用指南](docs/hsn-nuxt-web-dev/README.md)
 +   [VueJS2 学习指南](docs/lrn-vue2/README.md)
-+   [Python 卖空算法教程](docs/pro-vue2/README.md)
 +   [使用 Jest 测试 VueJS 组件](docs/test-vue-cpn-jest/README.md)
 +   [Vue CLI3 快速启动指南](docs/vue-cli3-qk-st-gd/README.md)
 +   [Vue 快速启动指南](docs/vue-qk-st-gd/README.md)

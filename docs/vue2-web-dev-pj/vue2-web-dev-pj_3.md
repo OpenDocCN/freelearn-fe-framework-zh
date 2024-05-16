@@ -116,13 +116,13 @@ new Vue({
 
 在这里，我们使用了新的 JavaScript 字符串，带有`` ` ``字符（反引号）。它允许我们编写跨越多行的文本，而不必编写冗长的字符串连接。
 
-Now if you open the app, you should see the `'Hello world!'` text displayed. As you guessed, we won't inline the template in the `#app` element going forward.
+现在，如果你打开应用程序，你应该看到`'Hello world!'`文本显示出来。正如你猜到的那样，从现在开始我们不会将模板内联到`#app`元素中。
 
-# The app state
+# 应用程序状态
 
-As explained before, the `state.js` file will help us consolidate the main data of our application in one place. That way, it will be easier to write game logic functions without polluting the definition object with a lot of methods.
+正如之前解释的那样，`state.js` 文件将帮助我们将应用程序的主要数据整合到一个地方。这样，我们将能更容易地编写游戏逻辑函数，而不会用大量方法污染定义对象。
 
-1.  The `state.js` file declares a state variable that we will use as the data of our app. We can use it directly as the data option, as follows:
+1.  `state.js` 文件声明了我们将用作应用程序数据的数据变量。我们可以直接将其用作数据选项，如下所示：
 
 ```js
       new Vue({
@@ -131,15 +131,15 @@ As explained before, the `state.js` file will help us consolidate the main data 
       })
 ```
 
-Now, if you open the devtools, you should see the only data property already declared in the state object:
+现在，如果你打开开发工具，你应该看到状态对象中已经声明的唯一数据属性：
 
 ![](img/06ba9d2b-5ad4-4ed0-ae51-c1774600dde0.png)
 
-The world ratio is a number representing how much we should scale the game objects to fit in the window. For example, `.6` means that the world should scale at 60% of its original size. It is computed with the `getWorldRatio` function in the `utils.js` file.
+世界比例是一个表示我们应该如何缩放游戏对象以适应窗口的数字。例如，`.6`表示世界应该以其原始大小的 60%进行缩放。它是在`utils.js`文件中使用`getWorldRatio`函数计算的。
 
-There is one thing missing, though--it is not recomputed when the window is resized. This is something we have to implement ourselves. After the Vue instance constructor, add an event listener to the window object to detect when it is resized.
+有一件事情还缺少 - 当窗口大小调整时它不会被重新计算。这是我们必须自己实现的。在 Vue 实例构造函数之后，添加一个事件监听器到窗口对象，以便在窗口大小调整时检测。
 
-2.  Inside the handler, update the `worldRatio` data property of the state. You can also display `worldRatio` in the template:
+1.  在处理程序内，更新状态的`worldRatio`数据属性。你也可以在模板中显示`worldRatio`：
 
 ```js
       new Vue({
@@ -159,13 +159,13 @@ There is one thing missing, though--it is not recomputed when the window is resi
       })
 ```
 
-Try resizing your browser window horizontally--the `worldRatio` data property is updated in the Vue app.
+尝试水平调整浏览器窗口大小 - `worldRatio` 数据属性在 Vue 应用中被更新。
 
-*But wait! We are modifying the state object, not the Vue instance...*
+*等等！我们正在修改状态对象，而不是 Vue 实例...*
 
-You are right! However, we have set the Vue instance `data` property with the `state` object. This means Vue has set up reactivity on it, and we can change its attributes to update our app, as we will see in a second.
+你是对的！然而，我们使用`state`对象设置了 Vue 实例`数据`属性。这意味着 Vue 已经在其上设置了响应性，并且我们可以改变它的属性来更新我们的应用程序，正如我们将在下面看到的那样。
 
-3.  To ensure that `state` is the app's reactive data, try comparing the instance data object and the global state object:
+1.  为了确保`state`是应用的反应性数据，请尝试比较实例数据对象和全局状态对象：
 
 ```js
       new Vue({
@@ -176,57 +176,59 @@ You are right! However, we have set the Vue instance `data` property with the `s
       })
 ```
 
-These are the same objects we set with the data option. So when you do:
+这些是我们使用数据选项设置的相同对象。所以当你这样做时：
 
 ```js
 this.worldRatio = 42
 ```
 
-You are also doing this:
+你也在做这个：
 
 ```js
 this.$data.worldRatio = 42
 ```
 
-This is, in fact, the same as follows:
+这实际上和以下一样：
 
 ```js
 state.worldRatio = 42
 ```
 
-This will be useful in the gameplay function that will use the state object to update the game data.
+这将在游戏功能中非常有用，该功能将使用状态对象来更新游戏数据。
 
-# The almighty components
+# 全能的组件
 
-Components are the building blocks that will compose our app--it's the central concept of the Vue apps. They are small parts of the view, and they should be relatively small, reusable, and as self-sufficient as possible--structuring an app with components will then help maintain and evolve it, especially if it becomes large. In fact, this is becoming the standard method for creating huge web apps in an efficient and manageable way.
+组件是构成我们应用程序的构建块 - 这是 Vue 应用程序的核心概念。它们是视图的小部分，应该相对小，可重用，并且尽可能自包含 - 使用组件来构建应用程序将有助于维护和发展它，特别是当应用程序变得庞大时。事实上，这已经成为以高效和可管理的方式创建庞大 Web 应用程序的标准方法。
 
-In concrete terms, your app will be a giant tree of smaller components:
+具体而言，你的应用程序将是一个由小组件组成的巨大树：
 
 ![](img/b20410bf-c9fc-47ea-8474-f65537e325f3.png)
 
-For example, your app could have a form component, which could contain several input components and button components. Each one would be a very specific part of the UI, and they would be reusable all across the app. Being quite small in scope, they would be easy to understand and reason about, and thus easier to maintain (issue fixing) or to evolve.
+例如，你的应用程序可能有一个表单组件，其中可以包含多个输入组件和按钮组件。每个组件都是 UI 的一个非常具体的部分，并且它们可以在整个应用程序中重复使用。作用域非常小，它们很容易理解和推理，因此更容易维护（修复问题）或发展。
 
-# Building the user interface
+# 构建用户界面
 
-The first components we will create are part of the UI layer. There will be a top bar with the players' names and a turn counter, the cards with their name and description, the hand with the current player cards, and the three overlays.
+我们将创建的第一个组件是 UI 层的一部分。它将包括一个带有玩家姓名和回合计数器的顶端栏、带有名称和描述的卡片、当前玩家卡片的手牌和三个叠加层。
 
-# Our first component - the top bar
+# 我们的第一个组件 - 顶端栏
 
-The top bar, our first component, will be placed at the top of the page and will display the names of the two players and a turn counter in the middle. It will also show an arrow facing the name of the player currently taking their turn.
+顶端栏，我们的第一个组件，将被放置在页面的顶部，并且在中间显示两个玩家的姓名和回合计数器。它还将显示一个箭头指向当前正在进行回合的玩家的姓名。
 
-It will look like this:
+它将如下所示：
 
 ![](img/8739ced8-2ec7-4a72-af0f-fa01f814c080.png)
 
-# Adding some gameplay data to the state
+# 在状态中添加一些游戏数据
 
-Before creating the component, we need some new data properties:
+在创建组件之前，我们需要一些新的数据属性：
 
-*   `turn`: The number of the current turn; starts at 1
-*   `players`: The array of player objects
-*   `currentPlayerIndex`: The index of the current player in the `players` array
++   `turn`: 当前回合数；从 1 开始
 
-Add them in the state in the `state.js` file:
++   `players`: 玩家对象的数组
+
++   `currentPlayerIndex`: `players` 数组中当前玩家的索引
+
+在 `state.js` 文件中将它们添加到状态中：
 
 ```js
 // The consolidated state of our app
@@ -247,15 +249,15 @@ var state = {
 }
 ```
 
-`Math.round(Math.random())` will use `0` or `1` randomly to choose who goes first.
+`Math.round(Math.random())` 将使用随机选择 `0` 或 `1` 来确定谁先行。
 
-We will use these properties to display the player names and the turn counter in the top bar.
+我们将使用这些属性来在顶端栏中显示玩家姓名和回合计数器。
 
-# Defining and using the components
+# 定义和使用组件
 
-We will write our UI components in a new file:
+我们将在一个新的文件中编写我们的 UI 组件：
 
-1.  Create a `components` folder and a new `ui.js` file inside it. Include it in the main `index.html` page, just before the main script:
+1.  创建一个 `components` 文件夹并在其中创建一个新的 `ui.js` 文件。在主 `index.html` 页面中引入它，就在主要脚本之前：
 
 ```js
       <!-- Scripts -->
@@ -266,11 +268,11 @@ We will write our UI components in a new file:
       <script src="img/main.js"></script>
 ```
 
-In this file, we will register our components, so it's important that the main Vue instance is created afterward, and not before. Else, we would get errors of components not being found.
+在这个文件中，我们将注册我们的组件，所以主要的 Vue 实例创建在后面而不是前面，否则，我们将得到组件不存在的错误。
 
-To register a component, we can use the global `Vue.component()` function. It takes two arguments; the name under which we register the component, and its definition object, which is using the exact same options as the Vue instance that we already know.
+要注册一个组件，我们可以使用全局的 `Vue.component()` 函数。它接受两个参数；我们注册组件的名称，以及它的定义对象，该对象使用了我们已经了解的 Vue 实例的完全相同的选项。
 
-2.  Let's create the `top-bar` component in the `ui.js` file:
+1.  让我们在 `ui.js` 文件中创建`top-bar`组件：
 
 ```js
  Vue.component('top-bar', {
@@ -280,9 +282,9 @@ To register a component, we can use the global `Vue.component()` function. It ta
       })
 ```
 
-Now, we can use the `top-bar` component in our templates, just like any other HTML tags, for instance, `<top-bar>`.
+现在，我们可以在模板中使用 `top-bar` 组件，就像使用任何其他 HTML 标签一样，例如 `<top-bar>`。
 
-3.  In the main template, add a new `top-bar` tag:
+1.  在主模板中，添加一个新的 `top-bar` 标签：
 
 ```js
       new Vue({
@@ -293,21 +295,21 @@ Now, we can use the `top-bar` component in our templates, just like any other HT
       })
 ```
 
-This template will create a new `top-bar` component and render it inside the `#app` element, using the definition object we just defined. If you open the devtools, you should see two entries:
+这个模板将创建一个新的 `top-bar` 组件，并使用我们刚刚定义的定义对象在 `#app` 元素内呈现它。如果你打开开发工具，你应该会看到两个条目：
 
 ![](img/8ea8c881-2a6b-4eb0-be9e-4c711323bb9c.png)
 
-Each one is a Vue instance--Vue actually created a second instance using the definition we provided for the top-bar component.
+每个都是一个 Vue 实例--Vue 实际上使用我们为顶端栏组件提供的定义创建了第二个实例。
 
-# Parent-to-child communication with Props
+# 使用 props 进行从父组件到子组件的通信
 
-As we saw in the The almighty components section, our component-based app will have a tree of components, and we need them to communicate with each other. For now, we will only focus on descending, parent-to-child communication. This is accomplished with "props".
+正如我们在强大的组件部分中所见，我们基于组件的应用程序将具有一系列组件，并且我们需要它们相互通信。目前，我们只关注下行、从父级到子级的通信。这通过"props"完成。
 
-Our `top-bar` component needs to know who the players are, which one is currently playing, and what the current turn number is. So, we will need three props--`players`, `currentPlayerIndex`, and `turn`.
+我们的`top-bar`组件需要知道玩家是谁，当前正在玩谁，以及当前回合数是多少。因此，我们将需要三个 props--`players`、`currentPlayerIndex`和`turn`。
 
-To add props to a component definition, use the `props` option. For now, we will simply list the names of our props. However, you should know that there is a more detailed notation with an object instead, which we will cover in the next chapters.
+要向组件定义添加 props，请使用`props`选项。目前，我们只会简单列出我们的 props 的名称。但是，你应该知道还有一种更详细的符号，使用对象代替，我们将在接下来的章节中介绍。
 
-1.  Let's add the props to our component:
+1.  让我们将 props 添加到我们的组件中：
 
 ```js
       Vue.component('top-bar', {
@@ -316,18 +318,18 @@ To add props to a component definition, use the `props` option. For now, we will
       })
 ```
 
-In the parent component, which is the root application, we can set the props value the exact same way we would for HTML attributes.
+在父组件中，即根应用程序中，我们可以以与 HTML 属性相同的方式设置 props 值。
 
-2.  Go ahead and use the `v-bind` shorthand to wire the props value with the app data in the main template:
+1.  继续使用`v-bind`简写将 props 值与主模板中的应用程序数据进行连接：
 
 ```js
       <top-bar :turn="turn" :current-player-index="currentPlayerIndex"         
       :players="players" />
 ```
 
-Note that since HTML is case-insensitive and by convention, it is recommended to use the kebab-case (with dashes) names of our props, and the camel-case names in the JavaScript code.
+请注意，由于 HTML 不区分大小写并且按照惯例，建议在 JavaScript 代码中使用连字符的 kebab-case（带有短横线）名称和 props 的骆驼式命名。
 
-Now, we can use the props in our `top-bar` component just like data properties. For example, you could write something like this:
+现在，我们可以像数据属性一样在我们的`top-bar`组件中使用 props。例如，你可以这样写：
 
 ```js
 Vue.component('top-bar', {
@@ -338,13 +340,13 @@ Vue.component('top-bar', {
 })
 ```
 
-This would print the `players` array sent by the parent component (our app) in the browser console.
+这将在浏览器控制台中打印由父组件（我们的应用程序）发送的`players`数组。
 
-# Props in our template
+# 我们模板中的 props
 
-We will now use the props we created in the template of the `top-bar` component.
+现在，我们将在`top-bar`组件的模板中使用我们创建的 props。
 
-1.  Change the `top-bar` template to display the player's name with the `players` prop:
+1.  更改`top-bar`模板以使用`players` prop 显示玩家的名称：
 
 ```js
       template: `<div class="top-bar">
@@ -353,9 +355,9 @@ We will now use the props we created in the template of the `top-bar` component.
       </div>`,
 ```
 
-As you can see in the preceding code, we are also using the props like we did with properties in templates. You should see the player names displayed in the app.
+正如你在上述代码中所看到的，我们也像在模板中使用属性一样使用 props。你应该在应用程序中看到玩家名称显示。
 
-2.  Continue with the turn counter between `players` using the `turn` prop:
+1.  继续使用`turn` prop 在`players`之间显示回合计数器：
 
 ```js
       template: `<div class="top-bar">
@@ -367,9 +369,9 @@ As you can see in the preceding code, we are also using the props like we did wi
         </div>`,
 ```
 
-In addition to the label, we also want to display a big arrow facing the current player to make it more obvious.
+除了标签外，我们还希望显示一个面向当前玩家的大箭头，以使其更加明显。
 
-3.  Add the arrow image inside the `.turn-counter` element, and add a dynamic class using the `currentPlayerIndex` prop with the `v-bind` shorthand we used in Chapter 2, *Markdown Notebook*:
+1.  在`.turn-counter`元素内添加箭头图像，并使用我们在第二章*Markdown 笔记本*中使用的`v-bind`简写为`currentPlayerIndex` prop 添加动态类：
 
 ```js
       template: `<div class="top-bar" :class="'player-' + 
@@ -383,33 +385,38 @@ In addition to the label, we also want to display a big arrow facing the current
       </div>`,
 ```
 
-Now, the app should display the fully featured top bar, with the two players, names and the turn counter between them. You can test the Vue-automated reactivity by typing these commands into the browser console:
+现在，应用程序应该显示具有两个玩家、名称和它们之间的回合计数器的完整功能顶栏。你可以通过在浏览器控制台中输入这些命令来测试 Vue 自动反应性：
 
 ```js
 state.currentPlayerIndex = 1
 state.currentPlayerIndex = 0
 ```
 
-You should see the arrow turning around to face the correct player name, which gets emphasized:
+你应该看到箭头转向正确的玩家名称，这将被强调：
 
 ![](img/a667ef7b-5325-4e1a-bf9f-4555b64d5b38.png)
 
-# Displaying a card
+# 显示一张卡片
 
-All the cards are described in the card definition objects, declared in the `cards.js` file. You can open it, but you shouldn't have to modify its content. Each card definition has the following fields:
+所有的卡片都在`cards.js`文件中声明的卡片定义对象中描述。你可以打开它，但你不应该修改其内容。每个卡片定义都具有以下字段：
 
-*   `id`: Unique for each card
-*   `type`: Changes the color background to help distinguish the cards from each other
-*   `title`: The displayed name of the card
-*   `description`: An HTML text explaining what the card does
-*   `note`: An optional flavor text, in HTML too
-*   `play`: The function we will call when the card is played
++   `id`：每张卡片的唯一标识符
 
-We need a new component to display any card, either in the player hand or in the overlay, that describes what the opponent played last turn. It will look like this:
++   `type`：更改颜色背景以帮助区分卡片
+
++   `title`：卡片的显示名称
+
++   `description`：解释卡片功能的 HTML 文本
+
++   `note`：一个可选的 HTML 风格文本
+
++   `play`：当卡片被玩时我们将调用的函数
+
+我们需要一个新组件来显示任何卡片，无论是在玩家手中还是在覆盖层中，描述对手上一轮玩的是什么牌。它将如下所示：
 
 ![](img/bdcb0ac6-585b-4c0f-a2e3-fdbe7c28385b.png)
 
-1.  In the `components/ui.js` file, create a new `card` component:
+1.  在 `components/ui.js` 文件中，创建一个新的 `card` 组件：
 
 ```js
  Vue.component('card', {
@@ -417,7 +424,7 @@ We need a new component to display any card, either in the player hand or in the
       })
 ```
 
-2.  This component will receive a `def` prop that will be the card definition object we described above. Declare it with the `props` option as we did for the `top-bar` component:
+1.  此组件将接收一个 `def` 属性，该属性将是我们上面描述的卡片定义对象。声明它与我们为 `top-bar` 组件所做的方式相同的 `props` 选项：
 
 ```js
       Vue.component('card', {
@@ -425,7 +432,7 @@ We need a new component to display any card, either in the player hand or in the
       })
 ```
 
-3.  Now, we can add the template. Start with the main `div` element, with the `card` class:
+1.  现在，我们可以添加模板。从主要的 `div` 元素开始，带有 `card` 类：
 
 ```js
       Vue.component('card', {
@@ -435,15 +442,15 @@ We need a new component to display any card, either in the player hand or in the
       })
 ```
 
-4.  To change the background color depending on the card type, add a dynamic CSS class that uses the `type` property of the card object:
+1.  根据卡片类型更改背景颜色，添加一个使用卡片对象的 `type` 属性的动态 CSS 类：
 
 ```js
       <div class="card" :class="'type-' + def.type">
 ```
 
-For example, if the card has the `'attack'` type, the element will get the `type-attack` class. Then, it will have a red background.
+例如，如果卡片具有 `'attack'` 类型，则元素将获得 `type-attack` 类。然后，它将具有红色背景。
 
-5.  Now, add the title of the card with the corresponding class:
+1.  现在，添加带有相应类的卡片标题：
 
 ```js
       <div class="card" :class="'type-' + def.type">
@@ -451,34 +458,34 @@ For example, if the card has the `'attack'` type, the element will get the `type
       </div>
 ```
 
-6.  Add the separator image, which will display some lines between the card title and the description:
+1.  添加分隔图像，该图像将在卡片标题和描述之间显示一些线条：
 
 ```js
       <div class="title">{{ def.title }}</div>
       <img class="separator" src="img/card-separator.svg" />
 ```
 
-After the image, append the description element.
+图像后附加描述元素。
 
-Note that since the `description` property of the card object is an HTML-formatted text, we need to use the special `v-html` directive introduced in the Chapter 2, *Markdown Notebook.*
+注意，由于卡片对象的 `description` 属性是 HTML 格式化的文本，我们需要使用第二章介绍的特殊 `v-html` 指令。
 
-7.  Use the `v-html` directive to display the description:
+1.  使用 `v-html` 指令来显示描述：
 
 ```js
       <div class="description"><div v-html="def.description"></div>             
       </div>
 ```
 
-You may have noted that we added a nested `div` element, which will contain the description text. This is to center the text vertically using CSS flexbox.
+你可能已经注意到我们添加了一个嵌套的 `div` 元素，它将包含描述文本。这是为了使用 CSS flexbox 垂直居中文本。
 
-8.  Finally, add the card note (which is also in an HTML-formatted text). Note that some cards don't have note, so we have to use the `v-if` directive here:
+1.  最后，添加卡片注释（也是 HTML 格式化的文本）。注意，有些卡片没有注释，因此我们必须在这里使用 `v-if` 指令：
 
 ```js
       <div class="note" v-if="def.note"><div v-html="def.note"></div>        
       </div>
 ```
 
-The card component should now look like this:
+现在卡片组件应该看起来像这样：
 
 ```js
 Vue.component('card', {
@@ -492,9 +499,9 @@ Vue.component('card', {
 })
 ```
 
-Now, we can try our new card component in the main application component.
+现在，我们可以在主应用程序组件中尝试我们的新卡片组件。
 
-9.  Edit the main template as follows and add a `card` component just after the top bar:
+1.  编辑主模板如下，并在顶部栏后添加一个 `card` 组件：
 
 ```js
       template: `<div id="#app">
@@ -504,7 +511,7 @@ Now, we can try our new card component in the main application component.
       </div>`,
 ```
 
-10.  We also need to define a temporary computed property:
+1.  我们还需要定义一个临时计算属性：
 
 ```js
  computed: {
@@ -514,19 +521,19 @@ Now, we can try our new card component in the main application component.
       },
 ```
 
-Now, you should see a red attack card with a title, description, and flavor text:
+现在，您应该看到一个红色的攻击卡片，带有标题、描述和口味文本：
 
 ![](img/6b8c4676-e72a-41bb-915f-24b2ed0c0023.png)
 
-# Listening to native events on components
+# 监听组件上的原生事件
 
-Let's try adding a click event handler on our card:
+让我们尝试在我们的卡片上添加一个点击事件处理程序：
 
 ```js
 <card :def="testCard" @click="handlePlay" />
 ```
 
-With a dumb method in the main component:
+在主要组件中使用愚蠢的方法：
 
 ```js
 methods: {
@@ -536,27 +543,27 @@ methods: {
 }
 ```
 
-If you test this in the browser, you may be surprised that it doesn't work as expected. Nothing is output to the console...
+如果你在浏览器中测试这个，你可能会惊讶地发现它不像预期那样工作。控制台什么也没有输出……
 
-This is because Vue has its own event system for components, called "custom events", that we will learn about in a moment. This system is separate from the browser events, so here Vue expects a custom `'click'` event, and not the browser one. Thus, the `handler` method is not called.
+这是因为 Vue 有自己的组件事件系统，称为“自定义事件”，我们马上就会学到。该系统与浏览器事件分开，因此在这里 Vue 期望一个自定义的 `'click'` 事件，而不是浏览器事件。因此，`handler` 方法不会被调用。
 
-To get around this, you should use the `.native` modifier on the `v-on` directive, as follows:
+为了解决这个问题，你应该在 `v-on` 指令上使用 `.native` 修饰符，如下所示：
 
 ```js
 <card :def="testCard" @click.native="handlePlay" />
 ```
 
-Now, the `handlePlay` method is called when you click on the card, as expected.
+现在，当你点击卡片时，`handlePlay` 方法会按预期调用。
 
-# Child-to-parent communication with custom events
+# 使用自定义事件进行子到父的通信
 
-Previously, we used props to communicate from a parent component to its children. Now, we would like to do the opposite and communicate from one child component to its parent. For our card component, we would like to tell the parent component that the card is being played by the player when they click on it. We can't use props here, but we can use custom events. In our components, we can emit events that can be caught by the parent component with the `$emit` special method. It takes one mandatory argument, which is the event type:
+以前，我们使用 props 从父组件向其子组件通信。现在，我们想要做相反的事情，即从一个子组件向其父组件通信。对于我们的卡片组件，我们想要告诉父组件，当玩家点击卡片时，卡片正在被玩家播放。我们不能在这里使用 props，但是我们可以使用自定义事件。在我们的组件中，我们可以发出事件，父组件可以使用`$emit`特殊方法捕获。它接受一个必需的参数，即事件类型：
 
 ```js
 this.$emit('play')
 ```
 
-We can listen to the custom events inside the same Vue instance with the `$on` special method:
+我们可以使用`$on`特殊方法在同一个 Vue 实例内监听自定义事件：
 
 ```js
 this.$on('play', () => {
@@ -564,27 +571,27 @@ this.$on('play', () => {
 })
 ```
 
-The `$emit` method also sends a `'play'` event to the parent component. We can listen to it in the parent component template with the `v-on` directive just like we did before:
+`$emit`方法还向父组件发送一个`'play'`事件。我们可以像以前一样在父组件模板中使用`v-on`指令来监听它：
 
 ```js
 <card v-on:play="handlePlay" />
 ```
 
-You can also use the `v-bind` shorthand:
+您还可以使用`v-bind`的快捷方式：
 
 ```js
 <card @play="handlePlay" />
 ```
 
-We can also add as many arguments as we like that will get passed to the handler methods:
+我们也可以添加任意数量的参数，这些参数将传递给处理程序方法：
 
 ```js
 this.$emit('play', 'orange', 42)
 ```
 
-Here, we emitted a `'play'` event with the following two arguments-- `'orange'` and `42`.
+在这里，我们发出了一个带有以下两个参数的`'play'`事件-- `'orange'`和`42`。
 
-In the handle, we can get them via the arguments, as follows:
+在处理中，我们可以通过参数获取它们，如下所示：
 
 ```js
 handlePlay (color, number) {
@@ -592,13 +599,13 @@ handlePlay (color, number) {
 }
 ```
 
-The `color` argument will have the `'orange'` value and the `number` argument will have the `42` value.
+`color`参数将具有`'orange'`值，`number`参数将具有`42`值。
 
-Like we saw in the preceding section, custom events are completely separate from the browser event system. The special methods--`$on` and `$emit`--are not aliases to the standard `addEventListener` and `dispatchEvent`. That explains why we need the `.native` modifier on components to listen to browser events such as `'click'`.
+正如我们在前一节中所看到的，自定义事件与浏览器事件系统完全分开。特殊方法--`$on`和`$emit`--不是标准`addEventListener`和`dispatchEvent`的别名。这就解释了为什么我们需要在组件上使用`.native`修饰符来监听浏览器事件，如`'click'`。
 
-Back to our card component, we just need to emit a very simple event to tell the parent component that the card is being played:
+回到我们的卡片组件，我们只需要发出一个非常简单的事件，告诉父组件卡片正在被播放：
 
-1.  First, add the method that will emit the event:
+1.  首先，添加会触发事件的方法：
 
 ```js
  methods: {
@@ -608,27 +615,27 @@ Back to our card component, we just need to emit a very simple event to tell the
       },
 ```
 
-2.  We would like to call this method when the user clicks on the card. Just listen to a browser click event on the main card `div` element:
+1.  我们想在用户点击卡片时调用此方法。只需在主卡片`div`元素上监听浏览器点击事件：
 
 ```js
       <div class="card" :class="'type-' + def.type" @click="play">
 ```
 
-3.  We are done with the card component. To test this, listen to the `'play'` custom event in the main component template:
+1.  我们完成了卡片组件。要测试这一点，在主组件模板中监听`'play'`自定义事件：
 
 ```js
       <card :def="testCard" @play="handlePlay" />
 ```
 
-Now, the `handlePlay` method will be called whenever the `'play'` event is emitted.
+现在，每当发出`'play'`事件时，将调用`handlePlay`方法。
 
-We could just have listened to a native click event instead, but it's in most cases a good idea to use custom events to communicate between components. For example, we could also emit the `'play'` event when the user uses another method, such as using the keyboard to select the card and pressing *Enter*; we won't implement that method in this book though.
+我们本可以只监听本机点击事件，但通常最好使用自定义事件在组件之间进行通信。例如，当用户使用其他方法时，例如使用键盘选择卡片并按*Enter*键，我们也可以发出`'play'`事件；尽管我们不会在本书中实现该方法。
 
-# The hand
+# 手牌
 
-Our next component will be the current player hand, holding the five cards they have. It will be animated with a 3D transition and will also be responsible for the card animations (when the card is drawn, and when it is played).
+我们的下一个组件将是当前玩家的手牌，持有他们手中的五张牌。它将使用 3D 过渡进行动画处理，并且还将负责卡片动画（当卡片被抽取时，以及当它被打出时）。
 
-1.  In the `components/ui.js` file, add a component registration with the `'hand'` ID and a basic template, with two `div` elements:
+1.  在`components/ui.js`文件中，添加一个具有`'hand'`ID 和一个基本模板的组件注册，带有两个`div`元素：
 
 ```js
  Vue.component('hand', {
@@ -640,16 +647,17 @@ Our next component will be the current player hand, holding the five cards they 
       })
 ```
 
-The wrapper element will help us position and animate the cards.
+包装元素将帮助我们定位和动画处理卡片。
 
-Each card in the hand will be represented by an object. For now, it will have the following properties:
+手中的每张卡片将由一个对象表示。目前，它将具有以下属性：
 
-*   `id`: The card definition unique identifier
-*   `def`: The card definition object
++   `id`：卡片定义的唯一标识符
 
-As a reminder, all the card definitions are declared in the `cards.js` file.
++   `def`：卡片定义对象
 
-2.  Our hand component will receive these card objects representing the player hand via a new array prop called `cards`:
+作为提醒，所有的卡片定义都在 `cards.js` 文件中声明。
+
+1.  我们的手部组件将通过一个名为 `cards` 的新数组属性接收代表玩家手牌的卡对象：
 
 ```js
       Vue.component('hand', {
@@ -658,7 +666,7 @@ As a reminder, all the card definitions are declared in the `cards.js` file.
       })
 ```
 
-3.  We can now add the card components with the `v-for` directive:
+1.  现在，我们可以使用 `v-for` 指令添加卡片组件了：
 
 ```js
       <div class="wrapper">
@@ -666,7 +674,7 @@ As a reminder, all the card definitions are declared in the `cards.js` file.
       </div>
 ```
 
-4.  To test our hand component, we will create in the app state a temporary property called `testHand` (in the `state.js` file):
+1.  为了测试我们的手部组件，我们将在应用程序状态中创建一个名为 `testHand` 的临时属性（在 `state.js` 文件中）：
 
 ```js
       var state = {
@@ -675,7 +683,7 @@ As a reminder, all the card definitions are declared in the `cards.js` file.
       }
 ```
 
-5.  Add a `createTestHand` method in the main component (in the `main.js` file):
+1.  在主组件中添加一个 `createTestHand` 方法（在 `main.js` 文件中）：
 
 ```js
       methods: {
@@ -694,7 +702,7 @@ As a reminder, all the card definitions are declared in the `cards.js` file.
       },
 ```
 
-6.  To test the hand, we also need this temporary `testDrawCard` method that simulates a random card draw:
+1.  为了测试手部，我们还需要这个临时的 `testDrawCard` 方法来模拟随机抽卡：
 
 ```js
       methods: {
@@ -716,7 +724,7 @@ As a reminder, all the card definitions are declared in the `cards.js` file.
       }
 ```
 
-7.  Use the `created` lifecycle hook to initialize the hand:
+1.  使用 `created` 生命周期钩子来初始化手部：
 
 ```js
  created () {
@@ -724,9 +732,9 @@ As a reminder, all the card definitions are declared in the `cards.js` file.
       },
 ```
 
-`cardUid` is a unique identifier on cards drawn by the players that will be useful to identify each of the cards in the hand, because many cards can share the exact same card definition, and we will need a way to differentiate them.
+`cardUid` 是玩家抽取的卡片上的唯一标识符，对于识别手中的每张卡片都很有用，因为许多卡片可能共享完全相同的卡片定义，我们需要一种区分它们的方法。
 
-8.  In the main template, add the hand component:
+1.  在主模板中，添加手部组件：
 
 ```js
       template: `<div id="#app">
@@ -736,15 +744,15 @@ As a reminder, all the card definitions are declared in the `cards.js` file.
       </div>`,
 ```
 
-The result in your browser should look like this:
+在您的浏览器中的结果应如下所示：
 
 ![](img/928716a8-049d-4deb-a1f5-c3827a3f597f.png)
 
-# Animating the hand with transitions
+# 使用过渡动画手部
 
-During a game, the hand will be hidden when any overlay is shown. To make the app prettier, we will animate the hand when it is added or removed from the DOM. To do that, we will use CSS transitions together with a powerful Vue tool--the special `<transition>` component. It will help us work with CSS transitions when adding or removing elements with the `v-if` or `v-show` directives.
+在游戏过程中，当显示任何叠加时，手部将被隐藏。为了使应用程序更美观，当手部从 DOM 中添加或移除时，我们将对其进行动画处理。为此，我们将与强大的 Vue 工具--特殊的 `<transition>` 组件一起使用 CSS 过渡。它将帮助我们在使用 `v-if` 或 `v-show` 指令添加或移除元素时使用 CSS 过渡。
 
-1.  First, add a new `activeOverlay` data property to the app state in the `state.js` file:
+1.  首先，在 `state.js` 文件中的应用程序状态中添加一个新的 `activeOverlay` 数据属性：
 
 ```js
       // The consolidated state of our app
@@ -755,25 +763,25 @@ During a game, the hand will be hidden when any overlay is shown. To make the ap
       }
 ```
 
-2.  In the main template, we will show the hand component only if `activeOverlay` is not defined, thanks to the `v-if` directive:
+1.  在主模板中，我们将仅在 `activeOverlay` 未定义时显示手部组件，感谢 `v-if` 指令：
 
 ```js
       <hand :cards="testHand" v-if="!activeOverlay" />
 ```
 
-3.  Now, if you change `state.activeOverlay` to any truthy value in the browser console, the hand will disappear:
+1.  现在，如果您在浏览器控制台中将 `state.activeOverlay` 更改为任何真值，手部将消失：
 
 ```js
       state.activeOverlay = 'player-turn'
 ```
 
-4.  Also, if you set it back to `null`, the hand will be shown again:
+1.  另外，如果将其设置回 `null`，手部将再次显示：
 
 ```js
       state.activeOverlay = null
 ```
 
-5.  To apply a transition when a component is added or removed by a `v-if` or `v-show` directive, surround it with a transition component like this:
+1.  当使用 `v-if` 或 `v-show` 指令添加或移除组件时应用过渡，请像这样将其包裹在过渡组件中：
 
 ```js
       <transition>
@@ -781,7 +789,7 @@ During a game, the hand will be hidden when any overlay is shown. To make the ap
       </transition>
 ```
 
-Note that this also works on HTML elements:
+注意，这也适用于 HTML 元素：
 
 ```js
 <transition>
@@ -789,35 +797,39 @@ Note that this also works on HTML elements:
 </transition>
 ```
 
-The `<transition>` special component will not appear in the DOM, like the `<template>` tag we used in Chapter 2, *Markdown Notebook*.
+`<transition>` 特殊组件不会出现在 DOM 中，就像我们在第二章 *Markdown Notebook* 中使用的 `<template>` 标签一样。
 
-When the element is added to the DOM (the enter phase), the transition component will automatically apply the following CSS classes to the element:
+当元素被添加到 DOM 中（进入阶段）时，过渡组件将自动向元素应用以下 CSS 类：
 
-*   `v-enter-active`: Apply the class while the enter transition is active. This class is added before the element is inserted to the DOM, and it is removed when the animation finishes. You should add some `transition` CSS properties in this class and define their duration.
-*   `v-enter`: The starting state of the element. This class is added before the element is inserted, and it is removed one frame after the element is inserted. For example, you could set the opacity to `0` in this class.
-*   `v-enter-to`: The target state of the element. This class is added one frame after the element is inserted, at the same time `v-enter` is removed. It is removed when the animation finishes.
++   `v-enter-active`：在进入过渡处于活动状态时应用此类。此类在元素插入到 DOM 中之前添加，并在动画完成时删除。您应该在此类中添加一些 `transition` CSS 属性，并定义它们的持续时间。
 
-When the element is being removed from the DOM (the leave phase), they are replaced by the following:
++   `v-enter`：元素的起始状态。此类在元素插入前添加，在元素插入后一帧删除。例如，你可以在此类中将不透明度设置为 `0`。
 
-*   `v-leave-active`: Applied while the leave transition is active. This class is added when the leaving transition triggers, and it is removed after the element is removed from the DOM. You should add some `transition` CSS properties in this class and define their duration.
-*   `v-leave`: The starting state of the element when being removed. This class is also added when the leaving transition triggers and is removed one frame after.
-*   `v-leave-to`: The target state of the element. This class is added one frame after the leaving transition triggers, at the same time `v-leave` is removed. It is removed when the element is removed from the DOM.
++   `v-enter-to`：元素的目标状态。此类在元素插入后一帧添加，与删除 `v-enter` 时同时发生。在动画完成时删除。
 
-During the leave phase, the element is not immediately removed from the DOM. It will be removed when the transition finishes to allow the user to see the animation.
+当元素从 DOM 中移除时（离开阶段），它们将被以下内容替换：
 
-Here is a schema that summarizes the two enter and leave phases, with the corresponding CSS classes:
++   `v-leave-active`：在离开过渡处于活动状态时应用。此类在离开过渡触发时添加，并在元素从 DOM 中移除后删除。您应该在此类中添加一些`transition` CSS 属性并定义它们的持续时间。
 
-![](img/6159a0e0-22b4-4c34-aef2-b7e7730b7cd2.png)The transition component will automatically detect the duration of the CSS transitions applied on the element.
++   `v-leave`：元素被移除时的起始状态。这个类也会在离开过渡触发时添加，并在一帧后删除。
 
-6.  We need to write some CSS to make our animation. Create a new `transitions.css` file and include it in the web page:
++   `v-leave-to`：元素的目标状态。此类在离开过渡触发一帧后添加，与`v-leave`同时删除。当元素从 DOM 中移除时，它将被删除。
+
+在离开阶段，元素不会立即从 DOM 中移除。在过渡完成后才会移除它，以便用户可以看到动画。
+
+这里是一个总结了两个进入和离开阶段以及相应的 CSS 类的模式图：
+
+![图](img/6159a0e0-22b4-4c34-aef2-b7e7730b7cd2.png)过渡组件将自动检测应用在元素上的 CSS 过渡的持续时间。
+
+1.  我们需要编写一些 CSS 来制作我们的动画。创建一个新的`transitions.css`文件并将其包含在网页中：
 
 ```js
       <link rel="stylesheet" href="transitions.css" />
 ```
 
-Let's try a basic fading animation first. We want to apply a CSS transition on the opacity CSS property for 1 second.
+首先尝试基本的淡入淡出动画。我们希望在 1 秒钟内对不透明度 CSS 属性应用 CSS 过渡。
 
-7.  To do that, use both the `v-enter-active` and `v-leave-active` classes since it will be the same animation:
+1.  为此，请同时使用`v-enter-active`和`v-leave-active`类，因为它们是相同的动画：
 
 ```js
       .hand.v-enter-active,
@@ -826,9 +838,9 @@ Let's try a basic fading animation first. We want to apply a CSS transition on t
       }
 ```
 
-When the hand is either being added or removed from the DOM, we want it to have an opacity of `0` (so it will be fully transparent).
+当手被添加或从 DOM 中移除时，我们希望它的不透明度为`0`（因此它将完全透明）。
 
-8.  Use both the `v-enter` and `v-leave-to` classes to apply this full transparency:
+1.  使用`v-enter`和`v-leave-to`类来应用这种完全透明：
 
 ```js
       .hand.v-enter,
@@ -837,7 +849,7 @@ When the hand is either being added or removed from the DOM, we want it to have 
       }
 ```
 
-9.  Back to the main template, surround the hand component with a transition special component:
+1.  回到主模板，使用过渡特殊组件将手组件包围起来：
 
 ```js
       <transition>
@@ -845,9 +857,9 @@ When the hand is either being added or removed from the DOM, we want it to have 
       </transition>
 ```
 
-Now, when you hide or show the hand, it will fade in and out.
+现在，当您隐藏或显示手时，它将淡入淡出。
 
-10.  Since we may have to reuse this animation, we should give it a name:
+1.  由于我们可能需要重用此动画，我们应该给它一个名称：
 
 ```js
       <transition name="fade">
@@ -855,9 +867,9 @@ Now, when you hide or show the hand, it will fade in and out.
       </transition>
 ```
 
-We have to change our CSS classes, because Vue will now use `fade-enter-active` instead of `v-enter-active`.
+我们必须更改我们的 CSS 类，因为 Vue 现在将使用`fade-enter-active`而不是`v-enter-active`。
 
-11.  In the `transition.css` file, modify the CSS selector to match this change:
+1.  在`transition.css`文件中，修改 CSS 选择器以匹配此更改：
 
 ```js
       .fade-enter-active,
@@ -871,13 +883,13 @@ We have to change our CSS classes, because Vue will now use `fade-enter-active` 
       }
 ```
 
-Now, we can reuse this animation on any element with `<transition name="fade">`.
+现在，我们可以在任何带有`<transition name="fade">`的元素上重复使用此动画。
 
-# A prettier animation
+# 更漂亮的动画
 
-We will now make a more complex but better animation, with some 3D effects. In addition to the hand, we will animate the `.wrapper` element (for a 3D flip) and the `.card` elements. The cards will start being piled up and will progressively expand to their expected position in the hand. At the end, it will animate as if the player is picking up the cards from a table.
+现在我们将制作一个更复杂但更好的动画，带有一些 3D 效果。除了手之外，我们还将为`.wrapper`元素（用于 3D 翻转）和`.card`元素添加动画。卡片将开始堆叠，并逐渐扩展到手中的预期位置。最后，它将以玩家从桌子上拿起卡片的方式进行动画。
 
-1.  Start by creating new transition CSS classes with the `'hand'` name instead of `'fade'`:
+1.  首先创建新的过渡 CSS 类，使用`'hand'`名称代替`'fade'`：
 
 ```js
       .hand-enter-active,
@@ -891,7 +903,7 @@ We will now make a more complex but better animation, with some 3D effects. In a
       }
 ```
 
-2.  Change the transition name in the main template too:
+1.  在主模板中也更改过渡名称：
 
 ```js
       <transition name="hand">
@@ -899,7 +911,7 @@ We will now make a more complex but better animation, with some 3D effects. In a
       </transition>
 ```
 
-3.  Let's animate the wrapper element. Use the CSS transform property to apply a 3D transformation to the element:
+1.  让我们对.wrapper 元素进行动画处理。使用 CSS transform 属性将 3D 变换应用于元素：
 
 ```js
       .hand-enter-active .wrapper,
@@ -914,9 +926,9 @@ We will now make a more complex but better animation, with some 3D effects. In a
       }
 ```
 
-The right rotating axis is the horizontal one, which is `x`. This will animate the cards just as if they were being picked up by the player. Note that there is a cubic-bezier easing function defined to make the animation smoother.
+右旋转轴是水平轴，即`x`。这将使卡片动画看起来就像被玩家拿起一样。请注意，定义了一个立方贝塞尔缓动函数，以使动画更平滑。
 
-4.  Finally, animate the cards themselves by setting a negative horizontal margin so that they will seem to be piled up:
+1.  最后，通过设置负的水平边距来为卡片本身添加动画，这样它们看起来就像是堆叠起来的：
 
 ```js
       .hand-enter-active .card,
@@ -930,13 +942,13 @@ The right rotating axis is the horizontal one, which is `x`. This will animate t
       }
 ```
 
-Now, if you hide and show the hand with the browser console like we did before, it will have a nice animation.
+现在，如果您像以前那样使用浏览器控制台隐藏和显示手牌，它将有一个漂亮的动画。
 
-# Playing a card
+# 打出一张牌
 
-Now, we need to handle the `'play'` event in the hand component we emit in the cards when the user clicks on them, and emit a new `'card-play'` event to the main component with an additional argument--the played card in question.
+现在，我们需要处理手牌组件中的`'play'`事件，当用户点击它们时，我们会发出一个新的`'card-play'`事件到主组件，并附加一个额外的参数--所打出的牌。
 
-1.  First, create a new method called `handlePlay`. It takes a `card` argument and emits the new event to the parent component:
+1.  首先，创建一个名为`handlePlay`的新方法。它接受一个`card`参数，并向父组件发出新事件：
 
 ```js
       methods: {
@@ -946,18 +958,18 @@ Now, we need to handle the `'play'` event in the hand component we emit in the c
       },
 ```
 
-2.  Then, add a listener to our cards for the `'play'` event:
+1.  然后，为我们的卡片添加一个对`'play'`事件的监听器：
 
 ```js
       <card v-for="card of cards" :def="card.def" 
       @play="handlePlay(card) />
 ```
 
-As you can see here, we directly use the iterator variable `card` of the `v-for` loop. That way, we don't need the card component to emit its `card` item since we already know what it is.
+正如您在这里看到的，我们直接使用了`v-for`循环的迭代变量`card`。这样，我们就不需要卡片组件发出它的`card`项目，因为我们已经知道它是什么。
 
-To test the card play, we will only remove it from the hand for now.
+为了测试牌的打出，我们现在只会从手牌中移除它。
 
-3.  Create a new temporary method called `testPlayCard` in the main component in the `main.js` file:
+1.  在`main.js`文件的主组件中创建一个名为`testPlayCard`的新临时方法：
 
 ```js
       methods: {
@@ -970,21 +982,21 @@ To test the card play, we will only remove it from the hand for now.
       },
 ```
 
-4.  Add the event listener for the `'card-play'` event on the `hand` component in the main template:
+1.  在主模板中的`hand`组件上添加`'card-play'`事件的事件侦听器：
 
 ```js
       <hand v-if="!activeOverlay" :cards="testHand" @card-play="testPlayCard" />
 ```
 
-If you click on a card, it should now emit a `'play'` event to the hand component, which will then emit a `'card-play'` event to the main component. It will, in turn, remove the card from the hand, making it disappear. To help you debug this sort of use case, the devtools have an Events tab:
+如果您点击一张卡片，它现在应该向手牌组件发出一个`'play'`事件，然后手牌组件将向主组件发出一个`'card-play'`事件。接着，它将从手牌中移除该卡片，使其消失。为了帮助您调试这种情况，开发工具有一个事件选项卡：
 
 ![](img/32fa4cee-0203-43fe-b413-eafcccce1ea5.png)
 
-# Animating the card list
+# 为卡片列表添加动画
 
-There are three missing animations for our hand--when a card is either added or removed from the player hand, and when it is moved. When the turn begins, the player will draw a card. It means that we will add a card to the hand cards list, and it will slide from the right into the hand. When a card is played, we want it to go up and grow bigger.
+对于我们的手牌，有三个缺失的动画--当一张牌被添加或从玩家手牌中移除时，以及当它被移动时。当回合开始时，玩家会抽一张牌。这意味着我们将向手牌列表中添加一张牌，并且它将从右侧滑入手牌。当打出一张牌时，我们希望它上移并变大。
 
-To animate a list of elements, we will need another special component--`<transition-group>`. It animates the children when they are added, removed, and moved. In a template, it looks like this:
+要为一系列元素添加动画，我们将需要另一个特殊的组件--`<transition-group>`。当它们被添加、移除和移动时，它会对子元素进行动画处理。在模板中，它看起来像这样：
 
 ```js
 <transition-group>
@@ -992,7 +1004,7 @@ To animate a list of elements, we will need another special component--`<transit
 </transition-group>
 ```
 
-Unlike the `<transition>` element, the transition group will appear in the DOM as a `<span>` element by default. You can change the HTML element with the `tag` prop:
+与`<transition>`元素不同，过渡组在 DOM 中默认显示为一个`<span>`元素。您可以使用`tag`属性更改 HTML 元素：
 
 ```js
 <transition-group tag="ul">
@@ -1000,7 +1012,7 @@ Unlike the `<transition>` element, the transition group will appear in the DOM a
 </transition-group>
 ```
 
-In the template of our `hand` component, enclose the card components with a transition group, specify the name of the transition that we will call `"card"`, and add the `"cards"` CSS class:
+在我们`hand`组件的模板中，用一个过渡组件将卡片组件包起来，指定我们将调用的过渡的名称为`"card"`，并添加`"cards"` CSS 类：
 
 ```js
 <transition-group name="card" tag="div" class="cards">
@@ -1008,41 +1020,41 @@ In the template of our `hand` component, enclose the card components with a tran
 </transition-group>
 ```
 
-Before we can continue, there is one important thing missing--the children of the transition group must be identified by a unique key.
+在我们继续之前，还缺少一个重要的事情--过渡组的子元素必须通过唯一键来标识。
 
-# The key special attribute
+# 关键特殊属性
 
-When Vue is updating a list of DOM elements in a `v-for` loop, it tries to minimize the number of operations applied to the DOM, such as adding or removing elements. This is a very efficient way of updating the DOM in most cases and can improve the performance.
+当 Vue 在`v-for`循环中更新 DOM 元素列表时，它会尽量减少应用于 DOM 的操作数量，如添加或移除元素。这是在大多数情况下更新 DOM 的非常高效的方法，可以提高性能。
 
-In order to do this, it reuses elements as much as it can and patches the DOM only where it is needed to have the desired result. It means repeated elements will be patched in place and won't be moved if an item is added or removed from the list. However, this also means that they won't animate if we apply transitions on them.
+为了做到这一点，Vue 会尽可能地重复使用元素，并且只在需要的地方打补丁来达到所需的结果。这意味着重复的元素将在原地打补丁，如果列表中添加或删除项，则不会被移动。然而，这也意味着如果我们对它们应用过渡，它们就不会发生动画。
 
-The following is a schema of how this works:
+以下是这样运作的示意图：
 
 ![](img/607e2253-c68b-41da-89b6-689de2112ef8.png)
 
-In this schema, we remove the third item in the list, which is `c`. However, the third `div` element will not be destroyed--it will be reused with the fourth item in the list, which is `d`. Actually, this is the fourth `div` element that is destroyed.
+在这个示例中，我们移除了列表中的第三个项目，即`c`。然而，第三个`div`元素不会被销毁--它将会被重复利用，使用列表中的第四个项目`d`。实际上，这是第四个被销毁的`div`元素。
 
-Fortunately, we can tell Vue how each element is identified so that it can reuse and reorder them. To do that, we will need to specify a unique identifier with the `key` special attribute. For example, each of our items could have a unique ID that we would use as the key:
+幸运的是，我们可以告诉 Vue 每个元素如何被识别，这样它就可以重复使用和重新排序它们。为了做到这一点，我们需要使用`key`特殊属性指定一个唯一标识。例如，我们的每个项目都可以有一个我们将用作关键字的唯一 ID：
 
 ![](img/8daeec3d-58b6-44e3-a822-86c57e8e518b.png)
 
-Here, we specify keys so that Vue knows the third `div` element should be destroyed and the fourth div element moved.
+在这里，我们指定了关键字，以便 Vue 知道第三个`div`元素应该被销毁，第四个 div 元素应该被移动。
 
-The key special attribute works like a standard attribute, so we need to use the `v-bind` directive if we want to assign a dynamic value to it.
+关键特殊属性的工作方式与标准属性类似，因此，如果我们想为其分配动态值，就需要使用`v-bind`指令。
 
-Back to our cards, we can use the unique identifier on the cards as the key:
+回到我们的卡片，我们可以使用卡片上的唯一标识作为关键字：
 
 ```js
 <card v-for="card of cards" :def="card.def" :key="card.uid" @play="handlePlay(card) />
 ```
 
-Now, if we add, move, or delete a card item in the JavaScript, it will be reflected with the right order in the DOM.
+现在，如果我们在 JavaScript 中添加、移动或删除一个卡片项，它将会在 DOM 中以正确的顺序体现出来。
 
-# The CSS transitions
+# CSS 过渡
 
-Like before, we have the following six CSS classes at our disposable, prefixed with the name of our group transition, `'card'`: `card-enter-active`, `card-enter`, `card-enter-to`, `card-leave-active`, `card-leave`, and `card-leave-to`. They will be applied to the direct children of the group transition, that is, our cards components.
+与之前一样，我们有以下六个可用的 CSS 类，以我们的组过渡名称`'card'`为前缀：`card-enter-active`, `card-enter`, `card-enter-to`, `card-leave-active`, `card-leave`, 和 `card-leave-to`。它们将被应用于组过渡的直接子元素，也就是我们的卡片组件。
 
-1.  The group transition has an additional class applied to moving items--`v-move`. Vue will use the CSS `transform` property on the items to make them move, so we just need to apply a CSS transition on it with at least a duration:
+1.  组过渡器中对于移动的元素有一个额外的类名--`v-move`。Vue 会使用 CSS 的`transform`属性来使它们移动，所以我们只需要为其应用至少带有持续时间的 CSS 过渡就行了：
 
 ```js
       .card-move {
@@ -1050,19 +1062,19 @@ Like before, we have the following six CSS classes at our disposable, prefixed w
       }      
 ```
 
-Now, when you click on a card to play it, it should disappear and the remaining cards will move to their new position. You can also add cards to the hand.
+现在，当你点击卡片进行打出时，它应该消失，而其余的卡片将移动到它们的新位置。你也可以向手牌中添加卡片。
 
-2.  Select the main component in the Vue devtools and execute this into the browser console:
+1.  在 Vue devtools 中选择主组件，并在浏览器控制台中执行以下内容：
 
 ```js
       state.testHand.push($vm.testDrawCard())
 ```
 
-Selecting a component in the devtools exposes it in the browser console as `$vm`.
+在 devtools 中选择一个组件会在浏览器控制台中公开它作为`$vm`。
 
-Like we did for the hand, we will also add animations for the cards when they enter the hand, and when they are played (and thus leave the hand).
+就像我们对手牌做的那样，当卡片进入手牌时，我们也会为它们添加动画，当它们被打出时（因此离开手牌）。
 
-3.  Since we need to transition multiple CSS properties on the card with the same timings all the time (except during the leave transition), we will change the `.card-move` rule we just wrote into this:
+1.  由于我们需要在卡片上始终以相同时机过渡多个 CSS 属性（除了在离开过渡期间），我们将刚刚写的`.card-move`规则改成这样：
 
 ```js
  .card {
@@ -1071,7 +1083,7 @@ Like we did for the hand, we will also add animations for the cards when they en
       }
 ```
 
-4.  For the enter animation, specify the state of the card for the start of the transition:
+1.  对于进入动画，请指定卡片的状态作为过渡的开始：
 
 ```js
  .card-enter {
@@ -1081,7 +1093,7 @@ Like we did for the hand, we will also add animations for the cards when they en
       }
 ```
 
-5.  The leave animation requires a few more rules since the play card animation is more complex, and involves zooming the card upward:
+1.  离开动画需要更多规则，因为打出卡片的动画更复杂，涉及将卡片向上缩放：
 
 ```js
  .card-leave-active {
@@ -1102,21 +1114,25 @@ Like we did for the hand, we will also add animations for the cards when they en
       }
 ```
 
-This is enough to make your cards all properly animated. You can try playing and adding cards to the hand again to see the result.
+这就足以使你的卡片都正确地动画化。你可以尝试再次玩耍并添加卡片到手中，看看结果。
 
-# The overlays
+# 叠加层
 
-The last UI elements we need are the overlays. The following are three of them:
+我们需要的最后一个 UI 元素是叠加层。以下是其中的三个：
 
-*   The 'new turn' overlay shows the name of the current player when it is their turn. Clicking on the 'new turn' player switches to the 'last play' overlay.
-*   The 'last play' overlay shows the player what their opponent did just before. It displays either of the following:
-    *   The card played by the opponent during the preceding turn
-    *   A reminder that their turn was skipped
-*   The 'game over' overlay shows whenever a player or both players lose. It displays the names of the players with the phrase "is victorious" or "is defeated". Clicking on the 'game over' overlay reloads the game.
++   '新回合'叠加层在轮到当前玩家时显示当前玩家的名字。点击'新回合'玩家会切换到'上一回合'叠加层。
 
-All of these overlays have two things in common--they do something when the user clicks on them, and they have a similar layout design. So, we should be smart here and structure our components to reuse code as much as we can where it makes sense. The idea here is to create a generic overlay component, which will take care of the click event and the layout and three specific overlay-content components for each one of the overlays we need.
++   '上一回合'叠加层显示玩家之前对手做的事情。它显示以下内容之一：
 
-Before starting, add a new `activeOverlay` property to the app state in the `state.js` file:
+    +   上一回合对手出的卡片
+
+    +   提醒玩家他们的回合被跳过了
+
++   '游戏结束'叠加层显示玩家或两个玩家输掉时。它显示玩家的名字与短语“获胜”或“被击败”。点击'游戏结束'叠加层重新加载游戏。
+
+所有这些叠加层有两个共同点--当用户点击它们时它们会执行某些操作，并且它们具有类似的布局设计。因此，我们应该在这里做得更聪明，结构化我们的组件以在合适的地方尽可能地重用代码。这里的想法是创建一个通用的叠加层组件，该组件将负责处理点击事件和布局以及三个特定的叠加层内容组件，用于我们需要的每个叠加层。
+
+在开始之前，在`state.js`文件中的应用状态中添加一个新的`activeOverlay`属性：
 
 ```js
 // The consolidated state of our app
@@ -1127,11 +1143,11 @@ var state = {
 }
 ```
 
-This will hold the name of the currently displayed overlay or will be `null` if no overlay is shown.
+这将保存当前显示的叠加层的名称，如果没有显示叠加层，则为`null`。
 
-# Content distribution with slots
+# 使用插槽进行内容分发
 
-It would be very convenient if we could put contents inside the overlay component in the main template, like this:
+如果我们可以在主模板中的叠加层组件中放置内容，这将非常方便，就像这样：
 
 ```js
 <overlay>
@@ -1139,9 +1155,9 @@ It would be very convenient if we could put contents inside the overlay componen
 </overlay>
 ```
 
-We would encapsulate additional layout and logic inside the `overlay` component while still being able to put any content inside. This is done through a special element--the `<slot>`.
+我们将在`overlay`组件中封装额外的布局和逻辑，同时仍然能够放置任何内容。这是通过一个特殊的元素--`<slot>`完成的。
 
-1.  Let's create our `overlay` component with two `div` elements:
+1.  让我们创建我们的`overlay`组件，并加上两个`div`元素：
 
 ```js
  Vue.component('overlay', {
@@ -1153,13 +1169,13 @@ We would encapsulate additional layout and logic inside the `overlay` component 
       })
 ```
 
-2.  Add a click event listener on the `.overlay` div, which calls the `handleClick` method:
+1.  在`.overlay` div 上添加点击事件监听器，调用`handleClick`方法：
 
 ```js
       <div class="overlay" @click="handleClick">
 ```
 
-3.  Then, add the mentioned method where we emit a custom `'close'` event:
+1.  然后，在我们发出自定义`'close'`事件的地方添加上述方法：
 
 ```js
       methods: {
@@ -1169,9 +1185,9 @@ We would encapsulate additional layout and logic inside the `overlay` component 
       },
 ```
 
-This event will be helpful to know when to switch from one overlay to the next at the start of the turn.
+此事件将有助于知道何时在回合开始时从一个叠加层切换到下一个。
 
-4.  Now, put a `<slot>` element inside the `.content` div:
+1.  现在，在`.content` div 中放置一个`<slot>`元素：
 
 ```js
       template: `<div class="overlay" @click="handleClick">
@@ -1181,7 +1197,7 @@ This event will be helpful to know when to switch from one overlay to the next a
       </div>`,
 ```
 
-Now, if we put something between the `overlay` tags when using our component, it will be included in the DOM and replace the `<slot>` tag. For example, we could do this:
+现在，如果我们在使用我们的组件时在`overlay`标签之间放置了一些内容，它将被包含在 DOM 中，并替换`<slot>`标签。例如，我们可以这样做：
 
 ```js
 <overlay>
@@ -1189,7 +1205,7 @@ Now, if we put something between the `overlay` tags when using our component, it
 </overlay>
 ```
 
-Also, it will render like this in the page:
+另外，它将在页面中呈现如下：
 
 ```js
 <div class="overlay">
@@ -1199,9 +1215,9 @@ Also, it will render like this in the page:
 </div>
 ```
 
-It works with anything, so you can also put HTML or Vue components, and it will still work the same way!
+它与任何内容一起使用，因此您也可以放置 HTML 或 Vue 组件，它仍将以相同的方式工作！
 
-5.  The component is ready to be used in the main template, so add it at the end:
+1.  该组件已准备好在主模板中使用，因此将其添加到最后：
 
 ```js
       <overlay>
@@ -1209,15 +1225,17 @@ It works with anything, so you can also put HTML or Vue components, and it will 
       </overlay>
 ```
 
-Each of the three overlay contents will be a separate component:
+这三个叠加层内容将是独立的组件：
 
-*   `overlay-content-player-turn` shows the beginning of the turn
-*   `overlay-content-last-play` displays the last card played by the opponent
-*   `overlay-content-game-over` shows when the game is over
++   `overlay-content-player-turn` 显示回合的开始
 
-Before diving into these, we need a bit more data about the two players in our state.
++   `overlay-content-last-play` 显示上一回合对手打出的最后一张卡片
 
-6.  Go back to the `state.js` file and add the following properties for each player:
++   `overlay-content-game-over`在游戏结束时显示
+
+在深入研究这些内容之前，我们需要有关状态中两个玩家的一些更多数据。
+
+1.  回到`state.js`文件，并为每个玩家添加以下属性：
 
 ```js
       // Starting stats
@@ -1232,11 +1250,11 @@ Before diving into these, we need a bit more data about the two players in our s
       dead: false,
 ```
 
-You should now have two items in the `players` array with the same properties, expect for the player names.
+现在，你应该在`players`数组中有两个具有相同属性的项目，除了玩家名称。
 
-# The 'player turn' overlay
+# '玩家回合'叠加层
 
-The first overlay will display two different messages to the current player, depending on whether it is skipping their turn or not. The player prop will receive the current player so that we can access its data. We will use a `v-if` directive paired with a `v-else` directive and the `skipTurn` property we just added to the players:
+第一个叠加层将向当前玩家显示两条不同的消息，具体取决于是否跳过了他们的回合。玩家属性将接收当前玩家，以便我们可以访问其数据。我们将使用`v-if`指令与`v-else`指令和刚刚添加到玩家的`skipTurn`属性：
 
 ```js
  Vue.component('overlay-content-player-turn', {
@@ -1249,9 +1267,9 @@ The first overlay will display two different messages to the current player, dep
       })
 ```
 
-# The 'last play' overlay
+# '最后一次出牌'叠加层
 
-This one is a bit more complex. We need a new function to get the last played card by a player. In the `utils.js` file, add the new `getLastPlayedCard` function:
+这个比较复杂。我们需要一个新函数来获取玩家最后打出的卡片。在`utils.js`文件中，添加新函数`getLastPlayedCard`：
 
 ```js
 function getLastPlayedCard (player) {
@@ -1259,7 +1277,7 @@ function getLastPlayedCard (player) {
 }
 ```
 
-We can now use this function in a `lastPlayedCard` computed property by passing the `opponent` prop:
+我们现在可以通过传递`opponent`prop 在`lastPlayedCard`计算属性中使用此函数：
 
 ```js
 Vue.component('overlay-content-last-play', {
@@ -1279,11 +1297,11 @@ Vue.component('overlay-content-last-play', {
 })
 ```
 
-Note that we are directly reusing the `card` component we made earlier to display the card.
+请注意，我们是直接重用了之前创建的`card`组件来展示卡片。
 
-# The 'game over' overlay
+# '游戏结束'叠加层
 
-For this one, we will create another component called `player-result` that will show whether a player is victorious or defeated. We will display the name of the player passed with a prop. We will compute the result for this player with a computed property, which we will also use as a dynamic CSS class:
+对于这个，我们将创建另一个组件，名为`player-result`，它将显示玩家是胜利还是失败。我们将通过一个 prop 传递玩家的名称。我们将使用计算属性为该玩家计算结果，并将其作为动态 CSS 类使用：
 
 ```js
 Vue.component('player-result', {
@@ -1300,7 +1318,7 @@ Vue.component('player-result', {
 })
 ```
 
-Now, we can create the game over overlay by looping over the `players` props and using the `player-result` component:
+现在，我们可以通过循环遍历`players`属性并使用`player-result`组件来创建游戏结束叠加层：
 
 ```js
 Vue.component('overlay-content-game-over', {
@@ -1312,11 +1330,11 @@ Vue.component('overlay-content-game-over', {
 })
 ```
 
-# Dynamic component
+# 动态组件
 
-Now, it is time to put all of these into our overlay component and use the `activeOverlay` property we defined earlier.
+现在，是时候将所有这些内容放入我们的叠加层组件中，并使用之前定义的`activeOverlay`属性。
 
-1.  Add the components and display them with the corresponding value of `activeOverlay` in the main template:
+1.  添加组件并在主模板中使用相应的`activeOverlay`值来显示它们：
 
 ```js
       <overlay v-if="activeOverlay">
@@ -1329,11 +1347,11 @@ Now, it is time to put all of these into our overlay component and use the `acti
       </overlay>
 ```
 
-We will remove the overlay completely if the `activeOverlay` property is equal to `null`.
+如果`activeOverlay`属性等于`null`，我们将完全移除叠加层。
 
-Before adding the props, we will need to modify the app state in the `state.js` file with a few getters.
+在添加 props 之前，我们将需要修改`state.js`文件中的应用程序状态，并添加一些 getter 函数。
 
-2.  The first one will return the `player` object from the `currentPlayerIndex` property:
+1.  第一个将从`currentPlayerIndex`属性返回`player`对象：
 
 ```js
       get currentPlayer () {
@@ -1341,7 +1359,7 @@ Before adding the props, we will need to modify the app state in the `state.js` 
       },
 ```
 
-3.  The second one will return the opposing `player` index:
+1.  第二个将返回对手的`player`索引：
 
 ```js
       get currentOpponentId () {
@@ -1349,7 +1367,7 @@ Before adding the props, we will need to modify the app state in the `state.js` 
       },
 ```
 
-4.  Finally, the third one will return the corresponding player object:
+1.  最后，第三个将返回相应的玩家对象：
 
 ```js
       get currentOpponent () {
@@ -1357,7 +1375,7 @@ Before adding the props, we will need to modify the app state in the `state.js` 
       },
 ```
 
-5.  Now, we can add the props to the overlay contents:
+1.  现在，我们可以为叠加层内容添加 props：
 
 ```js
       <overlay v-if="activeOverlay">
@@ -1373,7 +1391,7 @@ Before adding the props, we will need to modify the app state in the `state.js` 
       </overlay>
 ```
 
-You can test the overlays by setting the `activeOverlay` property in the browser console:
+你可以通过在浏览器控制台中设置`activeOverlay`属性来测试这些叠加层：
 
 ```js
 state.activeOverlay = 'player-turn'
@@ -1382,24 +1400,24 @@ state.activeOverlay = 'game-over'
 state.activeOverlay = null
 ```
 
-If you want to test the `last-play` overlay, you need to specify a valid value to the player `lastPlayedCardId` property, such as `'catapult'` or `'farm'`.
+如果你想测试`last-play`叠加层，你需要为玩家的`lastPlayedCardId`属性指定一个有效的值，如`'catapult'`或`'farm'`。
 
-Our code is starting to be messy, with three conditionals. Thankfully, there is a special component that can turn itself into any component--it is the `component` component. You just have to set its `is` prop to a component name, a component definition object, or even an HTML tag, and it will morph into it:
+我们的代码开始变得杂乱，在三个条件语句中。幸运的是，有一个特殊的组件可以将自身转换为任何组件 - 那就是`component`组件。只需将其`is`属性设置为组件名称，组件定义对象，甚至是 HTML 标签，它将变形为该组件：
 
 ```js
 <component is="h1">Title</component>
 <component is="overlay-content-player-turn" />
 ```
 
-It's a prop like any other, so we can use the `v-bind` directive to dynamically change the very nature of the component with a JavaScript expression. What if we used our `activeOverlay` property to do just that? Are our overlay content components conveniently named with the same `'over-content-'` prefix? Take a look:
+它就像任何其他的 prop 一样，所以我们可以使用`v-bind`指令来通过 JavaScript 表达式动态改变组件的本质。如果我们使用我们的`activeOverlay`属性来做到这一点会怎么样？我们的覆盖层内容组件是否方便地以相同的`'over-content-'`前缀命名？看一下：
 
 ```js
 <component :is="'overlay-content-' + activeOverlay" />
 ```
 
-That's it. Now, by changing the value of the `activeOverlay` property, we will change the component displayed inside the overlay.
+就是这样。现在，通过改变`activeOverlay`属性的值，我们将改变覆盖层内显示的组件。
 
-6.  After adding back the props, the overlay should look like this in the main template:
+1.  在添加回 props 后，主模板中的覆盖层应该如下所示：
 
 ```js
       <overlay v-if="activeOverlay">
@@ -1409,13 +1427,13 @@ That's it. Now, by changing the value of the `activeOverlay` property, we will c
       </overlay>
 ```
 
-Don't worry, unused props won't interfere with the different overlays workings.
+别担心，未使用的 props 不会影响不同覆盖层的工作方式。
 
-# The overlay animation
+# 覆盖层动画
 
-Like we did with the hand, we will use a transition to animate the overlay.
+就像我们用手做的那样，我们将使用过渡来动画显示覆盖层。
 
-1.  Add a transition called "zoom" around the overlay component:
+1.  在覆盖层组件周围添加一个名为“zoom”的过渡：
 
 ```js
       <transition name="zoom">
@@ -1427,7 +1445,7 @@ Like we did with the hand, we will use a transition to animate the overlay.
       </transition>
 ```
 
-2.  Add the following CSS rules in the `transition.css` file:
+1.  在`transition.css`文件中添加以下 CSS 规则：
 
 ```js
       .zoom-enter-active,
@@ -1442,18 +1460,19 @@ Like we did with the hand, we will use a transition to animate the overlay.
       }
 ```
 
-This is a simple animation that will zoom out the overlay while fading it out.
+这是一个简单的动画，会在淡出的同时缩小覆盖层。
 
-# Key attribute
+# 关键属性
 
-For now, if you try the animation in the browser, it should only work in two cases:
+现在，如果您在浏览器中尝试动画，它应该只在两种情况下起作用：
 
-*   When you don't have any overlay displayed, and you set one
-*   When you have an overlay shown and you set `activeOverlay` to `null` to hide it
++   当您没有显示任何覆盖层，并且您设置了一个时
 
-If you switch between the overlays, the animation will not work. This is because of the way Vue updates the DOM; as we saw earlier in the *The key special attribute* section, it will reuse DOM elements as much as possible to optimize performance. In that case, we will need to use the key special attribute to give Vue a hint that we would like to treat the different overlays as separate elements. So, when we transition from one overlay to the other, both will be present in the DOM, and the animations can be played.
++   当您有一个显示的覆盖层，并且您将`activeOverlay`设置为`null`以隐藏它时
 
-Let's add the key to our overlay component so that Vue will treat it as multiple separate elements when we change the `activeOverlay` value:
+如果您在不同的覆盖层之间切换，动画将不起作用。这是由于 Vue 更新 DOM 的方式；正如我们在*关键特殊属性*部分中看到的那样，它将尽可能地重用 DOM 元素以优化性能。在这种情况下，我们需要使用关键特殊属性来向 Vue 发出提示，表明我们希望将不同的覆盖层视为单独的元素。因此，当我们从一个覆盖层过渡到另一个覆盖层时，两者都将存在于 DOM 中，并且可以播放动画。
+
+让我们给我们的覆盖层组件添加键，这样 Vue 在更改`activeOverlay`值时将其视为多个单独的元素：
 
 ```js
 <transition name="zoom">
@@ -1463,13 +1482,13 @@ Let's add the key to our overlay component so that Vue will treat it as multiple
 </transition>
 ```
 
-Now, if we set `activeOverlay` to `'player-turn'`, the overlay will have a key of `'player-turn'`. Then, if we set `activeOverlay` to `'last-play'`, an entirely new overlay will be created with a key of `'last-play'`, and we can animate the transition between the two. You can try this in the browser by setting different values to `state.activeOverlay`.
+现在，如果我们将`activeOverlay`设置为`'player-turn'`，覆盖层将具有键为`'player-turn'`。然后，如果我们将`activeOverlay`设置为`'last-play'`，将创建一个完全新的键为`'last-play'`的覆盖层，我们可以在两者之间进行过渡动画。您可以在浏览器中通过将不同的值设置为`state.activeOverlay`来尝试此操作。
 
-# The overlay background
+# 覆盖层背景
 
-At this point, there is something missing--the overlay background. We can't include it inside the overlay component because it would be zoomed during the animation--this would be quite awkward. Instead, we will use the simple `fade` animation we have created already.
+此时，有些东西丢失了--覆盖层背景。我们不能将其包含在覆盖层组件内部，因为在动画期间它会被放大--这会非常尴尬。相反，我们将使用我们已经创建的简单`fade`动画。
 
-In the main template, add a new `div` element with the `overlay-background` class just before the `zoom` transition and the `overlay` component:
+在主模板中，在`zoom`过渡和`overlay`组件之前添加一个带有`overlay-background`类的新的`div`元素：
 
 ```js
 <transition name="fade">
@@ -1477,13 +1496,13 @@ In the main template, add a new `div` element with the `overlay-background` clas
 </transition>
 ```
 
-With the `v-if` directive, it will only be displayed when any overlay is displayed.
+使用`v-if`指令，只有在显示任何覆盖层时才会显示它。
 
-# Game world and scenery
+# 游戏世界和场景
 
-We are mostly done with the UI elements, so we can now go into the game scenery components. We will have some new components to do--the player castles, a health and food bubble for each one, and some animated clouds in the background for good measure.
+我们大部分完成了 UI 元素，所以现在我们可以进入游戏场景组件。我们将有一些新组件要做--玩家城堡，每个城堡都有一个健康和食物气泡，以及一些背景中的动画云，以增加乐趣。
 
-Create a new `world.js` file in the `components` folder, and include it in the page:
+在`components`文件夹中创建一个新的`world.js`文件，并在页面中包含它：
 
 ```js
 <!-- ... -->
@@ -1492,13 +1511,13 @@ Create a new `world.js` file in the `components` folder, and include it in the p
 <script src="img/main.js"></script>
 ```
 
-We will start with the castles.
+让我们从城堡开始。
 
-# The castles
+# 城堡们
 
-This one is actually pretty simple since it consists of only two images and a castle-banners component that will take care of the health and food display:
+这个实际上相当简单，因为它仅包含两个图像和一个城堡旗帜组件，主要负责显示健康和食物状态：
 
-1.  In the `world.js` file, create a new castle component with two images that accepts a `players` and an `index` prop:
+1.  在`world.js`文件中，创建一个新的城堡组件，其中包含接受`players`和`index`属性的两个图像：
 
 ```js
  Vue.component('castle', {
@@ -1511,9 +1530,9 @@ This one is actually pretty simple since it consists of only two images and a ca
       })
 ```
 
-For this component, there is a castle and a ground image for each player; that means four images in total. For example, for the player at index `0`, there are `castle0.svg` and the `ground0.svg` images.
+对于此组件，每个玩家有一个城堡和一个地面图像；这意味着总共有四幅图像。例如，对于索引为`0`的玩家，有`castle0.svg`和`ground0.svg`图像。
 
-2.  In the main template, just below the `top-bar` component, create a new `div` element with the `world` CSS class, loop over the players to display the two castles, and add another `div` element with the `land` class:
+1.  在主模板中，在`top-bar`组件的正下方，创建一个具有`world` CSS 类的新`div`元素，循环遍历玩家以显示两座城堡，并添加另一个具有`land`类的`div`元素：
 
 ```js
       <div class="world">
@@ -1523,22 +1542,23 @@ For this component, there is a castle and a ground image for each player; that m
       </div>
 ```
 
-In the browser, you should see one castle for each player, as follows:
+在浏览器中，应该看到每个玩家的一个城堡，如下所示：
 
 ![](img/fb8e96b4-1277-46dd-b2e7-8fe28baddcad.png)
 
-# Castle banners
+# 城堡旗帜
 
-The castle banners will display the health and food for the castle. There will be two components inside the `castle-banners` component:
+城堡旗帜将显示城堡的健康和食物。`castle-banners`组件内部将包含两个组件：
 
-*   A vertical banner whose height changes, depending of the amount of the stat
-*   A bubble with the actual number displayed
++   一个垂直的横幅，其高度根据状态的数量而变化
 
-It will look like this:
++   一个显示实际数字的气泡
+
+它将看起来像这样：
 
 ![](img/9673ab25-0535-4f51-a154-facc7e9087d3.png)
 
-1.  First, create a new `castle-banners` component with only the stat icons and a `player` prop:
+1.  首先，创建一个只包含状态图标和一个`player`属性的新`castle-banners`组件：
 
 ```js
  Vue.component('castle-banners', {
@@ -1557,7 +1577,7 @@ It will look like this:
       })
 ```
 
-2.  We also need two computed properties that calculate the health and food ratios:
+1.  我们还需要两个计算属性来计算健康和食物比例：
 
 ```js
       computed: {
@@ -1570,9 +1590,9 @@ It will look like this:
       }
 ```
 
-The `maxFood` and `maxHealth` variables are defined at the beginning of the `state.js` file.
+`maxFood`和`maxHealth`变量在`state.js`文件的开头定义。
 
-3.  In the `castle` component, add the new `castle-banners` component:
+1.  在`castle`组件中添加新的`castle-banners`组件：
 
 ```js
       template: `<div class="castle" :class="'player-' + index">
@@ -1582,25 +1602,27 @@ The `maxFood` and `maxHealth` variables are defined at the beginning of the `sta
       </div>`,
 ```
 
-# Food and health bubbles
+# 食物和健康气泡
 
-This component contains an image and a text that displays the current amount for either the food or health of the castle. Its position will change depending on this amount--it will go up as the amount diminishes and will go down when it replenishes.
+此组件包含一个图像和一个显示城堡食物或健康当前数量的文本。其位置将根据此数量变化--当数量减少时会上升，而在重新补充时会下降。
 
-We will need three props for this component:
+对于这个组件，我们将需要三个属性：
 
-*   `type` is either food or health; it will used for the CSS class and for the image path
-*   `value` is the amount displayed in the bubble
-*   `ratio` is the amount divided by the maximum amount
++   `type`是食物或健康之一；它将用于 CSS 类和图像路径
 
-We also need a computed property to calculate the vertical position of the bubble with the `ratio` prop. The position will range from 40 pixels to 260 pixels. So, the position value will be given by this expression:
++   `value`是在气泡中显示的数量
+
++   `ratio`是数量除以最大数量
+
+我们还需要一个计算属性来计算气泡随`ratio`属性的垂直位置。位置将在 40 像素到 260 像素之间变化。因此，位置值由以下表达式给出：
 
 ```js
 (this.ratio * 220 + 40) * state.worldRatio + 'px'
 ```
 
-Remember to multiply every position or size with the `worldRatio` value, so the game takes into account the window size (it gets bigger if the window is bigger, or vice versa).
+记得要用`worldRatio`值将每个位置或大小相乘，这样游戏才能考虑窗口大小（如果窗口更大，则它变大，反之亦然）。
 
-1.  Let's write our new `bubble` component:
+1.  让我们编写我们的新`bubble`组件：
 
 ```js
  Vue.component('bubble', {
@@ -1620,11 +1642,11 @@ Remember to multiply every position or size with the `worldRatio` value, so the 
       })
 ```
 
-It has a root `div` element with the `stat-bubble` CSS class, a dynamic class (either `'food-bubble'` or `'health-bubble'`, depending on the `type` prop value) plus a dynamic CSS style we set with the `bubbleStyle` computed property.
+它有一个根`div`元素，具有`stat-bubble` CSS 类，以及一个动态类（根据`type`属性值，可以是`'food-bubble'`或`'health-bubble'`），再加上我们用`bubbleStyle`计算属性设置的动态 CSS 样式。
 
-It contains an SVG image, which is not the same for food and health, and a `div` element with the `counter` class that displays the amount.
+它包含一个 SVG 图像，食物和健康不一样，并且一个具有`counter`类的`div`元素显示数量。
 
-2.  Add a food and an health bubble to the `castle-banners` component:
+1.  向`castle-banners`组件添加一个食物和一个健康气泡：
 
 ```js
       template: `<div class="banners">
@@ -1641,11 +1663,11 @@ It contains an SVG image, which is not the same for food and health, and a `div`
       </div>`,
 ```
 
-# Banner bars
+# 横幅条
 
-The other component we need is a vertical banner hanging up on one of the castle's towers. Its length will change depending on the amount of food or health. This time, we will create a dynamic SVG template so that we can modify the height of the banner.
+我们需要的另一个组件是挂在城堡塔楼上的垂直横幅。其长度将根据食物或健康的数量而变化。这一次，我们将创建一个动态 SVG 模板，以便我们可以修改横幅的高度。
 
-1.  First, create the component with two props (the color and the ratio) and the `height` computed property:
+1.  首先，使用两个属性（颜色和比例）和计算属性`height`创建组件：
 
 ```js
  Vue.component('banner-bar', {
@@ -1658,10 +1680,11 @@ The other component we need is a vertical banner hanging up on one of the castle
       })
 ```
 
-For now, we defined our templates in two different ways--we either used the HTML of our page or we set a string into the `template` option of our components. We will use another method of writing component templates--a special script tag in the HTML. It works by writing the template inside this script tag with a unique ID and referencing this ID when defining the component.
+到目前为止，我们以两种不同的方式定义了我们的模板——我们要么使用了我们页面的 HTML，要么将字符串设置为组件的`template`选项。我们将使用另一种编写组件模板的方法——在 HTML 中使用特殊的脚本标签。通过在此脚本标签内部编写带有唯一 ID 的模板，并在定义组件时引用此 ID，它的工作原理是。
 
-2.  Open the `banner-template.svg` file, which contains the SVG markup of the banner image we will use as a dynamic template. Copy the content of the file.
-3.  In the `index.html` file, after the `<div id="app">` element, add a `script` tag with the `text/x-template` type and the `banner` ID, and paste the `svg` content inside:
+1.  打开`banner-template.svg`文件，其中包含我们将用作动态模板的横幅图像的 SVG 标记。复制文件的内容。
+
+1.  在`<div id="app">`元素后的`index.html`文件中，添加一个`script`标签，类型为`text/x-template`，并带有`banner`ID，然后粘贴`svg`内容：
 
 ```js
       <script type="text/x-template" id="banner">
@@ -1672,9 +1695,9 @@ For now, we defined our templates in two different ways--we either used the HTML
       </script>
 ```
 
-As you can see, this is a standard template with all the syntax and directives available to use. Here, we use the `v-bind` directive shorthand twice. Note that you can use SVG markup inside all of your Vue templates.
+正如您所看到的，这是一个标准模板，具有可用于使用的所有语法和指令。在这里，我们两次使用了`v-bind`指令的缩写。请注意，您可以在所有 Vue 模板中使用 SVG 标记。
 
-4.  Now, back in our component definition, add the `template` option with the ID of our script tag template preceded by a hashtag:
+1.  现在，回到我们的组件定义中，添加`template`选项，并使用井号标记前面的脚本标签模板的 ID：
 
 ```js
       Vue.component('banner-bar', {
@@ -1683,9 +1706,9 @@ As you can see, this is a standard template with all the syntax and directives a
       })
 ```
 
-Done! The component will now look up for a scrip tag template with the `banner` ID in the page and will use it as its template.
+完成！该组件现在将查找页面中带有`banner`ID 的脚本标签模板，并将其用作模板。
 
-5.  In the `castle-banners` component, add the two remaining `banner-bar` components with the corresponding colors and ratios:
+1.  在`castle-banners`组件中，使用相应的颜色和比例添加另外两个`banner-bar`组件：
 
 ```js
       template: `<div class="banners">
@@ -1704,13 +1727,13 @@ Done! The component will now look up for a scrip tag template with the `banner` 
       </div>`,
 ```
 
-You should now see the banners that hang up on the castles and shrink if you change the food and health values.
+现在，您应该能够看到悬挂在城堡上的横幅，并且如果您更改食物和健康值，则它们会收缩。
 
-# Animating a value
+# 动画化数值
 
-These banners would be prettier if we could animate them when they shrink or grow. We can't rely on CSS transitions since we need to dynamically change the SVG path, so we need another way--we will animate the value of the `height` property used in the template.
+如果我们可以在它们收缩或扩展时对它们进行动画处理，这些横幅会更漂亮。我们不能依赖于 CSS 过渡，因为我们需要动态更改 SVG 路径，所以我们需要另一种方式——我们将动画化模板中使用的`height`属性的值。
 
-1.  First, let's rename our template computed property to `targetHeight`:
+1.  首先，让我们将模板的计算属性重命名为`targetHeight`：
 
 ```js
       computed: {
@@ -1720,9 +1743,9 @@ These banners would be prettier if we could animate them when they shrink or gro
       },
 ```
 
-This `targetHeight` property will be calculated only once whenever the ratio changes.
+`targetHeight`属性将在比例变化时仅计算一次。
 
-2.  Add a new `height` data property that we will be able to animate each time `targetHeight` changes:
+1.  添加一个新的`height`数据属性，我们将能够在`targetHeight`更改时对其进行动画处理：
 
 ```js
  data () {
@@ -1732,7 +1755,7 @@ This `targetHeight` property will be calculated only once whenever the ratio cha
       },
 ```
 
-3.  Initialize the value of `height` with the value of `targetHeight` when the component has been created. Do this in the `created` hook:
+1.  在组件创建后，在`created`钩子中将`height`的值初始化为`targetHeight`的值：
 
 ```js
  created () {
@@ -1740,9 +1763,9 @@ This `targetHeight` property will be calculated only once whenever the ratio cha
       },
 ```
 
-To animate the height value, we will use the popular `**TWEEN.js**` library, which is already included in the `index.html` file. This library works by creating a new `Tween` object that takes the starting values, an easing function, and the ending values. It provide callbacks such as `onUpdate` that we will use to update the `height` property from the animation.
+为了使高度值动画化，我们将使用流行的`**TWEEN.js**`库，该库已经包含在`index.html`文件中。该库通过创建一个新的`Tween`对象来工作，该对象采用起始值、缓动函数和结束值。它提供了诸如`onUpdate`之类的回调，我们将使用这些回调来更新动画的`height`属性。
 
-4.  We would like to start the animation whenever the `targetHeight` property changes, so add a watcher with the following animation code:
+1.  我们希望在`targetHeight`属性更改时启动动画，因此添加一个带有以下动画代码的监视程序：
 
 ```js
  watch: {
@@ -1759,9 +1782,9 @@ To animate the height value, we will use the popular `**TWEEN.js**` library, whi
       },
 ```
 
-The `this` context in the `onUpdate` callback is the `Tween` object and not the Vue component instance. That's why we need a good old temporary variable to hold the component instance `this` (here, that is the `vm` variable).
+`onUpdate` 回调中的 `this` 上下文是 `Tween` 对象，而不是 Vue 组件实例。这就是为什么我们需要一个好的临时变量来保存组件实例 `this`（这里，`vm` 变量就是那个）。
 
-5.  We need one last thing to make our animation work. In the `main.js` file, request the paint frames from the browser to make the `TWEEN.js` library tick, thanks to the browser's `requestAnimationFrame` function:
+1.  我们需要最后一件事来使我们的动画工作。在 `main.js` 文件中，请求浏览器从浏览器请求绘画帧以使 `TWEEN.js` 库滴答作响，感谢浏览器的 `requestAnimationFrame` 函数：
 
 ```js
       // Tween.js
@@ -1773,15 +1796,15 @@ The `this` context in the `onUpdate` callback is the `Tween` object and not the 
       }
 ```
 
-If the tab is in the background, the `requestAnimationFrame` function will wait for the tab to become visible again. This means the animations won't play if the user doesn't see the page, saving the computer resources and battery. Note that it is also the case for CSS transitions and animations.
+如果标签在后台，则 `requestAnimationFrame` 函数将等待标签再次变为可见。这意味着如果用户看不到页面，动画将不会播放，从而节省计算机资源和电池电量。请注意，CSS 过渡和动画也是如此。
 
-Now when you change the food or the health of a player, the banners will progressively shrink or grow.
+现在当你改变玩家的食物或健康状态时，横幅将逐渐缩小或增大。
 
-# The animated clouds
+# 动态云
 
-To add some life to the game world, we will create a few clouds that will slide in the sky. Their position and animation duration will be random and they will go from the left to the right of the window.
+为了为游戏世界增添一些生气，我们将创建一些在天空中滑动的云。它们的位置和动画持续时间将是随机的，它们将从窗口的左侧移动到右侧。
 
-1.  In the `world.js file`, add the minimum and maximum durations for the cloud animation:
+1.  在 `world.js 文件` 中，添加云动画的最小和最大持续时间：
 
 ```js
       const cloudAnimationDurations = {
@@ -1790,7 +1813,7 @@ To add some life to the game world, we will create a few clouds that will slide 
       }
 ```
 
-2.  Then, create the cloud component with an image and a `type` prop:
+1.  然后，创建云组件，包括图像和 `type` 属性：
 
 ```js
  Vue.component('cloud', {
@@ -1801,9 +1824,9 @@ To add some life to the game world, we will create a few clouds that will slide 
       })
 ```
 
-There will be five different clouds, so the `type` prop will range from 1 to 5.
+将有五个不同的云，因此 `type` 属性将从 1 到 5。
 
-3.  We will need to change the `z-index` and `transform` CSS properties of the component with a reactive `style` data property:
+1.  我们将需要使用一个响应式的 `style` 数据属性来更改组件的 `z-index` 和 `transform` CSS 属性：
 
 ```js
  data () {
@@ -1816,13 +1839,13 @@ There will be five different clouds, so the `type` prop will range from 1 to 5.
       },
 ```
 
-4.  Apply these style properties with the `v-bind` directive:
+1.  使用 `v-bind` 指令应用这些样式属性：
 
 ```js
       <div class="cloud" :class="'cloud-' + type" :style="style">
 ```
 
-5.  Let's create a method to set the position of the cloud component using the `transform` CSS property:
+1.  让我们创建一个方法来使用 `transform` CSS 属性设置云组件的位置：
 
 ```js
       methods: {
@@ -1833,7 +1856,7 @@ There will be five different clouds, so the `type` prop will range from 1 to 5.
       }
 ```
 
-6.  We need to initialize the horizontal position of the cloud when the image is loaded, so that it's outside of the viewport. Create a new `initPosition` that uses the `setPosition` method:
+1.  当图片加载时，我们需要初始化云的水平位置，使其位于视口之外。创建一个新的 `initPosition`，它使用 `setPosition` 方法：
 
 ```js
       methods: {
@@ -1846,17 +1869,17 @@ There will be five different clouds, so the `type` prop will range from 1 to 5.
       }
 ```
 
-7.  Add an event listener on the image with the `v-on` directive shorthand that listens to the `load` event and calls the `initPosition` method:
+1.  在图像上添加一个事件监听器，使用 `v-on` 指令缩写监听 `load` 事件并调用 `initPosition` 方法：
 
 ```js
       <img :src="img/cloud' + type + '.svg'" @load="initPosition" />
 ```
 
-# The animation
+# 动画
 
-Now, let's move on to the animation itself. Like we did for the castle banners, we will use the `TWEEN.js` library:
+现在，让我们继续进行动画本身。就像我们为城堡横幅所做的那样，我们将使用 `TWEEN.js` 库：
 
-1.  First, create a new `startAnimation` method that calculates a random animation duration and accepts a delay parameter:
+1.  首先，创建一个新的 `startAnimation` 方法，计算一个随机的动画持续时间，并接受一个延迟参数：
 
 ```js
       methods: {
@@ -1880,9 +1903,9 @@ Now, let's move on to the animation itself. Like we did for the castle banners, 
       }
 ```
 
-The faster a cloud is, the lower its animation duration will be. Faster clouds will be displayed before slower clouds, thanks to the `z-index` CSS property.
+云越快，其动画持续时间就越低。更快的云将在较慢的云之前显示，这要归功于 `z-index` CSS 属性。
 
-2.  Inside the `startAnimation` method, calculate a random vertical position for the cloud and then create a `Tween` object. It will animate the horizontal position with a delay and set the position of the cloud each time it updates. When it completes, we will start another animation with a random delay:
+1.  在 `startAnimation` 方法内部，计算云的随机垂直位置，然后创建一个 `Tween` 对象。它将以延迟动画水平位置，并在每次更新时设置云的位置。当它完成时，我们将以随机延迟启动另一个动画：
 
 ```js
       // Random position
@@ -1901,7 +1924,7 @@ The faster a cloud is, the lower its animation duration will be. Faster clouds w
         .start()
 ```
 
-3.  In the `mounted` hook of the component, call the `startAnimation` method to begin the initial animation (with a random delay):
+1.  在组件的 `mounted` 钩子中，调用 `startAnimation` 方法开始初始动画（带有随机延迟）：
 
 ```js
  mounted () {
@@ -1912,9 +1935,9 @@ The faster a cloud is, the lower its animation duration will be. Faster clouds w
       },
 ```
 
-Our cloud component is ready.
+我们的云组件已准备好。
 
-4.  Add some clouds to the main template in the `world` element:
+1.  在 `world` 元素的主模板中添加一些云：
 
 ```js
       <div class="clouds">
@@ -1922,28 +1945,33 @@ Our cloud component is ready.
       </div>
 ```
 
-Be careful to pass a value to the `type` prop ranging from 1 to 5\. Here, we use the `%` operator to return the division remainder for 5.
+要小心将值传递给 `type` 属性，其取值范围为 1 到 5。在这里，我们使用 `%` 运算符来返回 5 的除法余数。
 
-Here is what it should look like:
+它应该是这样的：
 
-![](img/52782d12-755c-4eb2-bbe8-811741339acf.png)
+![图片](img/52782d12-755c-4eb2-bbe8-811741339acf.png)
 
-# Gameplay
+# 游戏过程
 
-All of our components are done! We only need to add some gameplay logic for the app to be playable. When the game begins, each players draws their initial hand of cards.
+所有的组件都完成了！ 我们只需要为应用添加一些游戏逻辑，使其可玩。 游戏开始时，每个玩家都会抽取他们的初始手牌。
 
-Then, each player's turn follows these steps:
+然后，每个玩家的回合都按照以下步骤进行：
 
-1.  The `player-turn` overlay is displayed so that the player knows it's their turn.
-2.  The `last-play` overlay shows them what the other player played during the last run.
-3.  The player plays a card by clicking on it.
-4.  The card is removed from their hand and its effects applied.
-5.  We wait a bit so that the player can see these effects in action.
-6.  Then, the turn ends, and we switch the current player to the other one.
+1.  `player-turn`覆盖层显示，以便玩家知道轮到他们了。
 
-# Drawing cards
+1.  `last-play`覆盖层显示了上次游戏中另一位玩家打出的牌。
 
-Before drawing the cards, we will need to add two properties to the app state in the `state.js` file:
+1.  玩家通过点击卡片来出牌。
+
+1.  卡片从他们的手中移除，并应用其效果。
+
+1.  我们稍等一下，以便玩家可以看到这些效果的发生。
+
+1.  然后，回合结束，并将当前玩家切换到另一个玩家。
+
+# 抽牌
+
+在抽牌之前，我们需要在`state.js`文件中的应用状态中添加两个属性：
 
 ```js
 var state = {
@@ -1953,21 +1981,21 @@ var state = {
 }
 ```
 
-The `drawPile` property is the pile of cards that can be drawn by the players. It is initialized with the `pile` object defined in the `cards.js` file. Each key is the ID of a card definition, and the value is the amount of cards of this type in the pile.
+`drawPile`属性是玩家可以抽取的牌堆。 它使用在`cards.js`文件中定义的`pile`对象进行初始化。 每个键都是卡片定义的 ID，值是此类型卡片在堆叠中的数量。
 
-The `discardPile` property is the equivalent of the `drawPile` property, but it serves a different purpose--all the cards played by the player will be removed from their hand and put into the discard pile. At some point, if the draw pile is empty, it will be refilled with the discard pile (which will be emptied).
+`discardPile`属性是`drawPile`属性的等价物，但它有不同的用途--玩家打出的所有卡片都将从他们的手中移除并放入弃牌堆中。 在某个时刻，如果抽牌堆为空，它将被弃牌堆重新填充（弃牌堆将被清空）。
 
-# The initial hand
+# 初始手牌
 
-At the beginning of the game, each player draws some cards.
+游戏开始时，每个玩家都会抽取一些牌。
 
-1.  In the `utils.js` file, there is a function that draws the hand of a player:
+1.  在`utils.js`文件中，有一个函数用于抽取玩家的手牌：
 
 ```js
       drawInitialHand(player)
 ```
 
-2.  In the `main.js` file, add a new `beginGame` function that calls the `drawInitialHand` function for each player:
+1.  在`main.js`文件中，添加一个调用`drawInitialHand`函数为每个玩家发牌的新的`beginGame`函数：
 
 ```js
       function beginGame () {
@@ -1975,7 +2003,7 @@ At the beginning of the game, each player draws some cards.
       }
 ```
 
-3.  Call this inside the `mounted` hook of our main component in the `main.js` file, when the app is ready:
+1.  当应用准备就绪时，在`main.js`文件中我们的主组件的`mounted`钩子内调用此函数：
 
 ```js
  mounted () {
@@ -1983,11 +2011,11 @@ At the beginning of the game, each player draws some cards.
       },
 ```
 
-# The hand
+# 手牌
 
-To display the cards in the current player hand, we need a new getter in the app state:
+要显示当前玩家手中的卡片，我们需要在应用状态中添加一个新的 getter：
 
-1.  Add the `currentHand` getter to the `state` object in the `state.js` file:
+1.  在`state.js`文件中的`state`对象中添加`currentHand`的 getter：
 
 ```js
       get currentHand () {
@@ -1995,14 +2023,14 @@ To display the cards in the current player hand, we need a new getter in the app
       },
 ```
 
-2.  We can now remove the `testHand` property and replace it with `currentHand` in the main template:
+1.  我们现在可以在主模板中删除`testHand`属性，并用`currentHand`替换它： 
 
 ```js
       <hand v-if="!activeOverlay" :cards="currentHand" @card-            
       play="testPlayCard" />
 ```
 
-3.  You can also remove the `createTestHand` method and this `created` hook we wrote on the main component for testing purposes:
+1.  你也可以移除`main`组件上为测试目的编写的`createTestHand`方法和这个`created`钩子：
 
 ```js
       created () {
@@ -2010,19 +2038,21 @@ To display the cards in the current player hand, we need a new getter in the app
       },
 ```
 
-# Playing a card
+# 出牌
 
-Playing the card is split into the following three steps:
+出牌分为以下三个步骤：
 
-1.  We remove the card from the player's hand and add it to the pile. This triggers the card animation.
-2.  We wait for the card animation to finish.
-3.  We apply the effect of the card.
+1.  我们将卡片从玩家手中移除并将其添加到堆叠中。 这会触发卡片动画。
 
-# No cheating allowed
+1.  我们等待卡片动画完成。
 
-When playing, cheating shouldn't be allowed. When writing the gameplay logic, we should keep this in mind:
+1.  我们应用卡片的效果。
 
-1.  Let's start by adding a new `canPlay` property to the app state in the `state.js` file:
+# 不允许作弊
+
+在游戏中，不应允许作弊。 在编写游戏逻辑时，我们应该记住这一点：
+
+1.  让我们首先在`state.js`文件中的应用状态中添加一个新的`canPlay`属性：
 
 ```js
       var state = {
@@ -2031,11 +2061,11 @@ When playing, cheating shouldn't be allowed. When writing the gameplay logic, we
       }
 ```
 
-This will prevent the player from playing a card, if it has been already played during their turn--we have a lot of animation and waiting going on, so we don't want them to cheat.
+这将阻止玩家在他们的回合中重复出牌--我们有很多动画和等待，所以我们不希望他们作弊。
 
-We will use it both when a player plays a card to check whether they played one already, and also in the CSS to disable mouse events on the hand cards.
+我们将在玩家出牌时使用它来检查他们是否已经出过牌，并且还将在 CSS 中使用它来禁用手牌上的鼠标事件。
 
-2.  So, add a `cssClass` computed property in the main component that will add the `can-play` CSS class if the `canPlay` property is true:
+1.  因此，在主组件中添加一个 `cssClass` 计算属性，如果 `canPlay` 属性为真，则添加 `can-play` CSS 类：
 
 ```js
       computed: {
@@ -2047,17 +2077,17 @@ We will use it both when a player plays a card to check whether they played one 
       },
 ```
 
-3.  And add a dynamic CSS class on the root `div` element in the main template:
+1.  并在主模板的根 `div` 元素上添加一个动态 CSS 类：
 
 ```js
       <div id="#app" :class="cssClass">
 ```
 
-# Removing the card from the hand
+# 从手牌中移除卡牌
 
-When the card is played, it should be removed from the current player hand; follow these steps to do so:
+当卡牌被打出时，它应该从当前玩家手中移除；按照以下步骤执行：
 
-1.  Create a new `playCard` function in the `main.js` file that takes a card as an argument, checks whether the player can play a card, and then removes the card from their hand to put it into the discard pile with the `addCardToPile` function (defined in the `utils.js` file):
+1.  在 `main.js` 文件中创建一个新的 `playCard` 函数，接受一张卡牌作为参数，检查玩家是否可以打出卡牌，然后将卡牌从手牌中移除，放入弃牌堆中使用 `utils.js` 文件中定义的 `addCardToPile` 函数：
 
 ```js
       function playCard (card) {
@@ -2075,9 +2105,9 @@ When the card is played, it should be removed from the current player hand; foll
       }
 ```
 
-We store the card the player played in the `currentPlayingCard` variable, because we need to apply its effect later.
+我们将玩家打出的卡牌存储在 `currentPlayingCard` 变量中，因为我们稍后需要应用其效果。
 
-2.  In the main component, replace the `testPlayCard` method with a new `handlePlayCard` one that calls the `playCard` function:
+1.  在主组件中，用一个新的 `handlePlayCard` 方法替换 `testPlayCard` 方法，调用 `playCard` 函数：
 
 ```js
       methods: {
@@ -2087,27 +2117,27 @@ We store the card the player played in the `currentPlayingCard` variable, becaus
       },
 ```
 
-3.  Don't forget to change the event listener on the `hand` component in the main template:
+1.  别忘了在主模板中更改对 `hand` 组件的事件监听器：
 
 ```js
       <hand v-if="!activeOverlay" :cards="currentHand" @card- 
  play="handlePlayCard" />
 ```
 
-# Waiting for the card transition to end
+# 等待卡牌过渡结束
 
-When the card is played, which means removed from the hand card list, it triggers a leaving animation. We would like to wait for it to finish before continuing. Fortunately, the `transition` and `transition-group` components emit events.
+当卡牌被打出时，也就是从手牌列表中移除时，它会触发一个离开动画。我们希望在继续之前等待它完成。幸运的是，`transition` 和 `transition-group` 组件会发出事件。
 
-The one we need here is the `'after-leave'` event, but there are other events corresponding to each phase of the transitions--`'before-enter'`, `'enter'`, `'after-enter'`, and so on.
+我们这里需要的是 `'after-leave'` 事件，但是每个转换阶段都对应着其他事件——`'before-enter'`、`'enter'`、`'after-enter'`等。
 
-1.  In the `hand` component, add an event listener of the type `'after-leave'`:
+1.  在 `hand` 组件中，添加一个 `'after-leave'` 类型的事件监听器：
 
 ```js
       <transition-group name="card" tag="div" class="cards" @after- 
  leave="handleLeaveTransitionEnd">
 ```
 
-2.  Create the corresponding method that emits a `'card-leave-end'` event to the main template:
+1.  创建相应的方法，向主模板发出 `'card-leave-end'` 事件：
 
 ```js
       methods: {
@@ -2118,14 +2148,14 @@ The one we need here is the `'after-leave'` event, but there are other events co
       },
 ```
 
-3.  In the main template, add a new event listener of the `'card-leave-end'` type on the `hand` component:
+1.  在主模板中，在 `hand` 组件上添加一个 `'card-leave-end'` 类型的新事件监听器：
 
 ```js
       <hand v-if="!activeOverlay" :cards="currentHand" @card-                
       play="handlePlayCard" @card-leave-end="handleCardLeaveEnd" />
 ```
 
-4.  Create the corresponding method:
+1.  创建相应的方法：
 
 ```js
       methods: {
@@ -2137,13 +2167,13 @@ The one we need here is the `'after-leave'` event, but there are other events co
       }
 ```
 
-We will write its logic a bit later.
+我们稍后会编写它的逻辑。
 
-# Applying the card effect
+# 应用卡牌效果
 
-After the animation is played, the card effects will be applied to the players. For example, it could increase the current player's food or decrease the opponent's health.
+动画播放后，将为玩家应用卡牌效果。例如，它可能增加当前玩家的食物量或减少对手的生命值。
 
-1.  In the `main.js` file, add the `applyCard` function that uses the `applyCardEffect` defined in the `utils.js` file:
+1.  在 `main.js` 文件中，添加使用 `utils.js` 文件中定义的 `applyCardEffect` 的 `applyCard` 函数：
 
 ```js
       function applyCard () {
@@ -2153,9 +2183,9 @@ After the animation is played, the card effects will be applied to the players. 
       }
 ```
 
-Then, we will wait for some time so that the player can see the effects being applied and understand what is going on. Then, we will check whether at least one player is dead to end the game (thanks to the `checkPlayerLost` function defined in `utils.js`) or continue to the next turn.
+然后，我们将等待一段时间，以便玩家能够看到效果被应用，并了解正在发生的事情。然后，我们将检查至少有一名玩家是否已死亡以结束游戏（借助 `utils.js` 中定义的 `checkPlayerLost` 函数），或者继续下一回合。
 
-2.  In the `applyCard` function, add the following corresponding logic:
+1.  在 `applyCard` 函数中，添加以下相应逻辑：
 
 ```js
       // Wait a bit for the player to see what's going on
@@ -2171,7 +2201,7 @@ Then, we will wait for some time so that the player can see the effects being ap
       }, 700)
 ```
 
-3.  For now, add the empty `nextTurn` and `endGame` functions just after the `applyCard` one:
+1.  现在，就在 `applyCard` 函数之后添加空的 `nextTurn` 和 `endGame` 函数：
 
 ```js
       function nextTurn () {
@@ -2183,7 +2213,7 @@ Then, we will wait for some time so that the player can see the effects being ap
       }
 ```
 
-4.  We can now change the `handleCardLeaveEnd` method in the main component to call the `applyCard` function we just created:
+1.  现在我们可以在主组件中修改 `handleCardLeaveEnd` 方法，调用我们刚刚创建的 `applyCard` 函数：
 
 ```js
       methods: {
@@ -2195,11 +2225,11 @@ Then, we will wait for some time so that the player can see the effects being ap
       }
 ```
 
-# The next turn
+# 下一个回合
 
-The `nextTurn` function is quite simple--we will increment the turn counter by one, change the current player, and display the player-turn overlay.
+`nextTurn` 函数非常简单——我们将回合计数器增加一，更改当前玩家，并显示玩家回合覆盖层。
 
-Add the corresponding code into the `nextTurn` function:
+将相应的代码添加到 `nextTurn` 函数中：
 
 ```js
 function nextTurn () {
@@ -2209,11 +2239,11 @@ function nextTurn () {
 }
 ```
 
-# New turn
+# 新的回合
 
-We also need some logic when a turn begins after the overlays:
+在覆盖层之后，回合开始时我们还需要一些逻辑：
 
-1.  First is the `newTurn` function that hides any active overlay; it either skips the turn of the current player because of a card or starts the turn:
+1.  首先是`newTurn`函数，它隐藏了任何活动的叠加层；它要么跳过当前玩家的回合，因为有一张卡片，要么开始回合：
 
 ```js
       function newTurn () {
@@ -2226,9 +2256,9 @@ We also need some logic when a turn begins after the overlays:
       }
 ```
 
-A player will have their turn skipped if its `skipTurn` property is true--this property will be set by some of the cards. They also have a `skippedTurn` property, which we will need to show the next player that their opponent has skipped their last turn in the `last-play` overlay.
+如果玩家的`skipTurn`属性为 true，那么他们的回合将被跳过——这个属性将由一些卡片设置。他们还有一个`skippedTurn`属性，我们需要在`last-play`叠加层中向下一个玩家显示，告诉他们对手已经跳过了上一回合。
 
-2.  Create the `skipTurn` function that sets `skippedTurn` to `true` and the `skipTurn` property to `false` and go directly to the next turn:
+1.  创建`skipTurn`函数，将`skippedTurn`设置为`true`，将`skipTurn`属性设置为`false`并直接进入下一轮：
 
 ```js
       function skipTurn () {
@@ -2238,7 +2268,7 @@ A player will have their turn skipped if its `skipTurn` property is true--this p
       }
 ```
 
-3.  Create the `startTurn` function, which reset the `skippedTurn` property of the player and makes them draw a card if it's their second turn (so that they always have five cards at the beginning of their turn):
+1.  创建`startTurn`函数，它重置了玩家的`skippedTurn`属性，并使他们在第二轮时抽一张卡片（这样他们每回合开始时都有五张卡片）：
 
 ```js
       function startTurn () {
@@ -2256,13 +2286,13 @@ A player will have their turn skipped if its `skipTurn` property is true--this p
       }
 ```
 
-It is at this moment that we can allow the player to play a card using the `canPlay` property.
+就在这一刻，我们可以使用`canPlay`属性允许玩家打出一张卡片。
 
-# Overlay close actions
+# 叠加关闭动作
 
-Now, we will need to handle the action triggered when the user clicks on each overlay. We will create a map, with the key being the type of overlay and the value a function called when the action is triggered.
+现在，我们需要处理当用户点击每个叠加层时触发的动作。我们将创建一个映射，键为叠加层类型，值为触发动作时调用的函数。
 
-1.  Add it in the `main.js` file:
+1.  将其添加到`main.js`文件中：
 
 ```js
       var overlayCloseHandlers = {
@@ -2284,9 +2314,9 @@ Now, we will need to handle the action triggered when the user clicks on each ov
       }
 ```
 
-For the player-turn overlay, we only switch to the `last-play` overlay if it's the second or more turn, since at the start of the very first turn, the opponent does not play any card.
+对于玩家回合叠加层，只有在第二轮或更多轮时才切换到`last-play`叠加层，因为在第一轮开始时，对手不会打出任何卡片。
 
-2.  In the main component, add the `handleOverlayClose` method that calls the action function corresponding to the currently active overlay with the `activeOverlay` property:
+1.  在主组件中，添加`handleOverlayClose`方法，该方法调用与当前活动叠加层对应的动作函数，并传入`activeOverlay`属性：
 
 ```js
       methods: {
@@ -2297,16 +2327,16 @@ For the player-turn overlay, we only switch to the `last-play` overlay if it's t
       },
 ```
 
-3.  On the overlay component, add an event listener of the `'close'` type that will be triggered when the user clicks on the overlay:
+1.  在叠加层组件上，添加一个`'close'`类型的事件侦听器，当用户点击叠加层时触发：
 
 ```js
       <overlay v-if="activeOverlay" :key="activeOverlay"                  
       @close="handleOverlayClose">
 ```
 
-# Game Over!
+# 游戏结束！
 
-Finally, set the `activeOverlay` property to `'game-over'` inside the `endGame` function:
+最后，在`endGame`函数中将`activeOverlay`属性设置为`'game-over'`：
 
 ```js
 function endGame () {

@@ -78,10 +78,10 @@ UI 界面顶部将有一个条形菜单，显示回合计数器和两名玩家�
 
 ```js
 <!-- Scripts -->
-<script src="utils.js"></script>
-<script src="cards.js"></script>
-<script src="state.js"></script>
-<script src="main.js"></script>
+<script src="img/utils.js"></script>
+<script src="img/cards.js"></script>
+<script src="img/state.js"></script>
+<script src="img/main.js"></script>
 ```
 
 让我们在`main.js`文件中创建我们应用程序的主要实例：
@@ -114,7 +114,7 @@ new Vue({
 })
 ```
 
-在这里，我们使用了新的 JavaScript 字符串，带有```js character (back quote). It allows us, among other things, to write text spanning multiple lines, without having to write verbose string concatenations.
+在这里，我们使用了新的 JavaScript 字符串，带有`` ` ``字符（反引号）。它允许我们编写跨越多行的文本，而不必编写冗长的字符串连接。
 
 Now if you open the app, you should see the `'Hello world!'` text displayed. As you guessed, we won't inline the template in the `#app` element going forward.
 
@@ -124,17 +124,12 @@ As explained before, the `state.js` file will help us consolidate the main data 
 
 1.  The `state.js` file declares a state variable that we will use as the data of our app. We can use it directly as the data option, as follows:
 
-```
-
-new Vue（{
-
-// …
-
-数据：状态，
-
-}）
-
 ```js
+      new Vue({
+        // …
+        data: state,
+      })
+```
 
 Now, if you open the devtools, you should see the only data property already declared in the state object:
 
@@ -146,33 +141,23 @@ There is one thing missing, though--it is not recomputed when the window is resi
 
 2.  Inside the handler, update the `worldRatio` data property of the state. You can also display `worldRatio` in the template:
 
-```
-
-new Vue（{
-
-名字：'游戏'，
-
-el：'#app'，
-
-数据：状态，
-
-模板：`<div id =“＃app”>
-
-{{worldRatio}}
-
-</div>`,
-
-}）
-
-//窗口调整大小处理
-
-window.addEventListener('resize'，（）=> {
-
-state.worldRatio = getWorldRatio()
-
-}）
-
 ```js
+      new Vue({
+        name: 'game',
+        el: '#app',
+
+        data: state,
+
+        template: `<div id="#app">
+          {{ worldRatio }}
+        </div>`,
+      })
+
+      // Window resize handling
+      window.addEventListener('resize', () => {
+        state.worldRatio = getWorldRatio()
+      })
+```
 
 Try resizing your browser window horizontally--the `worldRatio` data property is updated in the Vue app.
 
@@ -182,45 +167,32 @@ You are right! However, we have set the Vue instance `data` property with the `s
 
 3.  To ensure that `state` is the app's reactive data, try comparing the instance data object and the global state object:
 
-```
-
-new Vue（{
-
-// ...
-
-mounted（）{
-
-console.log（this.$data === state）
-
-}，
-
-}）
-
 ```js
+      new Vue({
+        // ...
+        mounted () {
+          console.log(this.$data === state)
+        },
+      })
+```
 
 These are the same objects we set with the data option. So when you do:
 
-```
-
-this.worldRatio = 42
-
 ```js
+this.worldRatio = 42
+```
 
 You are also doing this:
 
-```
-
-this.$data.worldRatio = 42
-
 ```js
+this.$data.worldRatio = 42
+```
 
 This is, in fact, the same as follows:
 
-```
-
-state.worldRatio = 42
-
 ```js
+state.worldRatio = 42
+```
 
 This will be useful in the gameplay function that will use the state object to update the game data.
 
@@ -256,41 +228,24 @@ Before creating the component, we need some new data properties:
 
 Add them in the state in the `state.js` file:
 
-```
-
-//我们应用程序的整合状态
-
-var state = {
-
-//世界
-
-worldRatio：getWorldRatio（），
-
-//游戏
-
-回合：1，
-
-玩家：[
-
-{
-
-名字：'克利夫斯的安妮'，
-
-}，
-
-{
-
-名字：'光头的威廉'，
-
-}，
-
-]，
-
-currentPlayerIndex: Math.round(Math.random()),
-
-}
-
 ```js
+// The consolidated state of our app
+var state = {
+  // World
+  worldRatio: getWorldRatio(),
+  // Game
+  turn: 1,
+  players: [
+    {
+      name: 'Anne of Cleves',
+    },
+    {
+      name: 'William the Bald',
+    },
+  ],
+  currentPlayerIndex: Math.round(Math.random()),
+}
+```
 
 `Math.round(Math.random())` will use `0` or `1` randomly to choose who goes first.
 
@@ -302,21 +257,14 @@ We will write our UI components in a new file:
 
 1.  Create a `components` folder and a new `ui.js` file inside it. Include it in the main `index.html` page, just before the main script:
 
-```
-
-<!-- Scripts -->
-
-<script src="utils.js"></script>
-
-<script src="cards.js"></script>
-
-<script src="state.js"></script>
-
-<script src="components/ui.js"></script>
-
-<script src="main.js"></script>
-
 ```js
+      <!-- Scripts -->
+      <script src="img/utils.js"></script>
+      <script src="img/cards.js"></script>
+      <script src="img/state.js"></script>
+      <script src="img/ui.js"></script>
+      <script src="img/main.js"></script>
+```
 
 In this file, we will register our components, so it's important that the main Vue instance is created afterward, and not before. Else, we would get errors of components not being found.
 
@@ -324,39 +272,26 @@ To register a component, we can use the global `Vue.component()` function. It ta
 
 2.  Let's create the `top-bar` component in the `ui.js` file:
 
-```
-
-Vue.component('top-bar', {
-
-template: `<div class="top-bar">
-
-Top bar
-
-</div>`,
-
-})
-
 ```js
+ Vue.component('top-bar', {
+        template: `<div class="top-bar">
+          Top bar
+        </div>`,
+      })
+```
 
 Now, we can use the `top-bar` component in our templates, just like any other HTML tags, for instance, `<top-bar>`.
 
 3.  In the main template, add a new `top-bar` tag:
 
-```
-
-new Vue({
-
-// ...
-
-template: `<div id="#app">
-
-<top-bar/>
-
-</div>`,
-
-})
-
 ```js
+      new Vue({
+        // ...
+        template: `<div id="#app">
+          <top-bar/>
+        </div>`,
+      })
+```
 
 This template will create a new `top-bar` component and render it inside the `#app` element, using the definition object we just defined. If you open the devtools, you should see two entries:
 
@@ -374,49 +309,34 @@ To add props to a component definition, use the `props` option. For now, we will
 
 1.  Let's add the props to our component:
 
-```
-
-Vue.component('top-bar', {
-
-// ...
-
-props: ['players', 'currentPlayerIndex', 'turn'],
-
-})
-
 ```js
+      Vue.component('top-bar', {
+        // ...
+        props: ['players', 'currentPlayerIndex', 'turn'],
+      })
+```
 
 In the parent component, which is the root application, we can set the props value the exact same way we would for HTML attributes.
 
 2.  Go ahead and use the `v-bind` shorthand to wire the props value with the app data in the main template:
 
-```
-
-<top-bar :turn="turn" :current-player-index="currentPlayerIndex"
-
-:players="players" />
-
 ```js
+      <top-bar :turn="turn" :current-player-index="currentPlayerIndex"         
+      :players="players" />
+```
 
 Note that since HTML is case-insensitive and by convention, it is recommended to use the kebab-case (with dashes) names of our props, and the camel-case names in the JavaScript code.
 
 Now, we can use the props in our `top-bar` component just like data properties. For example, you could write something like this:
 
-```
-
-Vue.component('top-bar', {
-
-// ...
-
-created () {
-
-console.log(this.players)
-
-},
-
-})
-
 ```js
+Vue.component('top-bar', {
+  // ...
+  created () {
+    console.log(this.players)
+  },
+})
+```
 
 This would print the `players` array sent by the parent component (our app) in the browser console.
 
@@ -426,75 +346,49 @@ We will now use the props we created in the template of the `top-bar` component.
 
 1.  Change the `top-bar` template to display the player's name with the `players` prop:
 
-```
-
-template: `<div class="top-bar">
-
-<div class="player p0">{{ players[0].name }}</div>
-
-<div class="player p1">{{ players[1].name }}</div>
-
-</div>`,
-
 ```js
+      template: `<div class="top-bar">
+        <div class="player p0">{{ players[0].name }}</div>
+        <div class="player p1">{{ players[1].name }}</div>
+      </div>`,
+```
 
 As you can see in the preceding code, we are also using the props like we did with properties in templates. You should see the player names displayed in the app.
 
 2.  Continue with the turn counter between `players` using the `turn` prop:
 
-```
-
-template: `<div class="top-bar">
-
-<div class="player p0">{{ players[0].name }}</div>
-
-<div class="turn-counter">
-
-<div class="turn">Turn {{ turn }}</div>
-
-</div>
-
-<div class="player p1">{{ players[1].name }}</div>
-
-</div>`,
-
 ```js
+      template: `<div class="top-bar">
+        <div class="player p0">{{ players[0].name }}</div>
+        <div class="turn-counter">
+        <div class="turn">Turn {{ turn }}</div>
+        </div>
+        <div class="player p1">{{ players[1].name }}</div>
+        </div>`,
+```
 
 In addition to the label, we also want to display a big arrow facing the current player to make it more obvious.
 
 3.  Add the arrow image inside the `.turn-counter` element, and add a dynamic class using the `currentPlayerIndex` prop with the `v-bind` shorthand we used in Chapter 2, *Markdown Notebook*:
 
-```
-
-template: `<div class="top-bar" :class="'player-' +
-
-currentPlayerIndex">
-
-<div class="player p0">{{ players[0].name }}</div>
-
-<div class="turn-counter">
-
-<img class="arrow" src="svg/turn.svg" />
-
-<div class="turn">Turn {{ turn }}</div>
-
-</div>
-
-<div class="player p1">{{ players[1].name }}</div>
-
-</div>`,
-
 ```js
+      template: `<div class="top-bar" :class="'player-' + 
+ currentPlayerIndex">
+        <div class="player p0">{{ players[0].name }}</div>
+        <div class="turn-counter">
+          <img class="arrow" src="img/turn.svg" />
+          <div class="turn">Turn {{ turn }}</div>
+        </div>
+        <div class="player p1">{{ players[1].name }}</div>
+      </div>`,
+```
 
 Now, the app should display the fully featured top bar, with the two players, names and the turn counter between them. You can test the Vue-automated reactivity by typing these commands into the browser console:
 
-```
-
-state.currentPlayerIndex = 1
-
-state.currentPlayerIndex = 0
-
 ```js
+state.currentPlayerIndex = 1
+state.currentPlayerIndex = 0
+```
 
 You should see the arrow turning around to face the correct player name, which gets emphasized:
 
@@ -517,75 +411,52 @@ We need a new component to display any card, either in the player hand or in the
 
 1.  In the `components/ui.js` file, create a new `card` component:
 
-```
-
-Vue.component('card', {
-
-// Definition here
-
-})
-
 ```js
+ Vue.component('card', {
+        // Definition here
+      })
+```
 
 2.  This component will receive a `def` prop that will be the card definition object we described above. Declare it with the `props` option as we did for the `top-bar` component:
 
-```
-
-Vue.component('card', {
-
-props: ['def'],
-
-})
-
 ```js
+      Vue.component('card', {
+        props: ['def'],
+      })
+```
 
 3.  Now, we can add the template. Start with the main `div` element, with the `card` class:
 
-```
-
-Vue.component('card', {
-
-template: `<div class="card">
-
-</div>`,
-
-props: ['def'],
-
-})
-
 ```js
+      Vue.component('card', {
+        template: `<div class="card">
+        </div>`,
+        props: ['def'],
+      })
+```
 
 4.  To change the background color depending on the card type, add a dynamic CSS class that uses the `type` property of the card object:
 
-```
-
-<div class="card" :class="'type-' + def.type">
-
 ```js
+      <div class="card" :class="'type-' + def.type">
+```
 
 For example, if the card has the `'attack'` type, the element will get the `type-attack` class. Then, it will have a red background.
 
 5.  Now, add the title of the card with the corresponding class:
 
-```
-
-<div class="card" :class="'type-' + def.type">
-
-<div class="title">{{ def.title }}</div>
-
-</div>
-
 ```js
+      <div class="card" :class="'type-' + def.type">
+        <div class="title">{{ def.title }}</div>
+      </div>
+```
 
 6.  Add the separator image, which will display some lines between the card title and the description:
 
-```
-
-<div class="title">{{ def.title }}</div>
-
-<img class="separator" src="svg/card-separator.svg" />
-
 ```js
+      <div class="title">{{ def.title }}</div>
+      <img class="separator" src="img/card-separator.svg" />
+```
 
 After the image, append the description element.
 
@@ -593,83 +464,55 @@ Note that since the `description` property of the card object is an HTML-formatt
 
 7.  Use the `v-html` directive to display the description:
 
-```
-
-<div class="description"><div v-html="def.description"></div>
-
-</div>
-
 ```js
+      <div class="description"><div v-html="def.description"></div>             
+      </div>
+```
 
 You may have noted that we added a nested `div` element, which will contain the description text. This is to center the text vertically using CSS flexbox.
 
 8.  Finally, add the card note (which is also in an HTML-formatted text). Note that some cards don't have note, so we have to use the `v-if` directive here:
 
-```
-
-<div class="note" v-if="def.note"><div v-html="def.note"></div>
-
-</div>
-
 ```js
+      <div class="note" v-if="def.note"><div v-html="def.note"></div>        
+      </div>
+```
 
 The card component should now look like this:
 
-```
-
-Vue.component('card', {
-
-props: ['def'],
-
-template: `<div class="card" :class="'type-' + def.type">
-
-<div class="title">{{ def.title }}</div>
-
-<img class="separator" src="svg/card-separator.svg" />
-
-<div class="description"><div v-html="def.description"></div></div>
-
-<div class="note" v-if="def.note"><div v-html="def.note"></div></div>
-
-</div>`,
-
-})
-
 ```js
+Vue.component('card', {
+  props: ['def'],
+  template: `<div class="card" :class="'type-' + def.type">
+    <div class="title">{{ def.title }}</div>
+    <img class="separator" src="img/card-separator.svg" />
+    <div class="description"><div v-html="def.description"></div></div>
+    <div class="note" v-if="def.note"><div v-html="def.note"></div></div>
+  </div>`,
+})
+```
 
 Now, we can try our new card component in the main application component.
 
 9.  Edit the main template as follows and add a `card` component just after the top bar:
 
-```
-
-template: `<div id="#app">
-
-<top-bar :turn="turn" :current-player-
-
-index="currentPlayerIndex" :players="players" />
-
-<card :def="testCard" />
-
-</div>`,
-
 ```js
+      template: `<div id="#app">
+        <top-bar :turn="turn" :current-player-             
+         index="currentPlayerIndex" :players="players" />
+        <card :def="testCard" />
+      </div>`,
+```
 
 10.  We also need to define a temporary computed property:
 
-```
-
-computed: {
-
-testCard () {
-
-return cards.archers
-
-},
-
-},
-
 ```js
+ computed: {
+        testCard () {
+          return cards.archers
+        },
+      },
+```
 
 Now, you should see a red attack card with a title, description, and flavor text:
 
@@ -679,27 +522,19 @@ Now, you should see a red attack card with a title, description, and flavor text
 
 Let's try adding a click event handler on our card:
 
-```
-
-<card :def="testCard" @click="handlePlay" />
-
 ```js
+<card :def="testCard" @click="handlePlay" />
+```
 
 With a dumb method in the main component:
 
-```
-
-方法：{
-
-handlePlay（）{
-
-console.log（'你打出了一张牌！'）
-
-}
-
-}
-
 ```js
+methods: {
+  handlePlay () {
+    console.log('You played a card!')
+  }
+}
+```
 
 If you test this in the browser, you may be surprised that it doesn't work as expected. Nothing is output to the console...
 
@@ -707,11 +542,9 @@ This is because Vue has its own event system for components, called "custom even
 
 To get around this, you should use the `.native` modifier on the `v-on` directive, as follows:
 
-```
-
-<card：def="testCard" @click.native="handlePlay" />
-
 ```js
+<card :def="testCard" @click.native="handlePlay" />
+```
 
 Now, the `handlePlay` method is called when you click on the card, as expected.
 
@@ -719,61 +552,45 @@ Now, the `handlePlay` method is called when you click on the card, as expected.
 
 Previously, we used props to communicate from a parent component to its children. Now, we would like to do the opposite and communicate from one child component to its parent. For our card component, we would like to tell the parent component that the card is being played by the player when they click on it. We can't use props here, but we can use custom events. In our components, we can emit events that can be caught by the parent component with the `$emit` special method. It takes one mandatory argument, which is the event type:
 
-```
-
-this.$emit（'play'）
-
 ```js
+this.$emit('play')
+```
 
 We can listen to the custom events inside the same Vue instance with the `$on` special method:
 
-```
-
-this.$on（'play'，（）=> {
-
-console.log（'捕获了一个播放事件！'）
-
-}
-
 ```js
+this.$on('play', () => {
+  console.log('Caught a play event!')
+})
+```
 
 The `$emit` method also sends a `'play'` event to the parent component. We can listen to it in the parent component template with the `v-on` directive just like we did before:
 
-```
-
-<card v-on：play="handlePlay" />
-
 ```js
+<card v-on:play="handlePlay" />
+```
 
 You can also use the `v-bind` shorthand:
 
-```
-
-<card @play="handlePlay" />
-
 ```js
+<card @play="handlePlay" />
+```
 
 We can also add as many arguments as we like that will get passed to the handler methods:
 
-```
-
-this.$emit（'play'，'orange'，42）
-
 ```js
+this.$emit('play', 'orange', 42)
+```
 
 Here, we emitted a `'play'` event with the following two arguments-- `'orange'` and `42`.
 
 In the handle, we can get them via the arguments, as follows:
 
-```
-
-handlePlay（颜色，数字）{
-
-console.log（'处理播放事件'，'颜色=',颜色，'数字=',数字）
-
-}
-
 ```js
+handlePlay (color, number) {
+  console.log('handle play event', 'color=', color, 'number=', number)
+}
+```
 
 The `color` argument will have the `'orange'` value and the `number` argument will have the `42` value.
 
@@ -783,35 +600,25 @@ Back to our card component, we just need to emit a very simple event to tell the
 
 1.  First, add the method that will emit the event:
 
-```
-
-方法：{
-
-播放（）{
-
-this.$emit（'play'）
-
-}，
-
-}，
-
 ```js
+ methods: {
+        play () {
+          this.$emit('play')
+        },
+      },
+```
 
 2.  We would like to call this method when the user clicks on the card. Just listen to a browser click event on the main card `div` element:
 
-```
-
-<div class ="card"：class="'type-' + def.type" @click ="play">
-
 ```js
+      <div class="card" :class="'type-' + def.type" @click="play">
+```
 
 3.  We are done with the card component. To test this, listen to the `'play'` custom event in the main component template:
 
-```
-
-<card：def="testCard" @play="handlePlay" />
-
 ```js
+      <card :def="testCard" @play="handlePlay" />
+```
 
 Now, the `handlePlay` method will be called whenever the `'play'` event is emitted.
 
@@ -823,23 +630,15 @@ Our next component will be the current player hand, holding the five cards they 
 
 1.  In the `components/ui.js` file, add a component registration with the `'hand'` ID and a basic template, with two `div` elements:
 
-```
-
-Vue.component（'hand'，{
-
-模板：`<div class ="hand">
-
-<div class ="wrapper">
-
-<!--卡片-->
-
-</ div>
-
-</ div> `,
-
-}
-
 ```js
+ Vue.component('hand', {
+        template: `<div class="hand">
+          <div class="wrapper">
+            <!-- Cards -->
+          </div>
+        </div>`,
+      })
+```
 
 The wrapper element will help us position and animate the cards.
 
@@ -852,143 +651,90 @@ As a reminder, all the card definitions are declared in the `cards.js` file.
 
 2.  Our hand component will receive these card objects representing the player hand via a new array prop called `cards`:
 
-```
-
-Vue.component（'hand'，{
-
-// ...
-
-道具：['卡片']，
-
-}
-
 ```js
+      Vue.component('hand', {
+        // ...
+        props: ['cards'],
+      })
+```
 
 3.  We can now add the card components with the `v-for` directive:
 
-```
-
-<div class ="wrapper">
-
-<card v-for="card of cards"：def="card.def" />
-
-</ div>
-
 ```js
+      <div class="wrapper">
+        <card v-for="card of cards" :def="card.def" />
+      </div>
+```
 
 4.  To test our hand component, we will create in the app state a temporary property called `testHand` (in the `state.js` file):
 
-```
-
-var state = {
-
-// ...
-
-testHand：[]，
-
-}
-
 ```js
+      var state = {
+        // ...
+        testHand: [],
+      }
+```
 
 5.  Add a `createTestHand` method in the main component (in the `main.js` file):
 
-```
-
-方法：{
-
-createTestHand（）{
-
-const cards = []
-
-//获取可能的 ID
-
-const ids = Object.keys（cards）
-
-//抽 5 张牌
-
-for（let i = 0; i <5; i ++）{
-
-cards.push（testDrawCard（））
-
-}
-
-返回卡
-
-}，
-
-}，
-
 ```js
+      methods: {
+        createTestHand () {
+          const cards = []
+          // Get the possible ids
+          const ids = Object.keys(cards)
+
+          // Draw 5 cards
+          for (let i = 0; i < 5; i++) {
+            cards.push(testDrawCard())
+          }
+
+          return cards
+        },
+      },
+```
 
 6.  To test the hand, we also need this temporary `testDrawCard` method that simulates a random card draw:
 
-```
-
-方法：{
-
-// ...
-
-testDrawCard（）{
-
-//使用 ids 随机选择一张卡
-
-const ids = Object.keys（cards）
-
-const randomId = ids [Math.floor（Math.random（）* ids.length）]
-
-//返回一个具有此定义的新卡
-
-返回{
-
-//卡的唯一 ID
-
-uid：cardUid ++，
-
-// 定义的 ID
-
-id：randomId，
-
-//定义对象
-
-def：cards [randomId]，
-
-}
-
-}
-
-}
-
 ```js
+      methods: {
+        // ...
+        testDrawCard () {
+          // Choose a card at random with the ids
+          const ids = Object.keys(cards)
+          const randomId = ids[Math.floor(Math.random() * ids.length)]
+          // Return a new card with this definition
+          return {
+            // Unique id for the card
+            uid: cardUid++,
+            // Id of the definition
+            id: randomId,
+            // Definition object
+            def: cards[randomId],
+          }
+        }
+      }
+```
 
 7.  Use the `created` lifecycle hook to initialize the hand:
 
-```
-
-created（）{
-
-this.testHand = this.createTestHand（）
-
-}，
-
 ```js
+ created () {
+        this.testHand = this.createTestHand()
+      },
+```
 
 `cardUid` is a unique identifier on cards drawn by the players that will be useful to identify each of the cards in the hand, because many cards can share the exact same card definition, and we will need a way to differentiate them.
 
 8.  In the main template, add the hand component:
 
-```
-
-模板：`<div id ="＃app">
-
-<top-bar：turn="turn"：current-player-
-
-index ="currentPlayerIndex"：players="players" />
-
-<hand：cards="testHand" />
-
-</ div> `,
-
 ```js
+      template: `<div id="#app">
+        <top-bar :turn="turn" :current-player-           
+         index="currentPlayerIndex" :players="players" />
+        <hand :cards="testHand" />
+      </div>`,
+```
 
 The result in your browser should look like this:
 
@@ -1000,69 +746,48 @@ During a game, the hand will be hidden when any overlay is shown. To make the ap
 
 1.  First, add a new `activeOverlay` data property to the app state in the `state.js` file:
 
-```
-
-//我们应用程序的综合状态
-
-var state = {
-
-// UI
-
-activeOverlay：null，
-
-// ...
-
-}
-
 ```js
+      // The consolidated state of our app
+      var state = {
+        // UI
+        activeOverlay: null,
+        // ...
+      }
+```
 
 2.  In the main template, we will show the hand component only if `activeOverlay` is not defined, thanks to the `v-if` directive:
 
-```
-
-<hand：cards="testHand" v-if="！activeOverlay" />
-
 ```js
+      <hand :cards="testHand" v-if="!activeOverlay" />
+```
 
 3.  Now, if you change `state.activeOverlay` to any truthy value in the browser console, the hand will disappear:
 
-```
-
-state.activeOverlay ='player-turn'
-
 ```js
+      state.activeOverlay = 'player-turn'
+```
 
 4.  Also, if you set it back to `null`, the hand will be shown again:
 
-```
-
-state.activeOverlay = null
-
 ```js
+      state.activeOverlay = null
+```
 
 5.  To apply a transition when a component is added or removed by a `v-if` or `v-show` directive, surround it with a transition component like this:
 
-```
-
-<过渡>
-
-<hand v-if="！activeOverlay" />
-
-</过渡>
-
 ```js
+      <transition>
+        <hand v-if="!activeOverlay" />
+      </transition>
+```
 
 Note that this also works on HTML elements:
 
-```
-
-<过渡>
-
-<h1 v-if="showTitle">标题</h1>
-
-</过渡>
-
 ```js
+<transition>
+  <h1 v-if="showTitle">Title</h1>
+</transition>
+```
 
 The `<transition>` special component will not appear in the DOM, like the `<template>` tag we used in Chapter 2, *Markdown Notebook*.
 
@@ -1086,93 +811,65 @@ Here is a schema that summarizes the two enter and leave phases, with the corres
 
 6.  We need to write some CSS to make our animation. Create a new `transitions.css` file and include it in the web page:
 
-```
-
-<link rel="stylesheet" href="transitions.css" />
-
 ```js
+      <link rel="stylesheet" href="transitions.css" />
+```
 
 Let's try a basic fading animation first. We want to apply a CSS transition on the opacity CSS property for 1 second.
 
 7.  To do that, use both the `v-enter-active` and `v-leave-active` classes since it will be the same animation:
 
-```
-
-.hand.v-enter-active，
-
-.hand.v-leave-active {
-
-过渡：不透明度 1s;
-
-}
-
 ```js
+      .hand.v-enter-active,
+      .hand.v-leave-active {
+        transition: opacity 1s;
+      }
+```
 
 When the hand is either being added or removed from the DOM, we want it to have an opacity of `0` (so it will be fully transparent).
 
 8.  Use both the `v-enter` and `v-leave-to` classes to apply this full transparency:
 
-```
-
-.hand.v-enter，
-
-.hand.v-leave-to {
-
-不透明度：0;
-
-}
-
 ```js
+      .hand.v-enter,
+      .hand.v-leave-to {
+        opacity: 0;
+      }
+```
 
 9.  Back to the main template, surround the hand component with a transition special component:
 
-```
-
-<过渡>
-
-<hand v-if="！activeOverlay"：cards="testHand" />
-
-</过渡>
-
 ```js
+      <transition>
+        <hand v-if="!activeOverlay" :cards="testHand" />
+      </transition>
+```
 
 Now, when you hide or show the hand, it will fade in and out.
 
 10.  Since we may have to reuse this animation, we should give it a name:
 
-```
-
-<过渡名称="淡入">
-
-<hand v-if="！activeOverlay"：cards="testHand" />
-
-</过渡>
-
 ```js
+      <transition name="fade">
+        <hand v-if="!activeOverlay" :cards="testHand" />
+      </transition>
+```
 
 We have to change our CSS classes, because Vue will now use `fade-enter-active` instead of `v-enter-active`.
 
 11.  In the `transition.css` file, modify the CSS selector to match this change:
 
-```
-
-.fade-enter-active，
-
-.fade-leave-active {
-
-过渡：不透明度 1s;
-
-}
-
-.fade-enter，
-
-.fade-leave-to {
-
-不透明度：0;
-
-}
-
 ```js
+      .fade-enter-active,
+      .fade-leave-active {
+        transition: opacity 1s;
+      }
+
+      .fade-enter,
+      .fade-leave-to {
+        opacity: 0;
+      }
+```
 
 Now, we can reuse this animation on any element with `<transition name="fade">`.
 
@@ -1182,85 +879,56 @@ We will now make a more complex but better animation, with some 3D effects. In a
 
 1.  Start by creating new transition CSS classes with the `'hand'` name instead of `'fade'`:
 
-```
-
-.hand-enter-active，
-
-.hand-leave-active {
-
-过渡：不透明度。5s;
-
-}
-
-.hand-enter，
-
-.hand-leave-to {
-
-不透明度：0;
-
-}
-
 ```js
+      .hand-enter-active,
+      .hand-leave-active {
+        transition: opacity .5s;
+      }
+
+      .hand-enter,
+      .hand-leave-to {
+        opacity: 0;
+      }
+```
 
 2.  Change the transition name in the main template too:
 
-```
-
-<过渡名称="手">
-
-<hand v-if="!activeOverlay" :cards="testHand" />
-
-</transition>
-
 ```js
+      <transition name="hand">
+        <hand v-if="!activeOverlay" :cards="testHand" />
+      </transition>
+```
 
 3.  Let's animate the wrapper element. Use the CSS transform property to apply a 3D transformation to the element:
 
-```
-
-.hand-enter-active .wrapper,
-
-.hand-leave-active .wrapper {
-
-transition: transform .8s cubic-bezier(.08,.74,.34,1);
-
-transform-origin: bottom center;
-
-}
-
-.hand-enter .wrapper,
-
-.hand-leave-to .wrapper {
-
-transform: rotateX(90deg);
-
-}
-
 ```js
+      .hand-enter-active .wrapper,
+      .hand-leave-active .wrapper {
+        transition: transform .8s cubic-bezier(.08,.74,.34,1);
+        transform-origin: bottom center;
+      }
+
+      .hand-enter .wrapper,
+      .hand-leave-to .wrapper {
+        transform: rotateX(90deg);
+      }
+```
 
 The right rotating axis is the horizontal one, which is `x`. This will animate the cards just as if they were being picked up by the player. Note that there is a cubic-bezier easing function defined to make the animation smoother.
 
 4.  Finally, animate the cards themselves by setting a negative horizontal margin so that they will seem to be piled up:
 
-```
-
-.hand-enter-active .card,
-
-.hand-leave-active .card {
-
-transition: margin .8s cubic-bezier(.08,.74,.34,1);
-
-}
-
-.hand-enter .card,
-
-.hand-leave-to .card {
-
-margin: 0 -100px;
-
-}
-
 ```js
+      .hand-enter-active .card,
+      .hand-leave-active .card {
+        transition: margin .8s cubic-bezier(.08,.74,.34,1);
+      }
+
+      .hand-enter .card,
+      .hand-leave-to .card {
+        margin: 0 -100px;
+      }
+```
 
 Now, if you hide and show the hand with the browser console like we did before, it will have a nice animation.
 
@@ -1270,29 +938,20 @@ Now, we need to handle the `'play'` event in the hand component we emit in the c
 
 1.  First, create a new method called `handlePlay`. It takes a `card` argument and emits the new event to the parent component:
 
-```
-
-methods: {
-
-handlePlay (card) {
-
-this.$emit('card-play', card)
-
-},
-
-},
-
 ```js
+      methods: {
+        handlePlay (card) {
+          this.$emit('card-play', card)
+        },
+      },
+```
 
 2.  Then, add a listener to our cards for the `'play'` event:
 
-```
-
-<card v-for="card of cards" :def="card.def"
-
-@play="handlePlay(card) />
-
 ```js
+      <card v-for="card of cards" :def="card.def" 
+      @play="handlePlay(card) />
+```
 
 As you can see here, we directly use the iterator variable `card` of the `v-for` loop. That way, we don't need the card component to emit its `card` item since we already know what it is.
 
@@ -1300,33 +959,22 @@ To test the card play, we will only remove it from the hand for now.
 
 3.  Create a new temporary method called `testPlayCard` in the main component in the `main.js` file:
 
-```
-
-methods: {
-
-// ...
-
-testPlayCard (card) {
-
-// 从玩家手中移除卡片
-
-const index = this.testHand.indexOf(card)
-
-this.testHand.splice(index, 1)
-
-}
-
-},
-
 ```js
+      methods: {
+        // ...
+        testPlayCard (card) {
+          // Remove the card from player hand
+          const index = this.testHand.indexOf(card)
+          this.testHand.splice(index, 1)
+        }
+      },
+```
 
 4.  Add the event listener for the `'card-play'` event on the `hand` component in the main template:
 
-```
-
-<hand v-if="!activeOverlay" :cards="testHand" @card-play="testPlayCard" />
-
 ```js
+      <hand v-if="!activeOverlay" :cards="testHand" @card-play="testPlayCard" />
+```
 
 If you click on a card, it should now emit a `'play'` event to the hand component, which will then emit a `'card-play'` event to the main component. It will, in turn, remove the card from the hand, making it disappear. To help you debug this sort of use case, the devtools have an Events tab:
 
@@ -1338,39 +986,27 @@ There are three missing animations for our hand--when a card is either added or 
 
 To animate a list of elements, we will need another special component--`<transition-group>`. It animates the children when they are added, removed, and moved. In a template, it looks like this:
 
-```
-
-<transition-group>
-
-<div v-for="item of items" />
-
-</transition-group>
-
 ```js
+<transition-group>
+  <div v-for="item of items" />
+</transition-group>
+```
 
 Unlike the `<transition>` element, the transition group will appear in the DOM as a `<span>` element by default. You can change the HTML element with the `tag` prop:
 
-```
-
-<transition-group tag="ul">
-
-<li v-for="item of items" />
-
-</transition-group>
-
 ```js
+<transition-group tag="ul">
+  <li v-for="item of items" />
+</transition-group>
+```
 
 In the template of our `hand` component, enclose the card components with a transition group, specify the name of the transition that we will call `"card"`, and add the `"cards"` CSS class:
 
-```
-
-<transition-group name="card" tag="div" class="cards">
-
-<card v-for="card of cards" :def="card.def" @play="handlePlay(card) />
-
-</transition-group>
-
 ```js
+<transition-group name="card" tag="div" class="cards">
+  <card v-for="card of cards" :def="card.def" @play="handlePlay(card) />
+</transition-group>
+```
 
 Before we can continue, there is one important thing missing--the children of the transition group must be identified by a unique key.
 
@@ -1396,11 +1032,9 @@ The key special attribute works like a standard attribute, so we need to use the
 
 Back to our cards, we can use the unique identifier on the cards as the key:
 
-```
-
-<card v-for="card of cards" :def="card.def" :key="card.uid" @play="handlePlay(card) />
-
 ```js
+<card v-for="card of cards" :def="card.def" :key="card.uid" @play="handlePlay(card) />
+```
 
 Now, if we add, move, or delete a card item in the JavaScript, it will be reflected with the right order in the DOM.
 
@@ -1410,25 +1044,19 @@ Like before, we have the following six CSS classes at our disposable, prefixed w
 
 1.  The group transition has an additional class applied to moving items--`v-move`. Vue will use the CSS `transform` property on the items to make them move, so we just need to apply a CSS transition on it with at least a duration:
 
-```
-
-.card-move {
-
-transition: transform .3s;
-
-}
-
 ```js
+      .card-move {
+        transition: transform .3s;
+      }      
+```
 
 Now, when you click on a card to play it, it should disappear and the remaining cards will move to their new position. You can also add cards to the hand.
 
 2.  Select the main component in the Vue devtools and execute this into the browser console:
 
-```
-
-state.testHand.push($vm.testDrawCard())
-
 ```js
+      state.testHand.push($vm.testDrawCard())
+```
 
 Selecting a component in the devtools exposes it in the browser console as `$vm`.
 
@@ -1436,69 +1064,43 @@ Like we did for the hand, we will also add animations for the cards when they en
 
 3.  Since we need to transition multiple CSS properties on the card with the same timings all the time (except during the leave transition), we will change the `.card-move` rule we just wrote into this:
 
-```
-
-.card {
-
-/* 用于进入、移动和鼠标悬停动画 */
-
-transition: all .3s;
-
-}
-
 ```js
+ .card {
+        /* Used for enter, move and mouse over animations */
+        transition: all .3s;
+      }
+```
 
 4.  For the enter animation, specify the state of the card for the start of the transition:
 
-```
-
-.card-enter {
-
-opacity: 0;
-
-/* 从右边滑动 */
-
-transform: scale(.8) translateX(100px);
-
-}
-
 ```js
+ .card-enter {
+        opacity: 0;
+        /* Slide from the right */
+        transform: scale(.8) translateX(100px);
+      }
+```
 
 5.  The leave animation requires a few more rules since the play card animation is more complex, and involves zooming the card upward:
 
-```
-
-.card-leave-active {
-
-/* 我们需要不同的离开过渡时间 */
-
-transition: all 1s, opacity .5s .5s;
-
-/* 保持在相同的水平位置 */
-
-position: absolute !important;
-
-/* 使其覆盖其他卡片 */
-
-z-index: 10;
-
-/* 在过渡期间不可点击 */
-
-pointer-events: none;
-
-}
-
-.card-leave-to {
-
-opacity: 0;
-
-/* 将卡片向上放大 */
-
-transform: translateX(-106px) translateY(-300px) scale(1.5);
-
-}
-
 ```js
+ .card-leave-active {
+        /* We need different timings for the leave transition */
+        transition: all 1s, opacity .5s .5s;
+        /* Keep it in the same horizontal position */
+        position: absolute !important;
+        /* Make it painted over the other cards */
+        z-index: 10;
+        /* Unclickable during the transition */
+        pointer-events: none;
+      }
+
+      .card-leave-to {
+        opacity: 0;
+        /* Zoom the card upwards */
+        transform: translateX(-106px) translateY(-300px) scale(1.5);
+      }
+```
 
 This is enough to make your cards all properly animated. You can try playing and adding cards to the hand again to see the result.
 
@@ -1516,21 +1118,14 @@ All of these overlays have two things in common--they do something when the user
 
 Before starting, add a new `activeOverlay` property to the app state in the `state.js` file:
 
-```
-
-// 我们应用的综合状态
-
-var state = {
-
-// UI
-
-activeOverlay: null,
-
-// ...
-
-}
-
 ```js
+// The consolidated state of our app
+var state = {
+  // UI
+  activeOverlay: null,
+  // ...
+}
+```
 
 This will hold the name of the currently displayed overlay or will be `null` if no overlay is shown.
 
@@ -1538,121 +1133,81 @@ This will hold the name of the currently displayed overlay or will be `null` if 
 
 It would be very convenient if we could put contents inside the overlay component in the main template, like this:
 
-```
-
-<overlay>
-
-<overlay-content-player-turn />
-
-</overlay>
-
 ```js
+<overlay>
+  <overlay-content-player-turn />
+</overlay>
+```
 
 We would encapsulate additional layout and logic inside the `overlay` component while still being able to put any content inside. This is done through a special element--the `<slot>`.
 
 1.  Let's create our `overlay` component with two `div` elements:
 
-```
-
-Vue.component('overlay', {
-
-template: `<div class="overlay">
-
-<div class="content">
-
-<!-- 我们的插槽将在那里 -->
-
-</div>
-
-</div>`,
-
-})
-
 ```js
+ Vue.component('overlay', {
+        template: `<div class="overlay">
+          <div class="content">
+            <!-- Our slot will be there -->
+          </div>
+        </div>`,
+      })
+```
 
 2.  Add a click event listener on the `.overlay` div, which calls the `handleClick` method:
 
-```
-
-<div class="overlay" @click="handleClick">
-
 ```js
+      <div class="overlay" @click="handleClick">
+```
 
 3.  Then, add the mentioned method where we emit a custom `'close'` event:
 
-```
-
-methods: {
-
-handleClick () {
-
-this.$emit('close')
-
-},
-
-},
-
 ```js
+      methods: {
+        handleClick () {
+          this.$emit('close')
+        },
+      },
+```
 
 This event will be helpful to know when to switch from one overlay to the next at the start of the turn.
 
 4.  Now, put a `<slot>` element inside the `.content` div:
 
-```
-
-template: `<div class="overlay" @click="handleClick">
-
-<div class="content">
-
-<slot />
-
-</div>
-
-</div>`,
-
 ```js
+      template: `<div class="overlay" @click="handleClick">
+        <div class="content">
+          <slot />
+        </div>
+      </div>`,
+```
 
 Now, if we put something between the `overlay` tags when using our component, it will be included in the DOM and replace the `<slot>` tag. For example, we could do this:
 
-```
-
-<overlay>
-
-你好世界！
-
-</overlay>
-
 ```js
+<overlay>
+  Hello world!
+</overlay>
+```
 
 Also, it will render like this in the page:
 
-```
-
-<div class="overlay">
-
-<div class="content">
-
-你好世界！
-
-</div>
-
-</div>
-
 ```js
+<div class="overlay">
+  <div class="content">
+    Hello world!
+  </div>
+</div>
+```
 
 It works with anything, so you can also put HTML or Vue components, and it will still work the same way!
 
 5.  The component is ready to be used in the main template, so add it at the end:
 
-```
-
-<overlay>
-
-你好世界！
-
-</overlay>
-
 ```js
+      <overlay>
+        Hello world!
+      </overlay>
+```
 
 Each of the three overlay contents will be a separate component:
 
@@ -1664,29 +1219,18 @@ Before diving into these, we need a bit more data about the two players in our s
 
 6.  Go back to the `state.js` file and add the following properties for each player:
 
-```
-
-// Starting stats
-
-food: 10,
-
-health: 10,
-
-// Is skipping is next turn
-
-skipTurn: false,
-
-// Skiped turn last time
-
-skippedTurn: false,
-
-hand: [],
-
-lastPlayedCardId: null,
-
-dead: false,
-
 ```js
+      // Starting stats
+      food: 10,
+      health: 10,
+      // Is skipping is next turn
+      skipTurn: false,
+      // Skiped turn last time
+      skippedTurn: false,
+      hand: [],
+      lastPlayedCardId: null,
+      dead: false,
+```
 
 You should now have two items in the `players` array with the same properties, expect for the player names.
 
@@ -1694,75 +1238,46 @@ You should now have two items in the `players` array with the same properties, e
 
 The first overlay will display two different messages to the current player, depending on whether it is skipping their turn or not. The player prop will receive the current player so that we can access its data. We will use a `v-if` directive paired with a `v-else` directive and the `skipTurn` property we just added to the players:
 
-```
-
-Vue.component('overlay-content-player-turn', {
-
-template: `<div>
-
-<div class="big" v-if="player.skipTurn">{{ player.name }},      <br>your turn is skipped!</div>
-
-<div class="big" v-else>{{ player.name }},<br>your turn has       come!</div>
-
-<div>Tap to continue</div>
-
-</div>`,
-
-props: ['player'],
-
-})
-
 ```js
+ Vue.component('overlay-content-player-turn', {
+        template: `<div>
+          <div class="big" v-if="player.skipTurn">{{ player.name }},      <br>your turn is skipped!</div>
+          <div class="big" v-else>{{ player.name }},<br>your turn has       come!</div>
+          <div>Tap to continue</div>
+        </div>`,
+        props: ['player'],
+      })
+```
 
 # The 'last play' overlay
 
 This one is a bit more complex. We need a new function to get the last played card by a player. In the `utils.js` file, add the new `getLastPlayedCard` function:
 
-```
-
-function getLastPlayedCard (player) {
-
-return cards[player.lastPlayedCardId]
-
-}
-
 ```js
+function getLastPlayedCard (player) {
+  return cards[player.lastPlayedCardId]
+}
+```
 
 We can now use this function in a `lastPlayedCard` computed property by passing the `opponent` prop:
 
-```
-
-Vue.component('overlay-content-last-play', {
-
-template: `<div>
-
-<div v-if="opponent.skippedTurn">{{ opponent.name }} turn was skipped!</div>
-
-<template v-else>
-
-<div>{{ opponent.name }} just played:</div>
-
-<card :def="lastPlayedCard" />
-
-</template>
-
-</div>`,
-
-props: ['opponent'],
-
-computed: {
-
-lastPlayedCard () {
-
-return getLastPlayedCard(this.opponent)
-
-},
-
-},
-
-})
-
 ```js
+Vue.component('overlay-content-last-play', {
+  template: `<div>
+    <div v-if="opponent.skippedTurn">{{ opponent.name }} turn was skipped!</div>
+    <template v-else>
+      <div>{{ opponent.name }} just played:</div>
+      <card :def="lastPlayedCard" />
+    </template>
+  </div>`,
+  props: ['opponent'],
+  computed: {
+    lastPlayedCard () {
+      return getLastPlayedCard(this.opponent)
+    },
+  },
+})
+```
 
 Note that we are directly reusing the `card` component we made earlier to display the card.
 
@@ -1770,53 +1285,32 @@ Note that we are directly reusing the `card` component we made earlier to displa
 
 For this one, we will create another component called `player-result` that will show whether a player is victorious or defeated. We will display the name of the player passed with a prop. We will compute the result for this player with a computed property, which we will also use as a dynamic CSS class:
 
-```
-
-Vue.component('player-result', {
-
-template: `<div class="player-result" :class="result">
-
-<span class="name">{{ player.name }}</span> is
-
-<span class="result">{{ result }}</span>
-
-</div>`,
-
-props: ['player'],
-
-computed: {
-
-result () {
-
-return this.player.dead ? 'defeated' : 'victorious'
-
-},
-
-},
-
-})
-
 ```js
+Vue.component('player-result', {
+  template: `<div class="player-result" :class="result">
+    <span class="name">{{ player.name }}</span> is
+    <span class="result">{{ result }}</span>
+  </div>`,
+  props: ['player'],
+  computed: {
+    result () {
+      return this.player.dead ? 'defeated' : 'victorious'
+    },
+  },
+})
+```
 
 Now, we can create the game over overlay by looping over the `players` props and using the `player-result` component:
 
-```
-
-Vue.component('overlay-content-game-over', {
-
-template: `<div>
-
-<div class="big">Game Over</div>
-
-<player-result v-for="player in players" :player="player" />
-
-</div>`,
-
-props: ['players'],
-
-})
-
 ```js
+Vue.component('overlay-content-game-over', {
+  template: `<div>
+    <div class="big">Game Over</div>
+    <player-result v-for="player in players" :player="player" />
+  </div>`,
+  props: ['players'],
+})
+```
 
 # Dynamic component
 
@@ -1824,25 +1318,16 @@ Now, it is time to put all of these into our overlay component and use the `acti
 
 1.  Add the components and display them with the corresponding value of `activeOverlay` in the main template:
 
-```
-
-<overlay v-if="activeOverlay">
-
-<overlay-content-player-turn
-
-v-if="activeOverlay === 'player-turn'" />
-
-<overlay-content-last-play
-
-v-else-if="activeOverlay === 'last-play'" />
-
-<overlay-content-game-over
-
-v-else-if="activeOverlay === 'game-over'" />
-
-</overlay>
-
 ```js
+      <overlay v-if="activeOverlay">
+        <overlay-content-player-turn
+          v-if="activeOverlay === 'player-turn'" />
+        <overlay-content-last-play
+          v-else-if="activeOverlay === 'last-play'" />
+        <overlay-content-game-over
+          v-else-if="activeOverlay === 'game-over'" />
+      </overlay>
+```
 
 We will remove the overlay completely if the `activeOverlay` property is equal to `null`.
 
@@ -1850,119 +1335,79 @@ Before adding the props, we will need to modify the app state in the `state.js` 
 
 2.  The first one will return the `player` object from the `currentPlayerIndex` property:
 
-```
-
-get currentPlayer () {
-
-return state.players[state.currentPlayerIndex]
-
-},
-
 ```js
+      get currentPlayer () {
+        return state.players[state.currentPlayerIndex]
+      },
+```
 
 3.  The second one will return the opposing `player` index:
 
-```
-
-get currentOpponentId () {
-
-return state.currentPlayerIndex === 0 ? 1 : 0
-
-},
-
 ```js
+      get currentOpponentId () {
+        return state.currentPlayerIndex === 0 ? 1 : 0
+      },
+```
 
 4.  Finally, the third one will return the corresponding player object:
 
-```
-
-get currentOpponent () {
-
-return state.players[state.currentOpponentId]
-
-},
-
 ```js
+      get currentOpponent () {
+        return state.players[state.currentOpponentId]
+      },
+```
 
 5.  Now, we can add the props to the overlay contents:
 
-```
-
-<overlay v-if="activeOverlay">
-
-<overlay-content-player-turn
-
-v-if="activeOverlay === 'player-turn'"
-
-:player="currentPlayer" />
-
-<overlay-content-last-play
-
-v-else-if="activeOverlay === 'last-play'"
-
-:opponent="currentOpponent" />
-
-<overlay-content-game-over
-
-v-else-if="activeOverlay === 'game-over'"
-
-:players="players" />
-
-</overlay>
-
 ```js
+      <overlay v-if="activeOverlay">
+        <overlay-content-player-turn
+          v-if="activeOverlay === 'player-turn'"
+          :player="currentPlayer" />
+        <overlay-content-last-play
+          v-else-if="activeOverlay === 'last-play'"
+          :opponent="currentOpponent" />
+        <overlay-content-game-over
+          v-else-if="activeOverlay === 'game-over'"
+          :players="players" />
+      </overlay>
+```
 
 You can test the overlays by setting the `activeOverlay` property in the browser console:
 
-```
-
-state.activeOverlay = 'player-turn'
-
-state.activeOverlay = 'last-play'
-
-state.activeOverlay = 'game-over'
-
-state.activeOverlay = null
-
 ```js
+state.activeOverlay = 'player-turn'
+state.activeOverlay = 'last-play'
+state.activeOverlay = 'game-over'
+state.activeOverlay = null
+```
 
 If you want to test the `last-play` overlay, you need to specify a valid value to the player `lastPlayedCardId` property, such as `'catapult'` or `'farm'`.
 
 Our code is starting to be messy, with three conditionals. Thankfully, there is a special component that can turn itself into any component--it is the `component` component. You just have to set its `is` prop to a component name, a component definition object, or even an HTML tag, and it will morph into it:
 
-```
-
-<component is="h1">Title</component>
-
-<component is="overlay-content-player-turn" />
-
 ```js
+<component is="h1">Title</component>
+<component is="overlay-content-player-turn" />
+```
 
 It's a prop like any other, so we can use the `v-bind` directive to dynamically change the very nature of the component with a JavaScript expression. What if we used our `activeOverlay` property to do just that? Are our overlay content components conveniently named with the same `'over-content-'` prefix? Take a look:
 
-```
-
-<component :is="'overlay-content-' + activeOverlay" />
-
 ```js
+<component :is="'overlay-content-' + activeOverlay" />
+```
 
 That's it. Now, by changing the value of the `activeOverlay` property, we will change the component displayed inside the overlay.
 
 6.  After adding back the props, the overlay should look like this in the main template:
 
-```
-
-<overlay v-if="activeOverlay">
-
-<component :is="'overlay-content-' + activeOverlay"
-
-：player="currentPlayer"：opponent="currentOpponent"
-
-:players="players" />
-
-</overlay>
-
 ```js
+      <overlay v-if="activeOverlay">
+        <component :is="'overlay-content-' + activeOverlay"
+          :player="currentPlayer" :opponent="currentOpponent"
+          :players="players" />
+      </overlay>
+```
 
 Don't worry, unused props won't interfere with the different overlays workings.
 
@@ -1972,47 +1417,30 @@ Like we did with the hand, we will use a transition to animate the overlay.
 
 1.  Add a transition called "zoom" around the overlay component:
 
-```
-
-<transition name="zoom">
-
-<overlay v-if="activeOverlay">
-
-<component :is="'overlay-content-' + activeOverlay"
-
-：player="currentPlayer"：opponent="currentOpponent"
-
-：players="players" />
-
-</overlay>
-
-</transition>
-
 ```js
+      <transition name="zoom">
+        <overlay v-if="activeOverlay">
+          <component :is="'overlay-content-' + activeOverlay"                    
+          :player="currentPlayer" :opponent="currentOpponent"                      
+          :players="players" />
+        </overlay>
+      </transition>
+```
 
 2.  Add the following CSS rules in the `transition.css` file:
 
-```
-
-.zoom-enter-active，
-
-.zoom-leave-active {
-
-过渡：不透明度.3 秒，变换.3 秒;
-
-}
-
-.zoom-enter，
-
-.zoom-leave-to {
-
-不透明度：0;
-
-transform：scale（.7）;
-
-}
-
 ```js
+      .zoom-enter-active,
+      .zoom-leave-active {
+        transition: opacity .3s, transform .3s;
+      }
+
+      .zoom-enter,
+      .zoom-leave-to {
+        opacity: 0;
+        transform: scale(.7);
+      }
+```
 
 This is a simple animation that will zoom out the overlay while fading it out.
 
@@ -2027,19 +1455,13 @@ If you switch between the overlays, the animation will not work. This is because
 
 Let's add the key to our overlay component so that Vue will treat it as multiple separate elements when we change the `activeOverlay` value:
 
-```
-
-<transition name="zoom">
-
-<overlay v-if="activeOverlay"：key="activeOverlay">
-
-<component :is="'overlay-content-' + activeOverlay"：player="currentPlayer"：opponent="currentOpponent"：players="players" />
-
-</overlay>
-
-</transition>
-
 ```js
+<transition name="zoom">
+  <overlay v-if="activeOverlay" :key="activeOverlay">
+    <component :is="'overlay-content-' + activeOverlay" :player="currentPlayer" :opponent="currentOpponent" :players="players" />
+  </overlay>
+</transition>
+```
 
 Now, if we set `activeOverlay` to `'player-turn'`, the overlay will have a key of `'player-turn'`. Then, if we set `activeOverlay` to `'last-play'`, an entirely new overlay will be created with a key of `'last-play'`, and we can animate the transition between the two. You can try this in the browser by setting different values to `state.activeOverlay`.
 
@@ -2049,15 +1471,11 @@ At this point, there is something missing--the overlay background. We can't incl
 
 In the main template, add a new `div` element with the `overlay-background` class just before the `zoom` transition and the `overlay` component:
 
-```
-
-<transition name="fade">
-
-<div class="overlay-background" v-if="activeOverlay" />
-
-</transition>
-
 ```js
+<transition name="fade">
+  <div class="overlay-background" v-if="activeOverlay" />
+</transition>
+```
 
 With the `v-if` directive, it will only be displayed when any overlay is displayed.
 
@@ -2067,17 +1485,12 @@ We are mostly done with the UI elements, so we can now go into the game scenery 
 
 Create a new `world.js` file in the `components` folder, and include it in the page:
 
-```
-
-<!-- ... -->
-
-<script src="components/ui.js"></script>
-
-<script src="components/world.js"></script>
-
-<script src="main.js"></script>
-
 ```js
+<!-- ... -->
+<script src="img/ui.js"></script>
+<script src="img/world.js"></script>
+<script src="img/main.js"></script>
+```
 
 We will start with the castles.
 
@@ -2087,43 +1500,28 @@ This one is actually pretty simple since it consists of only two images and a ca
 
 1.  In the `world.js` file, create a new castle component with two images that accepts a `players` and an `index` prop:
 
-```
-
-Vue.component('castle'，{
-
-模板：`<div class="castle"：class="'player-' + index">
-
-<img class="building"：src="'svg/castle' + index + '.svg'" />
-
-<img class="ground"：src="'svg/ground' + index + '.svg'" />
-
-<!--稍后，我们将在这里添加一个城堡横幅组件-->
-
-</div>`,
-
-props：['player'，'index']，
-
-})
-
 ```js
+ Vue.component('castle', {
+        template: `<div class="castle" :class="'player-' + index">
+          <img class="building" :src="img/castle' + index + '.svg'" />
+          <img class="ground" :src="img/ground' + index + '.svg'" />
+          <!-- Later, we will add a castle-banners component here -->
+        </div>`,
+        props: ['player', 'index'],
+      })
+```
 
 For this component, there is a castle and a ground image for each player; that means four images in total. For example, for the player at index `0`, there are `castle0.svg` and the `ground0.svg` images.
 
 2.  In the main template, just below the `top-bar` component, create a new `div` element with the `world` CSS class, loop over the players to display the two castles, and add another `div` element with the `land` class:
 
-```
-
-<div class="world">
-
-<castle v-for="(player，index) in players"：player="player"
-
-：index="index" />
-
-<div class="land" />
-
-</div>
-
 ```js
+      <div class="world">
+        <castle v-for="(player, index) in players" :player="player"                 
+         :index="index" />
+        <div class="land" />
+      </div>
+```
 
 In the browser, you should see one castle for each player, as follows:
 
@@ -2142,75 +1540,47 @@ It will look like this:
 
 1.  First, create a new `castle-banners` component with only the stat icons and a `player` prop:
 
-```
-
-Vue.component('castle-banners'，{
-
-模板：`<div class="banners">
-
-<!--食物-->
-
-<img class="food-icon" src="svg/food-icon.svg" />
-
-<!--这里是气泡-->
-
-<!--横幅栏在这里-->
-
-<!--健康-->
-
-<img class="health-icon" src="svg/health-icon.svg" />
-
-<!--这里是气泡-->
-
-<!--横幅栏在这里-->
-
-</div>`,
-
-props：['player']，
-
-})
-
 ```js
+ Vue.component('castle-banners', {
+        template: `<div class="banners">
+          <!-- Food -->
+          <img class="food-icon" src="img/food-icon.svg" />
+          <!-- Bubble here -->
+          <!-- Banner bar here -->
+
+          <!-- Health -->
+          <img class="health-icon" src="img/health-icon.svg" />
+          <!-- Bubble here -->
+          <!-- Banner bar here -->
+        </div>`,
+        props: ['player'],
+      })
+```
 
 2.  We also need two computed properties that calculate the health and food ratios:
 
-```
-
-计算：{
-
-foodRatio（）{
-
-返回 this.player.food / maxFood
-
-}，
-
-healthRatio（）{
-
-返回 this.player.health / maxHealth
-
-},
-
-}
-
 ```js
+      computed: {
+        foodRatio () {
+          return this.player.food / maxFood
+        },
+        healthRatio () {
+          return this.player.health / maxHealth
+        },
+      }
+```
 
 The `maxFood` and `maxHealth` variables are defined at the beginning of the `state.js` file.
 
 3.  In the `castle` component, add the new `castle-banners` component:
 
-```
-
-模板：`<div class="castle"：class="'player-' + index">
-
-<img class="building"：src="'svg/castle' + index + '.svg'" />
-
-<img class="ground"：src="'svg/ground' + index + '.svg'" />
-
-<castle-banners：player="player" />
-
-</div>`,
-
 ```js
+      template: `<div class="castle" :class="'player-' + index">
+        <img class="building" :src="img/castle' + index + '.svg'" />
+        <img class="ground" :src="img/ground' + index + '.svg'" />
+        <castle-banners :player="player" />
+      </div>`,
+```
 
 # Food and health bubbles
 
@@ -2224,49 +1594,31 @@ We will need three props for this component:
 
 We also need a computed property to calculate the vertical position of the bubble with the `ratio` prop. The position will range from 40 pixels to 260 pixels. So, the position value will be given by this expression:
 
-```
-
-（this.ratio * 220 + 40）* state.worldRatio + 'px'
-
 ```js
+(this.ratio * 220 + 40) * state.worldRatio + 'px'
+```
 
 Remember to multiply every position or size with the `worldRatio` value, so the game takes into account the window size (it gets bigger if the window is bigger, or vice versa).
 
 1.  Let's write our new `bubble` component:
 
-```
-
-Vue.component('bubble'，{
-
-模板：`<div class="stat-bubble"：class="type + '-bubble'"
-
-：style="bubbleStyle">
-
-<img：src="'svg/' + type + '-bubble.svg'" />
-
-<div class="counter">{{ value }}</div>
-
-</div>`,
-
-props：['type'，'value'，'ratio']，
-
-计算：{
-
-气泡样式（）{
-
-返回{
-
-顶部：（this.ratio * 220 + 40）* state.worldRatio + 'px'，
-
-}
-
-}，
-
-}，
-
-})
-
 ```js
+ Vue.component('bubble', {
+        template: `<div class="stat-bubble" :class="type + '-bubble'"               
+        :style="bubbleStyle">
+          <img :src="img/' + type + '-bubble.svg'" />
+          <div class="counter">{{ value }}</div>
+        </div>`,
+        props: ['type', 'value', 'ratio'],
+        computed: {
+          bubbleStyle () {
+            return {
+              top: (this.ratio * 220 + 40) * state.worldRatio + 'px',
+            }
+          },
+        },
+      })
+```
 
 It has a root `div` element with the `stat-bubble` CSS class, a dynamic class (either `'food-bubble'` or `'health-bubble'`, depending on the `type` prop value) plus a dynamic CSS style we set with the `bubbleStyle` computed property.
 
@@ -2274,31 +1626,20 @@ It contains an SVG image, which is not the same for food and health, and a `div`
 
 2.  Add a food and an health bubble to the `castle-banners` component:
 
-```
-
-模板：`<div class="横幅">
-
-<!-- 食物 -->
-
-<img class="食物图标" src="svg/食物图标.svg" />
-
-<bubble 类型="食物" :值="玩家.食物" :比率="食物比率" />
-
-<!-- 横幅栏在这里 -->
-
-<!-- 健康 -->
-
-<img class="健康图标" src="svg/健康图标.svg" />
-
-<bubble 类型="健康" :值="玩家.健康"
-
-:比率="健康比率" />
-
-<!-- 横幅栏在这里 -->
-
-</div>`,
-
 ```js
+      template: `<div class="banners">
+        <!-- Food -->
+        <img class="food-icon" src="img/food-icon.svg" />
+        <bubble type="food" :value="player.food" :ratio="foodRatio" />
+        <!-- Banner bar here -->
+
+        <!-- Health -->
+        <img class="health-icon" src="img/health-icon.svg" />
+        <bubble type="health" :value="player.health"             
+      :ratio="healthRatio" />
+        <!-- Banner bar here -->
+      </div>`,
+```
 
 # Banner bars
 
@@ -2306,96 +1647,62 @@ The other component we need is a vertical banner hanging up on one of the castle
 
 1.  First, create the component with two props (the color and the ratio) and the `height` computed property:
 
-```
-
-Vue.component('横幅栏', {
-
-props: ['颜色', '比率'],
-
-computed: {
-
-height () {
-
-return 220 * this.ratio + 40
-
-},
-
-},
-
-})
-
 ```js
+ Vue.component('banner-bar', {
+        props: ['color', 'ratio'],
+        computed: {
+          height () {
+            return 220 * this.ratio + 40
+          },
+        },
+      })
+```
 
 For now, we defined our templates in two different ways--we either used the HTML of our page or we set a string into the `template` option of our components. We will use another method of writing component templates--a special script tag in the HTML. It works by writing the template inside this script tag with a unique ID and referencing this ID when defining the component.
 
 2.  Open the `banner-template.svg` file, which contains the SVG markup of the banner image we will use as a dynamic template. Copy the content of the file.
 3.  In the `index.html` file, after the `<div id="app">` element, add a `script` tag with the `text/x-template` type and the `banner` ID, and paste the `svg` content inside:
 
-```
-
-<script type="text/x-template" id="横幅">
-
-<svg viewBox="0 0 20 260">
-
-<path :d="`m 0,0 20,0 0,${height} -10,-10 -10,10 z`"
-
-:style="`填充：${颜色}；描边：无；`" />
-
-</svg>
-
-</script>
-
 ```js
+      <script type="text/x-template" id="banner">
+        <svg viewBox="0 0 20 260">
+          <path :d="`m 0,0 20,0 0,${height} -10,-10 -10,10 z`"                    
+          :style="`fill:${color};stroke:none;`" />
+        </svg>
+      </script>
+```
 
 As you can see, this is a standard template with all the syntax and directives available to use. Here, we use the `v-bind` directive shorthand twice. Note that you can use SVG markup inside all of your Vue templates.
 
 4.  Now, back in our component definition, add the `template` option with the ID of our script tag template preceded by a hashtag:
 
-```
-
-Vue.component('横幅栏', {
-
-模板：'#横幅',
-
-// ...
-
-})
-
 ```js
+      Vue.component('banner-bar', {
+        template: '#banner',
+        // ...
+      })
+```
 
 Done! The component will now look up for a scrip tag template with the `banner` ID in the page and will use it as its template.
 
 5.  In the `castle-banners` component, add the two remaining `banner-bar` components with the corresponding colors and ratios:
 
-```
-
-模板：`<div class="横幅">
-
-<!-- 食物 -->
-
-<img class="食物图标" src="svg/食物图标.svg" />
-
-<bubble 类型="食物" :值="玩家.食物" :比率="食物比率" />
-
-<横幅栏 class="食物栏" 颜色="#288339" :比率="食物比率"
-
-/>
-
-<!-- 健康 -->
-
-<img class="健康图标" src="svg/健康图标.svg" />
-
-<bubble 类型="健康" :值="玩家.健康"
-
-:比率="健康比率" />
-
-<横幅栏 class="健康栏" 颜色="#9b2e2e"
-
-:比率="健康比率" />
-
-</div>`,
-
 ```js
+      template: `<div class="banners">
+        <!-- Food -->
+        <img class="food-icon" src="img/food-icon.svg" />
+        <bubble type="food" :value="player.food" :ratio="foodRatio" />
+        <banner-bar class="food-bar" color="#288339" :ratio="foodRatio"        
+        />
+
+        <!-- Health -->
+        <img class="health-icon" src="img/health-icon.svg" />
+        <bubble type="health" :value="player.health"                   
+        :ratio="healthRatio" />
+        <banner-bar class="health-bar" color="#9b2e2e"                         
+       :ratio="healthRatio" />
+      </div>`,
+```
 
 You should now see the banners that hang up on the castles and shrink if you change the food and health values.
 
@@ -2405,101 +1712,66 @@ These banners would be prettier if we could animate them when they shrink or gro
 
 1.  First, let's rename our template computed property to `targetHeight`:
 
-```
-
-computed: {
-
-targetHeight () {
-
-return 220 * this.ratio + 40
-
-},
-
-},
-
 ```js
+      computed: {
+        targetHeight () {
+          return 220 * this.ratio + 40
+        },
+      },
+```
 
 This `targetHeight` property will be calculated only once whenever the ratio changes.
 
 2.  Add a new `height` data property that we will be able to animate each time `targetHeight` changes:
 
-```
-
-数据() {
-
-return {
-
-height: 0,
-
-}
-
-},
-
 ```js
+ data () {
+        return {
+          height: 0,
+        }
+      },
+```
 
 3.  Initialize the value of `height` with the value of `targetHeight` when the component has been created. Do this in the `created` hook:
 
-```
-
-created () {
-
-this.height = this.targetHeight
-
-},
-
 ```js
+ created () {
+        this.height = this.targetHeight
+      },
+```
 
 To animate the height value, we will use the popular `**TWEEN.js**` library, which is already included in the `index.html` file. This library works by creating a new `Tween` object that takes the starting values, an easing function, and the ending values. It provide callbacks such as `onUpdate` that we will use to update the `height` property from the animation.
 
 4.  We would like to start the animation whenever the `targetHeight` property changes, so add a watcher with the following animation code:
 
-```
-
-watch: {
-
-targetHeight (newValue, oldValue) {
-
-const vm = this
-
-new TWEEN.Tween({ value: oldValue })
-
-.easing(TWEEN.Easing.Cubic.InOut)
-
-.to({ value: newValue }, 500)
-
-.onUpdate(function () {
-
-vm.height = this.value.toFixed(0)
-
-})
-
-.start()
-
-},
-
-},
-
 ```js
+ watch: {
+        targetHeight (newValue, oldValue) {
+          const vm = this
+          new TWEEN.Tween({ value: oldValue })
+            .easing(TWEEN.Easing.Cubic.InOut)
+            .to({ value: newValue }, 500)
+            .onUpdate(function () {
+              vm.height = this.value.toFixed(0)
+            })
+            .start()
+        },
+      },
+```
 
 The `this` context in the `onUpdate` callback is the `Tween` object and not the Vue component instance. That's why we need a good old temporary variable to hold the component instance `this` (here, that is the `vm` variable).
 
 5.  We need one last thing to make our animation work. In the `main.js` file, request the paint frames from the browser to make the `TWEEN.js` library tick, thanks to the browser's `requestAnimationFrame` function:
 
-```
-
-// Tween.js
-
-requestAnimationFrame(animate);
-
-function animate(time) {
-
-requestAnimationFrame(animate);
-
-TWEEN.update(time);
-
-}
-
 ```js
+      // Tween.js
+      requestAnimationFrame(animate);
+
+      function animate(time) {
+        requestAnimationFrame(animate);
+        TWEEN.update(time);
+      }
+```
 
 If the tab is in the background, the `requestAnimationFrame` function will wait for the tab to become visible again. This means the animations won't play if the user doesn't see the page, saving the computer resources and battery. Note that it is also the case for CSS transitions and animations.
 
@@ -2511,115 +1783,74 @@ To add some life to the game world, we will create a few clouds that will slide 
 
 1.  In the `world.js file`, add the minimum and maximum durations for the cloud animation:
 
-```
-
-const cloudAnimationDurations = {
-
-min: 10000, // 10 秒
-
-max: 50000, // 50 秒
-
-}
-
 ```js
+      const cloudAnimationDurations = {
+        min: 10000, // 10 sec
+        max: 50000, // 50 sec
+      }
+```
 
 2.  Then, create the cloud component with an image and a `type` prop:
 
-```
-
-Vue.component('云', {
-
-模板：`<div class="云" :class="'云-' + 类型" >
-
-<img :src="'svg/云' + 类型 + '.svg'" />
-
-</div>`,
-
-props: ['类型'],
-
-})
-
 ```js
+ Vue.component('cloud', {
+        template: `<div class="cloud" :class="'cloud-' + type" >
+          <img :src="img/strong> + '.svg'" />
+        </div>`,
+        props: ['type'],
+      })
+```
 
 There will be five different clouds, so the `type` prop will range from 1 to 5.
 
 3.  We will need to change the `z-index` and `transform` CSS properties of the component with a reactive `style` data property:
 
-```
-
-数据() {
-
-return {
-
-style: {
-
-transform: 'none',
-
-zIndex: 0,
-
-},
-
-}
-
-},
-
 ```js
+ data () {
+        return {
+          style: {
+            transform: 'none',
+            zIndex: 0,
+          },
+        }
+      },
+```
 
 4.  Apply these style properties with the `v-bind` directive:
 
-```
-
-<div class="云" :class="'云-' + 类型" :style="style">
-
 ```js
+      <div class="cloud" :class="'cloud-' + type" :style="style">
+```
 
 5.  Let's create a method to set the position of the cloud component using the `transform` CSS property:
 
-```
-
-方法：{
-
-setPosition (left, top) {
-
-// 使用变换以获得更好的性能
-
-this.style.transform = `translate(${left}px, ${top}px)`
-
-},
-
-}
-
 ```js
+      methods: {
+        setPosition (left, top) {
+          // Use transform for better performance
+          this.style.transform = `translate(${left}px, ${top}px)`
+        },
+      }
+```
 
 6.  We need to initialize the horizontal position of the cloud when the image is loaded, so that it's outside of the viewport. Create a new `initPosition` that uses the `setPosition` method:
 
-```
-
-方法：{
-
-// ...
-
-initPosition () {
-
-// 元素宽度
-
-const width = this.$el.clientWidth
-
-this.setPosition(-width, 0)
-
-},
-
-}
-
 ```js
+      methods: {
+        // ...
+        initPosition () {
+          // Element width
+          const width = this.$el.clientWidth
+          this.setPosition(-width, 0)
+        },
+      }
+```
 
 7.  Add an event listener on the image with the `v-on` directive shorthand that listens to the `load` event and calls the `initPosition` method:
 
-```
-
-<img :src="'svg/云' + 类型 + '.svg'" @load="initPosition" />
-
 ```js
+      <img :src="img/cloud' + type + '.svg'" @load="initPosition" />
+```
 
 # The animation
 
@@ -2627,103 +1858,69 @@ Now, let's move on to the animation itself. Like we did for the castle banners, 
 
 1.  First, create a new `startAnimation` method that calculates a random animation duration and accepts a delay parameter:
 
-```
-
-方法：{
-
-// ...
-
-startAnimation (delay = 0) {
-
-const vm = this
-
-// 元素宽度
-
-const width = this.$el.clientWidth
-
-// 随机动画持续时间
-
-const { min, max } = cloudAnimationDurations
-
-const animationDuration = Math.random() * (max - min) + min
-
-// Bing faster clouds forward
-
-this.style.zIndex = Math.round(max - animationDuration)
-
-// Animation will be there
-
-},
-
-}
-
 ```js
+      methods: {
+        // ...
+
+        startAnimation (delay = 0) {
+          const vm = this
+
+          // Element width
+          const width = this.$el.clientWidth
+
+          // Random animation duration
+          const { min, max } = cloudAnimationDurations
+          const animationDuration = Math.random() * (max - min) + min
+
+          // Bing faster clouds forward
+          this.style.zIndex = Math.round(max - animationDuration)
+
+          // Animation will be there
+        },
+      }
+```
 
 The faster a cloud is, the lower its animation duration will be. Faster clouds will be displayed before slower clouds, thanks to the `z-index` CSS property.
 
 2.  Inside the `startAnimation` method, calculate a random vertical position for the cloud and then create a `Tween` object. It will animate the horizontal position with a delay and set the position of the cloud each time it updates. When it completes, we will start another animation with a random delay:
 
-```
-
-// Random position
-
-const top = Math.random() * (window.innerHeight * 0.3)
-
-new TWEEN.Tween({ value: -width })
-
-.to({ value: window.innerWidth }, animationDuration)
-
-.delay(delay)
-
-.onUpdate(function () {
-
-vm.setPosition(this.value, top)
-
-})
-
-.onComplete(() => {
-
-// With a random delay
-
-this.startAnimation(Math.random() * 10000)
-
-})
-
-.start()
-
 ```js
+      // Random position
+      const top = Math.random() * (window.innerHeight * 0.3)
+
+      new TWEEN.Tween({ value: -width })
+        .to({ value: window.innerWidth }, animationDuration)
+        .delay(delay)
+        .onUpdate(function () {
+          vm.setPosition(this.value, top)
+        })
+        .onComplete(() => {
+          // With a random delay
+          this.startAnimation(Math.random() * 10000)
+        })
+        .start()
+```
 
 3.  In the `mounted` hook of the component, call the `startAnimation` method to begin the initial animation (with a random delay):
 
-```
-
-mounted () {
-
-// We start the animation with a negative delay
-
-// So it begins midway
-
-this.startAnimation(-Math.random() *
-
-cloudAnimationDurations.min)
-
-},
-
 ```js
+ mounted () {
+        // We start the animation with a negative delay
+        // So it begins midway
+        this.startAnimation(-Math.random() *                   
+      cloudAnimationDurations.min)
+      },
+```
 
 Our cloud component is ready.
 
 4.  Add some clouds to the main template in the `world` element:
 
-```
-
-<div class="clouds">
-
-<cloud v-for="index in 10" :type="(index - 1) % 5 + 1" />
-
-</div>
-
 ```js
+      <div class="clouds">
+        <cloud v-for="index in 10" :type="(index - 1) % 5 + 1" />
+      </div>
+```
 
 Be careful to pass a value to the `type` prop ranging from 1 to 5\. Here, we use the `%` operator to return the division remainder for 5.
 
@@ -2748,19 +1945,13 @@ Then, each player's turn follows these steps:
 
 Before drawing the cards, we will need to add two properties to the app state in the `state.js` file:
 
-```
-
-var state = {
-
-// ...
-
-drawPile: pile,
-
-discardPile: {},
-
-}
-
 ```js
+var state = {
+  // ...
+  drawPile: pile,
+  discardPile: {},
+}
+```
 
 The `drawPile` property is the pile of cards that can be drawn by the players. It is initialized with the `pile` object defined in the `cards.js` file. Each key is the ID of a card definition, and the value is the amount of cards of this type in the pile.
 
@@ -2772,35 +1963,25 @@ At the beginning of the game, each player draws some cards.
 
 1.  In the `utils.js` file, there is a function that draws the hand of a player:
 
-```
-
-drawInitialHand(player)
-
 ```js
+      drawInitialHand(player)
+```
 
 2.  In the `main.js` file, add a new `beginGame` function that calls the `drawInitialHand` function for each player:
 
-```
-
-function beginGame () {
-
-state.players.forEach(drawInitialHand)
-
-}
-
 ```js
+      function beginGame () {
+        state.players.forEach(drawInitialHand)
+      }
+```
 
 3.  Call this inside the `mounted` hook of our main component in the `main.js` file, when the app is ready:
 
-```
-
-mounted () {
-
-beginGame()
-
-},
-
 ```js
+ mounted () {
+        beginGame()
+      },
+```
 
 # The hand
 
@@ -2808,37 +1989,26 @@ To display the cards in the current player hand, we need a new getter in the app
 
 1.  Add the `currentHand` getter to the `state` object in the `state.js` file:
 
-```
-
-get currentHand () {
-
-return state.currentPlayer.hand
-
-},
-
 ```js
+      get currentHand () {
+        return state.currentPlayer.hand
+      },
+```
 
 2.  We can now remove the `testHand` property and replace it with `currentHand` in the main template:
 
-```
-
-<hand v-if="!activeOverlay" :cards="currentHand" @card-
-
-play="testPlayCard" />
-
 ```js
+      <hand v-if="!activeOverlay" :cards="currentHand" @card-            
+      play="testPlayCard" />
+```
 
 3.  You can also remove the `createTestHand` method and this `created` hook we wrote on the main component for testing purposes:
 
-```
-
-created () {
-
-this.testHand = this.createTestHand()
-
-},
-
 ```js
+      created () {
+        this.testHand = this.createTestHand()
+      },
+```
 
 # Playing a card
 
@@ -2854,17 +2024,12 @@ When playing, cheating shouldn't be allowed. When writing the gameplay logic, we
 
 1.  Let's start by adding a new `canPlay` property to the app state in the `state.js` file:
 
-```
-
-var state = {
-
-// ...
-
-canPlay: false,
-
-}
-
 ```js
+      var state = {
+        // ...
+        canPlay: false,
+      }
+```
 
 This will prevent the player from playing a card, if it has been already played during their turn--we have a lot of animation and waiting going on, so we don't want them to cheat.
 
@@ -2872,31 +2037,21 @@ We will use it both when a player plays a card to check whether they played one 
 
 2.  So, add a `cssClass` computed property in the main component that will add the `can-play` CSS class if the `canPlay` property is true:
 
-```
-
-computed: {
-
-cssClass () {
-
-return {
-
-'can-play': this.canPlay,
-
-}
-
-},
-
-},
-
 ```js
+      computed: {
+        cssClass () {
+          return {
+            'can-play': this.canPlay,
+          }
+        },
+      },
+```
 
 3.  And add a dynamic CSS class on the root `div` element in the main template:
 
-```
-
-<div id="#app" :class="cssClass">
-
 ```js
+      <div id="#app" :class="cssClass">
+```
 
 # Removing the card from the hand
 
@@ -2904,59 +2059,40 @@ When the card is played, it should be removed from the current player hand; foll
 
 1.  Create a new `playCard` function in the `main.js` file that takes a card as an argument, checks whether the player can play a card, and then removes the card from their hand to put it into the discard pile with the `addCardToPile` function (defined in the `utils.js` file):
 
-```
-
-function playCard (card) {
-
-if (state.canPlay) {
-
-state.canPlay = false
-
-currentPlayingCard = card
-
-// Remove the card from player hand
-
-const index = state.currentPlayer.hand.indexOf(card)
-
-state.currentPlayer.hand.splice(index, 1)
-
-// Add the card to the discard pile
-
-addCardToPile(state.discardPile, card.id)
-
-}
-
-}
-
 ```js
+      function playCard (card) {
+        if (state.canPlay) {
+          state.canPlay = false
+          currentPlayingCard = card
+
+          // Remove the card from player hand
+          const index = state.currentPlayer.hand.indexOf(card)
+          state.currentPlayer.hand.splice(index, 1)
+
+          // Add the card to the discard pile
+          addCardToPile(state.discardPile, card.id)
+        }
+      }
+```
 
 We store the card the player played in the `currentPlayingCard` variable, because we need to apply its effect later.
 
 2.  In the main component, replace the `testPlayCard` method with a new `handlePlayCard` one that calls the `playCard` function:
 
-```
-
-methods: {
-
-handlePlayCard (card) {
-
-playCard(card)
-
-},
-
-},
-
 ```js
+      methods: {
+        handlePlayCard (card) {
+          playCard(card)
+        },
+      },
+```
 
 3.  Don't forget to change the event listener on the `hand` component in the main template:
 
-```
-
-<hand v-if="!activeOverlay" :cards="currentHand" @card-
-
-play="handlePlayCard" />
-
 ```js
+      <hand v-if="!activeOverlay" :cards="currentHand" @card- 
+ play="handlePlayCard" />
+```
 
 # Waiting for the card transition to end
 
@@ -2966,59 +2102,40 @@ The one we need here is the `'after-leave'` event, but there are other events co
 
 1.  In the `hand` component, add an event listener of the type `'after-leave'`:
 
-```
-
-<transition-group name="card" tag="div" class="cards" @after-
-
-leave="handleLeaveTransitionEnd">
-
 ```js
+      <transition-group name="card" tag="div" class="cards" @after- 
+ leave="handleLeaveTransitionEnd">
+```
 
 2.  Create the corresponding method that emits a `'card-leave-end'` event to the main template:
 
-```
-
-methods: {
-
-// ...
-
-handleLeaveTransitionEnd () {
-
-this.$emit('card-leave-end')
-
-},
-
-},
-
 ```js
+      methods: {
+        // ...
+        handleLeaveTransitionEnd () {
+          this.$emit('card-leave-end')
+        },
+      },
+```
 
 3.  In the main template, add a new event listener of the `'card-leave-end'` type on the `hand` component:
 
-```
-
-<hand v-if="!activeOverlay" :cards="currentHand" @card-
-
-play="handlePlayCard" @card-leave-end="handleCardLeaveEnd" />
-
 ```js
+      <hand v-if="!activeOverlay" :cards="currentHand" @card-                
+      play="handlePlayCard" @card-leave-end="handleCardLeaveEnd" />
+```
 
 4.  Create the corresponding method:
 
-```
-
-methods: {
-
-// ...
-
-handleCardLeaveEnd () {
-
-console.log('card leave end')
-
-},
-
-}
-
 ```js
+      methods: {
+        // ...
+
+        handleCardLeaveEnd () {
+          console.log('card leave end')
+        },
+      }
+```
 
 We will write its logic a bit later.
 
@@ -3028,81 +2145,55 @@ After the animation is played, the card effects will be applied to the players. 
 
 1.  In the `main.js` file, add the `applyCard` function that uses the `applyCardEffect` defined in the `utils.js` file:
 
-```
-
-function applyCard () {
-
-const card = currentPlayingCard
-
-applyCardEffect(card)
-
-}
-
 ```js
+      function applyCard () {
+        const card = currentPlayingCard
+
+        applyCardEffect(card)
+      }
+```
 
 Then, we will wait for some time so that the player can see the effects being applied and understand what is going on. Then, we will check whether at least one player is dead to end the game (thanks to the `checkPlayerLost` function defined in `utils.js`) or continue to the next turn.
 
 2.  In the `applyCard` function, add the following corresponding logic:
 
-```
-
-// 等待一会儿让玩家看看发生了什么
-
-setTimeout(() => {
-
-// Check if the players are dead
-
-state.players.forEach(checkPlayerLost)
-
-if (isOnePlayerDead()) {
-
-endGame()
-
-} else {
-
-nextTurn()
-
-}
-
-}, 700)
-
 ```js
+      // Wait a bit for the player to see what's going on
+      setTimeout(() => {
+        // Check if the players are dead
+        state.players.forEach(checkPlayerLost)
+
+        if (isOnePlayerDead()) {
+          endGame()
+        } else {
+          nextTurn()
+        }
+      }, 700)
+```
 
 3.  For now, add the empty `nextTurn` and `endGame` functions just after the `applyCard` one:
 
-```
-
-function nextTurn () {
-
-// TODO
-
-}
-
-function endGame () {
-
-// TODO
-
-}
-
 ```js
+      function nextTurn () {
+        // TODO
+      }
+
+      function endGame () {
+        // TODO
+      }
+```
 
 4.  We can now change the `handleCardLeaveEnd` method in the main component to call the `applyCard` function we just created:
 
-```
-
-methods: {
-
-// ...
-
-handleCardLeaveEnd () {
-
-applyCard()
-
-},
-
-}
-
 ```js
+      methods: {
+        // ...
+
+        handleCardLeaveEnd () {
+          applyCard()
+        },
+      }
+```
 
 # The next turn
 
@@ -3110,19 +2201,13 @@ The `nextTurn` function is quite simple--we will increment the turn counter by o
 
 Add the corresponding code into the `nextTurn` function:
 
-```
-
-function nextTurn () {
-
-state.turn ++
-
-state.currentPlayerIndex = state.currentOpponentId
-
-state.activeOverlay = 'player-turn'
-
-}
-
 ```js
+function nextTurn () {
+  state.turn ++
+  state.currentPlayerIndex = state.currentOpponentId
+  state.activeOverlay = 'player-turn'
+}
+```
 
 # New turn
 
@@ -3130,75 +2215,46 @@ We also need some logic when a turn begins after the overlays:
 
 1.  First is the `newTurn` function that hides any active overlay; it either skips the turn of the current player because of a card or starts the turn:
 
-```
-
-function newTurn () {
-
-state.activeOverlay = null
-
-if (state.currentPlayer.skipTurn) {
-
-skipTurn()
-
-} else {
-
-startTurn()
-
-}
-
-}
-
 ```js
+      function newTurn () {
+        state.activeOverlay = null
+        if (state.currentPlayer.skipTurn) {
+          skipTurn()
+        } else {
+          startTurn()
+        }
+      }
+```
 
 A player will have their turn skipped if its `skipTurn` property is true--this property will be set by some of the cards. They also have a `skippedTurn` property, which we will need to show the next player that their opponent has skipped their last turn in the `last-play` overlay.
 
 2.  Create the `skipTurn` function that sets `skippedTurn` to `true` and the `skipTurn` property to `false` and go directly to the next turn:
 
-```
-
-function skipTurn () {
-
-state.currentPlayer.skippedTurn = true
-
-state.currentPlayer.skipTurn = false
-
-nextTurn()
-
-}
-
 ```js
+      function skipTurn () {
+        state.currentPlayer.skippedTurn = true
+        state.currentPlayer.skipTurn = false
+        nextTurn()
+      }
+```
 
 3.  Create the `startTurn` function, which reset the `skippedTurn` property of the player and makes them draw a card if it's their second turn (so that they always have five cards at the beginning of their turn):
 
-```
-
-function startTurn () {
-
-state.currentPlayer.skippedTurn = false
-
-// If both player already had a first turn
-
-if (state.turn > 2) {
-
-// Draw new card
-
-setTimeout(() => {
-
-state.currentPlayer.hand.push(drawCard())
-
-state.canPlay = true
-
-}, 800)
-
-} else {
-
-state.canPlay = true
-
-}
-
-}
-
 ```js
+      function startTurn () {
+        state.currentPlayer.skippedTurn = false
+        // If both player already had a first turn
+        if (state.turn > 2) {
+          // Draw new card
+          setTimeout(() => {
+            state.currentPlayer.hand.push(drawCard())
+            state.canPlay = true
+          }, 800)
+        } else {
+          state.canPlay = true
+        }
+      }
+```
 
 It is at this moment that we can allow the player to play a card using the `canPlay` property.
 
@@ -3208,84 +2264,54 @@ Now, we will need to handle the action triggered when the user clicks on each ov
 
 1.  Add it in the `main.js` file:
 
-```
-
-var overlayCloseHandlers = {
-
-'player-turn' () {
-
-if (state.turn > 1) {
-
-state.activeOverlay = 'last-play'
-
-} else {
-
-newTurn()
-
-}
-
-},
-
-'last-play' () {
-
-newTurn()
-
-},
-
-'game-over' () {
-
-// Reload the game
-
-document.location.reload()
-
-},
-
-}
-
 ```js
+      var overlayCloseHandlers = {
+        'player-turn' () {
+          if (state.turn > 1) {
+            state.activeOverlay = 'last-play'
+          } else {
+            newTurn()
+          }
+        },
+
+        'last-play' () {
+          newTurn()
+        },
+        'game-over' () {
+          // Reload the game
+          document.location.reload()
+        },
+      }
+```
 
 For the player-turn overlay, we only switch to the `last-play` overlay if it's the second or more turn, since at the start of the very first turn, the opponent does not play any card.
 
 2.  In the main component, add the `handleOverlayClose` method that calls the action function corresponding to the currently active overlay with the `activeOverlay` property:
 
-```
-
-methods: {
-
-// ...
-
-handleOverlayClose () {
-
-overlayCloseHandlers[this.activeOverlay]()
-
-},
-
-},
-
 ```js
+      methods: {
+        // ...
+        handleOverlayClose () {
+          overlayCloseHandlers[this.activeOverlay]()
+        },
+      },
+```
 
 3.  On the overlay component, add an event listener of the `'close'` type that will be triggered when the user clicks on the overlay:
 
-```
-
-<overlay v-if="activeOverlay" :key="activeOverlay"
-
-@close="handleOverlayClose">
-
 ```js
+      <overlay v-if="activeOverlay" :key="activeOverlay"                  
+      @close="handleOverlayClose">
+```
 
 # Game Over!
 
 Finally, set the `activeOverlay` property to `'game-over'` inside the `endGame` function:
 
-```
-
+```js
 function endGame () {
-
-state.activeOverlay = 'game-over'
-
+  state.activeOverlay = 'game-over'
 }
-
 ```
 
 如果至少有一个玩家死亡，这将显示`game-over`叠加层。

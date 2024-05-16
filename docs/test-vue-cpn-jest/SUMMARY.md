@@ -1,3 +1,4 @@
++   [使用 Jest 测试 VueJS 组件](README.md)
 +   [前言](test-vue-cpn-jest_00.md)
 +   [第一章：在 Jest 中编写第一个 Vue.js 组件单元测试](test-vue-cpn-jest_01.md)
 +   [第二章：深度渲染 Vue.js 组件的测试](test-vue-cpn-jest_02.md)

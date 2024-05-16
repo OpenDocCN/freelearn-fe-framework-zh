@@ -1,3 +1,4 @@
++   [Vue2 秘籍](README.md)
 +   [前言](vue2-cb_00.md)
 +   [第一章：使用 Vue.js 入门](vue2-cb_01.md)
 +   [第二章：Vue.js 的基本功能](vue2-cb_02.md)

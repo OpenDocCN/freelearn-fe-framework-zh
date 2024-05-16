@@ -1,3 +1,4 @@
++   [VuePress 快速启动指南](README.md)
 +   [前言](vuep-qk-st-gd_0.md)
 +   [第一章：介绍静态网站生成器和 VuePress](vuep-qk-st-gd_1.md)
 +   [第二章：开始使用 VuePress](vuep-qk-st-gd_2.md)

@@ -1,3 +1,4 @@
++   [Vue2 设计模式最佳实践](README.md)
 +   [前言](vue2-dsn-ptn-best-prac_00.md)
 +   [第一章：Vue.js 的原则和比较](vue2-dsn-ptn-best-prac_01.md)
 +   [第二章：正确创建 Vue 项目](vue2-dsn-ptn-best-prac_02.md)

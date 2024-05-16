@@ -1,6 +1,4 @@
-# 第二章：*第一章*
-
-# 在 Jest 中编写第一个 Vue.js 组件单元测试
+# 第一章：在 Jest 中编写第一个 Vue.js 组件单元测试
 
 官方的 VueJS 测试库，**vue-test-utils** ([`github.com/vuejs/vue-test-utils`](https://github.com/vuejs/vue-test-utils))，基于 **avoriaz** ([`github.com/eddyerburgh/avoriaz`](https://github.com/eddyerburgh/avoriaz))，即将推出。事实上，**@EddYerburgh** ([`twitter.com/EddYerburgh`](https://twitter.com/EddYerburgh)) 在创建它方面做得非常好。这个库提供了所有必要的工具，使得在 VueJS 应用程序中编写单元测试变得容易。
 

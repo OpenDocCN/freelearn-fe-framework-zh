@@ -1,4 +1,4 @@
-介绍 TypeScript 和 Vue 生态系统
+# 第二章：介绍 TypeScript 和 Vue 生态系统
 
 TypeScript 是一种基于 Vue 的新语言，在**Vue 3**上得到了充分支持。现在可以使用类型化的 JSX（也称为 TSX），类型注解，代码的静态验证等等。
 
@@ -32,7 +32,7 @@ Vue CLI 工具是每个项目的开始；通过它，你可以选择基本功能
 
 +   将`vue-property-decorator`添加到`vue-class-component`
 
-# 第三章：技术要求
+# 技术要求
 
 在本章中，我们将使用**Node.js**，**Vue CLI**和**TypeScript**。
 

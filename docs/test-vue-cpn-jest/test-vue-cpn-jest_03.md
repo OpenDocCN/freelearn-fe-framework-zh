@@ -1,6 +1,4 @@
-# 第四章：*第三章*
-
-# 测试样式和结构
+# 第三章：测试样式和结构
 
 到目前为止，我们使用了**Jest 快照**进行测试（[`facebook.github.io/jest/docs/snapshot-testing.html`](https://facebook.github.io/jest/docs/snapshot-testing.html)）。在大多数情况下，这就是我们会使用的，但有时我们可能想要断言更具体的内容。
 

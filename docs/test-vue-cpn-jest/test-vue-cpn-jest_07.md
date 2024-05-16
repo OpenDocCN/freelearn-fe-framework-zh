@@ -1,6 +1,4 @@
-# 第八章：*第七章*
-
-# 测试 Vue.js 插槽
+# 第七章：测试 Vue.js 插槽
 
 插槽是在 Web 组件世界中进行内容分发的一种方式。Vue.js 插槽是根据**Web 组件规范**制作的（[`github.com/w3c/webcomponents/blob/gh-pages/proposals/Slots-Proposal.md`](https://github.com/w3c/webcomponents/blob/gh-pages/proposals/Slots-Proposal.md)），这意味着如果你学会了如何在 Vue.js 中使用它们，它们将对你以后很有用。
 

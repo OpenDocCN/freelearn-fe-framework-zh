@@ -60,7 +60,7 @@
     +   [GeeksForGeeks jQuery 中文教程📚](https://opendoccn.github.io/geeksforgeeks-jquery-zh)
     +   [GeeksForGeeks CSS 中文教程📚](https://opendoccn.github.io/geeksforgeeks-css-zh)
     +   [GeeksForGeeks HTML 中文教程📚](https://opendoccn.github.io/geeksforgeeks-html-zh)
-    +   [飞龙的 Vue 译文集📚](https://opendoccn.github.io/opendoccn-vue-zh)
+    +   [FreeLearning Vue 译文集📚](https://opendoccn.github.io/opendoccn-vue-zh)
     +   [飞龙的 Angular 译文集📚](https://opendoccn.github.io/opendoccn-angular-zh)
     +   [飞龙的 React 译文集📚](https://opendoccn.github.io/opendoccn-react-zh)
     +   [飞龙的 jQuery 译文集📚](https://opendoccn.github.io/opendoccn-jquery-zh)

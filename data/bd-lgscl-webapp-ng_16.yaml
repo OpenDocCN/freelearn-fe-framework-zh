@@ -1,0 +1,1632 @@
+- en: Highly-Available Cloud Infrastructure on AWS
+  id: totrans-0
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 在AWS上高可用的云基础架构
+- en: The web is a hostile environment. There are good and bad actors. Bad actors
+    can try to poke holes in your security or try to bring down your website with
+    a **Distributed Denial of Service** (**DDoS**) attack. Good actors, if you're
+    lucky, will love your website and won't stop using it. They'll shower you with
+    recommendations to improve your site, but also, they may run into bugs and they
+    may be so enthusiastic that your site may slow down to a crawl due to high traffic.
+    Real-world deployments on the web require a lot of expertise to get it right. As
+    a full-stack developer, you can only know about so many nuances of hardware, software,
+    and networking. Luckily, with the advent of cloud service providers, a lot of
+    this expertise has been translated into software configurations, with the difficult
+    hardware and networking concerns taken care of by the provider.
+  id: totrans-1
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 互联网是一个充满敌意的环境。有好的和坏的参与者。坏参与者可以试图攻击你的安全性，或者试图通过**分布式拒绝服务**（**DDoS**）攻击来使你的网站崩溃。如果你幸运的话，好的参与者会喜欢你的网站，并且不会停止使用它。他们会给你建议来改进你的网站，但也可能遇到bug，并且他们可能会如此热情以至于你的网站因为高流量而变得非常缓慢。在互联网上进行真实世界的部署需要很多专业知识才能做到正确。作为一名全栈开发者，你只能了解关于硬件、软件和网络的一些微妙之处。幸运的是，随着云服务提供商的出现，许多这方面的专业知识已经被转化为软件配置，由提供商解决了繁琐的硬件和网络问题。
+- en: One of the best features of a cloud service provider is cloud scalability, which
+    refers to your server automatically scaling out to respond to high volumes of
+    unexpected traffic and scaling down to save costs when the traffic returns back
+    to normal levels. **Amazon Web Services** (**AWS**) goes beyond basic cloud scalability
+    and introduces high-availability and fault tolerant concepts, allowing for resilient
+    local and global deployments. I have chosen to introduce you to AWS, because of
+    its vast capabilities that go way beyond what I will touch in this book. With
+    Route 53, you can get free DDoS protection; with API Gateway, you create API keys,
+    with AWS Lambda you can handle millions of transactions for only a few dollars
+    a month and with CloudFront you can cache your content at secret edge-locations
+    that are scattered around major cities of the world. In addition, Blue-Green deployments
+    will allow you to achieve no-downtime deployments of your software.
+  id: totrans-2
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 云服务提供商最好的功能之一是云可扩展性，指的是你的服务器可以自动扩展以响应意外的高流量，并在流量恢复到正常水平时缩减成本。**亚马逊云服务**（**AWS**）不仅仅实现了基本的云可扩展性，并且引入了高可用性和容错概念，允许在本地和全球进行弹性的部署。我选择介绍AWS，是因为它的功能远远超出了我在本书中所涉及到的范围。通过Route
+    53，你可以获得免费的DDoS保护；通过API Gateway，你可以创建API密钥；通过AWS Lambda，你可以处理成千上万的交易，每个月只需几美元；通过CloudFront，你可以在世界各大城市的秘密边缘位置缓存你的内容。此外，蓝绿部署可以让你实现软件无停机部署。
+- en: 'Overall, the tools and techniques you will be learning in this chapter are
+    adaptable to any cloud provider and is fast becoming critical knowledge for any
+    full-stack developer. We will be going over the following topics:'
+  id: totrans-3
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 总的来说，你将在本章学习到的工具和技术适用于任何云提供商，并且已经成为任何全栈开发者的关键知识。我们将讨论以下主题：
+- en: Creating and protecting AWS accounts
+  id: totrans-4
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 创建和保护AWS账户
+- en: Right-sizing infrastructure
+  id: totrans-5
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 右尺寸的基础设施
+- en: Simple load testing to optimize instance
+  id: totrans-6
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 简单的负载测试以优化实例
+- en: Configuring and deploying to AWS ECS Fargate
+  id: totrans-7
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 配置和部署到AWS ECS Fargate
+- en: Scripted Blue-Green deployments
+  id: totrans-8
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 脚本化的蓝绿部署
+- en: Billing
+  id: totrans-9
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 计费
+- en: Right-sizing infrastructure
+  id: totrans-10
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 右尺寸的基础设施
+- en: The point of optimizing your infrastructure is to protect your companies revenue,
+    while minimizing the cost of operating your infrastructure. Your goal should be
+    to ensure that users don't encounter high-latency, otherwise known as bad performance
+    or worse, unfulfilled or dropped requests, all the while making your venture remains
+    a sustainable endeavor.
+  id: totrans-11
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 优化你的基础设施的目的是保护公司的收入，同时最大程度地减少操作基础设施的成本。你的目标应该是确保用户不会遇到高延迟，即性能不佳，或者更糟的是未完成或丢失的请求，同时使你的创业项目能够持续发展。
+- en: 'The three pillars of web application performance are as follows:'
+  id: totrans-12
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 网页应用程序性能的三大支柱如下：
+- en: CPU utilization
+  id: totrans-13
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: CPU利用率
+- en: Memory usage
+  id: totrans-14
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 内存使用
+- en: Network bandwidth
+  id: totrans-15
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 网络带宽
+- en: I have intentionally left disk access out of the key consideration metrics,
+    since only particular workloads executed on an application server or data store are
+    affected by it. Disk access would rarely ever impact the performance of serving
+    a web application as long as application assets are delivered by a **Content Delivery
+    Network** (**CDN**). That said, still keep an eye on any unexpected runaway disk
+    access, such as high frequency creation of temp and log files. Docker, for example,
+    can spit out logs that can easily fill up a drive.
+  id: totrans-16
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我故意将磁盘访问排除在关键考虑指标之外，因为只有在应用服务器或数据存储上执行的特定工作负载才会受到影响。只要应用资源由 **内容交付网络**（**CDN**）交付，磁盘访问很少会对提供
+    Web 应用程序的性能产生影响。也就是说，仍然要留意任何意外的磁盘访问，比如频繁创建临时和日志文件。例如，Docker 可能会产生可以轻松填满驱动器的大量日志。
+- en: In an ideal scenario, CPU, memory, and network bandwidth use should be utilized
+    evenly around 60-80% of available capacity. If you encounter performance issues
+    due to various other factors such as disk I/O, a slow third-party service, or
+    inefficient code, most likely one of your metrics will peek at or near maximum
+    capacity, while the other two are idling or severely underutilized. This is an
+    opportunity to use more CPU, memory, or bandwidth to compensate for the performance
+    issue and also evenly utilize available resources.
+  id: totrans-17
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在理想情况下，CPU、内存和网络带宽使用应该均匀地在可用容量的 60-80% 之间利用。如果由于磁盘 I/O、慢的第三方服务或低效的代码等各种其他因素导致性能问题，很可能其中一种指标会接近或达到最大容量，而另外两种指标则处于空转或严重未被利用。这是一个机会，可以使用更多的
+    CPU、内存或带宽来弥补性能问题，并且均匀利用可用资源。
+- en: The reason behind targeting 60-80% utilization is to allow for some time for
+    a new instance (server or container) to be provisioned and ready to serve users.
+    After your predefined threshold has been crossed, while a new instance is provisioned,
+    you can continue serving the increasing number of users, thus minimizing unfulfilled
+    requests.
+  id: totrans-18
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 将目标定在 60-80% 的利用率的原因是为了留出一些时间来为新实例（服务器或容器）进行配置并准备好为用户提供服务。在超出预定阈值后，当正在配置新实例时，您可以继续为日益增多的用户提供服务，从而最小化未满足的请求。
+- en: Throughout this book, I have discouraged over-engineering or perfect solutions.
+    In today's complicated IT landscape, it is nearly impossible to predict where
+    you will encounter performance bottlenecks. Your engineering may, very easily,
+    spend $100,000+ worth of engineering hours, where the solution to your problem
+    may be a few hundred dollars of new hardware, whether it be a network switch,
+    solid state drive, CPU, and more memory.
+  id: totrans-19
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本书中，我反对过度设计或完美解决方案。在当今复杂的 IT 环境中，几乎不可能预测您会在哪里遇到性能瓶颈。您的工程师可能很容易地花费 10 万美元以上的工程小时数，而解决问题的解决方案可能是几百美元的新硬件，无论是网络交换机、固态硬盘、CPU
+    还是更多内存。
+- en: If your CPU is too busy, you may want to introduce more bookkeeping logic to
+    your code, via index, hash tables, or dictionaries, that you can cache in memory
+    to speed up subsequent or intermediary steps of your logic. For example, if you
+    are constantly running array lookup operations to locate particular properties
+    of a record, you can perform an operation on that record, saving the ID and/or
+    the property of the record in a hash table that you keep in memory will reduce
+    your runtime cost from *O(n)* down to *O(1)*.
+  id: totrans-20
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果您的 CPU 太忙，您可能需要向您的代码中引入更多的记账逻辑，比如索引、哈希表或字典，您可以将其缓存在内存中，以加速您逻辑的后续步骤或中间步骤。例如，如果您不断运行数组查找操作来定位记录的特定属性，您可以对该记录进行操作，将记录的
+    ID 和/或属性保存在内存中的哈希表中将能将您的运行成本从 *O(n)* 减少到 *O(1)*。
+- en: Following the preceding example, you may end up using too much memory with hash
+    tables. In this case, you may want to more aggressively offload or transfer caches
+    to slower, but more plentiful data stores using your spare network bandwidth,
+    such as a Redis instance.
+  id: totrans-21
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 按照前面的例子，您可能会发现使用哈希表消耗了太多内存。在这种情况下，您可能希望更积极地将缓存转移到速度较慢但更充足的数据存储中，利用您的备用网络带宽，比如
+    Redis 实例。
+- en: If your network utilization is too high, you may want to investigate usage of
+    CDNs with expiring links, client-side caching, throttling requests, API access
+    limits for customers abusing their quotas, or optimize your instances to have
+    disproportionately more network capacity compared to its CPU or Memory capacity.
+  id: totrans-22
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果您的网络利用率过高，您可能需要调查使用具有过期链接的 CDN、客户端缓存、限制请求速率、针对滥用其配额的客户设置 API 访问限制，或优化您的实例，让其网络容量相比
+    CPU 或内存容量不成比例更多。
+- en: Optimizing instance
+  id: totrans-23
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 优化实例
+- en: In an earlier example, I demonstrated the use of my `duluca/minimal-node-web-server` Docker
+    image to host our Angular apps. Even though Node.js is a very lightweight server,
+    it is simply not optimized to just be a web server. In addition, Node.js has single-threaded
+    execution environment, making it a poor choice for serving static content to many
+    concurrent users at once.
+  id: totrans-24
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在早些时候的示例中，我演示了使用我的 `duluca/minimal-node-web-server` Docker 镜像来托管我们Angular应用程序。尽管Node.js是一个非常轻量级的服务器，但它简单地不能对只用作Web服务器进行优化。此外，Node.js具有单线程执行环境，这使其成为为许多并发用户同时提供静态内容的贫乏选择。
+- en: 'You can observe the resource that a Docker image is utilizing by executing
+    `docker stats`:'
+  id: totrans-25
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 您可以通过执行 `docker stats` 观察Docker镜像使用的资源：
+- en: '[PRE0]'
+  id: totrans-26
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE0]'
+- en: 'Here are comparative results of the system resources that a Node and NGINX-based
+    servers utilize at rest:'
+  id: totrans-27
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这里是 Node 和基于 NGINX 的服务器在空闲时利用的系统资源的比较结果：
+- en: '| **Server** | **              Image Size** | **             Memory Usage**
+    |'
+  id: totrans-28
+  prefs: []
+  type: TYPE_TB
+  zh: '| **服务器** | **              镜像大小** | **             内存使用** |'
+- en: '| `duluca/minimal-nginx-web-server` | 16.8 MB | 1.8 MB |'
+  id: totrans-29
+  prefs: []
+  type: TYPE_TB
+  zh: '| `duluca/minimal-nginx-web-server` | 16.8 MB | 1.8 MB |'
+- en: '| `duluca/minimal-node-web-server` | 71.8 MB | 37.0 MB |'
+  id: totrans-30
+  prefs: []
+  type: TYPE_TB
+  zh: '| `duluca/minimal-node-web-server` | 71.8 MB | 37.0 MB |'
+- en: However, at rest values only tell a portion of the story. To get a better understanding,
+    we must perform a simple load test to see memory and CPU utilization under load.
+  id: totrans-31
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然而，空闲状态值只能讲述故事的一部分。为了更好地理解，我们必须进行一项简单的负载测试，以查看内存和CPU在负载下的利用情况。
+- en: Simple load testing
+  id: totrans-32
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 简单的负载测试
+- en: 'To get a better understanding of the performance characteristics of our server,
+    let''s put them under some load and stress them:'
+  id: totrans-33
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了更好地了解我们服务器的性能特征，让我们为它们添加一些负载和压力：
+- en: 'Start your container using `docker run`:'
+  id: totrans-34
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 使用 `docker run` 启动您的容器：
+- en: '[PRE1]'
+  id: totrans-35
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE1]'
+- en: 'If you''re using `npm Scripts for Docker`, execute the following command to
+    start your container:'
+  id: totrans-36
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果您使用 `npm脚本为Docker`，执行以下命令来启动您的容器：
+- en: '[PRE2]'
+  id: totrans-37
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE2]'
+- en: 'Execute the following bash script to start the load test:'
+  id: totrans-38
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 执行以下bash脚本以启动负载测试：
+- en: '[PRE3]'
+  id: totrans-39
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE3]'
+- en: This script will send 100requests/second to the server until you terminate it.
+  id: totrans-40
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 此脚本将向服务器发送 `100requests/second` 的请求，直到您终止它。
+- en: Execute `docker stats` to observe the performance characteristics.
+  id: totrans-41
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 执行 `docker stats` 以观察性能特征。
+- en: 'Here are high-level observations of CPU and memory utilization:'
+  id: totrans-42
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这里是CPU和内存利用的高层次观察：
+- en: '| **CPU Utilization Statistics** | **        Low** | **         Mid** | **          High**
+    | **   Max Memory** |'
+  id: totrans-43
+  prefs: []
+  type: TYPE_TB
+  zh: '| **CPU 利用率统计** | **        低** | **         中** | **          高** | **   最大内存**
+    |'
+- en: '| `duluca/minimal-nginx-web-server` | 2% |                    15% |                       60%
+    |                   2.4 MB |'
+  id: totrans-44
+  prefs: []
+  type: TYPE_TB
+  zh: '| `duluca/minimal-nginx-web-server` | 2% |                    15% |                       60%
+    |                   2.4 MB |'
+- en: '| `duluca/minimal-node-web-server` | 20% |                    45% |                     130%
+    |                    75 MB |'
+  id: totrans-45
+  prefs: []
+  type: TYPE_TB
+  zh: '| `duluca/minimal-node-web-server` | 20% |                    45% |                     130%
+    |                    75 MB |'
+- en: As you can see, there's a significant performance difference between the two
+    servers serving the exact same content. Note that this kind of testing based on
+    requests/second is good for a comparative analysis and does not necessarily reflect
+    real-world usage.
+  id: totrans-46
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如您所见，两个服务器提供完全相同的内容，但性能存在显著差异。请注意，基于每秒请求的这种测试适用于比较分析，并不一定反映实际使用情况。
+- en: It is clear that our NGINX server will give us the best bang for our buck. Armed
+    with an optimal solution, let's deploy the application on AWS.
+  id: totrans-47
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 很明显，我们的NGINX服务器将为我们带来最高的性价比。有了最佳解决方案，让我们在AWS上部署应用程序。
+- en: Deploy to AWS ECS Fargate
+  id: totrans-48
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 部署到AWS ECS Fargate
+- en: AWS **Elastic Container Service** (**ECS**) Fargate is a cost effective and
+    an easy-to-configure way to deploy your container in the cloud.
+  id: totrans-49
+  prefs: []
+  type: TYPE_NORMAL
+  zh: AWS **弹性容器服务**（**ECS**）Fargate 是在云中部署容器的一种经济高效且易于配置的方式。
+- en: 'ECS consists of four major parts:'
+  id: totrans-50
+  prefs: []
+  type: TYPE_NORMAL
+  zh: ECS由四个主要部分组成：
+- en: Container Repository, **Elastic Container Registry** (**ECR**), where you publish
+    your Docker images
+  id: totrans-51
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 容器仓库，**弹性容器注册表**（**ECR**），您可以在其中发布您的 Docker 镜像
+- en: Services, Tasks and Task Definitions, where you define runtime parameters and
+    port mappings for your container as a task definition that a service runs as tasks
+  id: totrans-52
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 服务、任务和任务定义，您可以在其中为容器定义运行时参数和端口映射，服务作为任务运行
+- en: Cluster, a collection of EC2 instances, where tasks can be provisioned and scaled
+    out or in
+  id: totrans-53
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 群集，EC2 实例的集合，可以在其中调配和扩展任务
+- en: Fargate, a managed cluster service, that abstracts away EC2 instances, load
+    balancer, and security group concerns
+  id: totrans-54
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: Fargate是一种托管的集群服务，它对EC2实例、负载均衡器和安全组问题进行了抽象。
+- en: At the time of publishing, Fargate is only available in the AWS `us-east-1`
+    region.
+  id: totrans-55
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在发表时，Fargate仅在AWS `us-east-1`区域可用。
+- en: Our goal is to create a highly-available blue-green deployment, meaning that
+    at least one instance of our application will be up and running in the event of
+    a server failure or even during a deployment.
+  id: totrans-56
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们的目标是创建高可用的蓝绿部署，意味着我们的应用程序至少在服务器故障或部署期间有一个实例在运行。
+- en: Configuring ECS Fargate
+  id: totrans-57
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 配置 ECS Fargate
+- en: You can access ECS functions under the AWS Services menu, selecting the Elastic
+    Container Service link.
+  id: totrans-58
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 你可以在AWS服务菜单下访问ECS函数，选择弹性容器服务链接。
+- en: If this is your first time logging in, you must go through a tutorial, where
+    you will be forced to create a sample app. I would recommend going through the
+    tutorial and deleting your sample app afterward. In order to delete a service,
+    you'll need to update your service's number of tasks to 0\. In addition, delete
+    the default cluster to avoid any unforeseen charges.
+  id: totrans-59
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果这是你第一次登录，你必须通过一个教程，在这里你将被要求创建一个样本应用。我建议你完成教程后删除你的样本应用。为了删除服务，你需要更新你的服务任务的数量为0。此外，删除默认集群以避免任何意外费用。
+- en: Creating a Fargate Cluster
+  id: totrans-60
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 创建一个Fargate集群
+- en: Let's start by configuring the Fargate Cluster, which act as a point of anchor
+    when configuring other AWS services. Our cluster will eventually run a cluster
+    service, which we will gradually build up in the following sections.
+  id: totrans-61
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们从配置Fargate集群开始，当配置其他AWS服务时，它将充当一个锚点。我们的集群最终将运行一个集群服务，在随后的章节中逐步构建。
+- en: At the time of publishing, AWS Fargate is only available in AWS US East region,
+    with support for more regions and Amazon Elastic Container Service for Kubernetes
+    (Amazon EKS) coming soon. Kubernetes is a widely preferred open source alternative
+    to AWS ECS with richer capabilities for container orchestration with on-premises,
+    cloud, and cloud-hybrid deployments.
+  id: totrans-62
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在发布时，AWS Fargate只在AWS美国东部地区可用，支持更多地区和即将推出对Amazon Elastic Container Service for
+    Kubernetes（Amazon EKS）的支持。Kubernetes是一个广泛使用的开源替代品，相对于AWS ECS具有更丰富的容器编排能力，支持本地、云和混合部署。
+- en: 'Let''s create the cluster:'
+  id: totrans-63
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们创建集群：
+- en: Navigate to Elastic Container Service
+  id: totrans-64
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 导航到弹性容器服务
+- en: Click on Clusters | Create Cluster
+  id: totrans-65
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击 Clusters | Create Cluster
+- en: Select the Networking only... powered by AWS Fargate template
+  id: totrans-66
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 选择仅具有网络...由AWS Fargate提供支持的模板
+- en: 'Click on the Next step and you see the Create Cluster step, as shown:'
+  id: totrans-67
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击下一步，你会看到创建集群的步骤，如图所示：
+- en: '![](img/8e9ed9d5-8e00-4013-9fc3-36adc67976a9.png)'
+  id: totrans-68
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/8e9ed9d5-8e00-4013-9fc3-36adc67976a9.png)'
+- en: AWS ECS Create Cluster
+  id: totrans-69
+  prefs: []
+  type: TYPE_NORMAL
+  zh: AWS ECS 创建集群
+- en: Enter Cluster name as `fargate-cluster`
+  id: totrans-70
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 输入集群名称为 `fargate-cluster`
+- en: Create a VPC to isolate your resources from other AWS resources
+  id: totrans-71
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 创建一个VPC，将你的资源与其他AWS资源隔离开来
+- en: Click on Create Cluster to finish the setup
+  id: totrans-72
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击创建集群完成设置
+- en: 'You will see the summary of your actions, as follows:'
+  id: totrans-73
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 你将看到你的操作摘要，如下所示：
+- en: '![](img/2b7b3180-2cb2-4b74-831d-67918e8d0e04.png)'
+  id: totrans-74
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/2b7b3180-2cb2-4b74-831d-67918e8d0e04.png)'
+- en: AWS ECS Fargate Cluster
+  id: totrans-75
+  prefs: []
+  type: TYPE_NORMAL
+  zh: AWS ECS Fargate 集群
+- en: Now that you have created a cluster within it's own **Virtual Private Cloud**
+    (**VPC**), you can view it under Elastic Container Service | Clusters.
+  id: totrans-76
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在，你已经在自己的**虚拟私有云**（**VPC**）中创建了一个集群，你可以在弹性容器服务 | 集群下查看它。
+- en: Creating container repository
+  id: totrans-77
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 创建容器库
+- en: 'Next, we need to set up a repository where we can publish the container images
+    we build in our local or CI environment:'
+  id: totrans-78
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 接下来，我们需要设置一个存储库，在这里我们可以发布我们在本地或CI环境中构建的容器映像：
+- en: Navigate to Elastic Container Service
+  id: totrans-79
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 导航到弹性容器服务
+- en: Click on Repositories | Create Repository
+  id: totrans-80
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击 Repositories | 创建存储库
+- en: Enter repository name as `lemon-mart`
+  id: totrans-81
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将存储库名称输入为 `lemon-mart`
+- en: Copy the Repository URI generated on the screen
+  id: totrans-82
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 复制屏幕上生成的存储库URI
+- en: 'Paste the URI in `package.json` of your application as the new `imageRepo`
+    variable:'
+  id: totrans-83
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将URI粘贴在你的应用程序的`package.json`中，作为新的`imageRepo`变量：
+- en: '[PRE4]'
+  id: totrans-84
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE4]'
+- en: Click on Create Repository
+  id: totrans-85
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击创建存储库
+- en: Click on Next step and then on Done to finish setup
+  id: totrans-86
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击下一步，然后点击完成设置
+- en: In the summary screen, you will get further instructions on how to use your
+    repository with Docker. Later in the chapter, we will go over scripts that will
+    take care of this for us.
+  id: totrans-87
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在摘要屏幕中，你将得到进一步关于如何在Docker中使用你的存储库的指导。在本章的后面，我们将介绍如何使用脚本为我们处理这个问题。
+- en: '![](img/7e6be4a0-2e88-4bc4-abf7-b0f47b70eb93.png)'
+  id: totrans-88
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/7e6be4a0-2e88-4bc4-abf7-b0f47b70eb93.png)'
+- en: AWS ECS Repository
+  id: totrans-89
+  prefs: []
+  type: TYPE_NORMAL
+  zh: AWS ECS 仓库
+- en: You can view your new repository under Elastic Container Service | Repositories.
+    We will go over how to publish your image in the upcoming `npm Scripts for AWS`
+    section.
+  id: totrans-90
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 你可以在弹性容器服务 | 存储库下查看你的新存储库。我们将在接下来的`npm脚本 for AWS`部分介绍如何发布你的映像。
+- en: Creating task definition
+  id: totrans-91
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 创建任务定义
+- en: 'With a container target defined in our repository, we can define a task definition,
+    which contains the necessary metadata to run our container, such as port mappings,
+    reserved CPU, and memory allocations:'
+  id: totrans-92
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们的仓库中定义了一个容器目标后，我们可以定义一个任务定义，其中包含运行我们的容器所需的元数据，例如端口映射、保留CPU和内存分配：
+- en: Navigate to Elastic Container Service
+  id: totrans-93
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 转到Elastic Container Service
+- en: Click on Task Definitions | Create new Task Definition
+  id: totrans-94
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击Task Definitions | 创建新任务定义
+- en: Select Fargate launch type compatibility
+  id: totrans-95
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 选择Fargate启动类型兼容性
+- en: Enter Task Definition Name as `lemon-mart-task`
+  id: totrans-96
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将任务定义名称设置为`lemon-mart-task`
+- en: Select Task role `none` (you can add one later to enable access other AWS services)
+  id: totrans-97
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 选择任务角色`none`（稍后可以添加一个以启用访问其他AWS服务）
+- en: Enter Task Size `0.5 GB`
+  id: totrans-98
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 输入任务大小`0.5 GB`
+- en: Enter Task CPU `0.25 CPU`
+  id: totrans-99
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 输入任务CPU`0.25 CPU`
+- en: 'Click on Add Container:'
+  id: totrans-100
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击添加容器：
+- en: Enter Container name as `lemon-mart`
+  id: totrans-101
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将容器名称设置为`lemon-mart`
+- en: For Image, paste the image repo URI from earlier, but append the `:latest` tag
+    to it so that it always pulls the latest image in the repository, such as `000000000000.dkr.ecr.us-east-1.amazonaws.com/lemon-mart:latest`
+  id: totrans-102
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 对于Image，粘贴之前的镜像仓库URI，但在其后追加`:latest`标签，以便始终拉取仓库中的最新镜像，例如`000000000000.dkr.ecr.us-east-1.amazonaws.com/lemon-mart:latest`
+- en: Set a Soft limit of `128 MB` for NGINX and `256 MB` for Node.js
+  id: totrans-103
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 为NGINX设置软限制为`128 MB`，为Node.js设置为`256 MB`
+- en: Under Port mappings, specify Container port as `80` for NGINX and `3000` for
+    Node.js
+  id: totrans-104
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在端口映射下，为NGINX指定容器端口为`80`，为Node.js指定为`3000`。
+- en: Accept the remaining defaults
+  id: totrans-105
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 接受剩下的默认值
+- en: 'Click on Add; this is how your task definition will look before creating it:'
+  id: totrans-106
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击添加；这是在创建任务定义之前您的任务定义将看起来像的样子：
+- en: '![](img/d7124065-4598-41fa-a919-bb23363ca313.jpg)'
+  id: totrans-107
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/d7124065-4598-41fa-a919-bb23363ca313.jpg)'
+- en: AWS ECS Task Definition
+  id: totrans-108
+  prefs: []
+  type: TYPE_NORMAL
+  zh: AWS ECS 任务定义
+- en: Click on Create to finish setup
+  id: totrans-109
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击创建以完成设置
+- en: View your new Task Definition under Elastic Container Service | Task Definitions.
+  id: totrans-110
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在Elastic Container Service | Task Definitions下查看您的新任务定义。
+- en: Note that the default settings will enable AWS CloudWatch logging, which is
+    a way you can retroactively access console logs of your container instance. In
+    this example, a CloudWatch Log Group named `/ecs/lemon-mart-task` will be created.
+  id: totrans-111
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 请注意，默认设置将启用AWS CloudWatch日志记录，这是您可以在后期访问容器实例的控制台日志的一种方式。在此示例中，将创建名为`/ecs/lemon-mart-task`的CloudWatch日志组。
+- en: View your new Log Group under Cloud Watch | Logs.
+  id: totrans-112
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在Cloud Watch | Logs下查看您的新日志组。
+- en: If you're adding a container that needs to persist data, the task definition
+    allows you to define a volume and mount a folder to your Docker container. I've
+    published a guide a for configuring AWS **Elastic File System** (**EFS**) with
+    your ECS Container at [bit.ly/mount-aws-efs-ecs-container](http://bit.ly/mount-aws-efs-ecs-container).
+  id: totrans-113
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果您正在添加需要持久数据的容器，则任务定义允许您定义卷并将文件夹挂载到您的Docker容器中。我已发布了一篇关于在您的ECS容器中配置AWS **弹性文件系统**
+    (**EFS**)的指南，网址为[bit.ly/mount-aws-efs-ecs-container](http://bit.ly/mount-aws-efs-ecs-container)。
+- en: Creating elastic load balancer
+  id: totrans-114
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 创建弹性负载均衡器
+- en: 'In a highly-available deployment, we will want to be running two instances
+    of your container, as defined by the task definition we just created, across two
+    different **Availability Zones** (**AZs**). For this kind of dynamically scaling
+    out and scaling in, we need to configure an **Application Load Balancer** (**ALB**)
+    to handle request routing and draining:'
+  id: totrans-115
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在高可用部署中，我们将希望在两个不同的**可用区**（**AZs**）上运行两个容器实例，如我们刚刚创建的任务定义所定义的那样。对于这种动态扩展和收缩，我们需要配置一个**应用负载均衡器**（**ALB**）来处理请求路由和排空：
+- en: On a seperate tab, navigate to EC2 | Load Balancers | Create Load Balancer
+  id: totrans-116
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在另一个选项卡上，导航至EC2 | 负载均衡器 | 创建负载均衡器
+- en: Create an Application Load Balancer
+  id: totrans-117
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 创建一个应用负载均衡器
+- en: 'Enter Name `lemon-mart-alb`:'
+  id: totrans-118
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 输入名称`lemon-mart-alb`：
+- en: In order to support SSL traffic under listeners, you can add a new listener
+    for HTTPS on port `443`. An SSL setup can be achieved conveniently via AWS services
+    and wizards. During the ALB configuration process, AWS offers links to these wizards
+    to create your certificates. However, it is an involved process and one that can
+    vary depending on your existing domain hosting and SSL certification setup. I
+    will be skipping over SSL-related configuration in this book. You can find SSL
+    related steps, published on the guide I've published at [bit.ly/setupAWSECSCluster](http://bit.ly/setupAWSECSCluster).
+  id: totrans-119
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了支持监听器下的SSL流量，你可以在端口`443`上添加一个新的HTTPS监听器。通过AWS服务和向导，可以方便地设置SSL。在ALB配置过程中，AWS提供了链接到这些向导以创建你的证书。然而，这是一个复杂的过程，取决于你现有的域名托管和SSL证书设置。在本书中，我将跳过与SSL相关的配置。你可以在我发布的指南[bit.ly/setupAWSECSCluster](http://bit.ly/setupAWSECSCluster)中找到SSL相关的步骤。
+- en: Under Availability Zones, select the VPC that was created for your fargate-cluster
+  id: totrans-120
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在可用区中，选择为您的fargate-cluster创建的VPC
+- en: Select all AZs listed
+  id: totrans-121
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 选择所有列出的可用区
+- en: 'Expand Tags and add a key/value pair to be able to identify the ALB, like ``"App":
+    " LemonMart"``'
+  id: totrans-122
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: '展开标签，添加一个键/值对以便识别ALB，比如``"App": " LemonMart"``'
+- en: Click on Next
+  id: totrans-123
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击下一步
+- en: Select Default ELB security policy
+  id: totrans-124
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 选择默认的ELB安全策略
+- en: Click on Next
+  id: totrans-125
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击下一步
+- en: Create a new cluster specific security group, `lemon-mart-sg`, only allowing
+    port `80` inbound or `443` if using HTTPS
+  id: totrans-126
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 创建一个新的集群特定安全组，`lemon-mart-sg`，仅允许端口`80`入站或`443`（如果使用HTTPS）。
+- en: When creating your Cluster Service in the next section, ensure that the security
+    group created here is the one selected during service creation. Otherwise, your
+    ALB won't be able to connect to your instances.
+  id: totrans-127
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在下一节中创建集群服务时，请确保此处创建的安全组是在服务创建期间选择的那个。否则，您的ALB将无法连接到您的实例。
+- en: Click on Next
+  id: totrans-128
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击下一步
+- en: Name a new Target group as `lemon-mart-target-group`
+  id: totrans-129
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将新的目标组命名为`lemon-mart-target-group`
+- en: Change protocol type from `instance` to `ip`
+  id: totrans-130
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将协议类型从`instance`更改为`ip`
+- en: Under Health check, keep the default route `/`, if serving a website on HTTP
+  id: totrans-131
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在健康检查下，保持默认路由`/`，如果在HTTP上提供网站
+- en: Health checks are critical for scaling and deployment operations to work. This
+    is the mechanism that AWS can use to check whether an instance has been created
+    successfully or not.
+  id: totrans-132
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 健康检查对于扩展和部署操作至关重要。这是AWS用来检查实例是否已成功创建的机制。
+- en: If deploying an API and/or redirecting all HTTP calls to HTTPS, ensure that
+    your app defines a custom route that is not redirected to HTTPS. On HTTP server
+    GET `/healthCheck` return simple 200 message saying `I'm healthy` and verify that
+    this does not redirect to HTTPS. Otherwise, you will go through a lot of pain
+    and suffering trying to figure out what's wrong, as all health checks fail and
+    deployments inexplicably fail. `duluca/minimal-node-web-server` provides HTTPS
+    redirection, along with an HTTP-only `/healthCheck` endpoint out of the box. With
+    `duluca/minimal-nginx-web-server`, you will need to provide your own configuration.
+  id: totrans-133
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果部署API和/或将所有HTTP调用重定向到HTTPS，请确保你的应用定义了一个不重定向到HTTPS的自定义路由。在HTTP服务器 GET `/healthCheck`
+    返回简单的`I'm healthy`消息，并验证这不会重定向到HTTPS。否则，你将通过许多痛苦和痛苦来试图弄清楚问题所在，因为所有的健康检查都失败了，而部署却莫名其妙地失败了。`duluca/minimal-node-web-server`提供HTTPS重定向功能，以及开箱即用的仅HTTP
+    `/healthCheck`端点。使用`duluca/minimal-nginx-web-server`，你将需要提供自己的配置。
+- en: Click on Next
+  id: totrans-134
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击下一步
+- en: Do *not* register any Targets or IP Ranges. ECS Fargate will magically manage
+    this for you, if you do so yourself, you will provision a semi broken infrastructure
+  id: totrans-135
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: '*不*注册任何目标或IP范围。如果这是由ECS Fargate魔法般地为您管理的，如果您自己这样做，您将为半破碎的基础设施提供。'
+- en: 'Click on Next:Review; your ALB settings should look similar to the one shown:'
+  id: totrans-136
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击下一步:审核;您的ALB设置应该与所示的类似：
+- en: '![](img/2e42b62b-1efa-45dd-a56f-c39ea39b1674.png)'
+  id: totrans-137
+  prefs: []
+  type: TYPE_IMG
+  zh: '![示图](img/2e42b62b-1efa-45dd-a56f-c39ea39b1674.png)'
+- en: AWS Application Load Balancer Settings
+  id: totrans-138
+  prefs: []
+  type: TYPE_NORMAL
+  zh: AWS应用负载均衡器设置
+- en: Click on Create to finish setup
+  id: totrans-139
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击创建完成设置
+- en: You will be using the lemon-mart-alb when creating your Cluster Service in the
+    next section.
+  id: totrans-140
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在下一节中创建集群服务时，您将使用lemon-mart-alb。
+- en: Creating cluster service
+  id: totrans-141
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 创建集群服务
+- en: 'Now, we will bring it all together by creating a service in our cluster using
+    the task definition and the ALB we created:'
+  id: totrans-142
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在，我们将通过使用任务定义和我们创建的ALB在我们的集群中创建一个服务，将它们整合起来：
+- en: Navigate to Elastic Container Service
+  id: totrans-143
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 转到弹性容器服务
+- en: Click on Clusters | fargate-cluster
+  id: totrans-144
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击集群 | fargate-cluster
+- en: Under Services tab, click on Create
+  id: totrans-145
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在服务选项卡下，点击创建
+- en: Select Launch type `Fargate`
+  id: totrans-146
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 选择启动类型`Fargate`
+- en: Select the task definition you created earlier
+  id: totrans-147
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 选择您之前创建的任务定义
+- en: Note that task definitions are versioned, such as `lemon-mart-task:1`. If you
+    were to make a change to the task definition, AWS will create `lemon-mart-task:2`.
+    You will need to update the service with this new version for your changes to
+    take effect.
+  id: totrans-148
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 请注意，任务定义是有版本的，比如 `lemon-mart-task:1`。如果要对任务定义进行更改，AWS 将创建 `lemon-mart-task:2`。您需要使用此新版本更新服务，以使更改生效。
+- en: Enter Service name `lemon-mart-service`
+  id: totrans-149
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 输入服务名称 `lemon-mart-service`
+- en: Number of tasks `2`
+  id: totrans-150
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 任务数量 `2`
+- en: Minimum healthy percent `50`
+  id: totrans-151
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 最小可用百分比 `50`
+- en: Maximum percent `200`
+  id: totrans-152
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 最大百分比 `200`
+- en: Click on Next
+  id: totrans-153
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击下一步
+- en: Set minimum health percent to 100 for high-availability even during deployment.
+    Fargate pricing is based on usage per second, so while deploying your application,
+    you will be charged extra for the additional instances, while the old ones are
+    being deprovisioned.
+  id: totrans-154
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了确保在部署过程中保持高可用性，将最小健康百分比设置为 100。Fargate 的定价是按秒计费的，因此在部署应用程序时，您将额外支付额外的实例费用，而旧实例正在被取消。
+- en: Under Configure network, select the same VPC as your cluster from earlier
+  id: totrans-155
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在配置网络下，选择与之前集群相同的 VPC
+- en: Select all subnets that are available; there should be at least two for high-availability
+  id: totrans-156
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 选择所有现有的子网；应至少有两个以保证高可用性
+- en: Select the security group you created in the previous section—`lemon-mart-sg`
+  id: totrans-157
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 选择在上一部分中创建的安全组—`lemon-mart-sg`
+- en: Select Load Balancer type as Application Load Balancer
+  id: totrans-158
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将负载均衡器类型选择为应用负载均衡器
+- en: Select the lemon-mart-alb option
+  id: totrans-159
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 选择 lemon-mart-alb 选项
+- en: Add Container port to the ALB, such as `80` or `3000`, by clicking on the Add
+    to Load Balancer button
+  id: totrans-160
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 通过点击“添加到负载均衡器”按钮，为 ALB（应用负载均衡器）添加容器端口，例如 `80` 或 `3000`
+- en: Select the Listener port that you had already defined
+  id: totrans-161
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 选择您已经定义的监听端口
+- en: Select the Target group you had already defined
+  id: totrans-162
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 选择您之前定义的目标组
+- en: Uncheck Enable service discovery integration
+  id: totrans-163
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 取消勾选“启用服务发现集成”
+- en: Click on Next
+  id: totrans-164
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击下一步
+- en: If you'd like your instances to scale out and in automatically, when their capacities
+    are reach a certain limit, then set Auto Scaling
+  id: totrans-165
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 如果您希望实例在达到一定限制时能够自动扩展和缩减，则设置自动缩放
+- en: I would recommend skipping the set up of auto scaling during the initial setup
+    of your service to make it easier to troubleshoot any potential configuration
+    issues. You can come back and set it up later. Automatic task scaling policies
+    rely on alarms, such as CPU Utilization.
+  id: totrans-166
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我建议在服务的初始设置过程中跳过自动扩展的设置，以便更容易排除任何潜在的配置问题。您可以随后再回来进行设置。自动任务缩放策略依赖于警报，如 CPU 利用率。
+- en: 'Click on Next and review your changes, as illustrated:'
+  id: totrans-167
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击下一步，并审查您所做的更改，如图所示：
+- en: '![](img/2667f438-d9ae-46dd-a7d3-d750321987ce.png)'
+  id: totrans-168
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/2667f438-d9ae-46dd-a7d3-d750321987ce.png)'
+- en: AWS Fargate cluster service settings
+  id: totrans-169
+  prefs: []
+  type: TYPE_NORMAL
+  zh: AWS Fargate 集群服务设置
+- en: Finally, click on Save to finish setup
+  id: totrans-170
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 最后，点击“保存”完成设置
+- en: Observe your new service under Elastic Container Service | Clusters | fargate-cluster
+    | lemon-mart-service. Until you publish an image to your container repository,
+    your AWS service won't be able to provision an instance, since the health check
+    will continually fail. After you publish an image, you will want to ensure that
+    there are no errors present in the Events tab for your service.
+  id: totrans-171
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 观察您在 Elastic Container Service | Clusters | fargate-cluster | lemon-mart-service
+    下的新服务。在将图像发布到容器存储库之前，您的 AWS 服务将无法启动实例，因为健康检查将持续失败。发布图像后，您将希望确保服务的事件标签中没有错误。
+- en: AWS is a complicated beast and with Fargate, you can avoid a lot of complexity.
+    However, if you're interested in setting up your own ECS cluster using your own
+    Ec2 instances, you can get significant discounts with 1-3 year reserved instances.
+    I have a 75+ setup guide available at [bit.ly/setupAWSECSCluster](http://bit.ly/setupAWSECSCluster).
+  id: totrans-172
+  prefs: []
+  type: TYPE_NORMAL
+  zh: AWS 是一个复杂的系统，通过 Fargate，您可以避免很多复杂性。然而，如果您有兴趣使用自己的 Ec2 实例建立自己的 ECS 集群，您可以通过 1-3
+    年的保留实例获得重大折扣。我有一份完整的设置指南，可在 [bit.ly/setupAWSECSCluster](http://bit.ly/setupAWSECSCluster)
+    上找到。
+- en: We have executed a lot of steps manually to create our Cluster. AWS CloudFormation
+    resolves this issue by offering configuration templates that you can customize
+    to your needs or script your own templates from scratch. If you would like to
+    get serious about AWS, this kind of code-as-infrastructure setup is definitely
+    the way to go.
+  id: totrans-173
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们手动执行了许多步骤来创建我们的集群。AWS CloudFormation 可以通过提供可定制的配置模板或从头开始编写模板来解决这个问题。如果您希望认真对待
+    AWS，这种代码即基础设施的设置绝对是上策。
+- en: For production deployments, ensure that your configuration is defined by a CloudFormation
+    template, so it can be easily reprovisioned, not if, but when a deployment related
+    faux pas occurs.
+  id: totrans-174
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 对于生产部署，请确保您的配置由CloudFormation模板定义，这样就可以轻松地重新配置，而不是在部署相关的意外失误发生时。
+- en: Configuring the DNS
+  id: totrans-175
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 配置DNS
+- en: 'If you use AWS Route 53 to manage your domain, it is easy to assign a domain
+    or a subdomain to an ALB:'
+  id: totrans-176
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果您使用AWS Route 53来管理您的域名，那么很容易将域名或子域名分配给ALB：
+- en: Navigate to Route 53 | Hosted Zones
+  id: totrans-177
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 转到Route 53 | 托管区域
+- en: Select your domain, like `thejavascriptpromise.com`
+  id: totrans-178
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 选择您的域名，例如`thejavascriptpromise.com`
+- en: Click on Create record set
+  id: totrans-179
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击创建记录集
+- en: Enter Name as `lemonmart`
+  id: totrans-180
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将名称输入为`lemonmart`
+- en: Set Alias to `yes`
+  id: totrans-181
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将别名设置为`是`
+- en: Select the lemon-mart-alb from the load balancer list
+  id: totrans-182
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 从负载均衡器列表中选择lemon-mart-alb
+- en: Click on Create to finish setup
+  id: totrans-183
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击创建以完成设置
+- en: '![](img/73962f56-148b-48e2-8930-428db0754ce7.png)'
+  id: totrans-184
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/73962f56-148b-48e2-8930-428db0754ce7.png)'
+- en: Route 53 - Create record set
+  id: totrans-185
+  prefs: []
+  type: TYPE_NORMAL
+  zh: Route 53 - 创建记录集
+- en: Now, your site will be reachable on the subdomain you just defined, for example `http://lemonmart.thejavascriptpromise.com`.
+  id: totrans-186
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在，您的站点将通过您刚刚定义的子域名可达，例如`http://lemonmart.thejavascriptpromise.com`。
+- en: If don't use Route 53, don't panic. On your domain provider's website, edit
+    the `Zone` file to create an `A` record to the ELB's DNS address and you're done.
+  id: totrans-187
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果不使用Route 53，不必惊慌。在您的域名提供商的网站上，编辑`Zone`文件以创建`A`记录到ELB的DNS地址，完成后即可。
+- en: Getting the DNS Name
+  id: totrans-188
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 获取DNS名称
+- en: 'In order to get your load balancers'' DNS address, perform these steps:'
+  id: totrans-189
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了获得负载均衡器的DNS地址，请执行以下步骤：
+- en: Navigate to EC2 | Load Balancers
+  id: totrans-190
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 转到EC2 | 负载均衡器
+- en: Select the lemon-mart-alb
+  id: totrans-191
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 选择lemon-mart-alb
+- en: 'In the Description tab note the DNS name; consider this example:'
+  id: totrans-192
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在描述标签中记录DNS名称；考虑以下示例：
+- en: '[PRE5]'
+  id: totrans-193
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE5]'
+- en: Prep Angular app
+  id: totrans-194
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 准备Angular应用
+- en: This section presumes that you have set up Docker and `npm Scripts for Docker`as
+    detailed in [Chapter 10](4628e6f3-23d6-4aa7-a842-d1df666718de.xhtml)*, Prepare
+    Angular App for Production Release*. You can get the latest version of these scripts
+    at [bit.ly/npmScriptsForDocker](http://bit.ly/npmScriptsForDocker).
+  id: totrans-195
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 本节假设您已经根据[第10章](4628e6f3-23d6-4aa7-a842-d1df666718de.xhtml)*，为生产发布准备Angular应用*的详细说明设置了Docker和`npm
+    Scripts for Docker`。您可以在[bit.ly/npmScriptsForDocker](http://bit.ly/npmScriptsForDocker)获取这些脚本的最新版本。
+- en: 'Implement an optimized `Dockerfile`:'
+  id: totrans-196
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 实现优化的`Dockerfile`：
+- en: '[PRE6]'
+  id: totrans-197
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE6]'
+- en: 'Note that if you''re using `npm Scripts for Docker`, update the internal image
+    port from `3000` to `80`, as shown:'
+  id: totrans-198
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 请注意，如果您正在使用`npm Scripts for Docker`，请将内部图像端口从`3000`更新到`80`，如下所示：
+- en: '[PRE7]'
+  id: totrans-199
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE7]'
+- en: Adding npm Scripts for AWS
+  id: totrans-200
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 添加npm Scripts for AWS
+- en: 'Just like `npm Scripts for Docker`, I have developed a set of scripts, called `npm
+    Scripts for AWS`, that work on Windows 10 and macOS. These scripts will allow
+    you to upload and release your Docker images in spectacular, no-downtime, blue-green
+    fashion. You can get the latest version of these scripts at [bit.ly/npmScriptsForAWS](http://bit.ly/npmScriptsForAWS):'
+  id: totrans-201
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 就像`npm Scripts for Docker`一样，我开发了一组脚本，称为`npm Scripts for AWS`，适用于Windows 10和macOS。这些脚本将使您能够以出色、无停机时间、蓝绿色方式上传和发布您的Docker镜像。您可以在[bit.ly/npmScriptsForAWS](http://bit.ly/npmScriptsForAWS)获取这些脚本的最新版本：
+- en: Ensure that [bit.ly/npmScriptsForDocker](http://bit.ly/npmScriptsForDocker)
+    are set up on your project
+  id: totrans-202
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 确保您的项目已经设置了[bit.ly/npmScriptsForDocker](http://bit.ly/npmScriptsForDocker)
+- en: 'Create a `.env` file and set `AWS_ACCESS_KEY_ID` and  `AWS_SECRET_ACCESS_KEY`:'
+  id: totrans-203
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 创建`.env`文件并设置`AWS_ACCESS_KEY_ID`和`AWS_SECRET_ACCESS_KEY`：
+- en: '[PRE8]'
+  id: totrans-204
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE8]'
+- en: Ensure that your `.env` file is in your `.gitignore` file to protect your secrets
+  id: totrans-205
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 确保您的`.env`文件在您的`.gitignore`文件中，以保护您的秘密信息
+- en: 'Install or upgrade to latest AWS CLI:'
+  id: totrans-206
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 安装或升级到最新的AWS CLI：
+- en: On macOS `brew install awscli`
+  id: totrans-207
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 在macOS上 `brew install awscli`
+- en: On Windows ``choco install awscli``
+  id: totrans-208
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 在Windows上`choco install awscli`
+- en: 'Log in to AWS CLI with your credentials:'
+  id: totrans-209
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 使用您的凭证登录AWS CLI：
+- en: Run `aws configure`
+  id: totrans-210
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 运行`aws configure`
+- en: You'll need your Access Key ID and Secret Access Key from when you configured
+    your IAM account
+  id: totrans-211
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 您将需要从配置IAM账户时获得的访问密钥ID和访问密钥 Commands的各位。
+- en: Set Default region name like `us-east-1`
+  id: totrans-212
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 设置默认区域名称，如`us-east-1`
+- en: 'Update `package.json` to add a new `config` property with the following configuration
+    properties:'
+  id: totrans-213
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 更新`package.json`，添加新的`config`属性，其中包含以下配置属性：
+- en: '[PRE9]'
+  id: totrans-214
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE9]'
+- en: Ensure that you update `package.json` from when you configured `npm Scripts
+    for Docker` so that the `imageRepo` property has the address of your new ECS repository.
+  id: totrans-215
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 确保您从配置`npm Scripts for Docker`时更新了`package.json`，以便`imageRepo`属性具有您新的ECS存储库的地址。
+- en: 'Add AWS `scripts` to `package.json`, as illustrated:'
+  id: totrans-216
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 向`package.json`添加AWS `scripts`，示例如下：
+- en: '[PRE10]'
+  id: totrans-217
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE10]'
+- en: '`npm run aws:login` calls platform-specific commands that automate an otherwise
+    multi-step action to get a Docker login command from the AWS CLI tool, as shown:'
+  id: totrans-218
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`npm run aws:login` 调用特定于平台的命令,自动执行从 AWS CLI 工具获取 Docker 登录命令的多步操作,如下所示:'
+- en: '[PRE11]'
+  id: totrans-219
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE11]'
+- en: 'You would first execute `aws ecr get-login` and then copy-paste the resulting `docker
+    login` command and execute it so that your local Docker instance is pointed to
+    AWS ECR:'
+  id: totrans-220
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '你首先需要执行 `aws ecr get-login`,然后复制粘贴得到的 `docker login` 命令并执行它,以便你的本地 Docker 实例指向
+    AWS ECR:'
+- en: '[PRE12]'
+  id: totrans-221
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE12]'
+- en: '`npm run aws:deploy` pulls a Docker container that itself executes blue-green
+    deployment, using the parameters you have provided using the `aws ecr` commands.
+    The details of how this works are beyond the scope of this book. To see more examples
+    using native `aws ecr` commands, refer to the `aws-samples` repository at [github.com/aws-samples/ecs-blue-green-deployment](https://github.com/aws-samples/ecs-blue-green-deployment).'
+  id: totrans-222
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`npm run aws:deploy` 拉取一个 Docker 容器,该容器本身执行蓝绿部署,使用你通过 `aws ecr` 命令提供的参数。这是如何运作的细节超出了本书的范围。要查看更多使用本地
+    `aws ecr` 命令的示例,请参考 `aws-samples` 存储库 [github.com/aws-samples/ecs-blue-green-deployment](https://github.com/aws-samples/ecs-blue-green-deployment)。'
+- en: 'Note that the `duluca/ecs-deploy-fargate` blue-green deployment script is a
+    fork of the original `silintl/ecs-deploy` image modified to support AWS ECS Fargate
+    using PR `https://github.com/silinternational/ecs-deploy/pull/129`. Once `silintl/ecs-deploy`
+    merges this change, I recommend using `silintl/ecs-deploy` for your blue-green
+    deployments:'
+  id: totrans-223
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '请注意, `duluca/ecs-deploy-fargate` 蓝绿部署脚本是原始 `silintl/ecs-deploy` 镜像的一个分支,经过修改以支持使用
+    PR `https://github.com/silinternational/ecs-deploy/pull/129` 的 AWS ECS Fargate。一旦
+    `silintl/ecs-deploy` 合并了这个变更,我建议你使用 `silintl/ecs-deploy` 进行蓝绿部署:'
+- en: '[PRE13]'
+  id: totrans-224
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE13]'
+- en: Finally, `npm run aws:release` simply runs `aws:login`, `docker:publish` from
+    `npm Scripts for Docker` and `aws:deploy` commands in the right order.
+  id: totrans-225
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 最后, `npm run aws:release` 只需按正确的顺序运行 `aws:login`、`docker:publish` 和 `aws:deploy`
+    命令。
+- en: Publish
+  id: totrans-226
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 发布
+- en: 'Your project is configured to be deployed on AWS. You mostly need to use two
+    of the commands we created to build and publish an image:'
+  id: totrans-227
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '你的项目已配置为部署在 AWS 上。你主要需要使用我们创建的两个命令来构建和发布镜像:'
+- en: 'Execute `docker:debug` to test, build, tag, run, tail, and launch your app
+    in a browser to test the image:'
+  id: totrans-228
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: '执行 `docker:debug` 来测试、构建、标记、运行、跟踪并在浏览器中启动你的应用程序来测试镜像:'
+- en: '[PRE14]'
+  id: totrans-229
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE14]'
+- en: 'Execute `aws:release` to configure Docker login with AWS, publish your latest
+    image build, and release it on ECS:'
+  id: totrans-230
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: '执行 `aws:release` 配置 Docker 登录 AWS,发布最新的镜像构建,并将其发布到 ECS:'
+- en: '[PRE15]'
+  id: totrans-231
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE15]'
+- en: 'Verify that your tasks are up and running at the Service level:'
+  id: totrans-232
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: '验证你的任务在服务级别正在运行: '
+- en: '![](img/5a8b7712-bc0f-49bd-b908-5a18033ae11a.png)'
+  id: totrans-233
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/5a8b7712-bc0f-49bd-b908-5a18033ae11a.png)'
+- en: AWS ECS Service
+  id: totrans-234
+  prefs: []
+  type: TYPE_NORMAL
+  zh: AWS ECS 服务
+- en: Ensure that running count and desired count are the same.
+  id: totrans-235
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 确保运行计数和期望计数相同。
+- en: 'Verify that your instances are running at the Task level:'
+  id: totrans-236
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: '验证你的实例在任务级别正在运行:'
+- en: '![](img/5c618d29-9ac5-47b9-be02-d4f9129fde8b.png)'
+  id: totrans-237
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/5c618d29-9ac5-47b9-be02-d4f9129fde8b.png)'
+- en: AWS ECS task instance
+  id: totrans-238
+  prefs: []
+  type: TYPE_NORMAL
+  zh: AWS ECS 任务实例
+- en: Note the Public IP address and navigate to it; for example, `http://54.164.92.137` and
+    you should see your application or LemonMart running.
+  id: totrans-239
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 记下公网 IP 地址并导航到它; 例如 `http://54.164.92.137`，你应该能看到你的应用程序或正在运行的 LemonMart。
+- en: Verify that the Load Balancer setup is correct at the DNS level.
+  id: totrans-240
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 验证负载均衡器在 DNS 级别的设置是否正确。
+- en: 'Navigate to the ALB DNS address, for example `http://lemon-mart-alb-1871778644.us-east-1.elb.amazonaws.com`,
+    and confirm that the app renders, as follows:'
+  id: totrans-241
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: '导航到 ALB DNS 地址,例如 `http://lemon-mart-alb-1871778644.us-east-1.elb.amazonaws.com`,确认应用程序呈现如下:'
+- en: '![](img/d0f9a4d3-180d-467e-b7c9-31fff9d22ff8.png)'
+  id: totrans-242
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/d0f9a4d3-180d-467e-b7c9-31fff9d22ff8.png)'
+- en: LemonMart running on AWS Fargate
+  id: totrans-243
+  prefs: []
+  type: TYPE_NORMAL
+  zh: LemonMart 运行在 AWS Fargate 上
+- en: Et voilà! Your site should be up and running.
+  id: totrans-244
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 瞧!你的网站应该已经启动并运行了。
+- en: 'In subsequent releases, following your first, you will be able to observe blue-green
+    deployment in action, as shown:'
+  id: totrans-245
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '在后续版本发布中,你将能够观察到蓝绿部署的进行,如下所示:'
+- en: '![](img/e8f25e27-ecbe-4a4a-9709-0d98df5c1666.png)'
+  id: totrans-246
+  prefs: []
+  type: TYPE_IMG
+  zh: '![](img/e8f25e27-ecbe-4a4a-9709-0d98df5c1666.png)'
+- en: AWS Service during Blue-Green Deployment
+  id: totrans-247
+  prefs: []
+  type: TYPE_NORMAL
+  zh: AWS 服务在蓝绿部署期间
+- en: There are two tasks running, with two new ones being provisioned. While the
+    new tasks are being verified, running count will rise up to four tasks. After
+    the new tasks are verified and the connections from old ones drained, the running
+    count will return to two.
+  id: totrans-248
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 有两个任务正在运行,另外两个新任务正在预配置。在新任务得到验证的同时,运行数量会上升到四个任务。在新任务得到验证并从旧任务中排出连接后,运行数量将恢复为两个。
+- en: You can automate your deployments by configuring CircleCI with your AWS credentials,
+    using a container that has the `awscli` tool installed and running `npm Scripts
+    for AWS`. With this technique, you can achieve Continuous Deployment to a staging
+    environment or Continuous Delivery to a production environment.
+  id: totrans-249
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 你可以通过配置CircleCI与你的AWS凭据，使用已安装了`awscli`工具的容器，并运行`npm Scripts for AWS`来自动化你的部署。使用这种技术，你可以实现对暂存环境的持续部署或对生产环境的持续交付。
+- en: Summary
+  id: totrans-250
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 摘要
+- en: In this chapter, you learned about the nuances and various security considerations
+    in properly protecting your AWS account. We went over the concepts of right-sizing
+    your infrastructure. You conducted simple load testing in an isolated manner to
+    find out relative differences in performance between two web servers. Armed with
+    an optimized web server, you configured an AWS ECS Fargate cluster to achieve
+    a highly-available cloud infrastructure. Using npm Scripts for AWS, you learned
+    how to script repeatable and reliable no-downtime Blue-Green deployments. Finally,
+    you became aware of the basic costs of running your infrastructure on AWS and
+    other cloud providers such as Heroku, Zeit Now, and Digital Ocean.
+  id: totrans-251
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章中，你了解了正确保护你的AWS账户的微妙之处和各种安全考虑。我们讨论了调整基础架构的概念。你以隔离的方式进行了简单的负载测试，以找出两个Web服务器之间性能的相对差异。拥有了一个经过优化的Web服务器，你配置了AWS
+    ECS Fargate集群，实现了高可用的云基础架构。通过使用AWS的npm脚本，你学会了如何编写可重复和可靠的无停机蓝绿部署。最后，你了解了在AWS和其他云提供商（如Heroku、Zeit
+    Now和Digital Ocean）上运行基础架构的基本成本。

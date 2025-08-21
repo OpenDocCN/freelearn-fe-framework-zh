@@ -1,0 +1,963 @@
+- en: Chapter 5. Putting Things into Perspective
+  id: totrans-0
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 第5章 视角透视
+- en: 'We will now see how to render another very popular kind of effect: the top-down
+    perspective (also known as overhead perspective). There are a wide variety of
+    games that can be created using this technique:'
+  id: totrans-1
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在我们将看到如何渲染另一种非常流行的效果：俯视透视（也称为俯瞰透视）。可以使用这种技术创建各种不同的游戏：
+- en: Hack and slash like *Gauntlet*
+  id: totrans-2
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 类似 *大逃杀* 的动作游戏
+- en: Shoot 'em up like *Alien Breed*
+  id: totrans-3
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 类似 *外星宝贝* 的射击游戏
+- en: RPG like *Zelda* or *Chrono Trigger*
+  id: totrans-4
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 类似于 *塞尔达传说* 或 *超时空战记* 的 RPG
+- en: Simulation like *Simcity*
+  id: totrans-5
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 类似于 *模拟城市* 的模拟
+- en: War game like *Civilization* or *Warcraft*
+  id: totrans-6
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 类似于 *文明* 或 *魔兽争霸* 的战争游戏
+- en: 'These games use what is called an orthogonal projection. This can be easily
+    rendered using a simple tile map like the one we implemented in the last chapter.
+    In this chapter, we will make an RPG that will look like *The Legend of Zelda:
+    A Link to the Past* on Super Nintendo.'
+  id: totrans-7
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这些游戏使用的是所谓的正投影。可以使用简单的瓦片地图轻松渲染，就像我们在上一章中实现的那样。在本章中，我们将制作一个看起来像 *塞尔达传说：超级任天堂时代*
+    在超级任天堂上的角色扮演游戏。
+- en: 'We will use the graphical assets from BrowserQuest ([http://browserquest.mozilla.org](http://browserquest.mozilla.org)),
+    a very cool open source game developed by Mozilla to demonstrate the capability
+    of modern browsers. You can see it in the following screenshot:'
+  id: totrans-8
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将使用来自 BrowserQuest（[http://browserquest.mozilla.org](http://browserquest.mozilla.org)）的图形资产，这是
+    Mozilla 开发的非常酷的开源游戏，用于展示现代浏览器的能力。您可以在下面的截图中看到：
+- en: '![Putting Things into Perspective](img/5060OT_05_15.jpg)'
+  id: totrans-9
+  prefs: []
+  type: TYPE_IMG
+  zh: '![视角透视](img/5060OT_05_15.jpg)'
+- en: 'In this chapter we will cover the following topics:'
+  id: totrans-10
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章中，我们将涵盖以下主题：
+- en: Tile map optimization
+  id: totrans-11
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 瓦片地图优化
+- en: Sprite-level occlusion
+  id: totrans-12
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 精灵层遮挡
+- en: Advanced collision detection
+  id: totrans-13
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 高级碰撞检测
+- en: 'At the end of this chapter, we will quickly discuss another variant of the
+    top-down view that can be used for the same kind of games: 2.5D or isometric projection.'
+  id: totrans-14
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章末尾，我们将快速讨论另一种可以用于相同类型游戏的俯视视图变体：2.5D 或等距投影。
+- en: Optimizing tile maps for top-down games
+  id: totrans-15
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 优化俯视游戏的瓦片地图
+- en: The tile map we implemented in the last chapter works well for side scrollers
+    as they typically use a sparse matrix to define their levels. This means that
+    if your level is 100 tiles long and 7 tiles high, it will contain way less than
+    700 tiles. This allows us to create all those tiles at the beginning of the game.
+  id: totrans-16
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们在上一章实现的瓦片地图非常适合侧向滚动游戏，因为它们通常使用稀疏矩阵来定义它们的级别。这意味着如果你的级别长100个瓦片，高7个瓦片，那么它将包含远少于700个瓦片。这使我们能够在游戏开始时创建所有这些瓦片。
+- en: For a typical top-down game, we find ourselves in a very different situation.
+    Indeed, in order to render the map, all the possible tiles of the tile map used
+    are defined. This means we will have at least 700 tiles for the same level of
+    dimensions. The situation becomes even worse if we use many layers. To reduce
+    this number in order to increase performances, we will have to generate only the
+    tiles that are visible at startup. Then when the view moves, we will have to track
+    which tiles become invisible and delete them, and which tiles become visible and
+    generate them.
+  id: totrans-17
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 对于典型的俯视游戏，我们发现自己处于非常不同的情况。的确，为了渲染地图，定义了使用的瓦片地图的所有可能瓦片。这意味着对于相同尺寸的级别，我们将至少有700个瓦片。如果使用多个图层，情况会变得更糟。为了减少这个数字以提高性能，我们将只生成在启动时可见的瓦片。然后当视图移动时，我们将跟踪哪些瓦片变得不可见并删除它们，哪些瓦片变得可见并生成它们。
+- en: There is a tradeoff here; adding and removing tiles will take time, and there
+    is a good chance that it will slow down the game a bit. On the other hand, having
+    a very large amount of tiles in your scene and moving them around will make rendering
+    everything slow.
+  id: totrans-18
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这里存在一个权衡；添加和删除瓦片会花费一些时间，而且很有可能会使游戏变慢。另一方面，在场景中有大量的瓦片并移动它们会使渲染变慢。
+- en: Ideally, choosing between the two techniques is a matter of testing both and
+    finding which one generates the better result on your target platform. If you
+    really need it, you could even use a hybrid solution where you generate the tile
+    map per chunk. This will allow you to tune when you tolerate the slow down due
+    to the creation and deletion of tiles.
+  id: totrans-19
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 理想情况下，在两种技术之间做出选择是测试两种技术，找出哪种在目标平台上产生更好的结果。如果你真的需要，甚至可以使用混合方案，其中你按块生成瓦片地图。这将允许你调整何时容忍由于创建和删除瓦片而导致的减速。
+- en: Here we will modify the framework to display only the visible tiles, and this
+    has proven to be fast enough for this kind of game where the player moves at a
+    reasonable speed and where the world is typically quite big.
+  id: totrans-20
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在这里，我们将修改框架以仅显示可见的瓦片，并且已经证明对于这种玩家以合理速度移动且世界通常相当大的游戏来说，这已经足够快了。
+- en: Finding the visible tiles
+  id: totrans-21
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 查找可见瓦片
+- en: The good part is that we already have most of the code we need to find which
+    tiles are visible. Indeed, we have a function that returns the tiles that are
+    colliding with a box. To find the visible tiles, we just need to define this box
+    as the game screen.
+  id: totrans-22
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 好消息是我们已经有了大部分需要找到可见瓦片的代码。实际上，我们有一个函数，它返回与一个框碰撞的瓦片。要找到可见瓦片，我们只需要将此框定义为游戏屏幕。
+- en: '[PRE0]'
+  id: totrans-23
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE0]'
+- en: Here you can see that we use a function to find the offset of the tile map.
+    This is needed because there is the possibility of it being nested into one or
+    more groups that have themselves been moved.
+  id: totrans-24
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在这里，您可以看到我们使用一个函数来找到瓦片地图的偏移量。这是必需的，因为它可能嵌套在一个或多个已移动的组中。
+- en: To find the offset, we simply need to look at the current element and all of
+    its parents. We will stop if the parent is not a sprite, group, or tile map. We
+    will also stop if the parent is the base div, that is, the div used to hold the
+    whole game.
+  id: totrans-25
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要找到偏移量，我们只需查看当前元素及其所有父元素。如果父元素不是精灵、组或瓦片地图，则会停止。如果父元素是基本的 div，即用于容纳整个游戏的 div，也会停止。
+- en: '[PRE1]'
+  id: totrans-26
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE1]'
+- en: To find if the parent is a group, sprite, or tile map, we check for the presence
+    of an object associated with the key "data".
+  id: totrans-27
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要查找父元素是否为组、精灵或瓦片地图，我们检查与键“data”关联的对象是否存在。
+- en: 'Except for the part where we find the visible box, the `addTilemap` function
+    itself hasn''t changed much. Here is a short version of it with the changed part
+    highlighted:'
+  id: totrans-28
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 除了找到可见框的部分之外，`addTilemap`函数本身并没有太多变化。以下是带有更改部分的其简短版本：
+- en: '[PRE2]'
+  id: totrans-29
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE2]'
+- en: Moving the tile map
+  id: totrans-30
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 移动瓦片地图
+- en: We now have to track the movement of the tile maps to update which ones are
+    visible. As we have two functions to move any element around, we just have to
+    modify them.
+  id: totrans-31
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在我们必须跟踪瓦片地图的移动以更新哪些是可见的。由于我们有两个函数来移动任何元素，所以我们只需修改它们。
+- en: 'However, we cannot just update tile maps when they are moved around; we also
+    have to update them when any of their parent elements are moved around. jQuery
+    provides a very simple way to find if an element has a tile map as its child or
+    grand child element: `.find()`. This function searches for any subelement matching
+    the provided selector.'
+  id: totrans-32
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 但是，我们不能只在瓦片地图移动时更新它们；当其任何父元素移动时，我们还必须更新它们。jQuery提供了一种非常简单的方法来查找元素是否具有瓦片地图作为其子元素或孙子元素：`.find()`。此函数搜索与提供的选择器匹配的任何子元素。
+- en: As we add the class `gf_tilemap` to each of our tile maps, it's very easy to
+    detect them. The following code is the new `gf.x` function with the change highlighted.
+    The `gf.y` function is exactly the same.
+  id: totrans-33
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于我们将类`gf_tilemap`添加到每个瓦片地图中，因此检测它们非常容易。以下代码是带有更改的新`gf.x`函数。`gf.y`函数完全相同。
+- en: '[PRE3]'
+  id: totrans-34
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE3]'
+- en: If one of the subelements, or the element itself, is a tile map, we need to
+    update it. We do this with the `gf.updateVisibility()` function. This function
+    only finds the new visibility box in the tile map and compares it to the old one.
+    This means that we have to keep this visibility stored in the data of the sprite.
+  id: totrans-35
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果子元素中的一个，或者元素本身，是瓦片地图，则需要更新它。我们使用`gf.updateVisibility()`函数来执行此操作。此函数仅在瓦片地图中找到新的可见框并将其与旧的框进行比较。这意味着我们必须将这种可见性存储在精灵的数据中。
+- en: 'The following code is the full implementation of this function:'
+  id: totrans-36
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 下面的代码是此函数的完整实现：
+- en: '[PRE4]'
+  id: totrans-37
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE4]'
+- en: The first four loops are there to remove the existing tiles that are not visible
+    anymore. Instead of testing whether the tiles to be deleted are on the top or
+    the bottom, we just write two loops. The first one in the code is written as if
+    the tiles to be deleted are on the top. If the tiles to be deleted turn out to
+    be at the bottom as shown in the following figure, the loop won't execute as `oldVisibility.y1
+    > newVisibility.y1`.
+  id: totrans-38
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 前四个循环用于删除不再可见的现有瓦片。我们不再测试要删除的瓦片是否在顶部或底部，而是写两个循环。代码中的第一个循环写得好像要删除的瓦片在顶部。如果要删除的瓦片实际上在底部，如下图所示，该循环将不会执行，因为`oldVisibility.y1
+    > newVisibility.y1`。
+- en: '![Moving the tile map](img/5060OT_05_01.jpg)'
+  id: totrans-39
+  prefs: []
+  type: TYPE_IMG
+  zh: '![移动瓦片地图](img/5060OT_05_01.jpg)'
+- en: 'The same goes if the tiles are to be deleted from the top, left, or right.
+    We then use the exact same mechanism to add new tiles. There is, however, one
+    thing we have to be careful about; as we add the tiles horizontally first, when
+    we add them vertically, we have to make sure not to create the tiles we already
+    created a second time. The following figure shows the overlapping tiles:'
+  id: totrans-40
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '如果砖块要从顶部、左侧或右侧删除，我们会使用相同的机制添加新的砖块。然而，有一件事情需要我们小心; 当我们先水平添加砖块时，当我们垂直添加它们时，我们必须确保不要再次创建我们已经创建的砖块。下图显示了重叠的砖块:'
+- en: '![Moving the tile map](img/5060OT_05_02.jpg)'
+  id: totrans-41
+  prefs: []
+  type: TYPE_IMG
+  zh: '![移动瓦片地图](img/5060OT_05_02.jpg)'
+- en: There are more elegant ways to do this, but here we simply check if a tile exists
+    before creating it. This is done in the `gf.createTile` function.
+  id: totrans-42
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 有更加优雅的方法来实现这一点，但在这里，我们只是在创建砖块之前检查是否存在这样一个砖块。这是在`gf.createTile`函数中完成的。
+- en: '[PRE5]'
+  id: totrans-43
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE5]'
+- en: With these two changes, the tile maps are now generated dynamically.
+  id: totrans-44
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 有了这两个改变，瓦片地图现在是动态生成的。
+- en: Sorting the occlusion
+  id: totrans-45
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 排序遮挡
+- en: 'When using top-down views, we will encounter one of the two possibilities:
+    either the "camera" looks straight down at the ground or with a slight angle.
+    The following figure illustrates the two situations:'
+  id: totrans-46
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '在使用俯视视图时，我们将遇到两种可能性中的一种: 要么“摄像机”直接望向地面，要么呈轻微的角度。下图说明了这两种情况:'
+- en: '![Sorting the occlusion](img/5060OT_05_03.jpg)'
+  id: totrans-47
+  prefs: []
+  type: TYPE_IMG
+  zh: '![排序遮挡](img/5060OT_05_03.jpg)'
+- en: In the first case, the only situation where an element is hidden by another
+    one is if it's straight above it. It's quite easy to produce this effect; we can
+    simply use a group for each altitude and place the sprites and tile maps in the
+    right group.
+  id: totrans-48
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在第一种情况下，唯一一个元素被另一个元素隐藏的情况是它直接在上面。要产生这种效果非常容易;我们只需为每个高度使用一个组，并将精灵和瓦片地图放入正确的组中。
+- en: 'For example, let''s consider a level that contains a tree and a bridge under
+    which the player can walk, just like in the following figure:'
+  id: totrans-49
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '例如，让我们考虑一个包含树和桥的关卡，玩家可以在桥下行走，就像下图中的情况:'
+- en: '![Sorting the occlusion](img/5060OT_05_04.jpg)'
+  id: totrans-50
+  prefs: []
+  type: TYPE_IMG
+  zh: '![排序遮挡](img/5060OT_05_04.jpg)'
+- en: 'We could organize our game screen like this:'
+  id: totrans-51
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '我们可以像这样组织我们的游戏屏幕:'
+- en: '![Sorting the occlusion](img/5060OT_05_05.jpg)'
+  id: totrans-52
+  prefs: []
+  type: TYPE_IMG
+  zh: '![排序遮挡](img/5060OT_05_05.jpg)'
+- en: Once this is done, there is not much to worry about. If at some point an NPC
+    (non-player character) or the player moves up or down, we just have to remove
+    them from one group and add them to the other one.
+  id: totrans-53
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 一旦完成这个步骤，就没什么好担心的了。如果NPC（非玩家角色）或玩家在某个时刻上下移动，我们只需将他们从一个组中移除并添加到另一个组中。
+- en: 'Most modern games, however, use the second type of view, and that''s the one
+    we will use for our small game. With this perspective, it''s not only the elements
+    above the others but also the ones in front of them that might hide them. The
+    following figure illustrates this:'
+  id: totrans-54
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然而，大多数现代游戏使用第二种视角，并且这也是我们小游戏将使用的视角。在这种透视中，不仅是上面的元素会覆盖其他元素，前面的元素也可能会隐藏它们。下图说明了这一点：
+- en: '![Sorting the occlusion](img/5060OT_05_06.jpg)'
+  id: totrans-55
+  prefs: []
+  type: TYPE_IMG
+  zh: '![排序遮挡](img/5060OT_05_06.jpg)'
+- en: To devise a strictly generic solution for this would be a little overkill for
+    most games and would likely generate some performance issues. Instead, we will
+    use the following tricks to generate a convincing effect.
+  id: totrans-56
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了想出一个严格通用的解决方案对于大多数游戏来说可能有点过度，而且可能会产生一些性能问题。相反，我们将使用以下技巧来产生令人信服的效果。
+- en: Sprite occlusion
+  id: totrans-57
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 精灵屏蔽
+- en: 'If we make the following assumptions, the situations for sprites become simple:'
+  id: totrans-58
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '如果我们做出以下假设，精灵的情况就会变得简单:'
+- en: The ground is strictly flat. There may be many flat "floors" with different
+    altitudes but each of them is flat.
+  id: totrans-59
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 地面是完全平坦的。可能有许多不同高度的平坦“楼层”，但它们每一个都是平坦的。
+- en: The altitude difference between two flat floors is greater than the size of
+    the biggest NPC or the player.
+  id: totrans-60
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 两个平坦楼层之间的高度差大于最大NPC或玩家的尺寸。
+- en: 'With these limitations, we can manage sprite occlusion with these two rules:'
+  id: totrans-61
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '通过这些限制，我们可以用以下两个规则管理精灵的遮挡:'
+- en: If a sprite is on a higher floor than another, the former will always hide the
+    latter
+  id: totrans-62
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 如果一个精灵在比另一个更高的楼层上，则前者将始终隐藏后者。
+- en: If two sprites are on the same floor, the one with the bigger y coordinate will
+    always hide the other one
+  id: totrans-63
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 如果两个精灵在同一楼层上，则y坐标较大的那个将始终隐藏另一个
+- en: 'The most straightforward way to implement this is to use the `z-index` CSS
+    property. The implementation would look like this:'
+  id: totrans-64
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '实现这个最简单的方式是使用`z-index` CSS属性。实现看起来会像这样:'
+- en: '[PRE6]'
+  id: totrans-65
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE6]'
+- en: Here we need to add the sprite height to the y coordinate because what we need
+    to consider for occlusion is the bottom of the sprite and not the top.
+  id: totrans-66
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这里我们需要将精灵的高度加到y坐标上，因为我们需要考虑的是遮挡的底部而不是顶部。
+- en: 'If the sprite is one floor higher, we will add to make sure that its z index
+    is bigger than all the sprites in the floor above. Let''s say we give an index
+    to each level, 0 being the lowest one, 1 the one above, and so on; in this case,
+    the formula to generate the z index from the y coordinate would be:'
+  id: totrans-67
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果精灵所在的楼层高一层，我们将确保其z索引大于上方所有楼层中的所有精灵。假设我们给每个层级分配一个索引，0表示最低层，1表示上方的一层，依此类推；在这种情况下，从y坐标生成z索引的公式将是：
+- en: '[PRE7]'
+  id: totrans-68
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE7]'
+- en: In our game, all of our sprites will be on the same level so we won't need to
+    use this function, and we could stick with the preceding code.
+  id: totrans-69
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们的游戏中，所有的精灵都将处于同一水平线上，因此我们不需要使用这个函数，而且我们可以坚持使用之前的代码。
+- en: Level versus sprite occlusion
+  id: totrans-70
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 关卡与精灵的遮挡
+- en: 'If we stick to the same assumption as before, we don''t need to do much to
+    generate an occlusion of sprites from the background. Our level is defined using
+    tile maps. When designing the level, we will separate our tiles into two tile
+    maps: one being the floor and the other one being everything above it.'
+  id: totrans-71
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果我们仍然保持之前的假设，那么我们不需要做太多工作来从背景中生成精灵的遮挡。我们的关卡是使用瓦片地图定义的。在设计关卡时，我们将我们的瓦片分成两个瓦片地图：一个是地板，另一个是地板上方的所有内容。
+- en: 'For example, let''s consider a scene with a tree and a house:'
+  id: totrans-72
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 举例来说，让我们考虑一个场景，有一棵树和一座房子：
+- en: '![Level versus sprite occlusion](img/5060OT_05_07.jpg)'
+  id: totrans-73
+  prefs: []
+  type: TYPE_IMG
+  zh: '![关卡与精灵的遮挡](img/5060OT_05_07.jpg)'
+- en: We will store the ground, the bottom of the house, and the trunk of the tree
+    in one tile map, and we will store the top of the house as well as the foliage
+    of the tree in another one.
+  id: totrans-74
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将地面、房子底部和树干存储在一个瓦片地图中，而将房顶和树叶存储在另一个瓦片地图中。
+- en: Collision detection
+  id: totrans-75
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 碰撞检测
+- en: 'Collision detection is slightly different for this game as for the previous
+    one. As we use collision instead of per-pixel collision with the sprite-bounding
+    box, we find ourselves in a situation where we might detect a collision where
+    only the sprites'' non-transparent pixels are colliding, as shown in the following
+    figure:'
+  id: totrans-76
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 对于此游戏，碰撞检测与之前的游戏略有不同。由于我们使用的是碰撞而不是与精灵边界框的每个像素的碰撞，我们可能会出现仅有精灵的非透明像素发生碰撞的情况，如下图所示：
+- en: '![Collision detection](img/5060OT_05_08.jpg)'
+  id: totrans-77
+  prefs: []
+  type: TYPE_IMG
+  zh: '![碰撞检测](img/5060OT_05_08.jpg)'
+- en: However, there is a very easy solution to this problem without resorting to
+    per-pixel or polygonal collision detection; we will use a second transparent sprite
+    to create the zone we really want to use for collision detection.
+  id: totrans-78
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然而，有一个非常简单的解决方案来解决这个问题，而不需要使用每个像素或多边形碰撞检测；我们将使用第二个透明精灵来创建我们真正想要用于碰撞检测的区域。
+- en: Player versus environment collisions
+  id: totrans-79
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 玩家与环境的碰撞
+- en: In our game, we will use a technique often used in RPG; the player avatar will
+    be made of not only one sprite but of a superposition of sprites. This will allow
+    us to change the armor the avatar wears, change the weapon he uses, his haircut,
+    skin color, and so on, without having to generate all the possible combinations
+    of those variants.
+  id: totrans-80
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们的游戏中，我们将使用RPG中经常使用的一种技术；玩家角色将不仅由一个精灵组成，而是由多个精灵叠加而成。这将使我们能够更改角色所穿的盔甲、使用的武器、发型、肤色等，而无需生成所有可能的组合变体。
+- en: 'In our game, we will only use two images for the player avatar: the player
+    and its weapon. We will place them into a group; this will make it easy to move
+    them around.'
+  id: totrans-81
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们的游戏中，玩家角色的头像只会使用两张图片：玩家本身和其武器。我们会将它们放入一个组中；这样可以轻松地移动它们。
+- en: 'To these two sprites, we will first add a transparent sprite that will define
+    the collision zone for the collision with the environment. The following figure
+    shows exactly that:'
+  id: totrans-82
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 对于这两个精灵，我们首先会添加一个透明精灵，用于定义与环境碰撞的碰撞区域。下图正是显示了这一点：
+- en: '![Player versus environment collisions](img/5060OT_05_09.jpg)'
+  id: totrans-83
+  prefs: []
+  type: TYPE_IMG
+  zh: '![玩家与环境的碰撞](img/5060OT_05_09.jpg)'
+- en: As you can see, we've chosen a collision box that is as wide as the body of
+    the player avatar, but slightly shorter. This is to account for the situation
+    where the player approaches an obstacle from below. As shown in the previous figure,
+    his head will hide a part of the bottom of this object. With this smaller collision
+    box, we automatically generate this effect.
+  id: totrans-84
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如你所看到的，我们选择了一个碰撞框，其宽度与玩家角色的身体一样宽，但稍微短一些。这是为了考虑到玩家从下方靠近障碍物的情况。如前图所示，他的头部将隐藏该物体的底部的一部分。通过这个较小的碰撞框，我们自动产生了这种效果。
+- en: Now we don't want the avatar to collide with every element of the level. For
+    example, it shouldn't collide with the ground or with anything above it.
+  id: totrans-85
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在我们不希望角色与级别中的每个元素发生碰撞。例如，它不应该与地面或地面上方的任何东西发生碰撞。
+- en: 'If you remember, we separated the level into two tile maps before. To make
+    collision detection easier, we will simply separate the lower one in two as well:'
+  id: totrans-86
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果你记得，我们之前将级别分成了两个瓦片地图。为了更容易进行碰撞检测，我们将简单地将下面的一个分成两个：
+- en: One containing all the ground elements that don't collide with the player
+  id: totrans-87
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 包含所有与玩家不发生碰撞的地面元素
+- en: One containing all the elements that collide with the player
+  id: totrans-88
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 包含所有与玩家碰撞的元素
+- en: This means that we now have three tile maps for the level.
+  id: totrans-89
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这意味着我们现在有三个级别的瓦片地图。
+- en: As you can imagine, designing this level and adding all the tiles to the right
+    tile map is becoming too complicated as we write all the arrays by hand. Instead,
+    we will use a tile map editor.
+  id: totrans-90
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如你可以想象的，设计这个级别并将所有瓦片添加到正确的瓦片地图中正在变得过于复杂，因为我们手工编写了所有数组。相反，我们将使用瓦片地图编辑器。
+- en: Using a tile map editor
+  id: totrans-91
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: 使用瓦片地图编辑器
+- en: There are quite a few free and open source tile map editors around. For this
+    game, we will use Tiled ([http://www.mapeditor.org/](http://www.mapeditor.org/)).
+    It has the advantage that it allows the tile maps to be exported to a JSON file.
+  id: totrans-92
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 有相当多的免费和开源的瓦片地图编辑器。对于这个游戏，我们将使用Tiled ([http://www.mapeditor.org/](http://www.mapeditor.org/))。它的优点是可以将瓦片地图导出为JSON文件。
+- en: 'The images that we will use to create our level come from the game BrowserQuest
+    by Mozilla. The following figure shows a part of it:'
+  id: totrans-93
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将用于创建级别的图像来自Mozilla的游戏BrowserQuest。以下图片显示了其中的一部分：
+- en: '![Using a tile map editor](img/5060OT_05_10.jpg)'
+  id: totrans-94
+  prefs: []
+  type: TYPE_IMG
+  zh: '![使用瓦片地图编辑器](img/5060OT_05_10.jpg)'
+- en: As you can see, we have tiles for grassy ground, tiles for sandy ground, and
+    tiles that represent the transition to sandy ground. The transition tiles are
+    half transparent and half sandy. This allows us to transit to sandy ground from
+    any other type of ground.
+  id: totrans-95
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如你所见，我们有草地的瓦片，沙地的瓦片，以及代表向沙地过渡的瓦片。过渡瓦片是半透明的，一半是沙地。这样可以让我们从任何其他类型的地面过渡到沙地。
+- en: 'This means we will have to use yet another tile map. The lower tile map will
+    be divided in two: one with all the ground elements and one with the transition
+    elements that contain transparent pixels and don''t collide with the player. However,
+    in total we will have four tile maps to draw our level. For example, a part of
+    our level with sand, grass, and a tree would look like this:'
+  id: totrans-96
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这意味着我们将不得不使用另一个瓦片地图。下面的瓦片地图将分成两部分：一个包含所有地面元素，一个包含透明像素且不与玩家发生碰撞的过渡元素。但是，总共我们将有四个瓦片地图来绘制我们的级别。例如，我们级别的一部分带有沙子、草地和一棵树会是这样的：
+- en: '![Using a tile map editor](img/5060OT_05_11.jpg)'
+  id: totrans-97
+  prefs: []
+  type: TYPE_IMG
+  zh: '![使用瓦片地图编辑器](img/5060OT_05_11.jpg)'
+- en: 'We won''t look at the entire code that imports the JSON file generated by Tiled.
+    If you want more details, just look at the `gf.importTiled` function. The important
+    part is that we use jQuery''s `$.ajax` function. With this function, we will be
+    able to load the JSON file. The trick is to use the right parameter to call it:'
+  id: totrans-98
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们不会查看导入Tiled生成的JSON文件的整个代码。如果你想了解更多细节，只需查看`gf.importTiled`函数。重要的部分是我们使用jQuery的`$.ajax`函数。使用这个函数，我们将能够加载JSON文件。诀窍是使用正确的参数来调用它：
+- en: '[PRE8]'
+  id: totrans-99
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE8]'
+- en: jQuery also provides a shorthand function called `$.getJSON`, but we want to
+    have a synchronous call and that's only possible with `$.ajax`. With these calls,
+    the function we provided to the success parameter will be called once the JSON
+    file is loaded. It's in this function that we will import the file.
+  id: totrans-100
+  prefs: []
+  type: TYPE_NORMAL
+  zh: jQuery还提供了一个名为`$.getJSON`的简写函数，但是我们希望进行同步调用，这只有通过`$.ajax`才可能。使用这些调用，我们提供给成功参数的函数将在JSON文件加载完成后调用。就在这个函数中，我们将导入文件。
+- en: If you want to see exactly how we do it, you can simply look at the provided
+    code for this chapter.
+  id: totrans-101
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果你想看看我们究竟是如何做到的，你只需简单地查看本章提供的代码即可。
+- en: Now that we are using the `$.ajax` function, we just have to make sure that
+    we access our code from a server to test it as simply opening our HTML file in
+    a browser won't work anymore. If you don't have a server running, you can use
+    EasyPHP on Windows ([http://www.easyphp.org](http://www.easyphp.org)), or MAMP
+    on OS X ([http://www.mamp.info](http://www.mamp.info)).
+  id: totrans-102
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在我们正在使用`$.ajax`函数，我们只需确保从服务器访问我们的代码以测试它，因为简单地在浏览器中打开我们的HTML文件将不再起作用。如果你没有运行服务器，你可以在Windows上使用EasyPHP
+    ([http://www.easyphp.org](http://www.easyphp.org))，或者在OS X上使用MAMP ([http://www.mamp.info](http://www.mamp.info))。
+- en: Player versus sprite collision
+  id: totrans-103
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 玩家与精灵的碰撞
+- en: 'We will only support one kind of sprite versus sprite collision detection here:
+    the player attacking an enemy or talking to an NPC. Like before, we will need
+    a transparent sprite to define the zone where the collision should be detected.
+    Except this time, this zone is not on the player itself but in front of him, as
+    shown in the following screenshot:'
+  id: totrans-104
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们只支持一种精灵与精灵碰撞检测：玩家攻击敌人或与NPC交谈。和以前一样，我们需要一个透明精灵来定义应该检测到碰撞的区域。但是这次，这个区域不在玩家身上，而是在他前面，如下面的截图所示：
+- en: '![Player versus sprite collision](img/5060OT_05_12.jpg)'
+  id: totrans-105
+  prefs: []
+  type: TYPE_IMG
+  zh: '![玩家与精灵碰撞](img/5060OT_05_12.jpg)'
+- en: 'The only trick is that this zone has to be moved around to always face the
+    direction where the player is looking. If we take the same OO code that we used
+    for the last game to implement the player, it would look something like this:'
+  id: totrans-106
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 唯一的技巧是这个区域必须四处移动，以始终面向玩家所看的方向。如果我们使用上一个游戏中用来实现玩家的相同OO代码，它看起来会像这样：
+- en: '[PRE9]'
+  id: totrans-107
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE9]'
+- en: The highlighted parts of the code show where we change the position of the collision
+    zone for interaction with NPCs and enemies. We call this the sprite hit zone because
+    it represents the zone that is covered by a swing of the player's sword.
+  id: totrans-108
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 代码的突出显示部分显示了我们在与NPC和敌人的交互中更改碰撞区域位置的地方。我们称之为精灵命中区，因为它代表了玩家剑挥动覆盖的区域。
+- en: To choose the right size and position for this hit zone, you really have to
+    fine-tune it to the images you use.
+  id: totrans-109
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要为这个击中区选择正确的大小和位置，你确实必须对你使用的图像进行微调。
+- en: In the main game loop, we will then check for collision between this zone and
+    a list of NPCs and then enemies.
+  id: totrans-110
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在主游戏循环中，我们将检查此区域与NPC列表和敌人之间的碰撞，然后。
+- en: '[PRE10]'
+  id: totrans-111
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE10]'
+- en: Talking to NPCs
+  id: totrans-112
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: 与NPC交谈
+- en: The only interaction we will implement with NPCs is a one-way dialog. When the
+    player hits an NPC, we will display a line of dialog. If he hits it again and
+    the NPC has more to say, we will display the next line of dialog.
+  id: totrans-113
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将实现与NPC的唯一交互是单向对话。当玩家击中NPC时，我们将显示一行对话。如果他再次击中它，并且NPC还有更多话要说，我们将显示下一行对话。
+- en: 'We will use a line at the bottom of the screen to display this text. This line
+    has to be semitransparent to let the player see the level behind it, and it has
+    to be over all the elements of the game. This is how we will create it:'
+  id: totrans-114
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将在屏幕底部使用一行来显示这个文本。这行必须是半透明的，以便让玩家看到其背后的关卡，并且必须覆盖游戏的所有元素。这是我们将创建它的方法：
+- en: '[PRE11]'
+  id: totrans-115
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE11]'
+- en: This type of interface is typically called a console. To make it semitransparent
+    and still leave the text inside it opaque, we apply a transparent background color
+    by calling the `rgba()` function. To make sure it floats over all the game elements,
+    we give it a big enough z index.
+  id: totrans-116
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这种类型的界面通常称为控制台。为了使其半透明，同时保留其中的文本不透明，我们通过调用`rgba()`函数应用透明的背景颜色。为了确保它浮在所有游戏元素的上方，我们给它一个足够大的z索引。
+- en: 'To display text in this console, we simply have to use `.html()`. The following
+    code is the complete implementation of the NPCs:'
+  id: totrans-117
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要在此控制台中显示文本，我们只需使用`.html()`。以下代码是NPC的完整实现：
+- en: '[PRE12]'
+  id: totrans-118
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE12]'
+- en: 'And this is how we will instantiate one of them:'
+  id: totrans-119
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这是我们将实例化其中一个的方法：
+- en: '[PRE13]'
+  id: totrans-120
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE13]'
+- en: Nothing very special here; we just have to make sure to set the correct z index
+    too.
+  id: totrans-121
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这里没有什么特别的；我们只需确保设置正确的z索引即可。
+- en: Fighting enemies
+  id: totrans-122
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: 与敌人战斗
+- en: 'To fight enemies, we will simulate the throw of a dice. The rule of combat
+    is quite typical in an RPG: the player throws a dice to the player and adds it
+    to a fixed value called the attack modifier. This will generate the attack value
+    of the player''s strike. The enemy will try to defend itself by throwing a dice
+    to the enemy and add it to its own defense modifier.'
+  id: totrans-123
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要与敌人战斗，我们将模拟掷骰子。战斗规则在RPG中非常典型：玩家向玩家掷骰子，并将其加到一个称为攻击修正值的固定值上。这将生成玩家攻击的攻击值。敌人将试图通过向敌人掷骰子并将其加到自己的防御修正值上来进行防御。
+- en: If the player's strike is bigger than the enemy's defense, the attack is successful
+    and the enemy will suffer a loss of life equal to the player's strike. If the
+    enemy's defense is stronger, the attack fails and the enemy remains safe.
+  id: totrans-124
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果玩家的攻击大于敌人的防御，攻击就成功了，敌人将受到等于玩家攻击的生命损失。如果敌人的防御更强，攻击将失败，敌人将保持安全。
+- en: 'The following code is the implementation of this mechanism:'
+  id: totrans-125
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 以下代码是此机制的实现：
+- en: '[PRE14]'
+  id: totrans-126
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE14]'
+- en: Here we use the console to display the progress of the combat to the player.
+    The formula for the combat could be different depending on additional parameters,
+    such as the bonus provided by the weapon the player uses and the enemy's armor.
+    It's really up to you to find out what you want to consider when deciding if a
+    strike is successful.
+  id: totrans-127
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在这里，我们使用控制台向玩家显示战斗的进展情况。战斗的公式可能会因额外的参数而不同，例如玩家使用的武器提供的奖励以及敌人的盔甲。当决定一次打击是否成功时，真的取决于你要考虑的因素。
+- en: We didn't implement this, but the enemy striking back would be exactly the same.
+  id: totrans-128
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们没有实现这个，但是敌人的反击会完全相同。
+- en: The complete game
+  id: totrans-129
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 完整的游戏
+- en: That's it for this game. All the rest of the implementation is taken straight
+    from the game we created in [Chapter 4](ch04.html "Chapter 4. Looking Sideways"),
+    *Looking Sideways*. We use the same object-oriented code of the player and the
+    other sprites to resolve the collision between the player and the level.
+  id: totrans-130
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 游戏就到此为止了。其余的所有实现都直接来自我们在[第四章](ch04.html "第四章。横向观察")中创建的游戏，《横向观察》。我们使用相同的面向对象的代码来解决玩家和其他精灵之间的碰撞。
+- en: A good exercise would be to make the enemies move around and attack the player,
+    implement an experience and life bar for the player, and design a bigger world
+    and more NPCs to make the story more interesting. Indeed, that's what makes RPGs
+    so great to write; they are a great medium for telling stories!
+  id: totrans-131
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 一个很好的练习是让敌人四处移动并攻击玩家，为玩家实现一个经验和生命条，并设计一个更大的世界和更多的NPC，使故事更加有趣。事实上，这就是编写RPG游戏的伟大之处；它们是讲故事的绝佳媒介！
+- en: Another way you could improve this game is to use an isometric projection instead
+    of an orthogonal one. Explaining how to write a general-purpose isometric engine
+    is outside the scope of this book, but if you want to learn more about this, you
+    could read *Making Isometric Social Real-Time Games with HTML5, CSS3, and JavaScript*
+    by *Andres Pagella* ([http://shop.oreilly.com/product/0636920020011.do](http://shop.oreilly.com/product/0636920020011.do)).
+  id: totrans-132
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 另一种你可以改进这个游戏的方式是使用等距投影而不是正交投影。解释如何编写一个通用的等距引擎不在本书的范围内，但如果你想了解更多，你可以阅读*Andres
+    Pagella*的《使用HTML5、CSS3和JavaScript制作等距社交实时游戏》（[http://shop.oreilly.com/product/0636920020011.do](http://shop.oreilly.com/product/0636920020011.do)）。
+- en: Isometric tiles
+  id: totrans-133
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 等距瓷砖
+- en: There are two difficulties when dealing with isometric tiles. First, it's very
+    simple to display an orthogonal grid with DOM elements, whereas it's more complicated
+    to display an isometric one. Secondly, the occlusion is harder to compute.
+  id: totrans-134
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 处理等距瓷砖时存在两个困难。首先，使用DOM元素显示正交网格非常简单，而使用等距网格更加复杂。其次，遮挡计算更加困难。
+- en: Drawing an isometric tile map
+  id: totrans-135
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 绘制等距瓷砖地图
+- en: 'We will use a trick here to generate our tile map. Each of our tiles will be
+    stored in an area where they are surrounded by transparent pixels in such a way
+    as to give them a square shape, just like the following screenshot:'
+  id: totrans-136
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将在这里使用一个技巧来生成我们的瓷砖地图。我们的每个瓷砖都将存储在一个区域，周围都是透明像素，以便给它们一个方形的形状，就像以下的屏幕截图一样：
+- en: '![Drawing an isometric tile map](img/5060OT_05_13.jpg)'
+  id: totrans-137
+  prefs: []
+  type: TYPE_IMG
+  zh: '![绘制等距瓷砖地图](img/5060OT_05_13.jpg)'
+- en: 'To make the magic happen, we will use two normal tile maps to display one isometric
+    one. They will overlap, but with an offset between them equal to half the height
+    and half the width of one tile. The following figure shows you how it would look:'
+  id: totrans-138
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要实现这种魔法效果，我们将使用两个普通的瓷砖地图来显示一个等距瓷砖地图。它们会重叠，但它们之间的偏移量等于一个瓷砖的高度和宽度的一半。下图展示了它会是什么样子：
+- en: '![Drawing an isometric tile map](img/5060OT_05_14.jpg)'
+  id: totrans-139
+  prefs: []
+  type: TYPE_IMG
+  zh: '![绘制等距瓷砖地图](img/5060OT_05_14.jpg)'
+- en: Occlusion for isometric games
+  id: totrans-140
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 等距游戏的遮挡
+- en: The occlusion for isometric games is harder to manage than for orthogonal ones.
+    In this situation, you can't simply play with layers to generate the correct occlusion.
+    Instead, you will have to give a z index to each "block" positioned in the level
+    (such as the walls, trees, objects, and others).
+  id: totrans-141
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 对于等距游戏来说，遮挡比正交游戏更难管理。在这种情况下，你不能简单地通过图层来生成正确的遮挡。相反，你将不得不给在关卡中定位的每个“块”（如墙壁、树木、物体等）赋予一个z索引。
+- en: The value of this occlusion will depend on its coordinate just as in the case
+    of the player, NPCs, and enemies previously. This means that you will need to
+    post-process the tile map and generate them. This process can be quite complex
+    to automate, and if the number of elements in your game is reasonably small, you
+    may want to do it by hand. Otherwise, you will need to have some sort of 3D model
+    of where each block belongs.
+  id: totrans-142
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这种遮挡的价值将取决于其坐标，就像之前的玩家、NPC和敌人一样。这意味着你需要对瓦片地图进行后处理并生成它们。这个过程可能非常复杂，难以自动化，如果你的游戏元素数量相对较小，你可能会选择手动完成。否则，你将需要一些关于每个块位于何处的3D模型。
+- en: Summary
+  id: totrans-143
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 摘要
+- en: In this chapter, you have learned how to use tile maps to their full potential.
+    You can now write a wide variety of games using the techniques you have learned
+    in this chapter and the previous one. You will probably find out that the problems
+    you encounter while writing a game are often the same. The best solution, however,
+    often depends on your game's limitations and constraints.
+  id: totrans-144
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章中，你已经学会了如何充分利用瓦片地图。现在你可以使用本章和上一章学到的技术来编写各种各样的游戏。你可能会发现，在编写游戏时遇到的问题往往是相同的。然而，最佳解决方案往往取决于你游戏的限制和约束。
+- en: When you start writing your game, don't try to implement a general solution
+    but instead first focus on your particular situation. The result will most likely
+    be faster, easier to maintain, and will take you less time to implement.
+  id: totrans-145
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 当你开始编写游戏时，不要试图实现通用解决方案，而是首先专注于你的特定情况。结果很可能会更快、更容易维护，并且实现起来会花费更少的时间。
+- en: In the next chapter, we will learn how to implement a multilevel game using
+    the platformer we created in [Chapter 4](ch04.html "Chapter 4. Looking Sideways"),
+    *Looking Sideways*.
+  id: totrans-146
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在下一章中，我们将学习如何使用我们在[第四章](ch04.html "第四章。横向看") *横向看* 中创建的平台游戏来实现多层游戏。

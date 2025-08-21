@@ -1,0 +1,709 @@
+- en: Chapter 3. Better, Faster, but not Harder
+  id: totrans-0
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 第 3 章。更好、更快，但不更难
+- en: The game we just developed will work just fine on almost all devices and in
+    almost all browsers, the main reason being it's very simple and contains few moving
+    sprites. However, as soon as you'll try to make a more complex game like we will
+    in the following chapters, you'll realize that you need to take great care to
+    write optimized code for obtaining good performance.
+  id: totrans-1
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们刚刚开发的游戏在几乎所有设备和几乎所有浏览器上都能正常工作，主要原因是它非常简单，包含很少的移动精灵。然而，一旦你尝试制作一个像我们在接下来的章节中将要制作的更复杂的游戏，你会意识到你需要非常小心地编写优化代码以获得良好的性能。
+- en: In this chapter, we will look back at our previous code and propose an optimized
+    version of some of its aspects. Some of those optimizations are there to make
+    your game run faster and some others are there to make your code more readable
+    and easier to maintain.
+  id: totrans-2
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章中，我们将回顾我们之前的代码，并提出某些方面的优化版本。其中一些优化是为了使您的游戏运行更快，而另一些是为了使您的代码更可读和更易于维护。
+- en: In general, it's a good practice to implement a first version of your game with
+    fewer features without worrying too much about performance, and then optimize
+    and add more functions to it. This helps you to avoid spending too much time on
+    something you may not need in the game, allowing you to benchmark your optimizations
+    to make sure they really make things faster, and most importantly, keep you motivated.
+  id: totrans-3
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 一般来说，实现游戏的第一个版本时，最好减少一些功能，不要过多担心性能问题，然后进行优化并添加更多功能。这有助于避免花费过多时间在游戏中可能不需要的东西上，允许您对优化进行基准测试，以确保它们真正加快了速度，最重要的是，保持您的动力。
+- en: 'In this chapter, we will dive deeper into the following areas:'
+  id: totrans-4
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章中，我们将深入探讨以下几个方面：
+- en: Reducing the number of intervals and timeouts
+  id: totrans-5
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 减少间隔和超时的数量
+- en: Keyboard polling
+  id: totrans-6
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 键盘轮询
+- en: Using HTML fragments
+  id: totrans-7
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 使用 HTML 片段
+- en: Avoiding reflow
+  id: totrans-8
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 避免重新排版
+- en: Using CSS Transform to speed up sprite positioning
+  id: totrans-9
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 使用 CSS Transform 加速精灵定位
+- en: Using `requestAnimationFrame` instead of timeouts
+  id: totrans-10
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 使用`requestAnimationFrame`代替超时
+- en: Intervals and timeouts
+  id: totrans-11
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 间隔和超时
+- en: In our game we used a lot of `setInterval` calls. You may think that those calls
+    are multithreaded, but they are not. JavaScript is strictly single-threaded (with
+    the recent exception of WebWorkers, but we won't look into that here). This means
+    that all those calls are really run one after the other.
+  id: totrans-12
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们的游戏中，我们使用了许多`setInterval`调用。你可能会认为这些调用是多线程的，但实际上并不是。JavaScript 是严格单线程的（最近的一个例外是
+    WebWorkers，但我们这里不会深入讨论）。这意味着所有这些调用实际上都是依次运行的。
+- en: If you're interested in the dirty details of how exactly intervals and timeouts
+    work, I would recommend reading the excellent article written by *John Resig*,
+    *How JavaScript Timers Work* ([http://ejohn.org/blog/how-javascript-timers-work/](http://ejohn.org/blog/how-javascript-timers-work/)).
+  id: totrans-13
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果你对间隔和超时的工作原理感兴趣，我建议阅读 *John Resig* 撰写的优秀文章，*JavaScript 计时器的工作原理*（[http://ejohn.org/blog/how-javascript-timers-work/](http://ejohn.org/blog/how-javascript-timers-work/)）。
+- en: Therefore, intervals and timeouts don't add multithreading to your code, and
+    there are many reasons why you may want to avoid using them too much. First, it
+    makes your code somewhat difficult to debug. Indeed, depending on how much time
+    each call takes, your interval will be executed in a different order, and even
+    those will be of the exact same periodicity.
+  id: totrans-14
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 因此，间隔和超时并不会为您的代码添加多线程，有许多原因可能会使您希望避免过多使用它们。首先，它使您的代码有些难以调试。实际上，根据每次调用需要花费的时间，您的间隔将以不同的顺序执行，并且即使这些调用的周期性完全相同，它们也会有所不同。
+- en: Furthermore, performance-wise, using `setInterval` and `setTimeout` too much
+    can be very taxing on older browsers.
+  id: totrans-15
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 此外，从性能方面考虑，过多使用`setInterval`和`setTimeout`可能会对较老的浏览器造成很大的负担。
+- en: The alternative is to use a single interval to replace all your animation's
+    functions and the game loop.
+  id: totrans-16
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 另一种选择是使用一个单一的间隔来替换所有你的动画函数和游戏循环。
+- en: One interval to rule them all
+  id: totrans-17
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 一次间隔统治它们
+- en: Using one single interval doesn't necessarily mean that you want all your animations
+    to execute at the same rate. An acceptable solution in most cases is to allow
+    any multiple of the base interval for the animations.
+  id: totrans-18
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 使用一个单一的间隔并不一定意味着你希望所有的动画以相同的速率执行。在大多数情况下，一个可接受的解决方案是允许任何基本间隔的倍数来执行动画。
+- en: Typically, you will have your game loop running at a given rate (let's say 30
+    milliseconds), and your animations running at the same rate or two, three, four
+    times slower. However, this doesn't have to be restricted to animations; you may
+    want to have more than one game loop, some of them executed at a much lower rate.
+  id: totrans-19
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 通常，您的游戏循环将以给定的速率运行（假设为30毫秒），而您的动画将以相同的速率运行，或者是两倍、三倍、四倍等速率。但是，这并不局限于动画；您可能希望有多个游戏循环，其中一些以更低的速率执行。
+- en: For example, you may want to increase the level of the water in a platform game
+    every second. That way, the player has the incentive to finish the level quickly,
+    otherwise he/she will drown. To allow this in the framework, we will add an `addCallback`
+    function that will take a function and a rate. The game loop from our previous
+    game will be implemented using this instead of `setInterval`.
+  id: totrans-20
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 例如，您可能希望在平台游戏中每秒增加水的水平。这样，玩家就有动力尽快完成关卡，否则他/她将会淹死。为了在框架中实现这一点，我们将添加一个`addCallback`函数，该函数将接受一个函数和一个速率。我们先前游戏中的游戏循环将使用此函数实现，而不是`setInterval`。
+- en: This means that the `startPreloading` function will slightly change. After the
+    call to the `endCallback` function, we will start a `setInterval` function with
+    a new function that will call all the functions that have been defined through
+    `addCallback` and take care of the animations. Furthermore, we will change its
+    name simply to `startGame` to reflect the change in usage.
+  id: totrans-21
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这意味着`startPreloading`函数将略有变化。在调用`endCallback`函数后，我们将启动一个`setInterval`函数，其中包含一个新函数，该函数将调用所有通过`addCallback`定义的函数，并负责动画。此外，我们将其简单地更名为`startGame`以反映用法的变化。
+- en: 'In the game, it won''t be necessary to explicitly create an interval with the
+    game loop as this is automatically done by the `startGame` function; we just have
+    to add it to the game with the function `addCallback`. The following image shows
+    a comparison of this method and the one using many `setTimeout` functions:'
+  id: totrans-22
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在游戏中，不需要显式地创建具有游戏循环的间隔，因为这由`startGame`函数自动完成；我们只需使用`addCallback`函数将其添加到游戏中。以下图片显示了这种方法与使用许多`setTimeout`函数的方法的比较：
+- en: '![One interval to rule them all](img/5060OT_03_01.jpg)'
+  id: totrans-23
+  prefs: []
+  type: TYPE_IMG
+  zh: '![统一的间隔](img/5060OT_03_01.jpg)'
+- en: We will implement this in our framework by providing this minimal refresh rate
+    to an `initialize` function. From this point, all the animations and periodical
+    functions will be defined as a multiple of it. We will still use milliseconds
+    in the API to describe their rate, but will store the rate internally as the closest
+    multiple of the base rate.
+  id: totrans-24
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将通过向`initialize`函数提供这个最小刷新率来在我们的框架中实现这一点。从这一点开始，所有动画和周期性函数将被定义为它的倍数。我们仍然在API中使用毫秒来描述它们的速率，但是将速率内部存储为基础速率的最接近倍数。
+- en: Code
+  id: totrans-25
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: 代码
+- en: Our initialize function will use the `$.extend` function that we used. For now
+    on, we will only have the base refresh rate, but we will add more values as we
+    need them. We also need to define the default values for the base refresh rate
+    to account for the situation where the user didn't specify one manually.
+  id: totrans-26
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们的初始化函数将使用我们之前使用的`$.extend`函数。从现在开始，我们将只有基本刷新率，但随着需要，我们将添加更多值。我们还需要定义基本刷新率的默认值，以解决用户未手动指定时的情况。
+- en: '[PRE0]'
+  id: totrans-27
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE0]'
+- en: 'The newly renamed `startGame` function will look like the following code:'
+  id: totrans-28
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 新更名的`startGame`函数将如下所示代码所示：
+- en: '[PRE1]'
+  id: totrans-29
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE1]'
+- en: 'We didn''t change much here; after the `endCallback` function, we added a call
+    to an internal function: `gf.refreshGame`. It''s this function that will, in turn,
+    coordinate both the refreshment of animations and periodic function calls.'
+  id: totrans-30
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在这里我们没有改变太多；在`endCallback`函数之后，我们添加了对内部函数的调用：`gf.refreshGame`。正是这个函数将协调动画的刷新和周期性函数调用。
+- en: 'This new function will use two lists to know when to do what, one for callbacks
+    and one for animations. We have one for animations already: `gf.animationHandles`.
+    We will rename it simply to `gf.animations` and create a second one named `gf.callbacks`.'
+  id: totrans-31
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这个新函数将使用两个列表来知道何时做什么，一个用于回调，一个用于动画。我们已经有一个用于动画的列表：`gf.animationHandles`。我们将其简单重命名为`gf.animations`并创建第二个名为`gf.callbacks`的列表。
+- en: Both lists will have to include a way to know if they should be executed at
+    the current iteration of the base rate or not. To detect this, we will use a simple
+    counter for each animation and callback. Each time the base loop executes, we
+    will increment all of them and compare their values with the rate of the associate
+    animation/callback. If they are equal, it means that we need to execute it and
+    reset the counter.
+  id: totrans-32
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 两个列表都必须包含一种方法来知道它们是否应在基础速率的当前迭代中执行。为了检测这一点，我们将为每个动画和回调使用一个简单的计数器。每次基本循环执行时，我们将递增所有这些计数器，并将它们的值与关联动画/回调的速率进行比较。如果它们相等，这意味着我们需要执行它并重置计数器。
+- en: '[PRE2]'
+  id: totrans-33
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE2]'
+- en: This simple mechanism will replace the many calls to `setInterval` and solve
+    the problems associated to this that we mentioned earlier.
+  id: totrans-34
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这个简单的机制将替换对`setInterval`的许多调用并解决我们之前提到的与此相关的问题。
+- en: The function that sets animations to a div has to be adapted in consequence.
+    As you've seen in the preceding example, the actual code that takes care of finding
+    out which frame of the animation has to be defined is now in the `refreshGame`
+    function. This means that the `setAnimation` function just needs to add the animation
+    to the list without caring about how it will be animated.
+  id: totrans-35
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 将动画设置为 div 的函数必须相应地进行调整。就像你在前面的示例中看到的那样，负责确定动画帧的实际代码现在在`refreshGame`函数中。这意味着`setAnimation`函数只需将动画添加到列表中，而不必关心如何进行动画化。
+- en: The part of the function that checks if the div already has an animation associated
+    to it is now slightly more complicated, but otherwise the function is now much
+    simpler.
+  id: totrans-36
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 函数的一部分检查 div 是否已经与动画关联起来现在稍微复杂了一些，但是除此之外，函数现在更简单了。
+- en: '**gf.animations = [];**'
+  id: totrans-37
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**gf.animations = [];**'
+- en: '[PRE3]'
+  id: totrans-38
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE3]'
+- en: 'We need to write a similar code to add the callbacks to the base loop:'
+  id: totrans-39
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们需要编写类似的代码将回调添加到基础循环中：
+- en: '[PRE4]'
+  id: totrans-40
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE4]'
+- en: 'This function is trivial; the only interesting part is the normalization of
+    the refresh rate to express it as a multiple of the base rate. You probably noticed
+    that we didn''t do anything of that sort for animations, but we will do this now
+    in the function that creates animations. It will now look like this:'
+  id: totrans-41
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这个函数很琐碎；唯一有趣的部分是将刷新率标准化为基础速率的倍数。你可能注意到我们在动画方面没有做任何这样的事情，但是现在我们将在创建动画的函数中执行此操作。它现在将是这样的：
+- en: '[PRE5]'
+  id: totrans-42
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE5]'
+- en: And that's it; with those simple changes, we will get rid of most `setInterval`
+    functions. It may seem quite a lot of work to duplicate functionality that you
+    get out of the box with vanilla JavaScript, but you will see in time that it helps
+    quite a lot when you start debugging your game.
+  id: totrans-43
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 就是这样；通过这些简单的改变，我们将摆脱大多数`setInterval`函数。将功能与普通的 JavaScript 一起获得的功能复制似乎需要相当多的工作，但是你会发现随着时间的推移，当你开始调试你的游戏时，它确实会帮助很多。
+- en: Keyboard polling
+  id: totrans-44
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 键盘轮询
+- en: If you played the game from the last chapter, you may have noticed that the
+    movements from left to right from our "frog" are somewhat strange, that is, if
+    you press and hold the left key, your avatar will move left a bit, stall for some
+    time, and start moving left continually.
+  id: totrans-45
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果你玩过上一章的游戏，你可能会注意到我们的“青蛙”从左到右的移动有些奇怪，也就是说，如果你按住左键，你的角色会向左移动一点，停顿一段时间，然后开始持续向左移动。
+- en: 'This behavior is not directly caused by the browser, but rather by the operating
+    system. What''s happening here is that the OS will repeat any key when it stays
+    pressed long enough (also known as "sticky keys"). There are two parameters that
+    define this behavior:'
+  id: totrans-46
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这种行为并不是由浏览器直接引起的，而是由操作系统引起的。这里发生的情况是，当键长时间保持按下时，操作系统会重复任何键（也称为“粘滞键”）。有两个参数定义了这种行为：
+- en: 'The grace period: This is the time during which the OS will wait before repeating
+    the keys. This avoids repeating the keys when you really mean to press them once.'
+  id: totrans-47
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 宽限期：这是操作系统在重复按键之前等待的时间。这样做可以避免在你确实只想按一次时重复按键。
+- en: The frequency at which the keys will repeat.
+  id: totrans-48
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 按键重复的频率。
+- en: You have no control on those parameters or on the occurrence of this behavior.
+    It all depends on the OS and the way the user configured it.
+  id: totrans-49
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 你对这些参数或此行为的发生没有控制权。这一切都取决于操作系统和用户配置的方式。
+- en: For continuous actions, this is far from ideal. If you move an avatar around
+    in an RPG or a platformer game, you need the movement to be continuous and linear
+    in speed. A solution to this problem is called state polling. With this method,
+    you want to actively query the state of some keys instead of waiting for a change
+    in state as is done with event handling.
+  id: totrans-50
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 对于连续动作，这远非理想。如果你在RPG或平台游戏中移动角色，你需要移动是连续且线性的速度。这个问题的解决方案被称为状态轮询。使用这种方法，你希望主动查询一些键的状态，而不是等待状态的改变，就像事件处理中所做的那样。
+- en: In your game loop, you would at some point ask if the key "left" is pressed
+    and react accordingly. This is used a lot in native games, but JavaScript doesn't
+    offer this possibility out of the box. We will have to implement a state polling
+    technique ourselves.
+  id: totrans-51
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在你的游戏循环中，你会在某个时刻询问键“left”是否被按下，并根据情况做出反应。这在本地游戏中经常使用，但是JavaScript并没有提供这种可能性。我们将不得不自己实现一个状态轮询技术。
+- en: Keeping track of the keys' state
+  id: totrans-52
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 跟踪按键状态
+- en: 'To do this we will use the only tools available: the `keydown` and `keyup`
+    events. We will register two event handlers:'
+  id: totrans-53
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了做到这一点，我们将使用唯一可用的工具：`keydown` 和 `keyup` 事件。我们将注册两个事件处理程序：
+- en: If a key with a given keycode "c" is pressed, the first event handler will write
+    `true` in an array at index "c".
+  id: totrans-54
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 如果按下具有给定键码“c”的键，则第一个事件处理程序将在索引“c”处的数组中写入 `true`。
+- en: When the same key is released, the second event handler sets the value of index
+    "c" to `false`.
+  id: totrans-55
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 当相同的键释放时，第二个事件处理程序将索引“c”的值设置为 `false`。
+- en: 'A nice feature of this solution is that we don''t need to initialize the state
+    of the array for each possible key as, by default, it is undefined; so, when we
+    check, its value will return `false`. The following image illustrates how these
+    two event handlers work:'
+  id: totrans-56
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这种解决方案的一个好处是，我们不需要为每个可能的键初始化数组的状态，因为默认情况下它是未定义的；所以，当我们检查时，它的值将返回 `false`。下图说明了这两个事件处理程序的工作原理：
+- en: '![Keeping track of the keys'' state](img/5060OT_03_02.jpg)'
+  id: totrans-57
+  prefs: []
+  type: TYPE_IMG
+  zh: '![跟踪按键状态](img/5060OT_03_02.jpg)'
+- en: 'We will register those two event handlers at the end of our framework:'
+  id: totrans-58
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将在我们的框架末尾注册这两个事件处理程序：
+- en: '[PRE6]'
+  id: totrans-59
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE6]'
+- en: Once this is done, we can simply move the code that handles the left and right
+    movement to our game loop and rewrite it to use the `gf.keyboard` array.
+  id: totrans-60
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 一旦完成了这一步，我们就可以简单地将处理左右移动的代码移动到游戏循环中，并重写它以使用 `gf.keyboard` 数组。
+- en: '[PRE7]'
+  id: totrans-61
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE7]'
+- en: Here we don't need to check if the player dies because we already do it once
+    in the game loop. You just have to keep in mind that more than one key can be
+    pressed at the same time. This wasn't the case in the previous version that used
+    an event handler and where one event was generated for each key that was pressed.
+  id: totrans-62
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在这里，我们不需要检查玩家是否死亡，因为我们在游戏循环中已经这样做了。你只需要记住，可能会同时按下多个键。这在以前版本中不是这样的，在以前版本中，使用事件处理程序，每按下一个键就会生成一个事件。
+- en: If you try the game now, you will notice that the horizontal movements of your
+    player are much better.
+  id: totrans-63
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果现在尝试游戏，你会注意到你的玩家的水平移动要好得多。
+- en: As you can see, the code that uses polling is prettier and in most cases more
+    compact. Furthermore, it is inside the game loop, which is always a good thing.
+    However, there are still situations where it may not be the best solution. Making
+    our frog jump is a perfect example of this.
+  id: totrans-64
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如你所见，使用轮询的代码更漂亮，在大多数情况下更紧凑。此外，它在游戏循环内部，这总是一件好事。然而，仍然存在一些可能不是最佳解决方案的情况。使我们的青蛙跳跃就是一个很好的例子。
+- en: Choosing between event handling and polling really depends on the situation,
+    but in general, if you want to react to a key pressed once you will use events,
+    and if you want to react to a key pressed continuously you will use polling.
+  id: totrans-65
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在选择事件处理和轮询之间，真正取决于情况，但一般来说，如果你想对按键做出一次反应，你会使用事件，如果你想对按键持续做出反应，你会使用轮询。
+- en: HTML fragments
+  id: totrans-66
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: HTML 片段
+- en: Here we will look at some small optimizations in the code that creates the sprites.
+    As this function is called only eight times in our entire game and only during
+    the initialization phase, it's not very important that it's fast in this case.
+    However, there are many situations where you need to create lots of sprites during
+    the game, for example, when shooting lasers in a shoot-'em-up when creating levels
+    of a platformer or the maps of an RPG.
+  id: totrans-67
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在这里，我们将看一些创建精灵的代码中的小优化。由于这个函数在我们整个游戏中仅调用了八次，并且仅在初始化阶段调用，所以在这种情况下它的速度并不是很重要。然而，在许多情况下，你需要在游戏过程中创建大量的精灵，例如，在射击游戏中射击激光时，创建平台游戏的关卡或RPG地图时。
+- en: This technique avoids parsing the HTML code (that describes a sprite) each time
+    that you add one to the game. It uses what's called an HTML fragment, which is
+    a kind of a severed branch from the usual HTML tree of nodes.
+  id: totrans-68
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这种技术避免了每次将精灵添加到游戏中都解析 HTML 代码（描述一个精灵）。它使用了所谓的 HTML 片段，这是一种从常规 HTML 节点树中截取的分支。
+- en: '![HTML fragments](img/5060OT_03_03.jpg)'
+  id: totrans-69
+  prefs: []
+  type: TYPE_IMG
+  zh: '![HTML 片段](img/5060OT_03_03.jpg)'
+- en: 'jQuery offers a very simple way to generate such a fragment:'
+  id: totrans-70
+  prefs: []
+  type: TYPE_NORMAL
+  zh: jQuery 提供了一种非常简单的方法来生成这样的片段：
+- en: '[PRE8]'
+  id: totrans-71
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE8]'
+- en: 'In this example, the variable `fragment` will hold the HTML element in memory
+    until we need to use it. It is not automatically added to the document. If you
+    want to add it later you can simply write:'
+  id: totrans-72
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在这个例子中，变量 `fragment` 将在内存中保存 HTML 元素，直到我们需要使用它。它不会自动添加到文档中。如果以后想要添加它，只需简单地编写：
+- en: '[PRE9]'
+  id: totrans-73
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE9]'
+- en: Keep in mind that the fragment is still referencing the added element, which
+    means that if you add it to another location later on it will be removed from
+    the previous one, and if you modify it you will modify the document too.
+  id: totrans-74
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 请记住，片段仍然引用着已添加的元素，这意味着如果稍后将其添加到另一个位置，它将从先前的位置删除，并且如果修改它，你也将修改文档。
+- en: 'To avoid this situation, what you want is to clone the fragment before you
+    insert it into your document, as shown in the following code:'
+  id: totrans-75
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要避免这种情况，你需要在将片段插入文档之前将其克隆，如下代码所示：
+- en: '[PRE10]'
+  id: totrans-76
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE10]'
+- en: 'This is exactly the way we will rewrite our `addSprite` function to make it
+    faster:'
+  id: totrans-77
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这正是我们将重写 `addSprite` 函数使其更快的方式：
+- en: '[PRE11]'
+  id: totrans-78
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE11]'
+- en: Here we created a fragment for the only part that is common to every sprite.
+    Then, before we add it to the document, we clone it and add the special parameters
+    that were provided to the `addSprite` function, such as its position, size, and
+    ID.
+  id: totrans-79
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在这里，我们为每个精灵共同的部分创建了一个片段。然后，在将其添加到文档之前，我们克隆它并添加了 `addSprite` 函数提供的特殊参数，例如它的位置、大小和
+    ID。
+- en: Like I said before, you probably won't have noticed any visible changes for
+    our very simple game, but this code is much more efficient and will come in handy
+    in more complex games where we generate lots of sprites.
+  id: totrans-80
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 就像我之前说的，对于我们非常简单的游戏，你可能不会注意到任何可见的变化，但这段代码更高效，在我们生成大量精灵的更复杂的游戏中会很方便。
+- en: Avoiding reflow
+  id: totrans-81
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 避免回流
+- en: When modifying the DOM, you must try to avoid generating a complete reflow of
+    the whole document, or of a large part of it. There are many ways of minimizing
+    the risk of doing this, and modern browsers are pretty good at optimizing when
+    they do it.
+  id: totrans-82
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在修改 DOM 时，必须尽量避免生成整个文档或大部分文档的完全回流。有许多方法可以最小化做到这一点的风险，而且现代浏览器在进行优化时做得相当不错。
+- en: Typically, the browser will try to regroup as much modification it can before
+    reflowing the document. However, if you try to access information that is dependent
+    on one of those modifications, it will have to perform a reflow in order to be
+    able to calculate the new information.
+  id: totrans-83
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 通常，浏览器会尝试在重新回流文档之前尽可能地重新组织修改。然而，如果尝试访问依赖于这些修改之一的信息，它将不得不执行重新回流以便能够计算新信息。
+- en: A pretty good rule of thumb is to avoid reading the DOM, like the plague, and
+    as a last resort, group all reads and perform them at the end of the refresh loop.
+  id: totrans-84
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 一个相当不错的经验法则是尽量避免像瘟疫一样读取 DOM，并作为最后的手段，将所有读取分组，并在刷新循环结束时执行它们。
+- en: 'In our game there is one point where we are in this exact situation: Each time
+    we access the X position of the player''s avatar, we force the browser to reflow.
+    Position and size is probably the most frequently accessed information during
+    the game loop. One simple way to make things faster is to avoid getting them from
+    the DOM. Indeed, as long as they are set through the framework function, we can
+    simply store them somewhere and retrieve them when needed.'
+  id: totrans-85
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们的游戏中，有一个地方我们正处于这种情况：每次访问玩家角色的 X 位置时，我们都会强制浏览器重新回流。在游戏循环中，位置和大小可能是最经常访问的信息之一。加快速度的一个简单方法是避免从
+    DOM 获取它们。事实上，只要它们通过框架函数设置，我们就可以简单地将它们存储在某个地方，并在需要时检索它们。
+- en: 'To do this we will use jQuery''s `data` function to associate our sprite with
+    an object literal containing those interesting values. The `addSprite` function
+    would be extended this way:'
+  id: totrans-86
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为此，我们将使用 jQuery 的 `data` 函数将我们的精灵与包含这些有趣值的对象文字关联起来。`addSprite` 函数将以此方式扩展：
+- en: '[PRE12]'
+  id: totrans-87
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE12]'
+- en: 'Then, in the `gf.x` and `gf.y` functions we will use this value instead of
+    the CSS property:'
+  id: totrans-88
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然后，在 `gf.x` 和 `gf.y` 函数中，我们将使用这个值而不是 CSS 属性：
+- en: '[PRE13]'
+  id: totrans-89
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE13]'
+- en: This also has the advantage of getting rid of two `parseInt` values, and the
+    code of the game doesn't even have to change!
+  id: totrans-90
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这还有一个好处，就是消除了两个 `parseInt` 值，而且游戏的代码甚至不需要改变！
+- en: Moving your sprite around using CSS Transforms
+  id: totrans-91
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 使用 CSS 转换移动您的精灵
+- en: Using CSS Transforms is a simple hack that allows you to move objects on the
+    screen much faster than it does with the use of CSS `top` and `left` properties.
+    If you decide to use this, you have to be aware that not all browsers support
+    it.
+  id: totrans-92
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 使用 CSS 转换是一种简单的技巧，可以让您比使用 CSS `top` 和 `left` 属性在屏幕上移动对象更快。如果您决定使用这个，您必须意识到并非所有的浏览器都支持它。
+- en: 'We won''t go into too much detail because CSS Transforms are explained in the
+    next chapter, *Looking Sideways*. The following code is the modification required
+    to use CSS Transforms:'
+  id: totrans-93
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们不会进入太多细节，因为CSS转换在下一章*环视*中有解释。下面的代码是使用CSS转换所需的修改：
+- en: '[PRE14]'
+  id: totrans-94
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE14]'
+- en: As you can see in the highlighted part of the code, we need to set both coordinates
+    each time. This means that we have to retrieve the y coordinate when we modify
+    the x coordinate and vice versa.
+  id: totrans-95
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如您在代码的突出部分中所看到的，我们需要每次设置好两个坐标。这意味着当我们修改x坐标时，我们必须检索y坐标，反之亦然。
+- en: Using requestAnimationFrame instead of timeouts
+  id: totrans-96
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 使用 requestAnimationFrame 而不是 timeouts
+- en: 'A new feature has been added quite recently to browsers in order to make animations
+    smoother: `requestAnimationFrame`. This makes the browser tell you when it''s
+    the best possible time to animate your page instead of doing it whenever you feel
+    like it. You would use this instead of registering your callbacks with `setInterval`
+    or `setTimeout`.'
+  id: totrans-97
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 最近在浏览器中添加了一个新的功能，以使动画更加流畅： `requestAnimationFrame`。这使得浏览器告诉您什么时候最适合动画您的页面，而不是在您喜欢的任何时间都进行动画。您应该使用这个代替使用
+    `setInterval` 或 `setTimeout` 来注册回调。
+- en: When you use `requestAnimationFrame`, it's the browser that decides when it
+    will call the function. Therefore, you'll have to take into account the exact
+    time that passed since the last call. The standard specification used to define
+    this time is milliseconds (like the ones you would get with `Date.now()`), but
+    it's now given by a high-precision timer.
+  id: totrans-98
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 当您使用 `requestAnimationFrame` 时，是浏览器决定何时调用函数。因此，您必须考虑自上次调用以来过去的确切时间。用于定义此时间的标准规范是毫秒（就像您使用
+    `Date.now()` 可以得到的那些），但现在由一个高精度计时器给出。
+- en: 'As there are implementations of those two versions around, and this feature
+    is vendor-prefixed in most browsers, you should use a tool to abstract the dirty
+    details. I would recommend reading these two articles, both of which provide code
+    snippets that you could use:'
+  id: totrans-99
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于这两个版本的实现存在，而且该功能在大多数浏览器中都有供应商前缀，您应该使用一个工具来抽象脏细节。我建议阅读以下两篇文章，两篇文章都提供了可用的代码片段：
+- en: '[http://paulirish.com/2011/requestanimationframe-for-smart-animating/](http://paulirish.com/2011/requestanimationframe-for-smart-animating/)'
+  id: totrans-100
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '[http://paulirish.com/2011/requestanimationframe-for-smart-animating/](http://paulirish.com/2011/requestanimationframe-for-smart-animating/)'
+- en: '[http://www.makeitgo.ws/articles/animationframe/](http://www.makeitgo.ws/articles/animationframe/)'
+  id: totrans-101
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '[http://www.makeitgo.ws/articles/animationframe/](http://www.makeitgo.ws/articles/animationframe/)'
+- en: Summary
+  id: totrans-102
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 总结
+- en: In this chapter, we spent some time optimizing the game we wrote in [Chapter
+    2](ch02.html "Chapter 2. Creating Our First Game"), *Creating Our First Game*.
+    We've seen some optimization techniques that will make our game smoother without
+    impacting our game's code readability.
+  id: totrans-103
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在这一章中，我们花了一些时间优化了我们在[第2章](ch02.html "第2章. 创建我们的第一个游戏")中编写的游戏，*创建我们的第一个游戏*。我们看到了一些优化技术，将使我们的游戏更加流畅，而不会影响我们的代码可读性。
+- en: The framework we've built is now a reasonable foundation upon which we can build
+    a more complete one in the following chapters. We will begin in the following
+    one by adding the capability to create tile maps that we will use to implement
+    a platformer game.
+  id: totrans-104
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们建立的框架现在是一个合理的基础，我们可以在接下来的章节中构建一个更完整的框架。我们将在接下来的章节中开始添加创建瓷砖地图的能力，这些地图将用于实现一个平台游戏。

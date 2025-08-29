@@ -1,1407 +1,2113 @@
 - en: '9'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '9'
 - en: The State of Vue State Management
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: Vue状态管理的现状
 - en: You’ve now seen how to build Vue.js applications and have begun to string together
     multiple different components into your first set of real applications. As the
     size of your application grows, so does the complexity. In this chapter, it’s
     time to take a look at how you can begin managing that complexity by integrating
     **state management**.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 您现在已经看到了如何构建Vue.js应用程序，并且已经开始将多个不同的组件组合成您的第一套真实应用程序。随着应用程序规模的扩大，其复杂性也在增加。在这一章中，是时候看看您如何可以通过集成**状态管理**来开始管理这种复杂性了。
 - en: Here, you’ll begin by taking a look at how problems with states arise, how state
     management can help address it, and what features Vue.js 3 has to help you deal
     with it directly. You’ll learn this while building a simple *profile card* application
     that uses multiple components between which the state needs to be synchronized.
     The next chapter will introduce a tool to further help with this, called **Pinia**.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，您将首先了解状态问题是如何产生的，状态管理如何帮助解决这些问题，以及Vue.js 3有哪些特性可以帮助您直接处理这些问题。您将在构建一个简单的**配置文件卡片**应用程序的同时学习这些内容，该应用程序使用多个组件，这些组件之间需要同步状态。下一章将介绍一个进一步帮助这一过程的工具，称为**Pinia**。
 - en: 'So, in this chapter, we will cover the following topics:'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，在本章中，我们将涵盖以下主题：
 - en: Understanding the component architecture and the problem of the state
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解组件架构和状态问题
 - en: Holding the state in a common ancestor component
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在公共祖先组件中持有状态
 - en: Adding simple state management
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 添加简单的状态管理
 - en: Deciding when to use a local state or global state
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 决定何时使用局部状态或全局状态
 - en: Technical requirements
+  id: totrans-9
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: There are no technical requirements for this chapter outside of the `npm` CLI
     you have previously used to scaffold applications with Vue.js.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了您之前用于使用Vue.js构建应用程序的`npm` CLI之外，本章没有其他技术要求。
 - en: 'You can find this chapter’s source here: [https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09](https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09)'
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在此处找到本章的源代码：[https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09](https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09)
 - en: Understanding the component architecture and the problem of the state
+  id: totrans-12
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 理解组件架构和状态问题
 - en: In previous chapters, we have seen how to use a local state and `props` to hold
     the state and share it in a parent-child component hierarchy.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前面的章节中，我们看到了如何使用局部状态和`props`来持有状态并在父子组件层次结构中共享状态。
 - en: Now, we will begin by showing how to leverage `state`, `props`, and `events`
     to share states between components that do not have a **parent-child** configuration.
     These types of components are called **siblings**.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们将开始展示如何利用`状态`、`属性`和`事件`在无**父子**配置的组件之间共享状态。这类组件被称为**兄弟组件**。
 - en: '![Figure 9.1 – Child 1 and Child 2 are “sibling” components](img/Figure_9.01_B18645.jpg)'
+  id: totrans-15
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.1 – 子组件1和子组件2是“兄弟”组件](img/Figure_9.01_B18645.jpg)'
 - en: Figure 9.1 – Child 1 and Child 2 are “sibling” components
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.1 – 子组件1和子组件2是“兄弟”组件
 - en: Throughout the chapter, we will be building a **profile card generator** app
     that demonstrates how the state flows down the component tree as props in an application,
     and how updates are propagated as backup using events, event buses, and store
     updates.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章的整个过程中，我们将构建一个**配置文件生成器**应用程序，演示状态如何在应用程序中以props的形式沿着组件树流动，以及如何通过事件、事件总线以及存储更新来传播更新。
 - en: 'Given that we want to build a profile card generator, we can break the application
     down into three sections: a *header*, where we will have global controls and display
     the title of the page; a *profile form*, where we will capture data; and finally,
     a *profile display*, where we will display the profile card. In *Figure 9**.2*,
     you can see our root component (**App (root)**), as well as three sibling child
     components.'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 既然我们想要构建一个配置文件生成器，我们可以将应用程序分解为三个部分：一个**头部**，我们将在这里有全局控制和显示页面标题；一个**配置文件表单**，我们将在这里捕获数据；最后，一个**配置文件显示**，我们将在这里显示配置文件卡片。在**图9**.2中，您可以看到我们的根组件（**App（根）**），以及三个兄弟子组件。
 - en: '![Figure 9.2 – Representation of a profile card application component tree](img/Figure_9.02_B18645.jpg)'
+  id: totrans-19
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.2 – 展示配置文件卡片应用程序组件树](img/Figure_9.02_B18645.jpg)'
 - en: Figure 9.2 – Representation of a profile card application component tree
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.2 – 展示配置文件卡片应用程序组件树
 - en: We have now seen how to think of our application as a component tree and how
     our application can be structured as a component tree. In the next section, we’ll
     demonstrate putting all of the shared states in the root component.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们现在已经看到了如何将我们的应用程序视为组件树，以及我们的应用程序如何作为组件树进行结构化。在下一节中，我们将演示将所有共享状态放入根组件中。
 - en: Holding the state in a common ancestor component
+  id: totrans-22
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在共享祖先组件中持有状态
 - en: To only hold the state with the `state` component and `props`, and update it
     with `events`, we will store it in the nearest common ancestor component.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 要仅使用`state`组件和`props`持有状态，并通过`events`更新它，我们将将其存储在最近的共享祖先组件中。
 - en: '`state` is only propagated through `props` and is only updated through `events`.
     In this case, all the `state` components will live in a shared ancestor of the
     components that require them. The `App` component, since it is the root component,
     is a good default for holding a shared state.'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: '`state`仅通过`props`传播，并且仅通过`events`更新。在这种情况下，所有`state`组件都将生活在需要它们的组件的共享祖先中。由于`App`组件是根组件，因此它是持有共享状态的默认选择。'
 - en: '![Figure 9.3 – Common ancestor component holds state with props and event propagation](img/Figure_9.03_B18645.jpg)'
+  id: totrans-25
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.3 – 带有props和事件传播的共享祖先组件持有状态](img/Figure_9.03_B18645.jpg)'
 - en: Figure 9.3 – Common ancestor component holds state with props and event propagation
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.3 – 带有props和事件传播的共享祖先组件持有状态
 - en: To change `state`, a component needs to emit `events` up to the component holding
     our `state` (the shared ancestor). The shared ancestor needs to update `state`
     according to the data and type of `events`. This, in turn, causes a re-render,
     during which the ancestor component passes the updated `props` to the component
     reading `state`.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 要更改`state`，组件需要向持有我们`state`（共享祖先）的组件发出`events`。共享祖先需要根据数据和`events`的类型更新`state`。这反过来又会导致重新渲染，在此期间，祖先组件将更新的`props`传递给读取`state`的组件。
 - en: '![Figure 9.4 – Updating a sibling component when the ancestor holds state](img/Figure_9.04_B18645.jpg)'
+  id: totrans-28
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.4 – 当祖先持有状态时更新兄弟组件](img/Figure_9.04_B18645.jpg)'
 - en: Figure 9.4 – Updating a sibling component when the ancestor holds state
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.4 – 当祖先持有状态时更新兄弟组件
 - en: Let’s look at an example of this by working on a *profile card editor*. To build
     a header, we need to create an `AppHeader` component in the `AppHeader.vue` file,
     which will contain a template and an `h2` heading with TailwindCSS classes.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过在*个人资料卡片编辑器*上工作来查看这个例子。为了构建标题，我们需要在`AppHeader.vue`文件中创建一个`AppHeader`组件，它将包含一个模板和一个带有TailwindCSS类的`h2`标题。
 - en: Note
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: 'You can learn more about using Tailwind CSS with Vue3 here: [https://tailwindcss.com/docs/guides/vite](https://tailwindcss.com/docs/guides/vite).'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可以在这里了解更多关于在Vue3中使用Tailwind CSS的信息：[https://tailwindcss.com/docs/guides/vite](https://tailwindcss.com/docs/guides/vite)。
 - en: 'To do this, add the following code:'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 要做到这一点，请添加以下代码：
 - en: '[PRE0]'
+  id: totrans-34
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'We will then import the header, register it, and render it in the `App.vue`
     file:'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们将导入标题，将其注册，并在`App.vue`文件中渲染它：
 - en: '[PRE1]'
+  id: totrans-36
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'The output of the preceding code will be as follows:'
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 前面代码的输出将如下所示：
 - en: '![Figure 9.5 – AppHeader displayed in the profile card generator](img/Figure_9.05_B18645.jpg)'
+  id: totrans-38
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.5 – 在个人资料卡片生成器中显示的AppHeader](img/Figure_9.05_B18645.jpg)'
 - en: Figure 9.5 – AppHeader displayed in the profile card generator
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.5 – 在个人资料卡片生成器中显示的AppHeader
 - en: 'We will similarly create an `AppProfileForm` file; the purpose of this component
     is to lay out the labels and form fields for editing the profile:'
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将类似地创建一个`AppProfileForm`文件；此组件的目的是布局用于编辑个人资料的标签和表单字段：
 - en: '[PRE2]'
+  id: totrans-41
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'We will then create an `AppProfileDisplay` file; this component handles displaying
     the profile so the user can preview their edits:'
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们将创建一个`AppProfileDisplay`文件；此组件负责显示个人资料，以便用户可以预览他们的编辑：
 - en: '[PRE3]'
+  id: totrans-43
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'Both of our containers (`AppProfileForm` and `AppProfileDisplay`) can now be
     imported and rendered in `App`:'
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的两个容器（`AppProfileForm`和`AppProfileDisplay`）现在都可以导入并在`App`中渲染：
 - en: '[PRE4]'
+  id: totrans-45
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'The output of the preceding code will be as follows:'
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 前面代码的输出将如下所示：
 - en: '![Figure 9.6 – App skeleton with AppHeader, AppProfileForm, and AppProfileDisplay](img/Figure_9.06_B18645.jpg)'
+  id: totrans-47
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.6 – 包含AppHeader、AppProfileForm和AppProfileDisplay的应用骨架](img/Figure_9.06_B18645.jpg)'
 - en: Figure 9.6 – App skeleton with AppHeader, AppProfileForm, and AppProfileDisplay
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.6 – 包含AppHeader、AppProfileForm和AppProfileDisplay的应用骨架
 - en: 'To add a form field, in this case, `name`, we will start by adding an input
     to `AppProfileForm`:'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 要添加一个表单字段，在这种情况下，`name`，我们首先将在`AppProfileForm`中添加一个输入：
 - en: '[PRE5]'
+  id: totrans-50
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'The preceding code will display as follows:'
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 前面的代码将显示如下：
 - en: '![Figure 9.7 – AppProfileForm with a name field and label](img/Figure_9.07_B18645.jpg)'
+  id: totrans-52
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.7 – 包含名称字段和标签的AppProfileForm](img/Figure_9.07_B18645.jpg)'
 - en: Figure 9.7 – AppProfileForm with a name field and label
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.7 – 包含名称字段和标签的AppProfileForm
 - en: 'To keep track of the name input data, we will add a two-way binding to it using
     `v-model` and set a `name` property in the component’s `data` initializer:'
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了跟踪名称输入数据，我们将使用`v-model`添加双向绑定到它，并在组件的`data`初始化器中设置一个`name`属性：
 - en: '[PRE6]'
+  id: totrans-55
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'We will also need a `submit` button that, upon being clicked, sends the form
     data to the parent by emitting a `submit` event with the form’s contents:'
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还需要一个`submit`按钮，当点击时，通过发出包含表单内容的`submit`事件将表单数据发送给父组件：
 - en: '[PRE7]'
+  id: totrans-57
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'This will display as follows:'
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将显示如下：
 - en: '![Figure 9.8 – AppProfileForm with a wired-up Submit button](img/Figure_9.08_B18645.jpg)'
+  id: totrans-59
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.8 – 配有已连接提交按钮的AppProfileForm](img/Figure_9.08_B18645.jpg)'
 - en: Figure 9.8 – AppProfileForm with a wired-up Submit button
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.8 – 配有已连接提交按钮的AppProfileForm
 - en: The next step is to store the form’s state in the `App` component. It is a good
     candidate for storing form state since it is a common ancestor to `AppProfileForm`
     and `AppProfileDisplay`.
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一步是将表单的状态存储在`App`组件中。由于它是`AppProfileForm`和`AppProfileDisplay`的共同祖先，因此它是存储表单状态的理想选择。
 - en: 'To begin with, we will need a `formData` attribute returned from `reactive()`.
     We will also need a way to update `formData`. Hence, we will add an `update(formData)`
     method:'
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们需要一个由`reactive()`返回的`formData`属性。我们还需要一种更新`formData`的方法。因此，我们将添加一个`update(formData)`方法：
 - en: '[PRE8]'
+  id: totrans-63
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'Next, we need to bind `update()` to the `submit` event emitted by `AppProfileForm`.
     We will do this using the `@submit` shorthand and with the magic event object
     notation as `update($event)`:'
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们需要将`update()`绑定到由`AppProfileForm`发出的`submit`事件。我们将使用`@submit`简写和事件对象记法`update($event)`来完成此操作：
 - en: '[PRE9]'
+  id: totrans-65
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'To display the name inside of `AppProfileDisplay`, we will need to add `formData`
     as a prop:'
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 要在`AppProfileDisplay`内部显示名称，我们需要添加`formData`作为prop：
 - en: '[PRE10]'
+  id: totrans-67
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'We will also need to display the name using `formData.name`. We will add a
     `p-12` class to the container to improve the appearance of the component:'
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还需要使用`formData.name`显示名称。我们将向容器添加`p-12`类以改善组件的外观：
 - en: '[PRE11]'
+  id: totrans-69
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'Finally, `App` needs to pass `formData` to `AppProfileDisplay` as a prop:'
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，`App`需要将`formData`作为prop传递给`AppProfileDisplay`：
 - en: '[PRE12]'
+  id: totrans-71
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'We are now able to update the name on the form. When you click on the **Submit**
     button, it will show the name in the profile card display as follows:'
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们可以更新表单上的名称。当你点击**提交**按钮时，它将在个人资料卡片显示中显示如下：
 - en: '![Figure 9.9 – App storing state, passing as props to AppProfileDisplay](img/Figure_9.09_B18645.jpg)'
+  id: totrans-73
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.9 – App存储状态，作为props传递给AppProfileDisplay](img/Figure_9.09_B18645.jpg)'
 - en: Figure 9.9 – App storing state, passing as props to AppProfileDisplay
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.9 – 存储状态并在AppProfileDisplay中传递props的App
 - en: We have now seen how to store a shared state in the `App` component and how
     to update it from `AppProfileForm` and display it in `AppProfileDisplay`.
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们现在已经看到了如何在`App`组件中存储共享状态，以及如何从`AppProfileForm`更新它并在`AppProfileDisplay`中显示它。
 - en: In the next topic, we will see how to add an additional field to the profile
     card generator.
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一个主题中，我们将看到如何向个人资料卡片生成器添加一个额外的字段。
 - en: Exercise 9.01 – adding an occupation field to the profile card generator
+  id: totrans-77
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 练习9.01 – 向个人资料卡片生成器添加职业字段
 - en: Following on from the example of storing the `name` shared state, another field
     that would be interesting to capture in a profile card is the occupation of the
     individual. To this end, we will add an `occupation` field to `AppProfileForm`
     to capture this extra part of the state, and we’ll display it in `AppProfileDisplay`.
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 在存储`name`共享状态的示例之后，另一个有趣的个人资料卡片中要捕获的字段是个人的职业。为此，我们将在`AppProfileForm`中添加一个`occupation`字段来捕获这个额外的状态部分，并在`AppProfileDisplay`中显示它。
 - en: The complete code for this exercise can be found at [https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09/Exercise9.01](https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09/Exercise9.01)
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 本练习的完整代码可以在[https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09/Exercise9.01](https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09/Exercise9.01)找到
 - en: 'Follow these steps in order to add the field:'
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 按照以下步骤添加字段：
 - en: 'The first place to start is by adding the new `occupation` field to `src/components/AppProfileForm`.
     We’ll also take this opportunity to get rid of the `h-64` and `bg-red-200` classes
     from the `section` element (if they’re present), which will mean the form is displayed
     without a background and a set height:'
+  id: totrans-81
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先要做的就是在`src/components/AppProfileForm`中添加新的`occupation`字段。我们也将借此机会从`section`元素中移除`h-64`和`bg-red-200`类（如果存在），这意味着表单将无背景和固定高度显示：
 - en: '[PRE13]'
+  id: totrans-82
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: '[PRE14]'
+  id: totrans-83
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: '[PRE15]'
+  id: totrans-84
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: '[PRE16]'
+  id: totrans-85
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: '[PRE17]'
+  id: totrans-86
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: '[PRE18]'
+  id: totrans-87
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: '[PRE19]'
+  id: totrans-88
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: '[PRE20]'
+  id: totrans-89
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: '[PRE21]'
+  id: totrans-90
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: '[PRE22]'
+  id: totrans-91
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: '[PRE23]'
+  id: totrans-92
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: '[PRE24]'
+  id: totrans-93
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: '[PRE25]'
+  id: totrans-94
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: '[PRE26]'
+  id: totrans-95
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: '[PRE27]'
+  id: totrans-96
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: '[PRE28]'
+  id: totrans-97
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: '[PRE29]'
+  id: totrans-98
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: '[PRE30]'
+  id: totrans-99
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: 'The output of the preceding code will be as follows:'
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述代码的输出将如下所示：
 - en: '![Figure 9.10 – AppProfileForm with the new Occupation field](img/Figure_9.10_B18645.jpg)'
+  id: totrans-101
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.10 – 添加了新职业字段的AppProfileForm](img/Figure_9.10_B18645.jpg)'
 - en: Figure 9.10 – AppProfileForm with the new Occupation field
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.10 – 添加了新职业字段的AppProfileForm
 - en: 'To track the value of `occupation` with a two-way data binding, we will add
     a new instance of the `ref()` function:'
+  id: totrans-103
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为了跟踪`occupation`值的双向数据绑定，我们将添加一个新的`ref()`函数实例：
 - en: '[PRE31]'
+  id: totrans-104
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: '[PRE32]'
+  id: totrans-105
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: '[PRE33]'
+  id: totrans-106
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: '[PRE34]'
+  id: totrans-107
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: '[PRE35]'
+  id: totrans-108
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: 'We will now apply a two-way data binding from the `occupation` reactive data
     property to the `occupation` input using `v-model`:'
+  id: totrans-109
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们现在将使用`v-model`从`occupation`响应式数据属性到`occupation`输入实现双向数据绑定：
 - en: '[PRE36]'
+  id: totrans-110
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: '[PRE37]'
+  id: totrans-111
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: '[PRE38]'
+  id: totrans-112
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: '[PRE39]'
+  id: totrans-113
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: '[PRE40]'
+  id: totrans-114
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: '[PRE41]'
+  id: totrans-115
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: '[PRE42]'
+  id: totrans-116
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: '[PRE43]'
+  id: totrans-117
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: '[PRE44]'
+  id: totrans-118
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE44]'
 - en: '[PRE45]'
+  id: totrans-119
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE45]'
 - en: '[PRE46]'
+  id: totrans-120
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE46]'
 - en: 'For the `occupation` value to be transmitted when `submit` is clicked, we will
     need to add it to the `submitForm` method as a property of the `submit` event
     payload:'
+  id: totrans-121
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 当点击`submit`时，要传输`occupation`值，我们需要将其添加到`submitForm`方法作为`submit`事件负载的属性：
 - en: '[PRE47]'
+  id: totrans-122
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE47]'
 - en: '[PRE48]'
+  id: totrans-123
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE48]'
 - en: '[PRE49]'
+  id: totrans-124
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE49]'
 - en: '[PRE50]'
+  id: totrans-125
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE50]'
 - en: '[PRE51]'
+  id: totrans-126
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE51]'
 - en: '[PRE52]'
+  id: totrans-127
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE52]'
 - en: '[PRE53]'
+  id: totrans-128
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE53]'
 - en: '[PRE54]'
+  id: totrans-129
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE54]'
 - en: '[PRE55]'
+  id: totrans-130
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE55]'
 - en: '[PRE56]'
+  id: totrans-131
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE56]'
 - en: '[PRE57]'
+  id: totrans-132
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE57]'
 - en: '[PRE58]'
+  id: totrans-133
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE58]'
 - en: 'The final step of adding this field is to display it in the `AppProfileDisplay`
     component. We will add a paragraph with a couple of styling classes. We’ll also
     take this opportunity to remove the `h-64` and `bg-blue-200` classes from the
     container (if they are present):'
+  id: totrans-134
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 添加此字段的最后一步是在`AppProfileDisplay`组件中显示它。我们将添加一个带有几个样式类的段落。我们也将借此机会从容器中移除`h-64`和`bg-blue-200`类（如果存在）：
 - en: '[PRE59]'
+  id: totrans-135
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE59]'
 - en: '[PRE60]'
+  id: totrans-136
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE60]'
 - en: '[PRE61]'
+  id: totrans-137
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE61]'
 - en: '[PRE62]'
+  id: totrans-138
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE62]'
 - en: '[PRE63]'
+  id: totrans-139
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE63]'
 - en: '[PRE64]'
+  id: totrans-140
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE64]'
 - en: 'Our browser should look as follows:'
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的浏览器应该看起来如下：
 - en: '![Figure 9.11 – AppProfileForm](img/Figure_9.11_B18645.jpg)'
+  id: totrans-142
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.11 – AppProfileForm](img/Figure_9.11_B18645.jpg)'
 - en: Figure 9.11 – AppProfileForm
+  id: totrans-143
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.11 – AppProfileForm
 - en: As we have just seen, adding a new field using the common ancestor to manage
     the state is a case of passing the data up in an event and back down in the props
     to the reading component.
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如我们刚才看到的，使用共同祖先来管理状态添加新字段是一个在事件中向上传递数据并在props中向下传递到读取组件的案例。
 - en: We will now see how we can reset the form and profile display with a **Clear**
     button.
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们将看到如何使用**清除**按钮重置表单和资料显示。
 - en: Exercise 9.02 – adding a Clear button to the profile card generator
+  id: totrans-146
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 练习9.02 – 向资料卡片生成器添加清除按钮
 - en: When creating a new profile with our application, it is useful to be able to
     reset the profile. To this end, we will add a **Clear** button.
+  id: totrans-147
   prefs: []
   type: TYPE_NORMAL
+  zh: 当使用我们的应用程序创建新资料时，能够重置资料非常有用。为此，我们将添加一个**清除**按钮。
 - en: A `AppProfileDisplay`. The complete code can be found at [https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09/Exercise9.02](https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09/Exercise9.02)
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: '`AppProfileDisplay`。完整的代码可以在[https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09/Exercise9.02](https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09/Exercise9.02)找到。'
 - en: 'Now let’s look at the steps to perform this exercise:'
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在让我们看看执行此练习的步骤：
 - en: 'We want a `src/components/AppProfileForm.vue`):'
+  id: totrans-150
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们希望有一个`src/components/AppProfileForm.vue`）：
 - en: '[PRE65]'
+  id: totrans-151
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE65]'
 - en: '[PRE66]'
+  id: totrans-152
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE66]'
 - en: '[PRE67]'
+  id: totrans-153
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE67]'
 - en: '[PRE68]'
+  id: totrans-154
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE68]'
 - en: '[PRE69]'
+  id: totrans-155
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE69]'
 - en: '[PRE70]'
+  id: totrans-156
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE70]'
 - en: '[PRE71]'
+  id: totrans-157
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE71]'
 - en: '[PRE72]'
+  id: totrans-158
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE72]'
 - en: '[PRE73]'
+  id: totrans-159
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE73]'
 - en: '[PRE74]'
+  id: totrans-160
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE74]'
 - en: '[PRE75]'
+  id: totrans-161
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE75]'
 - en: '[PRE76]'
+  id: totrans-162
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE76]'
 - en: '[PRE77]'
+  id: totrans-163
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE77]'
 - en: '[PRE78]'
+  id: totrans-164
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE78]'
 - en: '[PRE79]'
+  id: totrans-165
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE79]'
 - en: '[PRE80]'
+  id: totrans-166
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE80]'
 - en: '[PRE81]'
+  id: totrans-167
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE81]'
 - en: '[PRE82]'
+  id: totrans-168
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE82]'
 - en: 'To clear the form, we need to reset the `name` and `occupation` fields. We
     can create a `clear` method that will do this (in `src/components/AppProfileForm.vue`):'
+  id: totrans-169
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 要清除表单，我们需要重置`name`和`occupation`字段。我们可以在`src/components/AppProfileForm.vue`中创建一个`clear`方法来完成这个操作：
 - en: '[PRE83]'
+  id: totrans-170
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE83]'
 - en: '[PRE84]'
+  id: totrans-171
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE84]'
 - en: '[PRE85]'
+  id: totrans-172
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE85]'
 - en: '[PRE86]'
+  id: totrans-173
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE86]'
 - en: '[PRE87]'
+  id: totrans-174
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE87]'
 - en: '[PRE88]'
+  id: totrans-175
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE88]'
 - en: '[PRE89]'
+  id: totrans-176
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE89]'
 - en: '[PRE90]'
+  id: totrans-177
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE90]'
 - en: 'We want to bind the `clear` method to `click` events on the `Clear` button
     to reset the form (in `src/components/AppProfileForm.vue`):'
+  id: totrans-178
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们希望将`clear`方法绑定到`Clear`按钮的`click`事件以重置表单（在`src/components/AppProfileForm.vue`中）：
 - en: '[PRE91]'
+  id: totrans-179
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE91]'
 - en: '[PRE92]'
+  id: totrans-180
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE92]'
 - en: '[PRE93]'
+  id: totrans-181
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE93]'
 - en: '[PRE94]'
+  id: totrans-182
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE94]'
 - en: '[PRE95]'
+  id: totrans-183
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE95]'
 - en: '[PRE96]'
+  id: totrans-184
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE96]'
 - en: '[PRE97]'
+  id: totrans-185
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE97]'
 - en: '[PRE98]'
+  id: totrans-186
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE98]'
 - en: '[PRE99]'
+  id: totrans-187
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE99]'
 - en: '[PRE100]'
+  id: totrans-188
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE100]'
 - en: 'Thus, we can now enter data into the form and submit it as per the following
     screenshot:'
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，我们现在可以输入表单数据并按照以下截图进行提交：
 - en: '![Figure 9.12 – AppProfileForm with the Name and Occupation fields filled in](img/Figure_9.12_B18645.jpg)'
+  id: totrans-190
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.12 – 填写姓名和职业字段的AppProfileForm](img/Figure_9.12_B18645.jpg)'
 - en: Figure 9.12 – AppProfileForm with the Name and Occupation fields filled in
+  id: totrans-191
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.12 – 填写姓名和职业字段的AppProfileForm
 - en: 'On clicking the `AppProfileDisplay` as follows:'
+  id: totrans-192
   prefs: []
   type: TYPE_NORMAL
+  zh: 当点击以下`AppProfileDisplay`：
 - en: '![Figure 9.13 – AppProfileForm and AppProfileDisplay with data filled in  and
     submitted with a Clear button](img/Figure_9.13_B18645.jpg)'
+  id: totrans-193
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.13 – 填写并提交数据后带有清除按钮的AppProfileForm和AppProfileDisplay](img/Figure_9.13_B18645.jpg)'
 - en: Figure 9.13 – AppProfileForm and AppProfileDisplay with data filled in and submitted
     with a Clear button
+  id: totrans-194
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.13 – 填充并提交数据的AppProfileForm和AppProfileDisplay
 - en: 'Unfortunately, `AppProfileDisplay` still has stale data, as shown in the following
     screenshot:'
+  id: totrans-195
   prefs: []
   type: TYPE_NORMAL
+  zh: 不幸的是，`AppProfileDisplay`仍然有陈旧的数据，如下面的截图所示：
 - en: '![Figure 9.14 – AppProfileForm and AppProfileDisplay with only AppProfileForm
     cleared while AppProfileDisplay still has stale data](img/Figure_9.14_B18645.jpg)'
+  id: totrans-196
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.14 – 只有AppProfileForm被清除而AppProfileDisplay仍然有陈旧数据的AppProfileForm和AppProfileDisplay](img/Figure_9.14_B18645.jpg)'
 - en: Figure 9.14 – AppProfileForm and AppProfileDisplay with only AppProfileForm
     cleared while AppProfileDisplay still has stale data
+  id: totrans-197
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.14 – 只有AppProfileForm被清除而AppProfileDisplay仍然有陈旧数据的AppProfileForm和AppProfileDisplay
 - en: 'To also clear the contents of `AppProfileDisplay`, we will need to update `formData`
     in `App.vue` by emitting a `submit` event with an empty payload in `src/components/AppProfileForm.vue`:'
+  id: totrans-198
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为了清除`AppProfileDisplay`的内容，我们需要在`src/components/AppProfileForm.vue`中通过发出一个带有空有效负载的`submit`事件来更新`App.vue`中的`formData`：
 - en: '[PRE101]'
+  id: totrans-199
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE101]'
 - en: '[PRE102]'
+  id: totrans-200
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE102]'
 - en: '[PRE103]'
+  id: totrans-201
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE103]'
 - en: '[PRE104]'
+  id: totrans-202
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE104]'
 - en: '[PRE105]'
+  id: totrans-203
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE105]'
 - en: '[PRE106]'
+  id: totrans-204
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE106]'
 - en: '[PRE107]'
+  id: totrans-205
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE107]'
 - en: '[PRE108]'
+  id: totrans-206
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE108]'
 - en: '[PRE109]'
+  id: totrans-207
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE109]'
 - en: 'When we fill out the form and submit it, it will look as follows:'
+  id: totrans-208
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们填写表单并提交时，它将如下所示：
 - en: '![Figure 9.15 – AppProfileForm and AppProfileDisplay with data filled out and
     submitted with a Clear button](img/Figure_9.15_B18645.jpg)'
+  id: totrans-209
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.15 – 填充并提交数据的AppProfileForm和AppProfileDisplay](img/Figure_9.15_B18645.jpg)'
 - en: Figure 9.15 – AppProfileForm and AppProfileDisplay with data filled out and
     submitted with a Clear button
+  id: totrans-210
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.15 – 填充并提交数据的AppProfileForm和AppProfileDisplay
 - en: 'We can click on `AppProfileDisplay` and `AppProfileForm` as per the following
     screenshot:'
+  id: totrans-211
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以按照以下截图点击`AppProfileDisplay`和`AppProfileForm`：
 - en: '![Figure 9.16 – AppProfileForm and AppProfileDisplay after data is cleared
     (using the Clear button)](img/Figure_9.16_B18645.jpg)'
+  id: totrans-212
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.16 – 清除数据后的AppProfileForm和AppProfileDisplay（使用清除按钮）](img/Figure_9.16_B18645.jpg)'
 - en: Figure 9.16 – AppProfileForm and AppProfileDisplay after data is cleared (using
     the Clear button)
+  id: totrans-213
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.16 – 清除数据后的AppProfileForm和AppProfileDisplay（使用清除按钮）
 - en: We have now seen how to set up communication between sibling components through
     a common ancestor.
+  id: totrans-214
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经看到了如何通过一个共同的祖先设置兄弟组件之间的通信。
 - en: Note
+  id: totrans-215
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: There is quite a bit of bookkeeping and menial work required to keep track of
     all the bits of the state that need to stay in sync across the application.
+  id: totrans-216
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了跟踪需要在应用程序中保持同步的所有状态片段，需要做大量的记录和琐碎的工作。
 - en: In the next section, we will look at how Vue 3’s built-in support for reactive
     data means we can roll our own simple state management.
+  id: totrans-217
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一节中，我们将探讨Vue 3内置对响应式数据的支持意味着我们可以自己实现简单的状态管理。
 - en: Adding simple state management
+  id: totrans-218
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 添加简单的状态管理
 - en: 'For our simple application, we can replace a lot of the boilerplate code if
     we use the `reactive()` API to build a simple store:'
+  id: totrans-219
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于我们的简单应用程序，如果我们使用`reactive()` API构建简单的存储，我们可以替换大量的模板代码：
 - en: 'Let’s start by building a new file, `store.js`, that uses a `reactive` object
     for our profile values:'
+  id: totrans-220
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 让我们从创建一个新的文件`store.js`开始，该文件使用`reactive`对象来存储我们的配置值：
 - en: '[PRE110]'
+  id: totrans-221
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE110]'
 - en: '[PRE111]'
+  id: totrans-222
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE111]'
 - en: '[PRE112]'
+  id: totrans-223
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE112]'
 - en: '[PRE113]'
+  id: totrans-224
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE113]'
 - en: '[PRE114]'
+  id: totrans-225
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE114]'
 - en: This *very* simple object will be very powerful due to the use of Vue 3’s reactivity
     support. Any component making use of the values from here will be able to rely
     on knowing that when a value changes, it will instantly be reflected. Right away,
     we can see how this simplifies things as we switch to the store.
+  id: totrans-226
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个**非常**简单的对象将非常强大，归功于Vue 3的响应式支持的使用。任何使用这里值的组件都将能够依赖当值变化时，它将立即反映出来。立即，我们可以看到这如何简化了事情，当我们转向存储时。
 - en: 'In `AppProfileForm`, let’s import the store first:'
+  id: totrans-227
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在`AppProfileForm`中，让我们首先导入存储：
 - en: '[PRE115]'
+  id: totrans-228
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE115]'
 - en: '[PRE116]'
+  id: totrans-229
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE116]'
 - en: '[PRE117]'
+  id: totrans-230
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE117]'
 - en: 'Next, update both fields to point to the store instead of local data. In the
     following code, the `v-model` value was changed and the **Submit** button is removed
     – it’s no longer necessary:'
+  id: totrans-231
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，将两个字段更新为指向商店而不是本地数据。在下面的代码中，`v-model`的值已更改，并且移除了**提交**按钮——它不再必要：
 - en: '[PRE118]'
+  id: totrans-232
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE118]'
 - en: '[PRE119]'
+  id: totrans-233
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE119]'
 - en: '[PRE120]'
+  id: totrans-234
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE120]'
 - en: '[PRE121]'
+  id: totrans-235
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE121]'
 - en: '[PRE122]'
+  id: totrans-236
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE122]'
 - en: '[PRE123]'
+  id: totrans-237
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE123]'
 - en: '[PRE124]'
+  id: totrans-238
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE124]'
 - en: '[PRE125]'
+  id: totrans-239
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE125]'
 - en: '[PRE126]'
+  id: totrans-240
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE126]'
 - en: '[PRE127]'
+  id: totrans-241
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE127]'
 - en: '[PRE128]'
+  id: totrans-242
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE128]'
 - en: '[PRE129]'
+  id: totrans-243
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE129]'
 - en: '[PRE130]'
+  id: totrans-244
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE130]'
 - en: '[PRE131]'
+  id: totrans-245
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE131]'
 - en: '[PRE132]'
+  id: totrans-246
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE132]'
 - en: '[PRE133]'
+  id: totrans-247
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE133]'
 - en: '[PRE134]'
+  id: totrans-248
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE134]'
 - en: '[PRE135]'
+  id: totrans-249
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE135]'
 - en: '[PRE136]'
+  id: totrans-250
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE136]'
 - en: '[PRE137]'
+  id: totrans-251
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE137]'
 - en: '[PRE138]'
+  id: totrans-252
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE138]'
 - en: '[PRE139]'
+  id: totrans-253
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE139]'
 - en: '[PRE140]'
+  id: totrans-254
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE140]'
 - en: '[PRE141]'
+  id: totrans-255
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE141]'
 - en: 'Now, we can edit the script block to remove most of the previous logic. The
     `clear` method needs to be updated to change the store values:'
+  id: totrans-256
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，我们可以编辑脚本块以删除大部分之前的逻辑。`clear`方法需要更新以更改存储值：
 - en: '[PRE142]'
+  id: totrans-257
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE142]'
 - en: '[PRE143]'
+  id: totrans-258
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE143]'
 - en: '[PRE144]'
+  id: totrans-259
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE144]'
 - en: '[PRE145]'
+  id: totrans-260
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE145]'
 - en: '[PRE146]'
+  id: totrans-261
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE146]'
 - en: '[PRE147]'
+  id: totrans-262
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE147]'
 - en: '[PRE148]'
+  id: totrans-263
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE148]'
 - en: 'Next, we can make similar changes to `AppProfileDisplay`. First, import the
     store:'
+  id: totrans-264
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们可以对`AppProfileDisplay`进行类似的修改。首先，导入存储：
 - en: '[PRE149]'
+  id: totrans-265
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE149]'
 - en: '[PRE150]'
+  id: totrans-266
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE150]'
 - en: '[PRE151]'
+  id: totrans-267
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE151]'
 - en: 'Then, modify the template:'
+  id: totrans-268
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，修改模板：
 - en: '[PRE152]'
+  id: totrans-269
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE152]'
 - en: We’ve now switched from a system of events being broadcasted from components
     to one of a simpler, shared state. Our code is simpler, which will make updates
     even easier.
+  id: totrans-270
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们现在已经从从组件广播事件到更简单、共享状态的一个系统转换。我们的代码更简单，这将使更新更加容易。
 - en: Exercise 9.03 – moving the Clear button to the application header profile card
     generator and updating the Clear logic
+  id: totrans-271
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 练习9.03 – 将清除按钮移动到应用程序标题个人资料卡片生成器并更新清除逻辑
 - en: In our profile card generator application, the **Clear** button clears the state
     in the whole application. Its presence inside the form makes the **Clear** button’s
     functionality unclear since it looks as though it might only affect the form.
+  id: totrans-272
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的个人资料卡片生成应用程序中，**清除**按钮会清除整个应用程序的状态。由于它位于表单内部，这使得**清除**按钮的功能不明确，因为它看起来可能只会影响表单。
 - en: To reflect the fact that the **Clear** button has a global functionality, we
     will move it into the header.
+  id: totrans-273
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了反映**清除**按钮具有全局功能的事实，我们将将其移动到标题中。
 - en: We will also update our store to handle the logic of clearing the state. Our
     simple state utility not only can define variables but also methods. Since the
     script is handling keeping the values, it makes sense for it to handle logic related
     to those values.
+  id: totrans-274
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还将更新我们的store以处理清除状态的相关逻辑。我们的简单状态实用工具不仅可以定义变量，还可以定义方法。由于脚本正在处理保持值，因此它处理与这些值相关的逻辑是有意义的。
 - en: You can also find the complete code at [https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09/Exercise9.03](https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09/Exercise9.03)
+  id: totrans-275
   prefs: []
   type: TYPE_NORMAL
+  zh: 你也可以在[https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09/Exercise9.03](https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09/Exercise9.03)找到完整的代码。
 - en: 'The following steps will help us perform this exercise:'
+  id: totrans-276
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下步骤将帮助我们完成这项练习：
 - en: 'We will start by creating a `button` component in `src/components/AppHeader.vue`:'
+  id: totrans-277
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将首先在`src/components/AppHeader.vue`中创建一个`button`组件：
 - en: '[PRE153]'
+  id: totrans-278
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE153]'
 - en: '[PRE154]'
+  id: totrans-279
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE154]'
 - en: '[PRE155]'
+  id: totrans-280
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE155]'
 - en: '[PRE156]'
+  id: totrans-281
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE156]'
 - en: '[PRE157]'
+  id: totrans-282
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE157]'
 - en: '[PRE158]'
+  id: totrans-283
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE158]'
 - en: '[PRE159]'
+  id: totrans-284
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE159]'
 - en: '[PRE160]'
+  id: totrans-285
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE160]'
 - en: '[PRE161]'
+  id: totrans-286
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE161]'
 - en: '[PRE162]'
+  id: totrans-287
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE162]'
 - en: '[PRE163]'
+  id: totrans-288
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE163]'
 - en: 'In our store, let''s add a new `clear` function in store.js. It is responsible
     for resetting both values back to their initial state:'
+  id: totrans-289
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在我们的store中，让我们在`store.js`中添加一个新的`clear`函数。它负责将值重置回初始状态：
 - en: '[PRE164]'
+  id: totrans-290
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE164]'
 - en: '[PRE165]'
+  id: totrans-291
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE165]'
 - en: '[PRE166]'
+  id: totrans-292
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE166]'
 - en: '[PRE167]'
+  id: totrans-293
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE167]'
 - en: '[PRE168]'
+  id: totrans-294
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE168]'
 - en: '[PRE169]'
+  id: totrans-295
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE169]'
 - en: '[PRE170]'
+  id: totrans-296
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE170]'
 - en: '[PRE171]'
+  id: totrans-297
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE171]'
 - en: '[PRE172]'
+  id: totrans-298
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE172]'
 - en: 'In `AppHeader`, we need to import the store:'
+  id: totrans-299
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在`AppHeader`中，我们需要导入store：
 - en: '[PRE173]'
+  id: totrans-300
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE173]'
 - en: '[PRE174]'
+  id: totrans-301
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE174]'
 - en: '[PRE175]'
+  id: totrans-302
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE175]'
 - en: 'Now, we need to bind the `Reset` button to call the store `clear` method:'
+  id: totrans-303
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，我们需要将`Reset`按钮绑定到调用store的`clear`方法：
 - en: '[PRE176]'
+  id: totrans-304
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE176]'
 - en: '[PRE177]'
+  id: totrans-305
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE177]'
 - en: '[PRE178]'
+  id: totrans-306
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE178]'
 - en: '[PRE179]'
+  id: totrans-307
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE179]'
 - en: '[PRE180]'
+  id: totrans-308
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE180]'
 - en: '[PRE181]'
+  id: totrans-309
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE181]'
 - en: 'The final step is to delete the `Clear` button and `Submit` button:'
+  id: totrans-310
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后一步是删除`Clear`按钮和`Submit`按钮：
 - en: '[PRE182]'
+  id: totrans-311
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE182]'
 - en: '[PRE183]'
+  id: totrans-312
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE183]'
 - en: '[PRE184]'
+  id: totrans-313
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE184]'
 - en: '[PRE185]'
+  id: totrans-314
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE185]'
 - en: '[PRE186]'
+  id: totrans-315
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE186]'
 - en: '[PRE187]'
+  id: totrans-316
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE187]'
 - en: '[PRE188]'
+  id: totrans-317
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE188]'
 - en: '[PRE189]'
+  id: totrans-318
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE189]'
 - en: '[PRE190]'
+  id: totrans-319
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE190]'
 - en: '[PRE191]'
+  id: totrans-320
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE191]'
 - en: '[PRE192]'
+  id: totrans-321
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE192]'
 - en: '[PRE193]'
+  id: totrans-322
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE193]'
 - en: 'The form looks as follows when it gets filled out and submitted:'
+  id: totrans-323
   prefs: []
   type: TYPE_NORMAL
+  zh: 当表单填写并提交时，表单看起来如下：
 - en: '![Figure 9.17 – Filled-out and submitted form](img/Figure_9.17_B18645.jpg)'
+  id: totrans-324
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.17 – 填写并提交的表单](img/Figure_9.17_B18645.jpg)'
 - en: Figure 9.17 – Filled-out and submitted form
+  id: totrans-325
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.17 – 填写并提交的表单
 - en: 'Resetting the form now clears the form fields as well as `AppProfileDisplay`:'
+  id: totrans-326
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在重置表单会清除表单字段以及`AppProfileDisplay`：
 - en: '![Figure 9.18 – Resetting the form and the display using the Reset button](img/Figure_9.18_B18645.jpg)'
+  id: totrans-327
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.18 – 使用重置按钮重置表单和显示](img/Figure_9.18_B18645.jpg)'
 - en: Figure 9.18 – Resetting the form and the display using the Reset button
+  id: totrans-328
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.18 – 使用重置按钮重置表单和显示
 - en: You’ve now seen how Vue 3’s built-in reactivity support makes it simple to handle
     state management in your components.
+  id: totrans-329
   prefs: []
   type: TYPE_NORMAL
+  zh: 你现在已经看到了Vue 3的内置响应式支持如何使你在组件中处理状态管理变得简单。
 - en: Activity 9.01 – adding Organization, Email, and Phone Number fields to a profile
     card generator
+  id: totrans-330
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 活动9.01 – 向个人资料卡片生成器添加组织、电子邮件和电话号码字段
 - en: In a profile generator, you look at a profile to find some information about
     the individual. A person’s organization, email, and phone number are often the
     most crucial pieces of information looked for on a profile card. This activity
     is about adding these details to a profile card generator.
+  id: totrans-331
   prefs: []
   type: TYPE_NORMAL
+  zh: 在个人资料生成器中，你查看个人资料以查找有关个人的信息。一个人的组织、电子邮件和电话号码通常是个人资料卡片上寻找的最关键信息。这项活动是关于将这些详细信息添加到个人资料卡片生成器中。
 - en: 'To do this, we will add `Organization`, `Email`, and `Phone Number` fields
     in `AppProfileForm` and `AppProfileDisplay`:'
+  id: totrans-332
   prefs: []
   type: TYPE_NORMAL
+  zh: 要做到这一点，我们将在`AppProfileForm`和`AppProfileDisplay`中添加`Organization`、`Email`和`Phone
+    Number`字段：
 - en: Begin by adding the `organization` input field and label to `AppProfileForm`.
+  id: totrans-333
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先向`AppProfileForm`添加`organization`输入字段和标签。
 - en: Next, add a new `email` input field and label to `AppProfileForm` for the `Email`
     field.
+  id: totrans-334
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，向`AppProfileForm`添加一个新的`email`输入字段和标签，用于`Email`字段。
 - en: We can then add a new `phone` input field (of the `tel` type) and a label to
     `AppProfileForm` for the `Phone` `Number` field.
+  id: totrans-335
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，我们可以在`AppProfileForm`中添加一个新的`phone`输入字段（`tel`类型）和标签，用于`Phone Number`字段。
 - en: 'The new fields look as follows:'
+  id: totrans-336
   prefs: []
   type: TYPE_NORMAL
+  zh: 新字段看起来如下：
 - en: '![Figure 9.19 – Application with new Email and Phone Number fields](img/Figure_9.19_B18645.jpg)'
+  id: totrans-337
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.19 – 带有新电子邮件和电话号码字段的应用程序](img/Figure_9.19_B18645.jpg)'
 - en: Figure 9.19 – Application with new Email and Phone Number fields
+  id: totrans-338
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.19 – 带有新电子邮件和电话号码字段的程序
 - en: We can then add the `organization`, `email`, and `phone` fields to the initial
     state in `src/store.js` so that the values get set and then update `clear` to
     reset the new values.
+  id: totrans-339
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们可以在`src/store.js`中的初始状态中添加`organization`、`email`和`phone`字段，以便设置值并更新`clear`以重置新值。
 - en: For `organization` to display, we add it after `occupation` in `src/components/AppProfileDisplay.vue`.
     We’ll prefix it with the `"at"` literal string and only show it when there is
     a value. The end result is a paragraph that includes the occupation and organization.
+  id: totrans-340
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为了使`organization`显示，我们在`src/components/AppProfileDisplay.vue`中将其添加到`occupation`之后。我们将使用`"at"`字面字符串作为前缀，并且只有当有值时才显示。最终结果是包含职业和组织的一段文本。
 - en: For `email` to display, we need to render it in `src/components/AppProfileDisplay.vue`
     using a conditional paragraph (to hide the `Email` label when there is no email
     set).
+  id: totrans-341
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为了使`email`显示，我们需要在`src/components/AppProfileDisplay.vue`中使用条件段落（在没有设置`Email`标签时隐藏`Email`标签）来渲染它。
 - en: For `phone` to display, we need to render it in `src/components/AppProfileDisplay.vue`
     using a conditional span (to hide the `Phone Number` label when there is no phone
     set).
+  id: totrans-342
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为了使`phone`显示，我们需要在`src/components/AppProfileDisplay.vue`中使用条件span（在没有设置`Phone
+    Number`标签时隐藏`Phone Number`标签）来渲染它。
 - en: 'The application should look as follows when the form is filled out and submitted:'
+  id: totrans-343
   prefs: []
   type: TYPE_NORMAL
+  zh: 当表单填写并提交时，应用程序应如下所示：
 - en: '![Figure 9.20 – Application with Email and Phone Number fields](img/Figure_9.20_B18645.jpg)'
+  id: totrans-344
   prefs: []
   type: TYPE_IMG
+  zh: '![图9.20 – 带有电子邮件和电话号码字段的应用程序](img/Figure_9.20_B18645.jpg)'
 - en: Figure 9.20 – Application with Email and Phone Number fields
+  id: totrans-345
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.20 – 带有电子邮件和电话号码字段的应用程序
 - en: Note
+  id: totrans-346
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The solution for this activity can be found at [https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09/Activity9.01](https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09/Activity9.01)
+  id: totrans-347
   prefs: []
   type: TYPE_NORMAL
+  zh: 此活动的解决方案可以在[https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09/Activity9.01](https://github.com/PacktPublishing/Frontend-Development-Projects-with-Vue.js-3/tree/v2-edition/Chapter09/Activity9.01)找到。
 - en: You’ve now taken your application from a more complex event-driven state management
     system to one using a shared state that is far simpler to work with an update.
     Now that you’ve seen how to work with the global state, it’s a good time to go
     over some thoughts on when it makes sense to use it.
+  id: totrans-348
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，你已经将应用程序从更复杂的事件驱动状态管理系统转变为使用共享状态，这种状态更容易处理和更新。既然你已经看到了如何处理全局状态，那么回顾一下何时使用它是明智的，是个好时机。
 - en: Deciding when to use a local state or global state
+  id: totrans-349
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 决定何时使用本地状态或全局状态
 - en: As we have seen through the examples, the Vue.js ecosystem has solutions for
     managing shared and global states. What we will look at now is how to decide whether
     something belongs in a local state or global state.
+  id: totrans-350
   prefs: []
   type: TYPE_NORMAL
+  zh: 如通过示例所见，Vue.js生态系统有解决方案来管理共享和全局状态。我们现在要探讨的是如何决定某事物属于本地状态还是全局状态。
 - en: A good rule of thumb is that *if a prop is passed through a depth of three components*,
     it is probably best to put that piece of state in a global state and access it
     that way – so for example, a value goes from a parent to a child, and then on
     to a grandchild. This could also apply to two siblings and a parent, with three
     components but less depth.
+  id: totrans-351
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个好的经验法则是，如果`prop`通过三个组件的深度传递，那么最好将这部分状态放在全局状态中，并以此方式访问它——例如，一个值从父组件传递到子组件，然后到孙组件。这也适用于两个兄弟和一个父组件，有三个组件但深度较小。
 - en: The second way to decide whether something is local or global is to ask the
     question *when the page reloads, does the user expect this information to persist?*
     Why does this matter? Well, a global state is a lot easier to save and persist
@@ -1412,43 +2118,61 @@
     of these browser features could be used to store the state for a Vue application,
     restore them on load, and if used in a global state, then be applied to components
     across the app.
+  id: totrans-352
   prefs: []
   type: TYPE_NORMAL
+  zh: 判断某个状态是局部还是全局的第二个方法是问自己：*当页面重新加载时，用户是否希望这个信息持续存在？* 这为什么很重要呢？嗯，全局状态比局部状态更容易保存和持久化。这是因为全局状态的本质只是一个JavaScript对象，而不是组件状态，后者与组件树和Vue.js的联系更为紧密。浏览器支持在客户端持久化数据的一些强大方法，从简单的Web存储到更复杂的IndexedDB。这些浏览器功能中的任何一个都可以用来存储Vue应用程序的状态，在加载时恢复它们，如果用于全局状态，则可以应用于应用程序中的各个组件。
 - en: Another key idea to bear in mind is that it is very much possible to mix global
     states and local states in a component. Every component may use a mix of things
     that only apply to itself versus data that impacts the entire application.
+  id: totrans-353
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一个需要记住的关键思想是，在组件中混合全局状态和局部状态是完全可能的。每个组件都可能使用仅适用于自身的东西与影响整个应用程序的数据的组合。
 - en: As with most things, careful planning and thought into what data a component
     needs and what possibly needs to be shared can help with proper planning ahead
     of time.
+  id: totrans-354
   prefs: []
   type: TYPE_NORMAL
+  zh: 与大多数事情一样，仔细规划并思考组件需要哪些数据以及可能需要共享什么，可以帮助提前进行适当的规划。
 - en: Summary
+  id: totrans-355
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 摘要
 - en: This chapter was an introduction to the state management landscape in Vue.js.
     Throughout this chapter, we have looked at different approaches to shared and
     global state management in a Vue.js application.
+  id: totrans-356
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章是Vue.js状态管理领域的入门介绍。在本章中，我们探讨了在Vue.js应用程序中实现共享和全局状态管理的不同方法。
 - en: We began by looking at storing a global state in one shared ancestor. This allows
     data sharing between sibling components through props and events. While this works,
     it does require extra code to handle the architecture of passing around data.
+  id: totrans-357
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们首先探讨了将全局状态存储在一个共享祖先中。这允许通过props和事件在兄弟组件之间共享数据。虽然这可行，但它确实需要额外的代码来处理数据传递的架构。
 - en: You then used Vue’s built-in reactivity to create a simple, shared store. This
     resulted in a much simpler application, as much of the code from the previous
     version was able to be removed.
+  id: totrans-358
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，你使用了Vue内置的反应性来创建一个简单、共享的存储。这使得应用程序变得更加简单，因为之前版本中的大部分代码都可以被移除。
 - en: Finally, we have had a look at what criteria can be used to decide whether a
     state should live in a local component state or a more global or shared state
     solution.
+  id: totrans-359
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们探讨了可以使用哪些标准来决定状态应该存在于局部组件状态还是更全局或共享状态解决方案中。
 - en: The next chapter will be a deep dive into writing large-scale Vue.js applications
     with the new recommended way of handling shared state, the Pinia library.
+  id: totrans-360
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一章将深入探讨使用新的推荐方式处理共享状态，即Pinia库，来编写大规模Vue.js应用程序。

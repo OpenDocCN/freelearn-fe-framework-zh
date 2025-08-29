@@ -1,0 +1,396 @@
+<html><head></head><body>
+		<div>
+			<div id="_idContainer389" class="Content">
+			</div>
+		</div>
+		<div id="_idContainer390" class="Content">
+			<h1 id="_idParaDest-274"><a id="_idTextAnchor364"/>14. Deploying Your Code to the Web</h1>
+		</div>
+		<div id="_idContainer455" class="Content">
+			<p class="callout-heading"><a id="_idTextAnchor365"/><a id="_idTextAnchor366"/>Overview</p>
+			<p class="callout">By the end of this chapter, you will be able to explain the benefits of a CI/CD workflow and how it ties into the release cycle, release cadence, and development workflows. To this end, you'll be able to articulate what the differences between Vue.js development and production builds are and what trade-offs are made. In order to test and deploy a Vue.js application, you'll configure GitLab CI/CD with pipelines, jobs, and steps. You'll become familiar with Netlify, AWS S3, and AWS CloudFront, and their key similarities and differences.</p>
+			<p class="callout">In this chapter, we will look at how to deploy a Vue.js application to be consumed over the World Wide Web and how to automate this deployment process to release often with ease and confidence.</p>
+			<h1 id="_idParaDest-275"><a id="_idTextAnchor367"/>Introduction</h1>
+			<p>In this chapter, we will look at how you might leverage CI/CD tools and techniques to deliver applications to production with high confidence and at high frequency.</p>
+			<p>In previous chapters, we saw how to build and test complex Vue.js applications. This chapter is about leveraging all the techniques, including testing and automating them, in order to deliver software to production with minimal risk and time overhead.</p>
+			<h1 id="_idParaDest-276"><a id="_idTextAnchor368"/>The Benefits of CI/CD as Part of an Agile Software Development Process</h1>
+			<p><strong class="bold">Continuous integration</strong> (<strong class="bold">CI</strong>) is the practice of integrating code multiple times a day. In order to support this, a modern <strong class="bold">version control system</strong> (<strong class="bold">VCS</strong>) such as Git that supports multiple working states (branches) in a single repository is necessary in order to allow developers to work on code independently, while still allowing them to collaborate and integrate their changes safely.</p>
+			<p>To augment the abilities of the VCS, hosting and collaboration tools around repositories (such as GitLab or GitHub) have been created and allow developers to view and manage code changes more efficiently through a web <strong class="bold">user interface</strong> (<strong class="bold">UI</strong>).</p>
+			<p>As part of, or in addition to, these hosting platforms and the collaboration tools they provide, automated checks are crucial to maintaining high confidence in the quality of the code before, during, and after integration. Adopting a CI approach often entails including additional code quality steps, such as unit or integration tests, coverage checks, and building artifacts on the mainline branches (branches into which changes are integrated) every time any new code is integrated.</p>
+			<p>The conventions that a team follows for using Git for code collaboration and CI are called a <strong class="bold">Git workflow</strong>, which is often shortened to <strong class="bold">Git flow</strong>.</p>
+			<p>A Git flow will predicate branch naming conventions, as well as how and when changes are integrated. For example, a team might decide that branches should be prefixed with ticket numbers followed by a short dash-cased description such as <strong class="source-inline">WRK-2334-fix-ie-11-scroll</strong>.</p>
+			<p>Other examples of conventions that are decided on and adhered to as part of a Git flow are commit message lengths and titles, the automated checks that should pass or are allowed to fail, and the number of reviewers required to merge a change request, which is a pull request or merge request in GitHub and GitLab parlance, respectively.</p>
+			<p>Git flows fall under two rough categories: trunk-based development and (feature) branch-based development. We'll cover branch-based development first since its limitations have become quite clear and the majority of projects tend to use trunk-based development.</p>
+			<p>In a branch-based Git workflow, multiple working branches are kept in the repository. Branch-based flows can be used to keep branches that mirror the state of environments.</p>
+			<p>For example, the following diagram shows three branches – <strong class="bold">production</strong>, <strong class="bold">staging</strong>, and <strong class="bold">develop</strong>. <strong class="bold">production</strong> does not contain any changes from <strong class="bold">staging</strong> or <strong class="bold">develop</strong>. <strong class="bold">staging</strong> is ahead of <strong class="bold">production</strong> but has no changes in common with <strong class="bold">develop</strong> other than the changes that are on <strong class="bold">production</strong>. <strong class="bold">develop</strong> is ahead of both <strong class="bold">staging</strong> and <strong class="bold">production</strong>: it's branched off of <strong class="bold">production</strong> at the same commit as <strong class="bold">staging</strong> is, but it doesn't share any further commits with <strong class="bold">staging</strong>:</p>
+			<div>
+				<div id="_idContainer391" class="IMG---Figure">
+					<img src="image/B15218_14_01.jpg" alt="Figure 14.1: An example of a branch-based Git commit/branch tree &#13;&#10;with three environment branches&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.1: An example of a branch-based Git commit/branch tree with three environment branches</p>
+			<p>A branch-based workflow can also be used to keep track of changes going into release lines. This is useful in cases where a project has to maintain two versions of an application or library, but bug fixes or security patches need to be applied to both versions.</p>
+			<p>In the following example, we have got a similar branching example as the environment branch one. Release 1.0.0 contains some changes that are not present in 1.0.1 and 1.1.0 but does not share any of the newer code. Releases 1.0.1 and 1.1.0 are branched off of 1.0.0 at the same time, but they do not share further changes:</p>
+			<div>
+				<div id="_idContainer392" class="IMG---Figure">
+					<img src="image/B15218_14_02.jpg" alt="Figure 14.2: An example of a branch-based Git commit/branch tree &#13;&#10;with three release branches&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.2: An example of a branch-based Git commit/branch tree with three release branches</p>
+			<p>In a trunk-based Git flow, each member of the team will create new branches off of a single branch, usually the "master" branch. This process is often referred to as "branching off of":</p>
+			<div>
+				<div id="_idContainer393" class="IMG---Figure">
+					<img src="image/B15218_14_03.jpg" alt="Figure 14.3: A sample trunk-based Git commit/branch tree with two feature branches branched off of the master&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.3: A sample trunk-based Git commit/branch tree with two feature branches branched off of the master</p>
+			<p>An extreme case of a trunk-based workflow is to have a <em class="italic">single</em> branch that everyone commits on.</p>
+			<p class="callout-heading">Note</p>
+			<p class="callout">In a trunk-based environment, an alternative to "release branches" is to use Git tags to keep track of release snapshots. This gives the same advantages as maintaining branches with reduced branch noise and the added benefit of immutability since tags cannot be changed once they're created.</p>
+			<p><strong class="bold">Continuous delivery</strong> (<strong class="bold">CD</strong>) is the ability of a team to deploy every good build to a production environment.</p>
+			<p>A pre-requisite to CD is CI, since CI provides some initial confidence in the quality of a build. As part of CD, new systems, tools, and practices are required beyond CI.</p>
+			<p>Refer to the following diagram for a look at the tools and practices that relate more to CI and those that relate more to CD:</p>
+			<div>
+				<div id="_idContainer394" class="IMG---Figure">
+					<img src="image/B15218_14_04.jpg" alt="Figure 14.4: The relationship between CI and CD practices&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.4: The relationship between CI and CD practices</p>
+			<p>The extra ingredient required to adopt CD is a high level of confidence that the application is going to keep working as expected (for the end user) and that new defects have not been unwittingly introduced. This means an additional end-to-end testing step is needed during or after the CI checks, to validate the build before being able to deploy it.</p>
+			<p>These end-to-end tests can be conducted manually, or they can be automated. In an ideal CD setup, the latter (automated end-to-end tests) is preferred since it means deployments do not include manual interaction. If the end-to-end tests pass, the build can automatically be deployed.</p>
+			<p>In order to facilitate CD, systems used to deploy software have had to be rethought. As part of CD, deployment cannot be a long-winded manual process. This has led to companies adopting cloud-native technologies, such as Docker, and infrastructure as code tools, such as HashiCorp's <strong class="bold">Terraform</strong>.</p>
+			<p>The emphasis on moving toward CD practices has led to the inception of ideas such as <strong class="bold">GitOps</strong> and <strong class="bold">ChatOps</strong>.</p>
+			<p>In GitOps and ChatOps, deployments and operational tasks are driven by the tools that developers and stakeholders interact with daily.</p>
+			<p>In GitOps, deployments can be done through GitHub/GitLab (or another Git-hosting provider), directly with GitHub Actions or GitLab CI/CD, or through CI/CD software (such as CircleCI or Jenkins), which have tight integrations and reporting with GitHub/GitLab.</p>
+			<p>In the case of ChatOps, conversational interfaces are used to deploy and operate software. Some flavors of ChatOps can be considered a subset of GitOps, for example, interacting with tools such as <strong class="bold">Dependabot</strong> (a tool that keeps a project's dependencies up to date) through comments on a GitHub pull request. ChatOps can also be implemented right into real-time chat tools, such as Slack or Microsoft Teams. Someone might send a message such as <strong class="source-inline">deploy &lt;service-name&gt; &lt;environment&gt;</strong>, which will deploy the service to the relevant environment. Note that chat interfaces are very reminiscent of command-line interfaces that developers might be used to but other stakeholders might take some time to adopt.</p>
+			<p>We've now looked at approaches to CI and CD; what we'll discuss next is the advantages of using CI and CD:</p>
+			<div>
+				<div id="_idContainer395" class="IMG---Figure">
+					<img src="image/B15218_14_05.jpg" alt="Figure 14.5: Advantages of CI and CD&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.5: Advantages of CI and CD</p>
+			<p>Both practices also have an impact on the team's mindset and performance. Being able to see the changes you make integrated within a day and in production in less than a week means that contributors can see their work having an impact immediately.</p>
+			<p>CI/CD also helps promote agile principles, where changes are applied and deployed iteratively. This is as opposed to long timelines for projects, for which inaccuracies in estimations compound and can cause major delays.</p>
+			<h1 id="_idParaDest-277"><a id="_idTextAnchor369"/>Building for Production</h1>
+			<p>Deploying applications to production starts with creating an artifact that can be deployed. In the case of Vue.js, we're building a client-side application, which means our build artifact will contain HTML, JavaScript, and CSS files.</p>
+			<p>The Vue CLI comes with a <strong class="source-inline">build</strong> command. This <strong class="source-inline">build</strong> command will take our Vue.js single-file components (<strong class="source-inline">.vue</strong> files) and compile them into render functions (JavaScript functions that the Vue runtime can use to render our application) that will be output to JavaScript.</p>
+			<p>As part of the build process, the Vue CLI will take JavaScript, Vue single-file components, and modules that are imported into each other and <em class="italic">bundle</em> them. Bundling means that related chunks of code that depend on each other will be output as a single JavaScript file.</p>
+			<p>Due to our use of the Vue CLI, the Vue.js library itself can also be slimmed down. The Vue.js runtime bundle can include a <strong class="bold">runtime compiler</strong> that takes string templates and turns them into render functions on the client side. Since we are compiling to render functions with the Vue CLI at build time, this part of Vue.js doesn't need to be included in our JavaScript.</p>
+			<p>The Vue CLI build step also includes a <strong class="source-inline">dead code elimination</strong> step. That means that it can analyze the code being generated and if any of it is obviously never used – for example, a statement such as <strong class="source-inline">if (false) { /* do something */}</strong> – then it will not be present in the build output.</p>
+			<p>By default, the Vue CLI builds for production when we call <strong class="source-inline">vue service build</strong>, which in Vue CLI projects is aliased to the <strong class="source-inline">build</strong> script, which can be run with <strong class="source-inline">npm run build</strong> or <strong class="source-inline">yarn build</strong>.</p>
+			<p>In a sample Vue CLI project, we'll see something along these lines:</p>
+			<div>
+				<div id="_idContainer396" class="IMG---Figure">
+					<img src="image/B15218_14_06.jpg" alt="Figure 14.6: Output of &quot;npm run build&quot; in a fresh Vue CLI project&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.6: Output of "npm run build" in a fresh Vue CLI project</p>
+			<p>The <strong class="source-inline">dist</strong> folder is now ready to deploy using a static hosting solution such as Netlify or AWS S3 and CloudFront.</p>
+			<p>We have now seen how to build a Vue.js application for production using the Vue CLI with the <strong class="source-inline">npm run build</strong> command.</p>
+			<p>Next, we will see how to use GitLab CI/CD to test our code (before deploying it).</p>
+			<h1 id="_idParaDest-278">U<a id="_idTextAnchor370"/>sing GitLab CI/CD to Test Your Code</h1>
+			<p>GitLab has a built-in CI/CD tool called GitLab CI/CD.</p>
+			<p>In order to use GitLab CI/CD, you'll need a GitLab account.</p>
+			<p>To interact with Git repositories hosted on GitLab, you'll also need to associate an SSH key from your machine and to your GitLab account.</p>
+			<p class="callout-heading">Note</p>
+			<p class="callout">Instructions to add an SSH key in the GitLab documentation can be found at <a href="https://docs.gitlab.com/ee/gitlab-basics/create-your-ssh-keys.html">https://docs.gitlab.com/ee/gitlab-basics/create-your-ssh-keys.html</a>.</p>
+			<p>Once you've created an account, you can create a new repository using the <strong class="source-inline">New Project</strong> button at the top right of the <strong class="source-inline">Projects</strong> page, as shown in the following screenshot:</p>
+			<div>
+				<div id="_idContainer397" class="IMG---Figure">
+					<img src="image/B15218_14_07.jpg" alt="Figure 14.7: The GitLab &quot;Projects&quot; page with the New Project button&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.7: The GitLab "Projects" page with the New Project button</p>
+			<p>If you click the <strong class="source-inline">New Project</strong> button, you will be taken to the <strong class="source-inline">New Project</strong> page, where you can use the default <strong class="source-inline">Blank Project</strong> tab to create a project by giving it a name and a slug, as seen in the following screenshot:</p>
+			<div>
+				<div id="_idContainer398" class="IMG---Figure">
+					<img src="image/B15218_14_08.jpg" alt="Figure 14.8: The GitLab New Project page with Blank Project selected&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.8: The GitLab New Project page with Blank Project selected</p>
+			<p>Once you click <strong class="source-inline">Create Project</strong>, the GitLab <strong class="source-inline">Project</strong> page will appear in an empty state that displays instructions on how to clone it. You should run the commands required to clone the repository, which probably boils down to an equivalent of the following (which you are expected to run on your machine):</p>
+			<p class="callout-heading">Note</p>
+			<p class="callout">If you did not associate an SSH key with your account, at this stage GitLab should be showing you a warning with a link you can follow to set up an SSH key.</p>
+			<p><strong class="source-inline">git clone &lt;repository-url&gt;</strong></p>
+			<p>On your machine, you should then open the directory into which the repository was cloned. To add GitLab CI/CD, we need to add a <strong class="source-inline">.gitlab-ci.yml</strong> file into the root of the project. A sample <strong class="source-inline">.gitlab-ci.yml</strong> file that adds a <strong class="source-inline">build</strong> job to the <strong class="source-inline">build</strong> stage of the pipeline that installs dependencies (using <strong class="source-inline">npm ci</strong>), runs the production build (<strong class="source-inline">npm run build</strong>), and caches the output artifact is defined as follows.</p>
+			<p>The job name is defined by setting a top-level key in the YAML file – in this case, <strong class="source-inline">build:</strong>.</p>
+			<p>In YAML syntax, we'll then increase the indent to denote that the <strong class="source-inline">build</strong> key points to an object.</p>
+			<p>In the <strong class="source-inline">build job</strong> object, we will define which Docker image is used to run the job, using <strong class="source-inline">image: node:lts</strong>. This means we want this job to run on a Node.js <strong class="bold">Long Term Support</strong> (<strong class="bold">LTS</strong>) image, which will be Node.js 12 until October 20, 2020, at which point it will point to a Node.js 14 image.</p>
+			<p class="callout-heading">Note</p>
+			<p class="callout">You can access the up-to-date Node.js LTS schedule at <a href="https://nodejs.org/en/about/releases/">https://nodejs.org/en/about/releases/</a>.</p>
+			<p>The other property we can define in our job is the stage. GitLab CI/CD pipelines by default have three stages: <strong class="bold">build</strong>, <strong class="bold">test</strong>, and <strong class="bold">deploy</strong>. These stages can be replaced using custom stages when a team's workflow doesn't fit into these three categories (for example, if there is more than one environment to deploy to). See the documentation (<a href="https://docs.gitlab.com/ee/ci/yaml/#stages">https://docs.gitlab.com/ee/ci/yaml/#stages</a>).</p>
+			<p class="callout-heading">Note</p>
+			<p class="callout"><strong class="source-inline">stages</strong> is used to define stages that can be used by jobs, and it is defined globally.</p>
+			<p class="callout">The specification of <strong class="source-inline">stages</strong> allows for flexible multistage pipelines. The ordering of elements in stages defines the ordering of jobs' execution:</p>
+			<p class="callout">a) Jobs of the same stage are run in parallel.</p>
+			<p class="callout">b) Jobs of the next stage are run after the jobs from the previous stage complete successfully.</p>
+			<p>Our pipeline only has one stage and one job at the moment, so most of the preceding doesn't apply to us.</p>
+			<p>The final properties we set are <strong class="source-inline">script</strong>, which defines steps that should be run when the job is running, and <strong class="source-inline">artifacts</strong>, which configures artifact storage. In our case, we'll run <strong class="source-inline">npm ci</strong> to install all dependencies followed by <strong class="source-inline">npm run build</strong>, which will run the production Vue.js CLI build. Our artifact is set up to be held for a week and to contain the <strong class="source-inline">dist</strong> folder (which is where the Vue CLI <strong class="source-inline">build</strong> output is stored).</p>
+			<p>In full, we have the following:</p>
+			<p class="source-code">build:</p>
+			<p class="source-code">  image: node:lts</p>
+			<p class="source-code">  stage: build</p>
+			<p class="source-code">  script:</p>
+			<p class="source-code">    - npm ci</p>
+			<p class="source-code">    - npm run build</p>
+			<p class="source-code">  artifacts:</p>
+			<p class="source-code">    expire_in: 1 week</p>
+			<p class="source-code">    paths:</p>
+			<p class="source-code">      - dist</p>
+			<p>Once we push this <strong class="source-inline">.gitlab-ci.yml</strong> file to a repository containing a Vue CLI project, we will see the following in the repository view, where a pipeline with one step is running on the latest commit:</p>
+			<div>
+				<div id="_idContainer399" class="IMG---Figure">
+					<img src="image/B15218_14_09.jpg" alt="Figure 14.9: GitLab repository view with the build job running on the latest commit&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.9: GitLab repository view with the build job running on the latest commit</p>
+			<p>If we click on the <strong class="source-inline">Pipeline</strong> icon (the blue in-progress indicator), we get the pipeline view. In the pipeline view, <strong class="source-inline">Build</strong> represents the <strong class="source-inline">state</strong> pipeline (which we set as <strong class="source-inline">build</strong>) and it represents the job name (which we defined as <strong class="source-inline">build</strong>). We see the same in-progress indicator until the job completes, as follows:</p>
+			<div>
+				<div id="_idContainer400" class="IMG---Figure">
+					<img src="image/B15218_14_10.jpg" alt="Figure 14.10: GitLab CI pipeline view with the build job running&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.10: GitLab CI pipeline view with the build job running</p>
+			<p>Once the job completes, we see a <strong class="source-inline">success</strong> icon (green check-mark). We can click this icon or the job name to access the job view while the job is running or after it has completed (whether it has failed or succeeded). When a job has completed, we also see a <strong class="source-inline">Retry</strong> icon, which can be useful to retry a failed pipeline step. The following screenshot shows that the job ran successfully:</p>
+			<div>
+				<div id="_idContainer401" class="IMG---Figure">
+					<img src="image/B15218_14_11.jpg" alt="Figure 14.11: GitLab CI pipeline view with the build job passing&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.11: GitLab CI pipeline view with the build job passing</p>
+			<p>After clicking the job, we see the <strong class="source-inline">Job</strong> view, which shows us a detailed breakdown of all the steps in the job. Starting with the <strong class="source-inline">Preparing the docker_machine executor</strong> steps, which load up the Node.js Docker image, we see steps for running the script as well as cache and artifact restores, as follows:</p>
+			<div>
+				<div id="_idContainer402" class="IMG---Figure">
+					<img src="image/B15218_14_12.jpg" alt="Figure 14.12: The GitLab CI job view with the successful build job&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.12: The GitLab CI job view with the successful build job</p>
+			<p>If we want to add a <strong class="source-inline">test</strong> step to our GitLab CI/CD runs, we need to be in a project that supports unit testing. This can be achieved using the Vue CLI, which is installed using <strong class="source-inline">vue add @vue/unit-jest</strong>. Installing and adding unit tests is covered in depth in <em class="italic">Chapter 12</em>, <em class="italic">Unit Testing</em>.</p>
+			<p>We will need to add a new job to the <strong class="source-inline">.gitlab-ci.yml</strong> file; we will call it <strong class="source-inline">test</strong>, use the <strong class="source-inline">node:lts</strong> image, and assign the job to the <strong class="source-inline">test</strong> state. In the job, we run <strong class="source-inline">npm ci</strong>, followed by <strong class="source-inline">npm run test:unit</strong> (which is the <strong class="source-inline">npm</strong> script added by the <strong class="source-inline">unit-jest</strong> CLI plugin):</p>
+			<p class="source-code"># rest of .gitlab-ci.yml</p>
+			<p class="source-code">test:</p>
+			<p class="source-code">  image: node:lts</p>
+			<p class="source-code">  stage: test</p>
+			<p class="source-code">  script:</p>
+			<p class="source-code">    - npm ci</p>
+			<p class="source-code">    - npm run test:unit</p>
+			<p>Once we push this new <strong class="source-inline">.gitlab-ci.yml</strong> file up, we get the following view on the main repository page:</p>
+			<div>
+				<div id="_idContainer403" class="IMG---Figure">
+					<img src="image/B15218_14_13.jpg" alt="Figure 14.13: Repository view with GitLab CI/CD running the pipeline with the new test step&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.13: Repository view with GitLab CI/CD running the pipeline with the new test step</p>
+			<p>We can click through to the pipeline view. The reason GitLab CI/CD uses pipelines is that a failing step at a certain stage will mean steps in any subsequent stages will not run. For example, if we get a failing <strong class="source-inline">build</strong> job, the jobs that are part of the <strong class="source-inline">test</strong> stage will not run. The following screenshot explains this well:</p>
+			<div>
+				<div id="_idContainer404" class="IMG---Figure">
+					<img src="image/B15218_14_14.jpg" alt="Figure 14.14: GitLab CI/CD pipeline view with a failed build job that stops &#13;&#10;the test job/stage from running&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.14: GitLab CI/CD pipeline view with a failed build job that stops the test job/stage from running</p>
+			<p>If we push another commit or retry the build step (if the failure is not caused by changes) and navigate to the pipeline view again, we'll see the following:</p>
+			<div>
+				<div id="_idContainer405" class="IMG---Figure">
+					<img src="image/B15218_14_15.jpg" alt="Figure 14.15: GitLab CI/CD pipeline view with the test job running &#13;&#10;after the build stage jobs have all succeeded&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.15: GitLab CI/CD pipeline view with the test job running after the build stage jobs have all succeeded</p>
+			<p>Once the <strong class="source-inline">test</strong> job has succeeded, we'll see the following pipeline:</p>
+			<div>
+				<div id="_idContainer406" class="IMG---Figure">
+					<img src="image/B15218_14_16.jpg" alt="Figure 14.16: GitLab CI/CD pipeline view with all jobs succeeding in the build and test stages&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.16: GitLab CI/CD pipeline view with all jobs succeeding in the build and test stages</p>
+			<p>We've now added a GitLab CI/CD pipeline with the <strong class="source-inline">build</strong> and <strong class="source-inline">test</strong> stages that will validate that on every push to the GitLab repository, the code still integrates as expected.</p>
+			<h2 id="_idParaDest-279">Exercise 14<a id="_idTextAnchor371"/>.01: Adding a Lint Step to Your GitLab CI/CD Pipeline</h2>
+			<p>Linting is a way to get automated formatting and code style checks. Integrating it as part of CI makes sure that all code merged into the mainline branches adheres to a team's code style guide. It also reduces the number of code style review comments, which can be noisy and might detract from fundamental issues with the change request.</p>
+			<p>To access the code files for this exercise, refer to <a href="https://packt.live/2IQDFW0">https://packt.live/2IQDFW0</a>:</p>
+			<ol>
+				<li>In order to add linting, we need to ensure that our <strong class="source-inline">package.json</strong> file includes the <strong class="source-inline">lint</strong> script. If it's missing, we'll need to add it and set it to <strong class="source-inline">vue-cli-service lint</strong>:<p class="source-code">{</p><p class="source-code">  "// other": "properties",</p><p class="source-code">  "scripts": {</p><p class="source-code">    "// other": "scripts",</p><p class="source-code">    "lint": "vue-cli-service lint",</p><p class="source-code">    "// other": "scripts"</p><p class="source-code">  },</p><p class="source-code">  "// more": "properties"</p><p class="source-code">}</p></li>
+				<li>In order to run the lint on GitLab CI/CD, we need to add a new <strong class="source-inline">lint</strong> job that will run in a Node.js LTS Docker image at the <strong class="source-inline">test</strong> stage of the GitLab CI/CD pipeline. We will do this in <strong class="source-inline">.gitlab-ci.yml</strong>:<p class="source-code">lint:</p><p class="source-code">  image: node:lts</p><p class="source-code">  stage: test</p></li>
+				<li>For the <strong class="source-inline">lint</strong> job to run the <strong class="source-inline">lint</strong> script as per <strong class="source-inline">package.json</strong>, we need to add a <strong class="source-inline">script</strong> section in the <strong class="source-inline">.gitlab-ci.yml</strong> file. It first needs to run <strong class="source-inline">npm ci</strong> to install the dependencies, and then <strong class="source-inline">npm run lint</strong> to run the linting:<p class="source-code">lint:</p><p class="source-code">  image: node:lts</p><p class="source-code">  stage: test</p><p class="source-code">  script:</p><p class="source-code">    - npm ci</p><p class="source-code">    - npm run lint</p></li>
+				<li>Finally, we need to commit and push the code to GitLab using the following commands:<p class="source-code">git add .</p><p class="source-code">git commit -m "add linting"</p><p class="source-code">git push</p><p>Once the code is pushed, we can see the pipeline run using the GitLab CI/CD UI, as follows. Note how all the jobs at the <strong class="source-inline">test</strong> stage are run in parallel:</p><div id="_idContainer407" class="IMG---Figure"><img src="image/B15218_14_17.jpg" alt="Figure 14.17: The GitLab CI/CD pipeline view with all the jobs succeeding, &#13;&#10;including &quot;test&quot; and &quot;lint&quot; running in parallel &#13;&#10;"/></div></li>
+			</ol>
+			<p class="figure-caption">Figure 14.17: The GitLab CI/CD pipeline view with all the jobs succeeding, including "test" and "lint" running in parallel </p>
+			<p>We've now seen how to use GitLab CI/CD to run builds and tests on every commit.</p>
+			<p>Next, we'll see how to deploy a Vue.js application to Netlify.</p>
+			<h1 id="_idParaDest-280">Deploying to<a id="_idTextAnchor372"/> Netlify</h1>
+			<p>Netlify is a hosting provider that specializes in static hosting and relevant supporting services in order to have a fully interactive site that uses static hosting. This includes offerings such as Netlify Functions (serverless functions), Netlify Forms (a no-backend form submission system), and Netlify Identity (an identity/authentication provider).</p>
+			<p>The following sections require you to have a Netlify account, which is free.</p>
+			<p>The simplest way to deploy a site to Netlify is to use the drag and drop interface. You'll find this at the bottom of the home page in the logged-in view: <a href="https://app.netlify.com">https://app.netlify.com</a>. It looks as follows:</p>
+			<div>
+				<div id="_idContainer408" class="IMG---Figure">
+					<img src="image/B15218_14_18.jpg" alt="Figure 14.18: Netlify's drag and drop deployment section at the &#13;&#10;bottom of the App home page&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.18: Netlify's drag and drop deployment section at the bottom of the App home page</p>
+			<p>We can, therefore, choose a project where we've run the <strong class="source-inline">npm run build</strong> command and deploy the <strong class="source-inline">dist</strong> folder by simply dragging it to the drag and drop deployment section, as shown in the following screenshot:</p>
+			<div>
+				<div id="_idContainer409" class="IMG---Figure">
+					<img src="image/B15218_14_19.jpg" alt="Figure 14.19: Dragging and dropping the dist folder onto the Netlify drag and drop deployment section&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.19: Dragging and dropping the dist folder onto the Netlify drag and drop deployment section</p>
+			<p>Once the upload has succeeded, Netlify redirects you to your new website's administration page. This will look as follows:</p>
+			<div>
+				<div id="_idContainer410" class="IMG---Figure">
+					<img src="image/B15218_14_20.jpg" alt="Figure 14.20: The Netlify new app page for the drag and drop site&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.20: The Netlify new app page for the drag and drop site</p>
+			<p>We can click on the link to the site and we'll see the default Vue CLI home page template, as follows:</p>
+			<div>
+				<div id="_idContainer411" class="IMG---Figure">
+					<img src="image/B15218_14_21.jpg" alt="Figure 14.21: Netlify new app displaying a greeting message&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.21: Netlify new app displaying a greeting message</p>
+			<p>We have now seen how to manually deploy a site to Netlify using the drag and drop interface.</p>
+			<p>Next, we will see how to deploy our site from GitLab to Netlify.</p>
+			<p>On the Netlify app home page, we need to click the <strong class="source-inline">New site from Git</strong> button, as displayed in the following screenshot:</p>
+			<div>
+				<div id="_idContainer412" class="IMG---Figure">
+					<img src="image/B15218_14_22.jpg" alt="Figure 14.22: Netlify home page with the New site from Git button&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.22: Netlify home page with the New site from Git button</p>
+			<p>We'll see a page asking us to choose a Git provider to connect to. For this example, we will use <strong class="source-inline">GitLab</strong>. The following screenshot represents how the screen will look:</p>
+			<div>
+				<div id="_idContainer413" class="IMG---Figure">
+					<img src="image/B15218_14_23.jpg" alt="Figure 14.23: Netlify – Create a new site | Connect to Git provider&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.23: Netlify – Create a new site | Connect to Git provider</p>
+			<p>Upon clicking <strong class="source-inline">GitLab</strong>, we will get an OAuth authorization challenge from GitLab, which we need to accept by clicking on the <strong class="source-inline">Authorize</strong> button as shown in the following screenshot:</p>
+			<div>
+				<div id="_idContainer414" class="IMG---Figure">
+					<img src="image/B15218_14_24.jpg" alt="Figure 14.24: GitLab OAuth authorization modal&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.24: GitLab OAuth authorization modal</p>
+			<p>We will then be redirected to Netlify and asked to choose a repository to deploy, as follows:</p>
+			<div>
+				<div id="_idContainer415" class="IMG---Figure">
+					<img src="image/B15218_14_25.jpg" alt="Figure 14.25: Select a GitLab repository to deploy&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.25: Select a GitLab repository to deploy</p>
+			<p>We select the repository we want to deploy and are met with a configuration page. Since we're now building on Netlify's build servers, we need to configure Netlify to build the application and deploy the correct folder.</p>
+			<p>We fill out the <strong class="source-inline">build</strong> command as <strong class="source-inline">npm run build</strong> since that's our build script. The publish directory is <strong class="source-inline">dist</strong>.</p>
+			<p>We can then click the <strong class="source-inline">Deploy site</strong> button, which will start the deployment process, as follows:</p>
+			<div>
+				<div id="_idContainer416" class="IMG---Figure">
+					<img src="image/B15218_14_26.jpg" alt="Figure 14.26: The Netlify build configuration tab, filled in with npm run build &#13;&#10;and dist for the build command and publish directory, respectively&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.26: The Netlify build configuration tab, filled in with npm run build and dist for the build command and publish directory, respectively</p>
+			<p>We will then be redirected to the newly created app's page, as shown here:</p>
+			<div>
+				<div id="_idContainer417" class="IMG---Figure">
+					<img src="image/B15218_14_27.jpg" alt="Figure 14.27: New Netlify app&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.27: New Netlify app</p>
+			<p>We have now seen how to deploy an application to Netlify using the manual upload method and using GitLab as the Git hosting provider.</p>
+			<h2 id="_idParaDest-281">Exercise 14.02: Deploy<a id="_idTextAnchor373"/>ing a Site to Netlify from GitHub</h2>
+			<p>We have seen how to deploy a site to Netlify from GitLab, but how different is it from deploying it from GitHub? The answer is that they are very similar; the only notable difference is the first step in the <strong class="source-inline">Connect to Git provider</strong> tab:</p>
+			<ol>
+				<li value="1">We'll begin by clicking the <strong class="source-inline">New site from Git</strong> button on the home page, as follows:<div id="_idContainer418" class="IMG---Figure"><img src="image/B15218_14_28.jpg" alt="Figure 14.28: New site from Git on the Netlify dashboard&#13;&#10;"/></div><p class="figure-caption">Figure 14.28: New site from Git on the Netlify dashboard</p></li>
+				<li>We will then choose <strong class="source-inline">GitHub</strong> as the Git hosting provider, as shown in the following screenshot:<div id="_idContainer419" class="IMG---Figure"><img src="image/B15218_14_29.jpg" alt="Figure 14.29: Continuous Deployment&#13;&#10;"/></div><p class="figure-caption">Figure 14.29: Continuous Deployment</p></li>
+				<li>When we get the GitHub OAuth authorization challenge, as shown in the following screenshot, we authorize Netlify:<div id="_idContainer420" class="IMG---Figure"><img src="image/B15218_14_30.jpg" alt="Figure 14.30: GitHub authorization challenge&#13;&#10;"/></div><p class="figure-caption">Figure 14.30: GitHub authorization challenge</p></li>
+				<li>We select the Vue CLI project we want to deploy from the repository list, as follows:</li>
+				<li><div id="_idContainer421" class="IMG---Figure"><img src="image/B15218_14_31.jpg" alt="Figure 14.31: Selecting the correct repository&#13;&#10;"/></div><p class="figure-caption">Figure 14.31: Selecting the correct repository</p></li>
+				<li>On the deployment options tab, we select <strong class="source-inline">master</strong> as the branch to deploy.</li>
+				<li>We set the build command as <strong class="source-inline">npm run build</strong>.</li>
+				<li>We set the publish directory as <strong class="source-inline">dist</strong>.</li>
+				<li>The completed deployment options look as follows:<div id="_idContainer422" class="IMG---Figure"><img src="image/B15218_14_32.jpg" alt="Figure 14.32: The Netlify build configuration tab filled in with npm run &#13;&#10;build and dist for the build command and publish directory, respectively&#13;&#10;"/></div><p class="figure-caption">Figure 14.32: The Netlify build configuration tab filled in with npm run build and dist for the build command and publish directory, respectively</p></li>
+				<li>We click <strong class="source-inline">Deploy site</strong> to start the deployment process.</li>
+			</ol>
+			<p>We've now seen how to deploy an application to Netlify using the manual upload method and using GitLab or GitHub as the Git hosting provider.</p>
+			<p>Next, we will see how to use <strong class="bold">Amazon Web Services Simple Storage Service</strong> (<strong class="bold">AWS S3</strong>) and AWS CloudFront to deploy a Vue.js application.</p>
+			<h1 id="_idParaDest-282">Deploying to AWS Using S3 a<a id="_idTextAnchor374"/>nd CloudFront</h1>
+			<p>Amazon S3 is a static storage offering that can be used as a host for static files, such as what is generated by the Vue CLI's <strong class="source-inline">build</strong> script.</p>
+			<p>CloudFront is AWS' <strong class="bold">content delivery network</strong> (<strong class="bold">CDN</strong>) offering. A CDN can improve a web application's performance by serving static content from an <strong class="bold">edge</strong> location. These servers are positioned around the world and are more likely to be geographically located close to the end user than the <strong class="bold">origin</strong> servers (the ones that actually serve the content). Edge servers in a CDN request resources from the origin if they don't have them cached but will serve subsequent requests.</p>
+			<p>A prerequisite for the following steps is an AWS account:</p>
+			<ol>
+				<li value="1">We will start by creating and configuring an S3 bucket.<p>We begin by heading to the S3 product page. It will look similar to the following screenshot:</p><div id="_idContainer423" class="IMG---Figure"><img src="image/B15218_14_33.jpg" alt="Figure 14.33: Select S3 from the AWS service list&#13;&#10;"/></div><p class="figure-caption">Figure 14.33: Select S3 from the AWS service list</p></li>
+				<li>On the S3 console home page, we can click the <strong class="source-inline">Create bucket</strong> button, which will take us to the bucket creation page, as seen here:<div id="_idContainer424" class="IMG---Figure"><img src="image/B15218_14_34.jpg" alt="Figure 14.34: The Create bucket button on the AWS S3 console&#13;&#10;"/></div><p class="figure-caption">Figure 14.34: The Create bucket button on the AWS S3 console</p></li>
+				<li>To begin, we start by naming our bucket. For the purposes of this example, let's call it <strong class="source-inline">vue-workshop</strong>, as follows:<div id="_idContainer425" class="IMG---Figure"><img src="image/B15218_14_35.jpg" alt="Figure 14.35: Entering the bucket name on the bucket creation page&#13;&#10;"/></div><p class="figure-caption">Figure 14.35: Entering the bucket name on the bucket creation page</p></li>
+				<li>We will also need to set the S3 bucket to be public. This is done by unselecting the <strong class="source-inline">Block all public access</strong> checkbox. Once this is done, we must check the acknowledgment checkbox, as seen here:<div id="_idContainer426" class="IMG---Figure"><img src="image/B15218_14_36.jpg" alt="Figure 14.36: Set the S3 bucket to be public and acknowledge the warning&#13;&#10;"/></div><p class="figure-caption">Figure 14.36: Set the S3 bucket to be public and acknowledge the warning</p></li>
+				<li>Once this is done, we are redirected to the bucket list page. We want to click into our new bucket. Then, we need to access the <strong class="source-inline">Properties</strong> tag in order to find the <strong class="source-inline">Static website hosting</strong> option:</li>
+				<li><div id="_idContainer427" class="IMG---Figure"><img src="image/B15218_14_37.jpg" alt="Figure 14.37: The Static website hosting option in the S3 bucket's Properties tab&#13;&#10;"/></div><p class="figure-caption">Figure 14.37: The Static website hosting option in the S3 bucket's Properties tab</p></li>
+				<li>We can fill out the <strong class="source-inline">Static website hosting</strong> S3 property, selecting <strong class="source-inline">Use this bucket to host a website</strong> and setting the index document and error document to <strong class="source-inline">index.html</strong>. It is a good idea to take note of the <strong class="source-inline">Endpoint</strong> URL, which we'll need to configure CloudFront, as follows:<div id="_idContainer428" class="IMG---Figure"><img src="image/B15218_14_38.jpg" alt="Figure 14.38: Filling out the Static website hosting S3 property&#13;&#10;"/></div><p class="figure-caption">Figure 14.38: Filling out the Static website hosting S3 property</p></li>
+				<li>We can now go back to the <strong class="source-inline">Overview</strong> tab of the S3 bucket page, click <strong class="source-inline">Upload</strong>, and drag and drop the files from one of our <strong class="source-inline">dist</strong> folders, as seen in the following screenshot:</li>
+				<li><div id="_idContainer429" class="IMG---Figure"><img src="image/B15218_14_39.jpg" alt="Figure 14.39: Adding files to the vue-workshop S3 bucket through drag and drop&#13;&#10;"/></div><p class="figure-caption">Figure 14.39: Adding files to the vue-workshop S3 bucket through drag and drop</p></li>
+				<li>Once files are dropped on the overview page, we click <strong class="source-inline">Next</strong> and need to make sure file permissions are set to <strong class="source-inline">public</strong> by selecting <strong class="source-inline">Grant public read access to this object(s)</strong> in the <strong class="source-inline">Manage public permissions</strong> section of the page. Once that is completed, we can complete the upload without any changes from the default values by clicking <strong class="source-inline">Next</strong> and <strong class="source-inline">Upload</strong>, after having reviewed the files being uploaded, as follows:</li>
+				<li><div id="_idContainer430" class="IMG---Figure"><img src="image/B15218_14_40.jpg" alt="Figure 14.40: Setting file permissions to public on files being uploaded to the S3 bucket&#13;&#10;"/></div><p class="figure-caption">Figure 14.40: Setting file permissions to public on files being uploaded to the S3 bucket</p></li>
+				<li>Our S3 bucket should now be configured to host static content, and by visiting the website endpoint (which is available in <strong class="bold">Properties</strong> | <strong class="bold">Static website hosting</strong>), we see the following Vue.js application (which is what we uploaded):<div id="_idContainer431" class="IMG---Figure"><img src="image/B15218_14_41.jpg" alt="Figure 14.41: The Vue.js application being served from our AWS S3 bucket&#13;&#10;"/></div><p class="figure-caption">Figure 14.41: The Vue.js application being served from our AWS S3 bucket</p><p>Note that S3 can only serve sites over HTTP, and domain names cannot be configured directly from S3 buckets. Beyond performance and robustness, being able to set custom domain names and HTTPS support are other reasons to set up AWS CloudFront as a CDN for our website.</p></li>
+				<li>We will start by navigating to the CloudFront console and clicking the <strong class="source-inline">Create Distribution</strong> button as follows:</li>
+				<li><div id="_idContainer432" class="IMG---Figure"><img src="image/B15218_14_42.jpg" alt="Figure 14.42: Select CloudFront from the AWS service list&#13;&#10;&#13;&#10;"/></div><p class="figure-caption">Figure 14.42: Select CloudFront from the AWS service list</p></li>
+				<li>When prompted for which type of distribution we want to create, we will select <strong class="source-inline">Web</strong> by clicking the relevant <strong class="source-inline">Get Started</strong> button, as seen in the following screenshot:</li>
+				<li><div id="_idContainer433" class="IMG---Figure"><img src="image/B15218_14_43.jpg" alt="Figure 14.43: Choosing to create a Web CloudFront distribution&#13;&#10;"/></div><p class="figure-caption">Figure 14.43: Choosing to create a Web CloudFront distribution</p></li>
+				<li><strong class="source-inline">Origin Domain Name</strong> should be the S3 bucket website endpoint domain – in other words, the domain of the URL we used to access it earlier. It looks something like <strong class="source-inline">example.s3-website.us-west-1.amazonaws.com</strong> for the <strong class="source-inline">example</strong> bucket in the <strong class="source-inline">us-east-1</strong> region. The following screenshot displays this:<div id="_idContainer434" class="IMG---Figure"><img src="image/B15218_14_44.jpg" alt="Figure 14.44: Enter the website endpoint domain in the CloudFront &#13;&#10;"/></div><p class="figure-caption">Figure 14.44: Enter the website endpoint domain in the CloudFront distribution's "Origin Domain Name" field</p></li>
+				<li>While we are setting up the distribution, it's a good idea to select the <strong class="source-inline">Redirect HTTP to HTTPS</strong> option for the <strong class="source-inline">Default Cache Behavior</strong> section's <strong class="source-inline">Viewer Protocol Policy</strong> field as follows:</li>
+				<li><div id="_idContainer435" class="IMG---Figure"><img src="image/B15218_14_45.jpg" alt="Figure 14.45: Select Redirect HTTP to HTTPS for the Viewer Protocol Policy field&#13;&#10;"/></div></li>
+			</ol>
+			<p class="figure-caption">Figure 14.45: Select Redirect HTTP to HTTPS for the Viewer Protocol Policy field</p>
+			<p>We are now ready to click the <strong class="source-inline">Create Distribution</strong> button and wait for the changes to propagate.</p>
+			<p class="callout-heading">Note</p>
+			<p class="callout">CloudFront distribution changes take a while to propagate since they are being deployed to servers around the world.</p>
+			<p>We can open the domain name for the CloudFront distribution once the console shows its status as <strong class="source-inline">Deployed</strong>.</p>
+			<p>We have seen how to set up S3 and CloudFront to serve a static website. We will now see how to use the AWS CLI to synchronize a local directory to the S3 bucket.</p>
+			<p>A prerequisite for the next section is a shell instance that has AWS credentials injected using the <strong class="source-inline">AWS_ACCESS_KEY_ID</strong>, <strong class="source-inline">AWS_SECRET_ACCESS_KEY</strong>, and <strong class="source-inline">AWS_DEFAULT_REGION</strong> environment variables. The access key and secret key need to be generated from the <strong class="source-inline">Account</strong> dropdown | <strong class="source-inline">My Security Credentials</strong> | <strong class="source-inline">Access Keys</strong>. It also requires the AWS CLI version 2.</p>
+			<p>If we're in a Vue CLI project, we can deploy the <strong class="source-inline">dist</strong> folder (which can be built using <strong class="source-inline">npm run build</strong>) to our <strong class="source-inline">vue-workshop</strong> bucket using an AWS S3 CLI command. We want to update an <strong class="source-inline">s3</strong> resource so that our command will start with <strong class="source-inline">aws s3</strong>. The command we want to issue is to synchronize files, so we will use the <strong class="source-inline">aws s3 sync</strong> command. We will sync <strong class="source-inline">./dist</strong> to the <strong class="source-inline">vue-workshop</strong> S3 bucket, using the AWS URI syntax – that is, <strong class="source-inline">s3://vue-workshop</strong>. We also want to make sure that the files we upload, just like the bucket configuration, allow <strong class="source-inline">public-read</strong>. In full, the command looks as follows:</p>
+			<p class="source-code">aws s3 sync ./dist s3://vue-workshop --acl=public-read</p>
+			<h2 id="_idParaDest-283">Exercise 14.03: Deploying to S3 from Git<a id="_idTextAnchor375"/>Lab CI/CD</h2>
+			<p>S3 is a very cost-effective and performant solution for storing static files at scale. In this exercise, we'll look at how to integrate GitLab CI/CD and AWS S3 to deploy a Vue.js application. This automates the deployment of the Vue.js application. The deployment will run on every push to GitLab without any manual intervention.</p>
+			<p>To access the code files for this exercise, refer to <a href="https://packt.live/3kJ1HPD">https://packt.live/3kJ1HPD</a>.</p>
+			<p>In order to deploy to the S3 bucket from GitLab CI/CD, we will need to first set credential management:</p>
+			<ol>
+				<li value="1">Navigate to the <strong class="source-inline">CI/CD</strong> settings section of GitLab as follows:<div id="_idContainer436" class="IMG---Figure"><img src="image/B15218_14_46.jpg" alt="Figure 14.46: CI/CD in the Settings menu&#13;&#10;"/></div><p class="figure-caption">Figure 14.46: CI/CD in the Settings menu</p></li>
+				<li>We will want to add variables, so let's expand that section. You will see a message as shown in the following screenshot:<div id="_idContainer437" class="IMG---Figure"><img src="image/B15218_14_47.jpg" alt="Figure 14.47: The Variables section of the GitLab CI/CD settings expanded&#13;&#10;"/></div><p class="figure-caption">Figure 14.47: The Variables section of the GitLab CI/CD settings expanded</p></li>
+				<li>Next, we'll add <strong class="source-inline">AWS_ACCESS_KEY_ID</strong> and <strong class="source-inline">AWS_SECRET_ACCESS_KEY</strong> using the UI (values not shown since they're sensitive API keys), as follows:</li>
+				<li><div id="_idContainer438" class="IMG---Figure"><img src="image/B15218_14_48.jpg" alt="Figure 14.48: Entering the AWS_ACCESS_KEY_ID environment variable&#13;&#10;"/></div><p class="figure-caption">Figure 14.48: Entering the AWS_ACCESS_KEY_ID environment variable</p></li>
+				<li>We can then add the default <strong class="source-inline">AWS_REGION</strong> variable using the UI. This isn't so sensitive, so its value is shown in the following screenshot:</li>
+				<li><div id="_idContainer439" class="IMG---Figure"><img src="image/B15218_14_49.jpg" alt="Figure 14.49: Entering the AWS_DEFAULT_REGION environment variable&#13;&#10;"/></div><p class="figure-caption">Figure 14.49: Entering the AWS_DEFAULT_REGION environment variable</p></li>
+				<li>Now that we have set up our environment variables on GitLab CI/CD, we can start updating our <strong class="source-inline">.gitlab-ci.yml</strong> file. First, we want to start caching the <strong class="source-inline">dist</strong> directory after our <strong class="source-inline">build</strong> step. In order to do this, we need to add a <strong class="source-inline">cache</strong> property to the <strong class="source-inline">build</strong> job:<p class="source-code">build:</p><p class="source-code">  # other properties</p><p class="source-code">  cache:</p><p class="source-code">    key: $CI_COMMIT_REF_SLUG</p><p class="source-code">    paths:</p><p class="source-code">      - dist</p><p class="source-code">  # other properties</p><p class="source-code"># other jobs</p></li>
+				<li>We can now add our <strong class="source-inline">deploy</strong> job, which will be a part of the <strong class="source-inline">deploy</strong> stage. To access the AWS CLI, we will use a Python image (<strong class="source-inline">python:latest</strong>) and install the AWS CLI using <strong class="source-inline">pip</strong> (a Python package manager) in our <strong class="source-inline">before_script</strong> step. Once we've installed the AWS CLI, we will run the deployment in the <strong class="source-inline">script</strong> step using the <strong class="source-inline">aws s3 sync</strong> command we used to deploy from our local machine:<p class="source-code"># other jobs</p><p class="source-code">deploy:</p><p class="source-code">  image: python:latest</p><p class="source-code">  stage: deploy</p><p class="source-code">  cache:</p><p class="source-code">    key: $CI_COMMIT_REF_SLUG</p><p class="source-code">    paths:</p><p class="source-code">      - dist</p><p class="source-code">  before_script:</p><p class="source-code">    - pip install awscli</p><p class="source-code">  script:</p><p class="source-code">    - aws s3 sync ./dist s3://vue-workshop --acl=public-read</p><p class="callout-heading">Note</p><p class="callout">We don't need to invalidate caches since the Vue CLI <strong class="source-inline">build</strong> command has built-in cache-busting through fingerprinting the contents of a file in the filename. Fingerprinting means that if the contents of a file change, its name/URL will change accordingly. When this new file is requested, it will be loaded from an un-cached URL and will therefore get the latest version of the file.</p><p>Once this update to the configuration is pushed to the GitLab repository, we can see the pipeline running three stages that all pass, as follows:</p><div id="_idContainer440" class="IMG---Figure"><img src="image/B15218_14_50.jpg" alt="Figure 14.50: Passing build, test, and deploy jobs&#13;&#10;"/></div></li>
+			</ol>
+			<p class="figure-caption">Figure 14.50: Passing build, test, and deploy jobs</p>
+			<p>We have now seen how to configure and deploy a Vue.js application to S3 and CloudFront using the AWS CLI and GitLab CI/CD.</p>
+			<h2 id="_idParaDest-284">Activity 14.01: Adding CI/CD with GitLab to a<a id="_idTextAnchor376"/> Book Search App and Deploying to Amazon S3 and CloudFront</h2>
+			<p>Let's now take a fully built <strong class="bold">book search</strong> Vue.js application that loads data from the Google Books API and deploy it to S3/CloudFront using GitLab CI/CD. We will start by running the production build locally and checking the output. We will then switch to running the build and code quality steps (linting) on GitLab CI. Finally, we'll set up an S3 bucket and CloudFront distribution and integrate them with GitLab CI/CD to deploy on every push to the repository.</p>
+			<p>The start code for this activity can be found at <strong class="source-inline">Chapter14/Activity14.01_initial</strong>; we start with a <strong class="bold">book search</strong> application build with the Vue CLI. The solution can be found at <strong class="source-inline">Chapter14/Activity14.01_solution</strong>:</p>
+			<ol>
+				<li value="1">To start, we will want to run a production build locally. We can use the regular command used to build all Vue CLI projects for production. We will also want to check that the relevant assets (JavaScript, CSS, and HTML) are generated correctly.<p>We expect the <strong class="source-inline">dist</strong> folder to contain a similar structure, as follows:</p><div id="_idContainer441" class="IMG---Figure"><img src="image/B15218_14_51.jpg" alt="Figure 14.51: Sample contents of the dist folder (generated using the tree command) &#13;&#10;after a Vue CLI production build run&#13;&#10;"/></div><p class="figure-caption">Figure 14.51: Sample contents of the dist folder (generated using the tree command) after a Vue CLI production build run</p></li>
+				<li>In order to run GitLab CI/CD, we will need a <strong class="source-inline">.gitlab-ci.yml</strong> file. We will add a job to <strong class="source-inline">.gitlab-ci.yml</strong> in which we run an install of the packages followed by the production build in a Node.js LTS Docker container, at the <strong class="source-inline">build</strong> stage. We will also make sure to cache the output of the production build.<p>Once we use <strong class="source-inline">git add .gitlab-ci.yml</strong> and commit and push the changes, we should see the following GitLab CI/CD pipeline run, which includes the <strong class="source-inline">build</strong> job while it is in the running state:</p><div id="_idContainer442" class="IMG---Figure"><img src="image/B15218_14_52.jpg" alt="Figure 14.52: The GitLab CI/CD pipeline with the build job running&#13;&#10;"/></div><p class="figure-caption">Figure 14.52: The GitLab CI/CD pipeline with the build job running</p><p>The following screenshot, on the other hand, represents the GitLab CI/CD pipeline when the <strong class="source-inline">build</strong> job has completed and is in the <strong class="source-inline">passed</strong> state:</p><div id="_idContainer443" class="IMG---Figure"><img src="image/B15218_14_53.jpg" alt="Figure 14.53: GitLab CI/CD pipeline with the build job passed&#13;&#10;"/></div><p class="figure-caption">Figure 14.53: GitLab CI/CD pipeline with the build job passed</p></li>
+				<li>Next, we will want to add a code quality job to the <strong class="source-inline">test</strong> stage on GitLab CI/CD (by updating <strong class="source-inline">.gitlab-ci.yml</strong>). We'll call the job <strong class="source-inline">lint</strong> and it will run an install of the dependencies as well as linting through the Vue CLI.<p>Once we use <strong class="source-inline">git add .gitlab-ci.yml</strong> and commit and push the changes, we should see the following GitLab CI/CD pipeline run, which includes the <strong class="source-inline">lint</strong> job while it is in the running state:</p><div id="_idContainer444" class="IMG---Figure"><img src="image/B15218_14_54.jpg" alt="Figure 14.54: The GitLab CI/CD pipeline with the lint job running&#13;&#10;"/></div><p class="figure-caption">Figure 14.54: The GitLab CI/CD pipeline with the lint job running</p><p>The following screenshot displays the GitLab CI/CD pipeline with the <strong class="source-inline">lint</strong> job successfully completed:</p><div id="_idContainer445" class="IMG---Figure"><img src="image/B15218_14_55.jpg" alt="Figure 14.55: GitLab CI/CD pipeline with the lint job passed&#13;&#10;"/></div><p class="figure-caption">Figure 14.55: GitLab CI/CD pipeline with the lint job passed</p></li>
+				<li>In order to deploy our application, we'll need to create a <strong class="source-inline">vue-workshop-book-search</strong> S3 bucket with <strong class="source-inline">public access</strong> enabled using the S3 console.<p>The S3 bucket creation page should look as follows:</p><div id="_idContainer446" class="IMG---Figure"><img src="image/B15218_14_56.jpg" alt="Figure 14.56: The S3 bucket creation page with vue-workshop-book-&#13;&#10;search entered as the bucket name&#13;&#10;"/></div><p class="figure-caption">Figure 14.56: The S3 bucket creation page with vue-workshop-book-search entered as the bucket name</p><p>The following screenshot displays the public access and disclaimer information on the S3 bucket creation page:</p><div id="_idContainer447" class="IMG---Figure"><img src="image/B15218_14_57.jpg" alt="Figure 14.57: The S3 bucket creation page with public access enabled &#13;&#10;and the relevant disclaimer accepted&#13;&#10;"/></div><p class="figure-caption">Figure 14.57: The S3 bucket creation page with public access enabled and the relevant disclaimer accepted</p></li>
+				<li>To access the S3 bucket contents over the web, we'll also need to configure it for web hosting. We can configure the web hosting property through the S3 console.<p>It should be configured as follows, with the index and error page set to <strong class="source-inline">index html</strong>:</p><div id="_idContainer448" class="IMG---Figure"><img src="image/B15218_14_58.jpg" alt="Figure 14.58: The S3 bucket properties page with web hosting enabled and configured with the index and error page set to index.html&#13;&#10;"/></div><p class="figure-caption">Figure 14.58: The S3 bucket properties page with web hosting enabled and configured with the index and error page set to index.html</p></li>
+				<li>For GitLab CI/CD to be able to create and update files on S3, we will need to add the relevant AWS secrets to our GitLab repo CI/CD settings. The secrets are found in the AWS management console at the <strong class="source-inline">Username</strong> dropdown | <strong class="source-inline">My Security Credentials</strong> | <strong class="source-inline">Access keys</strong> (access key ID and secret access key) | <strong class="source-inline">Create New Access Key</strong> (or pick a key to reuse). The following screenshot displays these details:</li>
+				<li><div id="_idContainer449" class="IMG---Figure"><img src="image/B15218_14_59.jpg" alt="Figure 14.59: The GitLab CI/CD settings page with required the AWS environment &#13;&#10;variables added (with values masked)&#13;&#10;"/></div><p class="figure-caption">Figure 14.59: The GitLab CI/CD settings page with required the AWS environment variables added (with values masked)</p></li>
+				<li>Next, we will want to add a <strong class="source-inline">deploy</strong> job to the <strong class="source-inline">deploy</strong> stage on GitLab CI/CD (by updating <strong class="source-inline">.gitlab-ci.yml</strong>). We will call the job <strong class="source-inline">deploy</strong>; it will need to download the <strong class="source-inline">awscli</strong> <strong class="source-inline">pip</strong> package (Python package manager), which means the Docker image that makes the most sense is <strong class="source-inline">python:latest</strong>. The <strong class="source-inline">deploy</strong> job will load the built production build from cache, install <strong class="source-inline">awscli</strong> with <strong class="source-inline">pip</strong>, and run <strong class="source-inline">aws s3 sync &lt;build_directory&gt; s3://&lt;s3-bucket-name&gt; --acl=public-read</strong>.<p>Once we use <strong class="source-inline">git add .gitlab-ci.yml</strong> and commit and push the changes, we should see the following GitLab CI/CD pipeline run, which includes the <strong class="source-inline">deploy</strong> job in the running state:</p><div id="_idContainer450" class="IMG---Figure"><img src="image/B15218_14_60.jpg" alt="Figure 14.60: The GitLab CI/CD pipeline with the deploy job running&#13;&#10;"/></div><p class="figure-caption">Figure 14.60: The GitLab CI/CD pipeline with the deploy job running</p><p>The following screenshot displays the GitLab CI/CD pipeline with the <strong class="source-inline">deploy</strong> job completed successfully:</p><div id="_idContainer451" class="IMG---Figure"><img src="image/B15218_14_61.jpg" alt="Figure 14.61: The GitLab CI/CD pipeline with the deploy job passed&#13;&#10;"/></div><p class="figure-caption">Figure 14.61: The GitLab CI/CD pipeline with the deploy job passed</p><p>Once the pipeline completes, our application should be available through the <strong class="source-inline">web</strong> S3 endpoint as in the following screenshot:</p><div id="_idContainer452" class="IMG---Figure"><img src="image/B15218_14_62.jpg" alt="Figure 14.62: Book search accessed through the S3 web endpoint URL&#13;&#10;"/></div><p class="figure-caption">Figure 14.62: Book search accessed through the S3 web endpoint URL</p></li>
+				<li>Finally, we'll create a CloudFront distribution that acts as a CDN for the <strong class="source-inline">web</strong> S3 endpoint. We'll want to set <strong class="source-inline">origin</strong> to the origin of our S3 bucket's web endpoint and also make sure that we've enabled <strong class="source-inline">Redirect HTTP to HTTPS</strong>, as shown in the following screenshot:</li>
+				<li><div id="_idContainer453" class="IMG---Figure"><img src="image/B15218_14_63.jpg" alt="Figure 14.63: The CloudFront distribution creation page, displaying the &#13;&#10;origin and behavior settings&#13;&#10;"/></div></li>
+			</ol>
+			<p class="figure-caption">Figure 14.63: The CloudFront distribution creation page, displaying the origin and behavior settings</p>
+			<p>Once the CloudFront distribution is deployed, our application should be accessible through the CloudFront distribution's domain as shown in the following screenshot:</p>
+			<div>
+				<div id="_idContainer454" class="IMG---Figure">
+					<img src="image/B15218_14_64.jpg" alt="Figure 14.64: Book search accessed through the CloudFront domain displaying &#13;&#10;results for a &quot;harry potter&quot; query&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 14.64: Book search accessed through the CloudFront domain displaying results for a "harry potter" query</p>
+			<p class="callout-heading">Note</p>
+			<p class="callout">The solution for this activity can be found via <a href="B15218_Solution_Final_SZ_ePub.xhtml#_idTextAnchor412">this link</a>.</p>
+			<h1 id="_idParaDest-285"><a id="_idTextAnchor377"/>Summary</h1>
+			<p>Throughout this chapter, we've looked at how to int<a id="_idTextAnchor378"/>roduce CI and CD practices to Vue.js projects in order to deploy to production safely and efficiently. We've seen how CI and CD are beneficial in the context of an agile delivery process. We used GitLab's CI/CD features to run tests, linting, and builds on every commit. We saw how to leverage Netlify to host a static website by connecting Netlify to our hosting provider. Finally, we looked at how to set up and deploy to AWS S3 and CloudFront. </p>
+			<p>Throughout this book, you have learned how to build, test, and deploy a Vue.js application that scales and performs for your team and your end users.</p>
+		</div>
+		<div>
+			<div id="_idContainer456" class="Content">
+			</div>
+		</div>
+	</body></html>

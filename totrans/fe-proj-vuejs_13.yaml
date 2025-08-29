@@ -1,0 +1,1290 @@
+- en: 13\. End-to-End Testing
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Overview
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will look at how to create an **End-to-End** (**E2E**) test
+    suite for a Vue.js application with Cypress. In order to write robust tests, we'll
+    look at common pitfalls and best practices such as intercepting HTTP requests
+    and waiting for elements to appear without timeouts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we proceed, you will gain an understanding of E2E testing and its use cases.
+    You will see how Cypress can be configured to test a Vue.js application and also
+    interact with and inspect a user interface using it. Throughout the course of
+    the chapter, you will gain familiarity with the pitfalls of arbitrary timeouts
+    and how to avoid them with Cypress' waiting functionality. Toward the end of the
+    chapter, you will also learn when, why, and how to intercept HTTP requests with
+    Cypress.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we'll write E2E tests for a highly asynchronous application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In previous chapters, we've seen how to build complex Vue.js applications and
+    how to write unit tests for them. This chapter will cover how to use Cypress to
+    write E2E tests for a Vue.js application that is highly interactive and uses an
+    HTTP API. We'll see how E2E testing gives you a high level of confidence that
+    an application will work as designed by automating user flows.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding E2E Testing and Its Use Cases
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Most developers will have seen a version of the testing pyramid shown in the
+    following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.1: A diagram of the testing pyramid'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_01.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 13.1: A diagram of the testing pyramid'
+  prefs: []
+  type: TYPE_NORMAL
+- en: E2E tests fall under the **User Interface** (**UI**) testing category. The type
+    of test we'll be looking at in this chapter is automated E2E tests using Cypress.
+  prefs: []
+  type: TYPE_NORMAL
+- en: E2E and UI tests provide a level of confidence higher than unit or integration
+    tests. They're testing the application as used by the end user. The end user doesn't
+    care why or where a bug is happening, just that there is a bug. The *where and
+    why* of a bug tends to be the concern of unit and system-level tests. Unit and
+    system-level tests check that the internals of a system work as the specification
+    or code describes them. UI-level tests validate that application flows are working
+    as expected.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A strong E2E test suite that runs fast, has few false negatives (where a test
+    fails but the application works), and even fewer false positives (where all tests
+    pass but the application is broken) enables **Continuous Deployment** (**CD**).
+    CD, as its name entails, involves deploying a project or application continually.
+    In this kind of setup, an application version is validated by the E2E suite and
+    is then automatically deployed to production.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Configuring Cypress for a Vue.js Application
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Cypress** is a JavaScript E2E testing framework. It''s designed to solve
+    the very specific need of writing E2E tests using JavaScript. This is in contrast
+    to other fully fledged **browser automation** solutions such as **WebDriverIO**
+    ([https://webdriver.io/](https://webdriver.io/)), **Selenium Webdriver** ([https://www.selenium.dev/](https://www.selenium.dev/)),
+    **Puppeteer** ([https://developers.google.com/web/tools/puppeteer/](https://developers.google.com/web/tools/puppeteer/)),
+    and **Playwright** ([https://github.com/microsoft/playwright](https://github.com/microsoft/playwright)),
+    which are commonly used to write E2E tests.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The big difference with Cypress compared to these other solutions is its singular
+    focus on writing E2E tests (as opposed to generic browser automation). Tests can
+    only be written using JavaScript (Selenium supports other languages), and up until
+    recently, it only supported Chrome (Cypress 4.0 now has support for Firefox and
+    Microsoft Edge as per [https://www.cypress.io/blog/2020/02/06/introducing-firefox-and-edge-support-in-cypress-4-0/](https://www.cypress.io/blog/2020/02/06/introducing-firefox-and-edge-support-in-cypress-4-0/)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Cypress has a **Graphical User Interface** (**GUI**) to run and debug tests
+    locally and comes with built-in assertion and stubbing/mocking libraries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To add Cypress to a project using the Vue CLI, we can use the `e2e-cypress`
+    plugin ([https://cli.vuejs.org/core-plugins/e2e-cypress.html](https://cli.vuejs.org/core-plugins/e2e-cypress.html)),
+    whose install instructions guide us to run the following command at the command
+    line. As part of adding the plugin, Cypress and its supporting packages are downloaded
+    and unpacked, so it might take a while to complete:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The plugin adds a `test:e2e` script that we can run using the following command.
+    This command takes a while to start since it needs to run a production build of
+    the application and then start the Cypress app:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Eventually, we''ll see the Cypress GUI as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.2: The Cypress GUI after plugin installation and the run test:e2e
+    command'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_02.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 13.2: The Cypress GUI after plugin installation and the run test:e2e
+    command'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The plugin creates a default `test.js` file for us. The contents are as follows
+    by default. The test goes to the application root (`/`) and checks that the `h1`
+    on the page contains `Welcome to Your Vue.js App`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: This works in an empty Vue CLI project.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can try visiting `google.com` using `cy.visit(url)` and check that the `input`
+    element that''s synonymous with the Google home page is there by first selecting
+    the input elements on the page with `cy.get(''input'')` and then using the `.should(''exist'')`
+    assertion:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can run the test by clicking on `test.js` in the Cypress UI (when `npm run
+    test:e2e` is running) as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.3: The Cypress UI running test.js'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_03.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 13.3: The Cypress UI running test.js'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When Cypress is running tests, a browser window is opened to run them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.4: Cypress tests running in Chrome while visiting the Google home
+    page'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_04.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 13.4: Cypress tests running in Chrome while visiting the Google home
+    page'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We've now seen how to install and use Cypress to visit web pages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we'll see how Cypress can be used to interact with and
+    inspect a UI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using Cypress to Interact with and Inspect a Vue.js UI
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In order to E2E test the `h2`) with the name of the application. In the `App.vue`
+    file, we''ll have the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In order to test this with Cypress, we can change the `tests/e2e/specs/test.js`
+    file with the following code. We''ll go to the running application using `cy.visit(''/'')`
+    and then check that the `h2` on the page contains `cy.contains(''h2'', ''Commentator
+    Pro'')`. The `cy.contains` function is overloaded and can be used with one parameter
+    (the text to match against) or two parameters (the selector for the container
+    and the text to match against):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can then run `test.js` using the Cypress UI as seen in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.5: Heading content test running successfully in Chrome'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_05.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 13.5: Heading content test running successfully in Chrome'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we've seen how to visit a page and assert on its content, we'll see
+    how we can use Cypress to automate tests for a new feature in a Vue.js application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Exercise 13.01: Adding a "New Comment" Button and Corresponding E2E Test'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In order for the `Add a new comment` button to allow users to add comments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will add a blue jumbo button with the text `Add a New Comment` and write
+    the corresponding E2E test with Cypress.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To access the code files for this exercise, refer to [https://packt.live/36PefjJ](https://packt.live/36PefjJ).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To do this, perform the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To add a button in the app, we''ll add a `button` element with some `TailwindCSS`
+    classes in `src/App.vue`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output should show as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 13.6: Commentator Pro application with the "Add a New Comment" button'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_06.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Figure 13.6: Commentator Pro application with the "Add a New Comment" button'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, we''ll create a new E2E test at `tests/e2e/specs/add-new-comment.js`.
+    We''ll set the name of the suite and description of the test to `Adding a New
+    Comment` and `the homepage should have a button with the right text` respectively:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In order to test the home page, we''ll have to navigate to it using `cy.visit(''/'')`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, we can write the assertion that a `button` instance containing the
+    text `Add a New Comment` is on the page:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We can run this test using the Cypress UI (get it running using `npm run test:e2e`):![Figure
+    13.7: The "add-new-comment.js" test displaying in the Cypress UI'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_07.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Figure 13.7: The "add-new-comment.js" test displaying in the Cypress UI'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'When we run the test, we''ll get the following output in Chrome. The test passes
+    since there is a button with the relevant text on the home page:![Figure 13.8:
+    Cypress running our "add-new-comment" test in Chrome'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_08.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Figure 13.8: Cypress running our "add-new-comment" test in Chrome'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We've now seen how to visit pages and assert against their content.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will look at using Cypress to test interactive behavior.
+    Cypress has automatic selector retries, which make it a great fit for testing
+    highly interactive Vue.js applications. We'll see how to use Cypress to interact
+    with the UI and assert on the effect of our interactions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Triggering and Waiting for UI Updates with Cypress
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The tests we've written up until now are quite simple and only check that the
+    application isn't crashing on load in the browser.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the strengths of E2E tests is testing with high fidelity that the UI
+    behaves as expected when a user interacts with it. We'll use Cypress' selection
+    (the `.get()` function), event triggering (the `.click()` function), and assertion
+    (the `.should()` function) functionality to test a Vue.js application in this
+    section. Cypress' automatic retries on DOM selection will allow us to write E2E
+    tests without explicit wait/timeout conditions. Waits and timeouts are a staple
+    of other E2E testing systems and tend to be a source of flakiness in tests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To begin with, we will add a comment editor to our `textarea`) will be toggled
+    by clicking on the `Add a New Comment` button.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to keep writing tests without wrangling complicated and brittle selectors,
+    we''ll start adding `data-test-id` attributes; to begin with, we can add one to
+    the `Add a New Comment` button in the `App.vue` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we''ll add a `showEditor` property to the Vue.js `data()` method on the
+    `App` component. We''ll use this expression in the `v-if` for the editor. We can
+    also set the new comment button to toggle this instance property:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can add our editor with the `new-comment-editor` `data-test-id` that is
+    toggled by `showEditor`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In order to test the toggling, we can add a test that opens that app and checks
+    that the comment editor is not initially shown, as well as checking whether or
+    not it shows depending on how many clicks are triggered on the `new-comment-button`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding code will generate the following result:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.9: Cypress running "add-new-comment" tests, including'
+  prefs: []
+  type: TYPE_NORMAL
+- en: the new editor-toggling test
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_09.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 13.9: Cypress running "add-new-comment" tests, including the new editor-toggling
+    test'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We've now seen how to write Cypress tests that select and assert over DOM elements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`data-test-id` instances, as a convention, are a way to decouple tests from
+    application and styling-specific selectors. This is especially useful if the people
+    writing the tests aren''t always the ones writing the code. In that situation,
+    using `data-test-id` allows the markup structure and classes to change, but the
+    tests will keep passing as long as the `test-id` instances remain on the correct
+    element.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Exercise 13.02: Adding New Comment Editor Input and Submit Functionality'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To be able to send the new comment text to an API, we will need to store the
+    text in a Vue.js state. The other prerequisite to adding a comment is to have
+    a dummy "`submit`" button.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To access the code files for this exercise, refer to [https://packt.live/2HaWanh](https://packt.live/2HaWanh).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To add these features and their corresponding tests, perform the following
+    steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To store the `textarea` (editor) content in-memory, we''ll use `v-model`. We''ll
+    create a new data (state) variable, `newComment`, that gets initialized to `""`.
+    Now, `v-model` will two-way bind the `textarea` content and `newComment`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We''ll add a `submit` button inside the editor, which should only show when
+    the editor is toggled on. We also make sure to include a `data-test-id="new-comment-submit"`
+    attribute in order to be able to select it with Cypress later:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'It''s now time to add an E2E test to test that `new-comment-editor` works as
+    expected when we type text into it. In order to achieve this, we need to load
+    up the application and click the `new comment` button so that the editor is displayed.
+    We can then select `new-comment-editor` (by `data-test-id`) and use the Cypress
+    `.type` function to add some text. We can chain `.should(''have.value'', ''Just
+    saying...'')` to validate that our interaction with `textarea` was successful:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'When run using the Cypress UI, this `add-new-comment` test suite should yield
+    the following result:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 13.10: Cypress running "add-new-comment" tests, including'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: the new editor text input test
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_10.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Figure 13.10: Cypress running "add-new-comment" tests, including the new editor
+    text input test'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Finally, we can add an `E2E test` to check that the `submit` button does not
+    appear by default but does appear when we click the `new comment` button. We can
+    also check the text content of the `new-comment-submit` button:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'When this test is run through the Cypress UI, we see the following result:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 13.11: Cypress running "add-new-comment" tests, including'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: the new submit button test
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_11.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Figure 13.11: Cypress running "add-new-comment" tests, including the new submit
+    button test'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'One more feature we can add is to make the `submit` button disabled until there''s
+    text in the text editor. To do this, we can bind `:disabled` to `!newComment`
+    on the `new comment submit` button. We''ll make the button look disabled using
+    reduced opacity. As an aside, one of the big reasons we added a two-way binding
+    between `newComment` and `textarea` is to enable UI validations like this one:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The relevant test will look at whether or not the `new-comment-submit` button
+    is disabled when the text editor content is empty using Cypress'' `should(''be.disabled'')`
+    and `should(''not.be.disabled'')` assertions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This yields the following output when run through Cypress UI and Chrome automation:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 13.12: Cypress running "add-new-comment" tests, including'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: the new comment submit button disabled test
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_12.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Figure 13.12: Cypress running "add-new-comment" tests, including the new comment
+    submit button disabled test'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We've now seen how to use Cypress to select, click, and input text. We've also
+    seen approaches to check element visibility, text content, input values, and disabled
+    states.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Anyone familiar with other automation frameworks will have noticed that in Cypress
+    tests, there are no explicit waits or retries. This is because Cypress waits and
+    retries assertions and selections automatically. Most of the tests we've written
+    don't showcase this in a major way, but the next exercise, where we bring asynchronicity
+    into the mix, will.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Exercise 13.03: Adding a Submitting State to the New Comment Editor'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In order to showcase Cypress's impressive automatic retry/wait capability, we
+    will look at adding and testing a `submitting` state for the new comment editor.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In effect, we'll be reacting to a click on the `submit` button and showing a
+    spinner for `2.5s` to simulate a reasonably slow HTTP request to a backend API.
+    This is an example that showcases Cypress' ability to automatically wait and retry
+    selections. This feature reduces the need for arbitrary waits and that flakiness
+    associated with them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To access the code files for this exercise, refer to [https://packt.live/2UzsYJU](https://packt.live/2UzsYJU):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to show the spinner, we add the `tailwindcss-spinner` package to the
+    project:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We will need to configure it in the Tailwind config file (`tailwind.js`). It
+    needs to be imported using `require(''tailwindcss-spinner'')`, added as a plugin,
+    and the relevant variables need to be set in `theme`. Our spinner will be `gray`
+    in color, use a Tailwind spacing of size `4`, and have a border width of `2px`
+    and a duration of `500ms`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we need to add an `isSubmitting` state to the Vue.js application in `data()`,
+    which will allow us to toggle the state for the `submit` button. We will initialize
+    it to `false` since we are not submitting anything until the user clicks the `submit`
+    button:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we will add a click handler for the `submit` button (as `methods.submitNewComment`).
+    It will simulate a `2.5s` load time using `setTimeout`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now that we''ve got a `fake submit` handler, we should bind it to click events
+    on the `new-comment-submit` button:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now comes the part where we need to react to the submit button. We''ll be showing
+    the spinner when `isSubmitting` is true. In order to do this, we simply need to
+    set the `spinner` class to be added when `isSubmitting` is true. In addition to
+    this, we''ll set the button to be disabled when `isSubmitting` is true:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, we can add a test to check that the loading spinner appears when the
+    `submit` button is clicked. To begin with, we''ll need to set up the text editor
+    so that when clicking the `add new comment` button and setting a text value for
+    the comment, the text editor is shown and enabled. Next, we can click the enabled
+    `new-comment-submit` button and check that it is disabled and has the `spinner`
+    class (using the `should()` function). After that, we should write another assertion
+    that the button is not disabled anymore and does not show the spinner:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Despite the `2.5s` during which the spinner shows, this test still passes due
+    to Cypress'' automatic retry/wait functionality:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 13.13: Cypress running "add-new-comment" tests, including the comment
+    submission loading state test'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_13.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Figure 13.13: Cypress running "add-new-comment" tests, including the comment
+    submission loading state test'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We've now seen how Cypress allows us to seamlessly work around asynchronicity
+    in the application by automatically waiting/retrying where an assertion or selection
+    would fail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Intercepting HTTP Requests
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As mentioned in previous sections, Cypress is designed as a JavaScript E2E testing
+    solution. This means that it comes with built-ins such as assertions, automatic
+    wait/retries, sane defaults for running the application, and extensive mocking
+    functionality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: HTTP requests can be slow and tend to introduce flaky behavior to tests. What's
+    meant by flaky is intermittent false negatives, that is, failures that are not
+    caused by an application issue but rather by connectivity issues (for example,
+    between the server running the tests and the backend hosts).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We would also be testing the implementation of the backend system. When using
+    **Continuous Integration** (**CI**), this would mean having to run the backend
+    systems in whichever CI pipeline step needs to run E2E tests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Usually, when the backend requests are intercepted and a mock response is sent,
+    we also say that the HTTP requests are **stubbed**, in order to avoid tests flaking
+    (meaning intermittent failures not linked to application changes).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Seeing that the requests do not go all the way through the stack (including
+    the backend API), this is technically not a full E2E test of the system anymore.
+    We can, however, consider it an E2E test of the frontend application since the
+    whole application is made up of separate exercises and is not implementation-specific.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to mock requests in Cypress, we'll need to use `cy.server()` and `cy.route()`.
+    The Cypress documentation also lets us know that in order to use the HTTP interception
+    functionality, we currently need a client that uses `XMLHttpRequest` (and not
+    the `fetch` API).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is work underway to support HTTP-level interception (which means `fetch`,
+    **XHR**, and more will be supported eventually).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll use the `unfetch` library, which implements the `fetch` interface on
+    top of `XMLHttpRequest`. We can install it using the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can then import it into `src/App.vue` as follows.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To showcase HTTP interception, we''ll fetch a list of comments from `JSONPlaceholder`
+    and store them under a `comments` reactive instance variable. We can use `fetch`
+    (the name under which we imported `unfetch`) to do this in the `mounted()` life
+    cycle event as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: A sample comment includes an ID, a body, and an email, among other properties.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That means we can render the comments by creating a `ul` container, which only
+    shows if there are comments (`comments.length > 0)`. Inside the `ul` container,
+    we can render a list of `li` elements with a card layout using `v-for`. Each card
+    will render the body of the comment and the author's email inside a `mailto:`
+    link.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note how we set `comments-list` and `comment-card` `data-test-ids` for the
+    list container and the list items respectively:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we were to test this without HTTP interception, we would have to keep the
+    assertions quite generic. For example, we can check that `comments-list` is visible
+    and that there is a number (greater than 0) of `comment-card` instances in a new
+    E2E test file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following test run using the Cypress GUI passes but the tests are quite
+    generic. We can''t make any assertions about the specific number of comments or
+    their content:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.14: Cypress running "load-comments" tests, including'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a generic load and display test
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_14.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 13.14: Cypress running "load-comments" tests, including a generic load
+    and display test'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To intercept the request, we have to initialize the Cypress mock server with
+    `cy.server()`. We can then intercept specific requests using `cy.route()`, which
+    yields the following new test. `cy.route`, when used with two parameters, takes
+    the URL followed by the stub response, in our case an array of comments. We''ll
+    use a fictitious email address in our stubs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once we''ve got our stub route set up, we can visit the page and wait for the
+    comment fetching to finish using `cy.wait(''@getComments'')`, since we''ve previously
+    set the alias of the comments fetch route to `getComments` with `.as(''getComments'')`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can then start asserting, first off, that `comments-list` is visible, and
+    then assert on the number of `comment-card` cards:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can also assert on the specific contents of the cards using the `.contains()` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can then run the suite with the Cypress GUI and see it passing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.15: Cypress running "load-comments" tests, including our stubbed
+    comments test'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_15.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 13.15: Cypress running "load-comments" tests, including our stubbed
+    comments test'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We've now seen how and why we might stub HTTP requests using Cypress.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Exercise 13.04: POST Comment to API on Submission'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The `new comment` submit button currently only sets a loading state for a few
+    seconds and then resets – the comment is not actually being sent anywhere.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's use the `JSONPlaceholder` API as the place to send our new comment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When the POST request to the API succeeds, we'll add the comment to the top
+    of the comments list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To access the code files for this exercise, refer to [https://packt.live/2IIWY3g](https://packt.live/2IIWY3g).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To complete the exercise, we will perform the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Start by making the `submitNewComment` method actually post data to `c` using
+    `fetch` (which is actually `unfetch`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Unfortunately, the `fetch()` call by itself doesn''t update the data or come
+    out of the loading state. In order to do so, we need to chain some `.then()` function
+    calls to handle the response, and a `.catch` function call in case we have an
+    error. On success (`.then`), we should get the JSON output of the request and
+    add it to the front of a copy of the `comments` array. We should also reset `isSubmitting`,
+    `newComment`, and `showEditor`. On error (`.catch`), we will just reset the loading
+    state, `isSubmitting`, to false; we won''t clear the editor or close it since
+    the user might want to try to submit it again:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We should now add new tests to the `tests/e2e/specs/add-new-comment.js` test
+    suite.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'First of all, to be good users of `JSONPlaceholder`, we''ll stub out all the
+    `GET` requests to `/comments` for the `add-new-comment` suite. In order to achieve
+    this, we''ll use a `beforeEach` hook that will start the Cypress stub server (`cy.server()`)
+    and stub out `GET` requests to any URL matching the `**/comments` glob with the
+    `[]` response (`cy.route(''GET'', ''**/comments'', [])`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We can then proceed to update the `the new comment editor should show a spinner
+    on submit` test since we''re not using a `setTimeout` anymore but an HTTP request.
+    To start with, we need to stub out the `/comments` POST request, for which we''ll
+    use the configuration object syntax for `cy.route` in order to introduce some
+    delay in the HTTP request so that it doesn''t respond immediately. We alias this
+    request with `.as(''newComment'')`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Instead of `// eventually, the spinner should stop showing`, we can now use
+    `cy.wait()` to wait for the `newComment` HTTP request to complete before the check
+    that the spinner is gone:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We''ve added new functionality to close the editor when the `submit` operation
+    completes successfully, so we should add the relevant test. We''ll use a similar
+    skeleton to the updated `loading state` test with the setup of the POST comments
+    route stubbing `cy.route(''POST'', ''**/comments'', {}`, aliased as `.as(''newComment'')`.
+    We can then get the new comment editor to display, add some text, and submit the
+    form. We''ll then proceed to wait for the `POST` request to complete before checking
+    that the editor and submit button are not visible anymore:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This test can now be run with the Cypress GUI and will pass:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 13.16: Cypress running "add-new-comment" tests, including'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: the editor closing on submission test
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_16.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Figure 13.16: Cypress running "add-new-comment" tests, including the editor
+    closing on submission test'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The second bit of functionality that we''ve added is that on completion of
+    the HTTP request the new case is added to the front of the comments list. To test
+    this, it''s better to change the response of the comments'' `GET` request to have
+    at least one element (so that we can check that the new comment is added to the
+    top of the list):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We can then stub the `POST` request with some mock data, add text to the editor,
+    and submit the form:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, we can assert on the fact that the first comment is the newly added
+    comment using a combination of `cy.get()`, `.first()`, and `.contains()`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'When running the `add-new-comment` suite with the Cypress GUI, we can see the
+    new test passing:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 13.17: Cypress running "add-new-comment" tests, including'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: the new comment added to the top of the list test
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_17.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Figure 13.17: Cypress running "add-new-comment" tests, including the new comment
+    added to the top of the list test'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We've now seen how to use Cypress to intercept HTTP requests, so in the next
+    section, we'll look at some of the reporting tools Cypress provides around visual
+    regression (snapshot) testing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Visual Regression Testing with Cypress Snapshots
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The types of tests we've written with Cypress up to now have been functional
+    tests, for the most part.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Functional tests check that the application *behaves* as expected. Visual tests
+    check that the application *looks* as expected.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are ways to inspect the rendered CSS, but that approach tends to be quite
+    tedious and prone to breakage when the markup or styling is refactored (that is,
+    the same visual output but with different rules or markup).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Fortunately, Cypress, with the `cypress-plugin-snapshots` plugin, allows us
+    to take and compare snapshots of an application. First, it needs to be installed
+    using the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: The plugin adds the `.toMatchImageSnapshot` method on Cypress selections. For
+    it to work, we need to register it in the plugin's initialization file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We should import `cypress-plugin-snapshots/plugin` and run its export `initPlugin`
+    with the plugin initialization data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We also need to register the relevant command from `cypress-plugin-snapshots/commands`,
+    which can be done in the `commands.js` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We''ll also need to add some config for `cypress-plugin-snapshots` to `cypress.json`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: Finally, we can add a snapshot test in the `test.js` file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we''ll clean up the file and stub out the `/comments` API call (this
+    will be particularly useful for the snapshot test):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we can add the visual regression test. We''ll get the editor open to
+    maximize the single snapshot test, get the whole `app` using `#app`, and snapshot
+    that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When running the tests with the Cypress UI, we see the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.18: Cypress running tests, including the visual regression test'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_18.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 13.18: Cypress running tests, including the visual regression test'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can show the snapshots failing by changing the button color to red (from
+    `bg-blue-500` to `bg-red-500`) in the `App.vue` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When we run the relevant set of tests, they''re now failing (because, as we
+    can see, the button is red instead of blue):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.19: Cypress running tests, with a failing visual regression test'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_19.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 13.19: Cypress running tests, with a failing visual regression test'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By clicking on `COMPARE SNAPSHOT`, we get a visual diff view, which allows
+    us to update the snapshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.20: Cypress'' failing visual regression test diff view'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_20.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 13.20: Cypress'' failing visual regression test diff view'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We've now seen how Cypress can be used to do visual regression testing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll now look at adding a new feature and all the relevant tests for it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Activity 13.01: Adding the Ability to Set a User''s Email and Tests'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'You''ll remember that we''ve hardcoded `evan@vuejs.org` as the email for any
+    comments. What we''ll do in this activity is add an email input that will set
+    the `email` property on comments. We''ll add the relevant tests in a new `tests/e2e/specs/enter-email.js`
+    suite:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to keep track of the email, we'll set it as a piece of reactive state
+    in `data()` and add an email type input to the page, which will be two-way bound
+    to `email` using `v-model`. We also add a label and corresponding markup. Note that
+    we'll have a `data-test-id` attribute on the email input set to `email-input`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We'll now add a `beforeEach` hook to set up the Cypress mock server and stub
+    out the `GET` comments (list) request. The comments list request should be aliased
+    as `getComments`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We'll add our first test that checks whether typing into the email input works
+    correctly. We'll go to the app, type an email, and check that what we typed is
+    now the input value.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'When run using the Cypress UI, we should get the following passing test:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 13.21: Cypress running "enter-email" tests, with the email input test'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_21.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Figure 13.21: Cypress running "enter-email" tests, with the email input test'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Having the `email` property is a pre-requisite to adding comments, so we'll
+    disable the `Add a New Comment` button while `email` is empty (`!email`). We'll
+    bind to the `disabled` attribute and toggle some classes based on whether or not
+    the `email` field is populated.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: With this new `disable add new comment button while email is empty` functionality,
+    we should add a new E2E test. We'll load up the page and on initial load, we'll
+    check that the email input is empty and that the `Add a New Comment` button is
+    disabled. We'll then type an email into the email input field and check that the
+    `Add a New Comment` button is now *not* disabled, which means it is enabled.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'When run using the Cypress UI, we should see the new test passing with the
+    following output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 13.22: Cypress running "enter-email" tests, with the disabled'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: add comment button test
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_22.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Figure 13.22: Cypress running "enter-email" tests, with the disabled add comment
+    button test'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Now that we've got a way to capture the email, we should pass it to the backend
+    API when making the POST comments call (that is, when submitting a new comment).
+    In order to do this, we should modify the spot in `methods.submitNewComment` where
+    `email` is hardcoded as `evan@vuejs.org`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now that we're using the email that's been input by the user, we should write
+    an E2E test to check that it's being sent. We'll stub out the POST request, alias
+    it to `newComment`, and send back an arbitrary value. We can then visit the page,
+    fill out the email input, open the comment editor, fill that out, and submit it.
+    We'll then wait on the `newComment` request and assert on the request body that
+    the body and email are as they were when we completed them.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Note
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We could also opt to not stub out the `POST` request and instead check that
+    the new comment card inserted on the page contains the right email and body.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'When run using the Cypress UI, we get the following test run output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 13.23: Cypress running "enter-email" tests, with the email input test'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/B15218_13_23.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Figure 13.23: Cypress running "enter-email" tests, with the email input test'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The solution for this activity can be found via [this link](B15218_Solution_Final_SZ_ePub.xhtml#_idTextAnchor408).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Throughout this chapter, we've looked at leveraging Cypress to test Vue.js applications
+    from end to end.
+  prefs: []
+  type: TYPE_NORMAL
+- en: E2E tests in general are useful to give us a high level of confidence that tested
+    flows will work as expected, as opposed to unit or integration tests, which validate
+    that our code works as expected at a much lower overhead.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We've seen how to use Cypress to inspect, interact with, and assert against
+    a UI. We've also shown how Cypress' default wait/retry functionality is a great
+    advantage while writing robust tests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We leveraged Cypress' HTTP interception library to stub out HTTP requests and
+    make tests more predictable and faster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we looked at how to set up visual regression testing with Cypress.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we'll look at how to deploy a Vue.js application to the
+    web.
+  prefs: []
+  type: TYPE_NORMAL

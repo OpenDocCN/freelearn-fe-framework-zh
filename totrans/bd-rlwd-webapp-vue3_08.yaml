@@ -1,0 +1,1141 @@
+- en: '8'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Building an Interactive Quiz App
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We’ll be stepping up the complexity in this chapter by creating a quiz app that
+    has an admin panel and a real-time connection among multiple clients through the
+    use of WebSockets. WebSockets differ from our usual endpoints by keeping the connection
+    open, allowing for continuous updates to be sent from a central socket server
+    to one or more clients. Using these features, we’ll build a small-scale Kahoot
+    clone.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the admin panel, we’ll use Nuxt ([https://nuxt.com/](https://nuxt.com/)).
+    Nuxt is a framework that was built as an extension of the Vue philosophy but extended
+    with server capabilities. Save for the Electron app in [*Chapter 7*](B19563_07.xhtml#_idTextAnchor204),
+    all of our code can run in the browser of the client. Nuxt allows Vue code to
+    be executed on a server. On top of that, it has a lot of extra capabilities that
+    drastically improve the **developer experience** (**DX**). We’ll encounter these
+    capabilities as we progress through this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we’ll cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Familiarizing yourself with Nuxt and server-side rendering
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding the difference between the REST API and WebSockets
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Client experience and server roles in complex application architecture
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Structuring application logic
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using Node.js scripts in development environments
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We’re going to build three different applications that need to communicate with
+    each other to form an interactive quiz.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: At the heart of our setup lies the **Server Quiz App** (**SQA**), which is scaffolded
+    around Nuxt ([https://nuxt.com/](https://nuxt.com/)), Pinia for state management
+    ([https://pinia.vuejs.org/](https://pinia.vuejs.org/)), Supabase for managing
+    quiz data ([https://supabase.com/](https://supabase.com/)), and Vuetify ([https://vuetifyjs.com/](https://vuetifyjs.com/))
+    for rendering a management interface.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We’ll build a standalone `socket.io` server ([https://socket.io/](https://socket.io/))
+    to maintain a real-time connection between clients.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Lastly, our **Client Quiz App** (**CQA**) will use Vuetify to render the quiz
+    elements ([https://vuetifyjs.com/](https://vuetifyjs.com/)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can find the code complete code for this chapter here: [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/tree/main/08.quiz](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/tree/main/08.quiz).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Entities in the quiz app setup
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'To give you an idea of how our elements will work together, let’s quickly take
+    a look at the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.1 – Overview of the entities in the quiz app setup](img/B19563_08_01.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.1 – Overview of the entities in the quiz app setup
+  prefs: []
+  type: TYPE_NORMAL
+- en: The big change concerning our previous projects is that our client (CQA) is
+    not directly communicating with the Supabase database anymore. Instead, it connects
+    via the SQS, where it retrieves questions and scores and sends its answers back
+    to the SQS. The SQS, in turn, communicates with the SQA to retrieve relevant quiz
+    information and centralizes the session of a current active quiz between its clients
+    (CQAs).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The SQA is used to manage the contents of quizzes and interact with the database.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A word beforehand
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since the setup is fairly complex, this chapter will not focus on, and instead
+    leave out, security measures. It is good to realize the limitations of the project
+    and don’t treat this as production-ready code. Where possible, we’ll mention implications
+    or possible solutions briefly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s dive in by setting up the database.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up the database
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As with previous chapters, we’ll start this chapter by setting up our database.
+    We’ll create another project called `quiz`, set a strong database password, and
+    select a geographically close region.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remember to note the **Project URL** and **API** **Key** values!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The intent of this chapter is not to focus on database management and the following
+    settings should not be considered a best practice for a production app!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Follow these steps to set up the database:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Go to `quiz`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Uncheck **Enable Row Level Security (RLS)** and confirm the dialog after reading
+    its warning.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In the **Columns** section, change the type of the **id** field to **uuid**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: That’s enough for this table, so click **Save**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We will only use this table as a grouping mechanism for questions, so we’re
+    keeping it as simple as possible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, return to `questions`.*   Again, uncheck `quiz` table and check that the
+    **id** column is automatically entered.*   Click **Save** to close the foreign
+    key property.*   Create a column called **question** and set its type to **text**.*   Create
+    four columns called **answer_1** through **answer_4** with their type set to **text**.*   Create
+    a column called **correct** with its type set to **int2**.*   Click **Save** to
+    create the table.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We’re not going to import any preset data since we’ll use our SQA to handle
+    insertions for us! Let’s get started by building our first application in this
+    project.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The SQA
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'To organize all our applications, we’ll create subfolders for every project
+    in our chapters’ root folder. Since this app will run on Nuxt, we can use the
+    `Nuxi` CLI to install our project for us. From the root of our project, we’ll
+    run the following command in the command line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We’ll simply pick `npm` as our package manager. Once the installation is done,
+    navigate to the `server` folder and run `npm run dev` to start the application.
+    By default, it will run on port `3000`. Upon opening the URL in your browser,
+    you should see something like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.2 – The welcome screen of a fresh Nuxt installation](img/B19563_08_02.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.2 – The welcome screen of a fresh Nuxt installation
+  prefs: []
+  type: TYPE_NORMAL
+- en: While this may not look like much, please inspect the source of this page. Instead
+    of rendering a virtual DOM to a `<div id="app" />` element, Nuxt runs as a Node.js
+    process, which (among other things) means that it supports server-side rendering
+    of Vue components! This can be very beneficial since you don’t have to rely on
+    JavaScript being executed in the browser, which positively impacts search engine
+    optimization, crawling support, rendering performance, and browser memory usage.
+    For more information, please visit the Nuxt official docs ([https://vuejs.org/guide/scaling-up/ssr.html#server-side-rendering-ssr](https://vuejs.org/guide/scaling-up/ssr.html#server-side-rendering-ssr)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: With our foundation in place, let’s add some extra capabilities using the Nuxt
+    module system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Modules and auto-imports
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We’ll start by adding Vuetify to our project. Nuxt has a solid community that
+    contributes to certain modules for everyone to use. In our case, we’ll use the
+    *Nuxt Vuetify Module* ([https://nuxt.com/modules/nuxt-vuetify](https://nuxt.com/modules/nuxt-vuetify)).
+    In our `server` folder, run the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Nuxt modules can be registered and configured via the `nuxt.config.ts` file
+    by changing its contents, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the `modules` property, we register the module we want to use, and, optionally,
+    on the (in this case) `vuetify` property, we configure how the module should behave.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That’s all we need! We can now use the Vuetify templates in our application.
+    Nuxt supports a concept called auto-importing, which means that for commonly used
+    scripts, we don’t need to explicitly write the import statement in our script
+    block. Nuxt can figure out the required file at runtime! As you will see when
+    we start to write our code, this will make our files very clean and readable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: File-based routing
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Similar to the automated imports, Nuxt uses our familiar `vue-router` by default,
+    and it’s configured to create routes for you, based on a certain file structure
+    ([https://nuxt.com/docs/getting-started/routing#routing](https://nuxt.com/docs/getting-started/routing#routing)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’ll start with a default layout by creating a `default.vue` file in the `layouts`
+    folder: [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.1-default.vue](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.1-default.vue).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As you can see, we’re depending on Vuetify components to create a simple layout
+    for us. You can already identify a couple of routes. We’ll create them in the
+    next section. For now, we can use the default layout in our app by updating the
+    `app.vue` file in the SQA root folder with the following contents:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As you can see in the menu, we need a couple of routes: a home route, a route
+    to manage quizzes, and a route where we can share a quiz.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’ll start with the home route by creating a `pages` folder in the root of
+    the SQA folder and adding an `index.vue` file with the following contents:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, if we flip back to the `app.vue` file and replace the `<NuxtWelcome />`
+    component with the `<NuxtPage />` component (notice that we don’t need to import
+    these components in our script block to use them?) while the development server
+    is active, our home route now opens the contents of `./pages/index.vue` in our
+    app!
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, what’s happening here? The `NuxtPage` component has some logic built in
+    that can read the `pages` folder and dynamically create routes on the vue router
+    instance that’s initialized as a default part of Nuxt. Neat!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, if we want to route to a certain path, we can simply create a new folder
+    in the `./pages` folder with a name that matches the route. In our case, we’ll
+    create a `quiz` subfolder and add another `index.vue` file in that folder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technically, you could also opt to create a file called `quiz.vue` in the `./pages`
+    folder. However, since we will add multiple routes that are part of the `quiz`
+    domain, it’s a better practice to group them in their dedicated folder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’ll begin with a basic file as part of `./pages/quiz/index.vue`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, when navigating to `http://localhost:3000/quiz` in your browser (or using
+    the **Manage Quizzes** button in the navigation drawer), you should see the following
+    page:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.3 – File-based routing in action](img/B19563_08_03.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.3 – File-based routing in action
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our static page doesn’t help us that much, so we’ll focus on establishing the
+    connection and data from our database in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reintroducing two familiar friends
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As we did in *Chapters 6* and *7*, we’ll depend on the Supabase JS client and
+    Pinia. Let’s see how that works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we’ll install the Supabase JS Client ([https://www.npmjs.com/package/@supabase/supabase-js](https://www.npmjs.com/package/@supabase/supabase-js))
+    with the `npm` command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We’ll also create a `./composables` folder with a `supabase.ts` file that has
+    the following contents:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Nuxt is set up to scan the `./composables` folder and extract the exports so
+    that it supports auto imports for composables as well! There’s one caveat: it
+    only scans one level and excludes nested folders.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As you can see, we need to set up a `.env` file in the root of our SQA folder
+    with the URL and API key that we received when we created our database. The `.env`
+    file has the same setup as in *Chapters 6* and *7*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'With our client in place, we can add Pinia – this time, as a Nuxt module. Run
+    the following command in the terminal to install the packages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: If you run into an `ERESOLVE` error during installation, please look at the
+    tip provided in the installation guide ([https://pinia.vuejs.org/ssr/nuxt.html#Installation](https://pinia.vuejs.org/ssr/nuxt.html#Installation)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’ll add the module to the `modules` array on the `nuxt.config.ts` property:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For an even better coding experience, we can define the auto imports for Pinia
+    functions as well by adding the following property to the Nuxt config:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `nuxt.config.ts` file will look like this: [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.2-nuxt.config.ts](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.2-nuxt.config.ts).
+    With Supabase and Pinia now in place, we can create our quiz store!'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For our stores, we’ll create the `./stores` folder with a `quiz.ts` file that
+    has the following contents: [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.3-quiz.ts](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.3-quiz.ts).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you compare this store to, for instance, the *User Store* from [*Chapter
+    6*](B19563_06.xhtml#_idTextAnchor162), you’ll notice that a lot of imports are
+    missing. That’s because they’re being handled by Nuxt! Let’s quickly summarize
+    the functionalities of the *Quiz Store* since we’re not going to go in depth.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our store exposes a list of all quizzes (*line 7*) and the method for retrieving
+    that data from Supabase (*lines 11–30*). Our store also exposes the properties
+    of a single quiz (*line 8*) and the accompanying method of retrieving quiz data
+    from the database (*lines 62–82*). For both the quiz and answers to the quiz,
+    we expose methods to upsert data and remove data. That’s the basic management
+    we need to continue with.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’ll revisit our `./pages/quiz/index.vue` file to add management at the quiz
+    level: [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.4-index.vue](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.4-index.vue).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When you run the development server, you should be able to add a couple of
+    new quizzes and have them show up in this overview, as shown in the following
+    screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: "![Figure 8.4 – Our application connected to the database via a Pin\uFEFFia\
+    \ store](img/B19563_08_04.jpg)"
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.4 – Our application connected to the database via a Pinia store
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can now build a similar overview of quizzes for the `/share` route with
+    ease by creating a `./share` subfolder in the `./pages` folder, creating an `index.vue`
+    file, and pasting the following contents in that file: [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.5-index.vue](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.5-index.vue).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We’re getting there! If you noticed the `<nuxt-link />` component in both pages
+    we created, you may have noticed its similarities to `<router-link />`. The `<nuxt-link
+    />` component is a wrapper for it but also helps Nuxt in determining a map of
+    all possible routes. Together with file-based routing, these occurrences and configuration
+    of the `<nuxt-link />` components help in determining the configuration of the
+    `vue-router` implementation. You may have also noticed that both components link
+    to a dynamic route as a child of `/quiz` and `/share`, respectively. Let’s fix
+    those!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dynamic file-based routes
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We’ll start with the `./share` route. As you can see by the markup of the link
+    component, we’re targeting a route with a parameter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Normally, we’d configure our Vue router configuration with something like the
+    following example entry:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using Nuxt, passing a parameter is as simple as marking it in the filename.
+    Next to the `index.vue` file, we’ll create a file called `[quiz_id].vue`. This
+    is the equivalent result of defining the parameter in a route file. It tells Nuxt
+    to instruct the router to create a route with a parameter of `quiz_id`. In the
+    file, we can read the parameter by utilizing the `useRoute` composable and accessing
+    the `params.quiz_id` property!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the `[quiz_id].vue` file, we’ll add the following contents: [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.6-%5Bquiz_id%5D.vue](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.6-%5Bquiz_id%5D.vue).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The page itself is nothing fancy: it just generates an anchor link element
+    that points to a URL that we will need to build an app for in the final section
+    of this chapter!'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To complete the management interface, we’ll create a page for editing questions
+    in a certain quiz. First, as a requirement, we’ll create a `./components` folder
+    with a `FormQuestion.vue` file that has the following contents: [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.7-FormQuestion.vue](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.7-FormQuestion.vue).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the file, we’re directly mapping a form to the columns in our database. It’s
+    pretty straightforward to set up, although I’d like to point out the repeating
+    setup for the answers (*lines 33–48*) where we use a `v-for` directive to generate
+    the four answer fields and map each field’s `v-model` using dynamic object keys
+    (*line 36*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we’ll create a dynamic route as a descendant of the `quiz` route by creating
+    a `[quiz_id].vue` file in the `./pages/quiz` folder: [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.8-%5Bquiz_id%5D.vue](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.8-%5Bquiz_id%5D.vue).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: With these pages finished, you should be able to create one or two small quizzes
+    with multiple-choice questions. Before we continue, we need to have at least one,
+    but preferably more quizzes in the database, with a couple of multiple-choice
+    questions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why don’t you try and create a quiz about the Vue ecosystem?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up the SQS
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Our next order of business is setting up the server that handles the requests
+    from one or more clients. This will be a small standalone application and it will
+    get its data from our Nuxt server since that already has a connection with the
+    database instance. Creating an endpoint in Nuxt is something we haven’t built
+    yet because our Nuxt application is only capable of presenting a management app!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Nuxt API routes
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As I mentioned previously, the Nuxt app runs as a Node process. When we request
+    pages, it acts as a web server that interprets the Vue components and routes to
+    return an HTML response. In addition to that, it can also act as a server at the
+    same time! Nuxt uses the Nitro server engine ([https://nuxt.com/docs/guide/directory-structure/server](https://nuxt.com/docs/guide/directory-structure/server))
+    to process requests on scripts in the `./server` folder. It also supports file-based
+    routing and parameters, similar to the `./``pages` folder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To server our quizzes as part of a RESTful API, we’ll create the `./server/api/quiz`
+    structure in our Nuxt project. In the `quiz` folder, we’ll create an `index.ts`
+    file. This will be available on `/api/quiz` requests to the Nuxt URL:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Nothing special is going on here. We’ve added `console.log` with a 📦 emoji,
+    which will help us analyze the application flow once it’s been created. If your
+    development server is running (a restart might be required when adding new files),
+    you should be able to request the quiz information via this URL: [http://localhost:3000/api/quiz](http://localhost:3000/api/quiz)`.`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we’ve set up our endpoint correctly, we should see something like this in
+    the browser. This is the contents of our quiz table in JSON format:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.5 – Example of the quiz API server from Nuxt](img/B19563_08_05.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.5 – Example of the quiz API server from Nuxt
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’ll add another entry point using the parameterized file notation. We’ll
+    create a `[id].ts` file next to the `index.ts` file: [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.9-%5Bid%5D.ts](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.9-%5Bid%5D.ts).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’re using this endpoint to quickly retrieve all questions and answers and
+    the correct answer to be used in our setup. Now that we’re able to retrieve quizzes
+    and their details, we can finally build the next part of our setup: the SQS.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up a basic Node project
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In this section, we won’t be using any Vue-related software. This part will
+    depend mainly on Express ([https://expressjs.com/](https://expressjs.com/)) and
+    Socket.io ([https://socket.io/](https://socket.io/)). This means we can’t rely
+    on helpful CLI tools to create our project for us. Luckily, it’s not hard. Navigating
+    back to the root of our project, we’ll create a new folder called `./sockets`.
+    Via the CLI, we’ll run the `npm init` command to define our project, where we’ll
+    simply accept all the defaults. Once done, we’ll install Express and Socket.io
+    and some TypeScript tooling packages via the CLI:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We’ll also create a `tsconfig.json` file in the `./sockets` folder that contains
+    the following configuration:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For the game mechanics, I’ve provided a `Quiz` class that we can implement
+    without going into any details. Create a `quiz.ts` file with the following contents:
+    [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.10-quiz.ts](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.10-quiz.ts).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we can work on the socket connection. We’ll create an `index.ts` file
+    in the `./sockets` folder with the following contents:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This code scaffolds a blank server. As you can see, we’ve imported the `Quiz`
+    class and used it to instantiate a game on the server. `clientAppUrl` is important:
+    when using sockets, the **Cross-Origin Resource Sharing** (**CORS**; [https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS))
+    policy will block incoming traffic coming from localhost, unless its origins are
+    provided to the server.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We do have another problem now, though: the `Quiz` class expects data that
+    comes from our Nuxt server, remember? We need to have the Nuxt server running
+    in tandem with the SQS. We can do this manually, in separate terminal windows,
+    but we can also script the boot process for more convenience. After all, once
+    our work on the SQS is done, we need to be able to run another app to act as a
+    client!'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Executing scripts in parallel
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In this section, we’ll focus on the root folder of our project, from where
+    we’ll trigger the scripts in sub-folders. We’ll navigate to the root with the
+    terminal and set up another Node project using `npm init`, accepting the defaults.
+    Once we’re done, we’ll install some helper packages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We’ll also create a file called `open.mjs` with the following contents:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In this file, we’re using the `open` package to automatically open a browser
+    window. To make the status more recognizable in the console, we use `chalk` to
+    add color to certain parts of the logs. Now, when we open `package.json`, we can
+    change the `scripts` property so that it matches the following sample:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'So, what’s happening here? The `npm-run-all` command triggers multiple commands
+    in parallel mode – in our case, all scripts that are prefixed with `dev`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `dev:sockets` script uses `nodemon` to run and watch for file changes in
+    our socket project folder
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `dev:server` script opens the Nuxt server from its folder
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `dev:open` script executes the `open.mjs` script, which, in turn, opens
+    a browser window on the predefined URL for the SQA
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If you don’t want the SQA to open every time you start the script, you could
+    remove the `dev:open` script or remove the entry from the `urls` constant in the
+    `open.mjs` file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At least we can now control the execution of multiple scripts with a single
+    command. If we run `npm run dev` from the root of the project, it will automatically
+    start the Nuxt server as well as the SQS!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s take a step back and explain why a regular endpoint is not sufficient,
+    as well as why we’re building a complete socket server as a layer between the
+    server and the client(s).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why sockets?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We’re using a socket server to act as the host of our quiz app. Sockets have
+    the advantage over RESTful connections in that data transmission is bidirectional
+    by default and a socket connection is stateful and persistent. This makes sockets
+    ideal for applications that depend on instant updates, such as chat applications
+    or, as in our case, online games (especially those that support collaboration
+    or competition).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We’re starting a socket server where clients can connect to. A handshake takes
+    place between the server and client on connecting, which establishes the agreements
+    and protocol between the two. This handshake allows the server to identify the
+    client, which is useful when we’re dealing with multiple clients but want to target
+    individuals.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once the connection has been established, both the client and server can send
+    events with context. The server can broadcast to all clients or an individual.
+    The clients only send events to the server. Depending on the event and the context,
+    we can process the event.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using Sockets.io, we can broadcast events using `io.emit('event', context)`
+    and listen to events using `io.on('event')`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In our application, we’re going to see both methods in action on both the server
+    and the client: the server handles the information being sent to clients and receives
+    answers given by a client – we’ll even use it to control the navigational state
+    of the client app! From the client’s side, we’ll listen to the sent events and
+    use the sockets to send answers to our quiz’s answers.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Completing the SQS
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We can finalize the SQS by replacing the contents of the `./index.ts` file
+    in the `./sockets` folder with the following: [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.11-index.ts](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.11-index.ts).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’ve added the mechanics for communication now. The socket server gets initialized
+    on *lines 27–76*. In the socket connection event, we have defined all the events
+    the server needs to listen to:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When a player has joined (*line 17*), the server signals other players with
+    the current status (*lines 32,* *130 –133*)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: When a player is ready to start playing (*lines 37–41*), a player is added to
+    the current game (*line 38*), and the other players are notified
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If a player answers a question during a game (*lines 43–50*), the answer is
+    processed and, if needed, the player’s score is updated
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: When a player selects a quiz (*lines 55–60*), the server queries the Nuxt server
+    for the questions and updates it to the current game (*line 59*)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: When the quiz is started (*lines 62–66*), the current question is set to the
+    first of the collection and the question is sent to the player (*lines 65,* *82–88*)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We have some options to send players to certain views:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: There’s a method to send a question to the players (*lines 82–88*)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In between every third question, we can show the current score (*lines 114–118*)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Once the quiz has ended, we direct players to the final score (*lines 120–125*)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: As part of the game mechanics, answering the questions is time-based. The timer
+    runs internally as part of the game, but we emit events once a timer has started
+    (*lines 138–145*) or when it has ended (*lines 147–150*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: With all of this, we have the basic needs for an interactive quiz. It’s not
+    very robust, mind you, but it functions well enough to get our point across.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the final section, we’re going to create an app to complete this whole quiz
+    application platform!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating the CQA
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'To wrap it all up, we’re going to create the client app as a Vuetify project
+    in our projects’ root folder. Let’s navigate to the root folder by using the terminal
+    and typing `npm create vuetify` to begin the installation. We’ll use the following
+    settings:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`app` as the project’s name'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For the preset, we’ll choose the default of `Base (``Vuetify, VueRouter)`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We’ll select TypeScript
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To install dependencies, we’ll select `npm`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Once the installation completes, we can open the folder in our IDE to start
+    editing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, we’ll make some changes to the `vite.config.ts` file, which helps our
+    app to work in our multi-app environment. We’ll add a new property called `clearScreen`
+    with a value of `false`. This will prevent the process from clearing the logs
+    (which will also contain our servers’ logs). We can simply add it at the bottom
+    of the file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we’ll locate the `server` and `port` properties and change `port` to
+    the new value – that is, `5173` (this corresponds to the CORS setting of our socket
+    server). This prevents the Vuetify application from trying to occupy the same
+    port as our Nuxt application! The bottom of the `vite.config.ts` file should resemble
+    the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Before we continue working on the app, we will add our client app to our main
+    development script. Let’s open the `package.json` file from our project’s root
+    and add a script to run our Vuetify development script:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Regarding the `open.mjs` file, we will add a URL that will automatically open
+    the browser as well. We’ll give it a timeout of `5000` milliseconds because it
+    needs to wait for Nuxt and the socket server to have been initialized:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, we can boot the app from the projects’ root by using the `npm run dev:client`
+    command. We can also start up all of our scripts at once using the `npm run dev`
+    command from the root of the project. This is very handy when working on features
+    of the app since the app by itself is very reliant on the other entities running.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up the app
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We’ll begin by setting up the routes and views for our app. We’ll move back
+    to our app folder to make some changes to the `./src/router/index.ts` file: [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.12-index.ts](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.12-index.ts).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, for all those routes, we’ll add a separate view Vue component in the `./src/views`
+    folder. We’ll use the following template as a basis (replace the title in the
+    template with a corresponding one for that view):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the end, you’ll end up with the following views:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.6 – Newly created views to match our routes](img/B19563_08_06.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.6 – Newly created views to match our routes
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’ll also simplify the layout by replacing the contents of `./src/layouts/default.vue`
+    with the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can delete the `AppBar.vue` and `View.vue` files from the folder as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next step, we’ll work on adding a connection to our server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adding the socket client
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'At this point, it’s time to add the socket client to our app project. In the
+    `./app` root folder, install the package by typing the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To use Socket.io in our app, we’ll create a file called `sockets.ts` in the
+    `./src` folder with the following contents: [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.13-sockets.ts](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.13-sockets.ts).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This file will handle the connection from the socket server and export the connection
+    as a constant (*line 6*). In this file, we’ll also store and expose the data we’re
+    receiving in a single object (*lines 18–29*). Since the object has multiple levels,
+    we’ll use `reactive` over `ref` because of its deep reactive model ([https://vuejs.org/api/reactivity-core.html#reactive](https://vuejs.org/api/reactivity-core.html#reactive)).
+    This `state` will propagate any changes it receives wherever it’s being used in
+    our app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Listening to socket events
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now, let’s create a feature where we can start to open a quiz. We expect users
+    to enter the app via a link that contains the ID of a quiz. For that, we’ll update
+    the `./src/views/Start.vue` file and completely replace its contents with the
+    following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, we don’t even need any template here! The component grabs the
+    `id` value from the router parameters. The code uses the socket to emit the `quiz:select`
+    event and then redirects the user to the `/``lobby` route.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Automated route changes
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Before we continue to the lobby, we’ll modify the `./src/App.vue` file too
+    so that it listens to specific state changes in the quiz and redirects to certain
+    routes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we’re importing `quizStatus` and watching for changes. Once an updated
+    value matches one of our routes, we’ll programmatically update the router with
+    the corresponding view. Now, let’s enter the lobby!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Player management in the lobby
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In the lobby, we want to be able to add ourselves as a player, but we also
+    want to see an overview of all currently connected players. To add a player, we’ll
+    create a new component in the `./src/components` folder called `PlayerAdd.vue`:
+    [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.14-PlayerAdd.vue](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.14-PlayerAdd.vue).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this case, we will use the socket connection to emit events (*lines 9–11,
+    25 –27*) but we also read from the state to, for instance, only allow a player
+    to connect once.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our next component in the folder, called `PlayersOverview.vue`, will complement
+    the lobby: [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.15-PlayersOverview.vue](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.15-PlayersOverview.vue).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This component only reads from the state and presents the overview in a nicely
+    formatted way, with means for a user to identify themselves in the lobby view.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can now add these two components to the `./src/views/Lobby.vue` file to
+    complete this feature:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is our first opportunity to see our sockets in action! So, let’s have
+    a look. Once we’ve run the development script, all three of our applications will
+    run in parallel. To enter the lobby, we need to access the CQA via the local development
+    URL and provide an ID as a parameter to the `/start` route. Remember our admin
+    panel? It has a section called `/start/{QUIZ_ID}` route, to the lobby:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.7 – A player has been added to the lobby](img/B19563_08_07.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.7 – A player has been added to the lobby
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, without closing the existing browser window on the lobby, flip back to
+    the admin panel and open the same link in a new browser window. You should, again,
+    be redirected to the lobby. But in this case, you will enter as a new player.
+    You should see the player we added previously in the overview, ready to play!
+    If you add a new player name, the new player will be added to both browser windows
+    in real time via the socket server!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Have a look at the console of our terminal. You will see messages indicating
+    that the state of the players has changed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.8 – The console indicates the state of the players from the socket
+    server](img/B19563_08_08.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.8 – The console indicates the state of the players from the socket
+    server
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since we’ve already connected our views and routes, we can trigger the start
+    of a quiz. If one of the players hits **Start**, the quiz will automatically iterate
+    over all of the questions and eventually end up at the **Final Score** view. Feel
+    free to try it out. You will notice that the quiz gets processed by both browser
+    windows at the same time!
+  prefs: []
+  type: TYPE_NORMAL
+- en: We need some answers
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Alright – it’s time to build on the core of our app: the answering mechanism.
+    For this and upcoming sections, I recommend preparing a quiz that has four questions.
+    That way, we can test all of the mechanics for a reasonable duration.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’re going to create a new component in the `./components` folder called `QuestionForm.vue`:
+    [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.16-QuestionForm.vue](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.16-QuestionForm.vue).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similar to how we are adding and showing players, we are using the socket connection
+    to emit our users’ input (*line 12*), while also reading the actual state and
+    presenting it in the UI (*lines 15–17*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the `./src/views/Question.vue`), we’ll import and display this component
+    next to showing the current question as the title of the view:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'By adding this component to the view, our users can each try and answer the
+    question. And how about we show the user the results as well? Let’s create a new
+    component called `AnswerResult.vue`: [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.17-AnswerResult.vue](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.17-AnswerResult.vue).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding file, we’re using the state of the quiz coming from the socket
+    server to display whether the individual user has answered correctly. As you can
+    see, we can perfectly track which user is which and show them a customized interface.
+    In this case, we’re doing the filtering on the client app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Again, we can add this `AnswerResult` component to the correct view – in this
+    case, the `Answer.vue` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'At this point, the client application already starts to closely resemble the
+    result we’re going for:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.9 – Example of the quiz’s state when answered correctly!](img/B19563_08_09.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.9 – Example of the quiz’s state when answered correctly!
+  prefs: []
+  type: TYPE_NORMAL
+- en: At this point, our work is getting a bit repetitive, so let’s finalize our app
+    by showing intermediate results and the final score!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Keeping and showing the score
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'For our scoreboard, we’ll create another component called `ScoreBoard.vue`
+    in the components folder: [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.18-ScoreBoard.vue](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.18-ScoreBoard.vue).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’ll add the component to the **ScoreBoard** view:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For the final score, we want to do something extra fun for the winner. We’ll
+    install the *Vue Confetti Explosion* component ([https://github.com/valgeirb/vue-confetti-explosion](https://github.com/valgeirb/vue-confetti-explosion))
+    by running the following command in the `./app` folder’s terminal:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And for our grand finale, we’ll make sure to include confetti for the quiz
+    winner by creating the following contents in a component called `FinalScoreBoard.vue`:
+    [https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.19-FinalScoreBoard.vue](https://github.com/PacktPublishing/Building-Real-world-Web-Applications-with-Vue.js-3/blob/main/08.quiz/.notes/8.19-FinalScoreBoard.vue).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The important bit here is that we identify which user is the winner and shower
+    that user with confetti (*lines 6,* *22–24, 53–55*)!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `FinalScoreBoard` component also needs to be added to its corresponding
+    view file (`./src/views/FinalScore.vue`):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And with that, our app is complete! You should now be able to complete the
+    quiz with one or more players at the same time:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.10 – There can be only one winner in this game](img/B19563_08_10.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.10 – There can be only one winner in this game
+  prefs: []
+  type: TYPE_NORMAL
+- en: I think it’s brilliant that our client apps have almost no state worth mentioning.
+    All of it is handled by the central socket server!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This was quite a lengthy chapter that covered three different apps. I hope the
+    distinct roles of the individual apps are clear. I also hope you appreciate the
+    differences between a socket server setup and a RESTful server. We’ve used both
+    in this chapter, each with its strengths.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Also, with the amount of code we’ve written in this chapter, it should be clear
+    that this code is not at the level of sturdiness nor as secure as you would realistically
+    want it to be when it’s production-ready. I want to stress that this wasn’t the
+    focus of this chapter!
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the new concepts that was introduced in this chapter was Nuxt. As you
+    may have noticed, it has very powerful capabilities that enhance both the final
+    product and the developer experience. You could consider Nuxt a default extension
+    of any Vue application. I can get behind the philosophy of making it easy to do
+    things right while making it hard to do things wrong. The opinionated setup that
+    Nuxt encourages makes it easy to get started with.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The socket server is sort of an odd one between all of our projects. But as
+    we can see from the implementation on the client side, its real-time updates fit
+    very well with the reactivity model of Vue applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As a closing remark, we’ve also made some small quality-of-life improvements
+    in our development workflow by creating scripts that automate repetitive tasks
+    for us. You can consider it as a sort of stepping stone toward workspaces or monorepo
+    setups, which expand even further upon managing projects that depend on each other.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we’ll scope down on the number of applications and build
+    something fun too by using artificial intelligence and object recognition in a
+    Vue app!
+  prefs: []
+  type: TYPE_NORMAL

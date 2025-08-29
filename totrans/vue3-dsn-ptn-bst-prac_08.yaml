@@ -1,0 +1,923 @@
+- en: '8'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Multithreading with Web Workers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we will cover important topics that will highly improve the
+    performance of a web application, especially single-page applications. First,
+    we will learn how websites and JavaScript work, and how to use `web workers` to
+    leverage our application processing power, data access, and network communications.
+    Then, we will introduce two new conceptual design patterns and will implement
+    them in an example application together with other patterns that we have previously
+    seen. On top of this, we will also introduce two libraries that will facilitate
+    our network communications as well as the handling of our persistent database(s)
+    in IndexedDB. We will also implement a simple Node.js server to provide us with
+    feedback and test our work in a highly decoupled architecture, where our frontend
+    and backend services communicate using standard APIs over the HTTP protocol.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: WebWorkers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Business and dispatcher patterns
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Network communication inside a `WebWorker`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A browser’s persistent embedded database – IndexedDB
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to build a simple Node.js API server for testing
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The concepts in this chapter can be considered “advanced,” but we will condense
+    them down into understandable pieces that we will implement right away. By the
+    end of this chapter, you will have a solid knowledge of how to implement multithreading
+    in your web applications and also a reference framework to scale and facilitate
+    the use of complex browser APIs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This chapter does not add additional requirements to our application. However,
+    we will only see relevant parts of the code, so to see the entire application
+    working, you should refer to the code examples for [*Chapter 8*](B18602_08.xhtml#_idTextAnchor186),
+    *Multithreading with Web Workers*, in the book’s GitHub repository at [https://github.com/PacktPublishing/Vue.js-3-Design-Patterns-and-Best-Practices/tree/main/Chapter08](https://github.com/PacktPublishing/Vue.js-3-Design-Patterns-and-Best-Practices/tree/main/Chapter08).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Check out the following video to see the Code in Action: [https://packt.link/D4EHt](https://packt.link/D4EHt)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: An introduction to web workers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: JavaScript is a single-threaded language, meaning that it doesn’t natively have
+    a way to spawn processes in separate threads. This makes web browsers run the
+    JavaScript in a web page on the same thread as other processes, which directly
+    affects the performance of the page, most notably, the rendering process,that
+    is in charge of presenting the page on the screen. Bowsers make a considerable
+    effort to optimize the performance of all these moving parts to make a page responsive,
+    performant, fast, and efficient. However, there are tasks that a web application
+    must do in JavaScript that are heavy and potentially “render-blocking”. This means
+    that the browser will have to pay attention to the results of the code and use
+    all the resources to complete the running function before it can focus on the
+    rendering (presenting the page to the screen). If you ever find a process on a
+    web page that makes the site seem “unresponsive” or “stuttering” after you start
+    an action (your mouse may even freeze in some cases), this could be one of the
+    causes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we open the developer tools in a modern browser, we can access some performance
+    tools to analyze how a web page behaves and how much time each process step takes.
+    For example, here is a quick view of the first load of YouTube on a shared link,
+    in Firefox for Linux:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.1 – The performance of YouTube’s first load, seen using developer
+    tools](img/Figure_8.01_B18602.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.1 – The performance of YouTube’s first load, seen using developer tools
+  prefs: []
+  type: TYPE_NORMAL
+- en: The preceding screenshot has zoomed into the actual processing of the page,
+    showing what happens before the first rendering, meaning before the user can actually
+    see something on the screen. That is represented in the first line, **Screenshots**,
+    where for this case, the first visible elements appear towards the end of the
+    timeline (*#1*). The second line shows what the main **Parent Process** has been
+    busy doing, and if you pay attention, the very first section (*#2*) is all about
+    processing JavaScript. The **Renderer**process, highlighted and displayed with
+    a black bar (#3), can’t even start until the JavaScript has been run. When it
+    does run, it draws the page on the screen, and you have the visible content from
+    *#1*. This gives an approximate idea of the work the browser does each cycle in
+    between screen paints (called “frames”). The browser attempts to produce as many
+    **frames per second** (**fps**) as possible. To keep a fluent 60 fps, it needs
+    to do all this processing in about 16.67 milliseconds or less. At best, your JavaScript
+    process should be resolved in half that time to keep a fluid experience for the
+    user. With this in mind, what happens when your JavaScript takes longer than that?
+    Simple enough, the render process is postponed, the fps drop, and the user experiences
+    stuttering and a frozen **user interface** (**UI**) may happen. Depending on your
+    web application, this could be an important issue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You may say, “Wait a minute, why we don’t make heavy tasks asynchronous? Wouldn’t
+    that resolve the issue?” The answer is: maybe and no. When you declare an asynchronous
+    function, it only means that the execution will be deferred to a place in time
+    when the processing of the sequential code has been executed. Most likely, this
+    pushes the asynchronous code toward the end or after the sequential code has been
+    executed, but then it will be run sequentially as usual. If the rendering process
+    happens before that, you may perceive a performance gain, but if not, you face
+    the same issue if the async function takes longer (as it will affect the next
+    rendering). If we moved all functions to be asynchronous, we would end up potentially
+    with the same result as if everything were sequential, plus the overhead of making
+    the asynchronous calls:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.2 – A representation of the execution of async code, moved after
+    the sequential code has been executed (1)](img/Figure_8.02_B18602.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.2 – A representation of the execution of async code, moved after the
+    sequential code has been executed (1)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, if asynchronous operations would not completely solve the performance
+    issue, how do we resolve it? Beyond all the optimizations you could make, there
+    is one technology you should also consider at the top of the list of alternatives:
+    the web workers API.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Web workers are JavaScript scripts that execute in their own process (or thread,
+    depending on the implementation); thus, they do not compromise the parent process
+    where the rendering happens. The browser API provides a rather simple yet effective
+    way to communicate to and from the parent process: a messaging system. These messages
+    can only pass serializable data. The parent process and each web worker operate
+    in their own environment and memory boundaries, so they cannot share references
+    or functions, hence why all the data passed between them has to be serializable
+    as it is copied into each process. While this may seem like a disadvantage, it
+    is actually an asset when used properly, as we will see soon here. Another caveat
+    of this architecture is that web workers do not have access to the **Document
+    Object Model** (**DOM**) or the Window objects and, consequently, to any of their
+    services. They do, however, have access to the network and IndexedDB. This opens
+    up a wealth of opportunities for the architectural design of your frontend application,
+    as you can easily separate what a presentation layer and a business layer is.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: "![Figure 8.3 – A layer\uFEFFed representation of a Vue application with background\
+    \ processes using web workers](img/Figure_8.03_B18602.jpg)"
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.3 – A layered representation of a Vue application with background processes
+    using web workers
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see in the previous diagram, we can instantiate multiple web workers
+    to represent different types of layers in our application (**Business**, **Data**,
+    **Communication**, and so on). While a web worker can be started and terminated
+    from the parent process at will, both of these actions are computationally expensive,
+    so the recommendation is that web workers, once created, remain active during
+    the duration of the application and accessed when needed. It is also recommended
+    not to abuse this resource by creating “too many” web workers, as each one is
+    a different process with its own resources reserved. There is no clear definition
+    of what constitutes “too many”, so discretion is advised. In my experience, while
+    the number of web workers remains in the lower single digits, even low-powered
+    devices should handle your application with excellent performance. As with many
+    other things, there can be too much of a good thing, and this also applies with
+    web workers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we know what web workers are and what they can do for us, let’s see
+    how to implement them in pure JavaScript and then how to do so with Vite.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing a Web Worker
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Creating a web worker in plain JavaScript is quite simple and straightforward.
+    The `window``Worker`, which receives as a parameter the path to a script file.
+    For example, considering that our web worker is contained in a `my_worker.js`
+    file, this is how we can create it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Simple enough, if the constructor exists in the `window` object, then we just
+    create a new worker accessing the constructor directly. The newly created worker
+    again exposes a simple API:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`.postMessage(message)`: This will send the message to the web worker. It can
+    be any data type that can be serialized (basic data types, arrays, objects, and
+    so on).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`.onmessage(callback(event))`: This event is triggered when the workers send
+    a message to the parent process. The event received has a `.data` field that contains
+    the message/data passed by the worker.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`.onerror(callback(event))`: When an error occurs in the worker, this event
+    is triggered, and it will contain the following fields:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`.filename`: With the name of the script filename that generated the error.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`.lineno`: The line number where the error occurred.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`.message`: A string containing the description of the error.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'This messaging system allows us to carry on what otherwise could be a very
+    complex form of **inter-process communication** (**IPC**). Our previous code should
+    look as follows due to implementing it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To complete this, we now need to implement the `my_worker.js` script. For this
+    example, it can be something as simple as this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: ./my_worker.js
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our example worker is very simple. It prints the data received to the console,
+    and 3 seconds after it has been activated, it sends a message to the parent process.
+    Notice that we are using the `self` reserved word. This is needed when accessing
+    the API from within a function, as it references the worker itself. This is why
+    it is necessary inside the `setTimeout` callback. At the root level, it is optional,
+    so you can write `self.onmessage` as in our example or directly `onmessage`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Web Workers can instantiate other workers and also import other scripts through
+    the `self.importScript()` method or just `importScript()`. This method receives
+    a string with the script filename as a parameter. This is analogous to how we
+    use the `import` statement in our services and components in our main application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When using Vite, as we are doing to bundle our Vue application, we have an
+    alternative way to import and create a worker by using a suffix. For example,
+    add the following in our `main.js` script:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: ./main.js
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: When using the `worker` suffix notation, Vite wraps the implementation in a
+    constructor, which we can use to instantiate our worker. This way makes handling
+    workers more akin to using any other class in our application, as we can use the
+    same approach to include it in our application, and this is the syntax we will
+    use in our examples. Additionally, Vite will process the scripts from our worker,
+    so we can use our more familiar syntax to import resources (`import ... from ...`)
+    instead of the native `self.importScript()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is more about web workers to learn. For our purposes, this is enough and
+    what we will use. If you would like to know more, please refer to the documentation
+    on the Mozilla Developer Network ([https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With these building blocks, we can now implement a robust and easier-to-handle
+    connection to our web workers by applying design patterns. Before we do that,
+    we need to learn two more patterns conceptually: the business delegate and the
+    dispatcher patterns.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The business delegate pattern
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'This pattern is used to hide the complexity of accessing business services
+    or a business layer from the client or presentation layer by providing a single
+    point of access with a well-defined and simple(r) interface. It can be reasoned
+    to some degree as a variant or evolution of the proxies and decorator patterns
+    that we saw in [*Chapter 2*](B18602_02.xhtml#_idTextAnchor040)*, Software Design
+    Principles and Patterns*, but applied at a larger logical scale between architectural
+    layers. It usually involves at least the following entities:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A **business delegate** entity, which acts as the single point of entry for
+    the client to all the available services
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A **business lookup or router** entity whose function is to route the execution
+    of the incoming request to the appropriate service
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The **business services** that expose a common interface (directly or via a
+    proxy pattern) with the provided function
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The pattern can be represented for our purposes in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.4 – A representation of the business delegate pattern](img/Figure_8.04_B18602.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.4 – A representation of the business delegate pattern
+  prefs: []
+  type: TYPE_NORMAL
+- en: This pattern can be applied to multiple architectural levels. In our particular
+    case, we want to apply this design to our application with web workers. We will
+    consider the parent process as our presentation layer and our web worker as our
+    business layer. In the parent (or main process), we will have our Vue application,
+    as usual, focusing primarily on providing an excellent user experience. The worker
+    will then be responsible for providing us with access to services, either local,
+    as in the case of the IndexedDB, or remote, encapsulating the communication with
+    our server and additional services and any additional computationally intensive
+    function. This separation of concerns has many advantages, not only from the performance
+    point of view but also from the design and implementation of the application as
+    a whole.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we implement the code for this chapter, we need to see one more pattern
+    that we will implement since we can only pass serializable data between processes
+    and cannot execute function calls as a plain Business Delegate pattern proposes.
+    We will expand on the idea of the command pattern and use what is called a dispatcher
+    pattern.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The dispatcher pattern
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have seen previously that either our parent process or the web worker process
+    can initiate communication by posting (sending) a message to each other. As long
+    as the proper listener (`onmessage`) has been defined, either one can receive
+    and react to these events. In the Dispatcher pattern, these messages contain information
+    related to the event, such as data. The key factor that separates this design
+    pattern is that *the event messages must be published between threads and scheduled
+    for execution upon arrival*. Of course, this scheduling can also include the “immediate
+    execution” of some task or function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The implementation of this pattern is rather trivial, and you may think of it
+    as akin to the Command Pattern that we saw in [*Chapter 2*](B18602_02.xhtml#_idTextAnchor040),
+    *Software Design Principles and Patterns*, so we will not see this again. Instead,
+    we will take these concepts of communication between threads, scheduling, and
+    events with data to create our solution to work with web workers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Establishing a communication pipeline with the web worker
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We have now seen the key concepts that we want to apply to our implementation
+    of the communication with web workers for our Vue application. This model can
+    be used repeatedly from application to application and improved upon as needed.
+    As a general plan of action, this is what we will build using the design patterns
+    seen thus far:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will create a web worker with a single point of access in our Vue application,
+    following the Business Delegate pattern
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Each message will raise an event to either process (parent-worker or worker-parent)
+    and include command and payload data, as well as tracking information for scheduling
+    as in the Dispatcher Pattern
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Simple enough, the architecture described in the preceding points allows us
+    to establish a workflow as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.5 – Implementation of the communication workflow with the web worker](img/Figure_8.05_B18602.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.5 – Implementation of the communication workflow with the web worker
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have the theoretical basis and a broad understanding of what we
+    will create, it is time to move into the code. We will focus on the most relevant
+    parts of the code that implement the model mentioned previously. To see the entire
+    application code, please review the full source code from the GitHub repository.
+    Let’s start by creating a service that will be our entry point in the client application:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: ./services/WebWorker.js
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This implementation is simple yet effective. It serves us well to understand
+    how these patterns work. We start by importing the web worker constructor using
+    Vite’s special suffix `worker` and then creating the instance reference in line
+    *//1*. As usual, this service will be a singleton, so we create it as a JavaScript
+    object, which we will export later in line *//10*. The service has only three
+    members:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`queue`: This is defined on line *//2* and is a dictionary that we will use
+    to store our scheduled calls to the web worker using a unique identification.
+    Each entry will save the reference to the resolution methods of a promise (`resolve`
+    and `reject`).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The `request()` method: Defined on line //3 here, this will be used by other
+    services and components (the “clients”) to request tasks from the web worker.
+    It always returns a promise (line //4). The message passed to the web worker encapsulates
+    the `command` and `payload` received as parameters with a unique identification.
+    We save the reference to the `resolve()` and `reject()` methods in the `queue`
+    (line //5), and finally, using the native messaging method of the web worker,
+    we post the message on line //6.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The `processMessage()` method: This receives the data submitted by the web
+    worker, and based on the identification and the result of the operation passed
+    in the `.success` attribute (Boolean), we access `queue` and either use the `resolve()`
+    or the `reject()` function to resolve or reject the promise (line //7). Finally,
+    we remove the reference from the `queue` in line //8.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The last step in this file is to link the incoming messages passing the data
+    directly from the worker to `service.processMessage()` in line //9\. It may be
+    clear by now that we have made some decisions regarding the structure of the message
+    and also the reply. Messages have three components: `id`, `command`, and `payload`.
+    Replies also have three elements: `id`, `success`, and `payload`. On the client
+    side, we have chosen to operate with promises, as they do not “time out”.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With the client side resolved, now it’s time to work on the web worker script.
+    Create the following `index.js` file in the `webworker` directory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: ./webworker/index.js
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The web worker is even shorter, and we have also made some decisions regarding
+    the interface implemented by each underlying service: each of their methods has
+    to return a Promise as well. Let’s see the code and find out why.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We start on line //1by importing `testService` (we will create it later) and
+    include it in an array of services. This will make it easier to add new services
+    by importing them and just including them in this array (this could be a stepping
+    stone to a plugin architecture but we’ll stay simple for now). We then define
+    a `sendRequest()` global function, which will send a message to the parent process
+    with a coded message with three fields: `id`, `success`, and `payload`, as expected
+    by the client in our defined . This is what happens in line//2.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In line //3, we define the `onmessage` event handler to process the incoming
+    messages. When one is received, we traverse our `services` array to find a matching
+    command (line //4), and when we do (line //5), we execute the function by passing
+    the payload as a parameter (line //6) after we parse it through the JSON utility.
+    Then, with the resolution or rejection of the promise, we transmit the proper
+    result to the client in line *//7*. This short piece of code acts as the *business
+    delegator and dispatcher*. Finally, let’s take a look at `testService` to see
+    how it works:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: ./webworker/services/test.js
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As you can appreciate, this test service doesn’t do much other than just return
+    a Promise and set a timer to resolve it after 3 seconds. This delay is artificial
+    since, otherwise, the reply would be immediate. If you run the example application,
+    when you click the **Send request** button, you will see the message changing
+    from **Waiting...** to **Worker alive and working!** after 3 seconds, just as
+    expected:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.6 – The test application dispatches a command to the worker and
+    shows the result](img/Figure_8.06_B18602.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.6 – The test application dispatches a command to the worker and shows
+    the result
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To make this happen, in our `App.vue` component, we import our web worker service
+    and send our request with the command string as the name of the function in the
+    service we want to execute. For this example, add the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: These simple lines of code to create and manage a web worker provide your application
+    with a considerable increase in computational power and performance. Now that
+    our bases are set, it is time to do something more significant with our service
+    worker. Let’s make it access our local database and the network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Accessing IndexedDB with DexieJS in the web worker
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'IndexedDB is a very powerful key-value database; however, the native implementation
+    provides an API that is rather hard to handle. The actual recommendation is not
+    to use it but, instead, work with it through a framework or library. The database
+    engine is fast and very malleable, so multiple libraries have built upon its foundation
+    and recreated functions and features not present originally. Some libraries even
+    mimic SQL and document-based databases. Some available and free-to-use libraries
+    are the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**DexieJS** ([https://dexie.org/](https://dexie.org/)): A very fast and well-documented
+    library that implements a NoSQL document-based database.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**PouchDB** ([https://pouchdb.com/](https://pouchdb.com/)): A database that
+    mimics the functionality of Apache’s CouchDB and provides built-in synchronization
+    with remote servers.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**RxDB** ([https://rxdb.info/](https://rxdb.info/)): This is a database that
+    implements the reactive model. It also supports replication to CouchDB.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**IDB** ([https://www.npmjs.com/package/idb](https://www.npmjs.com/package/idb)):
+    This is a light wrapper implementation on top of the IndexedDB API, with some
+    changes to improve its usability.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Depending on your requirements for local storage, these or other options will
+    suit you well. We will use DexieJS for this example as it is well documented and
+    boasts impressive speeds for bulk operations. We will expand our previous example
+    and create a single-component mini-application to store, retrieve, delete, and
+    view notes. This covers very basic **create, read, update, and delete** (**CRUD**)
+    operations. When you run the example code, it will look something like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.7 – A single-component CRUD example](img/Figure_8.07_B18602.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.7 – A single-component CRUD example
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this example, you can create new notes, view what was saved before (this
+    will be persistent based on the domain), select them to view the text, and also
+    delete them. All the operations will be resolved in the web worker. Let’s include
+    Dexie in our application using `npm`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, let’s create our example component application:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: /src/components/DbNotes.vue
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding file has been stripped of styles and other layout elements, so
+    we can focus on the active parts of the code that implement the operations we
+    are learning about. We start by importing our service class to handle the web
+    worker in line *//1* and create a few internal reactive variables in line *//2*.
+    We will use `_notes` to hold the full list of notes as extracted from the database,
+    `_note` as a placeholder to create new notes, and `_selected` to display a note
+    clicked on from the list. You can find the CRUD operations in each function (lines
+    *//3* to *//6)* and will notice that they are very similar other than handling
+    UI reactive elements. They just gather the necessary information to create a request
+    to the web worker and then apply the result. However, notice how in the `saveNote()`
+    function, when it is time to pass the object that describes our new note, we are
+    stringifying the Vue reactive value. This is because the proxy implementation
+    that Vue uses to handle reactivity is not serializable, so unless we create a
+    copy of the plain object or apply other similar techniques to extract the values,
+    the web worker communication will fail and throw an error. An easy way to make
+    sure the data object is provided as a clonable object is to convert it into a
+    string with `JSON.stringify(_note.value)` as in our code (you could also create
+    directly a clone, with `JSON.parse(JSON.stringify(_note.value))`. You need to
+    keep in mind how the information will be sent so that it can be properly processed
+    at the receiving end of the web worker. This will become apparent now when we
+    see `dbService.js` in the worker:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: ./src/webworker/services/dbService.js
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To use Dexie, we first import the constructor as in line *//1*, and we create
+    a new database with the name `Notes`. Before we can actually use it, we need to
+    define the version and a simple schema of tables/collections with the fields that
+    will be indexed. This is what happens in line *//2*, where we define the `notes`
+    collection with two indexed fields: `id` and `title`. These indexed fields are
+    passed as a string, comma-separated by field names. We also included a double
+    plus sign as a prefix for the `id` field. This makes the field auto-generated
+    by the database and auto-incremented with each new record.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next significant function, `addNote()`, adds the record to the `notes` collection.
+    Since we are passing data serializing an object as a string in our component,
+    in line *//4*, we need to parse the string to recompose the object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the `getNotes()` function, we just retrieve all the elements from the collection
+    and use the `toArray()` method provided by Dexie, which will convert it into a
+    JavaScript array (line *//5*). This way, we can return it directly as our result
+    to resolve the promise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A final note on this code is on the `deleteNote()` method: on line *//6*, we
+    are not capturing the result of the asynchronous operation. This is because this
+    operation does not return a usable value. In this case, this operation will always
+    resolve unless a database engine error interrupts the execution.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is important to keep in mind that errors on the web worker will not affect
+    the parent process, and any operations in that process will be unaffected.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have our service in place, it is time to slightly modify the web
+    worker index file. Add the following lines:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: ./src/webworker/index.js
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: No other change is necessary for this file. As we can see, it does not take
+    much to implement CRUD operations on the web worker. Even though these can be
+    done in the parent process, and there is a small penalty from the interprocess
+    communication, the benefits in performance are considerable and well worth the
+    effort. Especially if our application includes what should be background processes,
+    such as synchronization with a remote server, these should be done by a web worker.
+    Let’s see next how we can access the network and consume a **Representational
+    State Transfer API** (**RESTful API**) from a worker as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Consuming a RESTful API with the web worker
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'One of the most common applications of network APIs today in web development
+    is through the implementation of a RESTful API. It is a protocol where each communication
+    is stateless and representative of the type of action required at the destination.
+    The HTTP protocol used on the web provides a perfect match for this type of API,
+    as each network call exposes a method that identifies the type of operation required:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `GET` operations retrieve data and files
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `PUT` operations update data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `POST` operations create new data on the server
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `DELETE` operations erase data on the server
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It is easy to see how these methods match CRUD operations, so by making the
+    appropriate network call, the server knows how to process the data received at
+    the proper endpoint. There are many standards used to format the data sent between
+    endpoints. In particular, one of the most common ones is the JSON format, which
+    we so conveniently use in JavaScript.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Handling asynchronous calls with the native implementation in the browser is,
+    at the very least, cumbersome but not impossible. The recommendation, for practicality
+    and security, is to use a well-known library such as **Axios**. To install the
+    library, we need to run the following command from the terminal:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: After a few moments, the library will be installed into our project as a dependency.
+    The library provides very handy methods to launch network calls for each HTTP
+    method. For example, `axios.get` makes a `GET` request, `axios.post` makes a `POST`
+    request, and so forth.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will implement a simple service for our learning exercise to make network
+    calls to a remote server from within our web worker. For simplicity, we will only
+    create two methods:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: ./webworker/services/network.js
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: This service is rather simple. In a production application, it would be middleware
+    to serve other services. This example implements only two methods to match the
+    corresponding HTTP request methods. Notice that they are extremely similar, only
+    changing the name of the method and the signature for some of the parameters.
+    The first parameter is always the endpoint (URI) to connect. The second parameter
+    is either data or an object with options. I refer you to the official documentation
+    for how to handle each specific request and handle edge cases ([https://axios-http.com/docs/intro](https://axios-http.com/docs/intro)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is worth noting that at the beginning of the file, we set the default domain
+    for all other network calls. This way, we avoid repeating it in each call. We
+    can easily set specific HTTP headers and options with this library, such as **JSON
+    Web Tokens**, for authentication, as we covered in [*Chapter 5*](B18602_05.xhtml#_idTextAnchor130),
+    *Single-Page Applications*, when we mentioned different authentication methods.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To include this service in our web worker, we import it and add it to our `services`
+    array as we did before. Modify the beginning of this file so it looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: ./webworker/index.js
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'With this new inclusion, our web worker is now ready. We now implement a single
+    component to test the communication, and it will look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.8 – A simple test, where the server mirrors back the information
+    sent](img/Figure_8.08_B18602.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.8 – A simple test, where the server mirrors back the information sent
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our component will let us select the method for the HTTP request (`GET` or
+    `POST`) and will send some arbitrary data. The test server will just mirror the
+    data received back to the client, where the component will present it on the screen.
+    The implementation is quite straightforward:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: ./src/components/NetworkCommunication.vue
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this component, we import the `webWorker` service and declare three reactive
+    variables to send and receive data and one to hold the selected method to make
+    the request. Our simple test server will receive the request and will just mirror
+    back the data that we submit. We will see later how to create this simple server
+    using Node.js.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the template, the user can choose the type of request to send (`GET` or `POST`),
+    a choice that we save in the `_method` variable. We use this value as the command
+    passed to the worker in line *//1*. We pass the data as a member object as a payload.
+    When this promise resolves, we save the value from the reply in the `_data_received`
+    variable. The rest of the source code should be trivial to understand at this
+    point, as it deals mainly with the template and presentation of the information
+    on the screen. Before we end this chapter, let’s take a look a how the test server
+    can be implemented using Node.js.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A simple NodeJS server for testing
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'To test our network communications, it seems fitting that we implement a small
+    server using Node.js to implement the endpoints that we are testing. In a separate
+    directory from our Vue application, open a terminal window and enter the following
+    command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The command-line wizard will ask you a few questions to create the `package.json`
+    file that represents a Node.js application. When it is done, run this command
+    to install the **Express.js** dependency, which will give us a framework to create
+    a web server:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once the process completes, create an `index.js` file with the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: ./server/index.js
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: With these few lines of code, we can start a small server that receives and
+    responds with JSON data. We import the express constructor (line *//1*), and a
+    plugin (line *//2*). This is important so that we can access this server from
+    any domain (origin). The `GET` requests (line *//6*) and another one for a `POST`
+    request. The first parameter is the URL where the server will be listening for
+    calls. In this case, they are the same, as the only difference will be the type
+    of request method. This is standard practice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Each endpoint receives as the last argument a callback function with at least
+    two parameters: `req` (request) and `res` (response). These objects contain methods
+    and information about the request received and the necessary methods to create
+    a response to the client.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the `GET` requests, the data received is passed attached to the URL as a
+    “query string”, so in order to access it, *Express* wraps it nicely as an object
+    in the `request.query` field (line *//7*). Since we are just replying with the
+    same data received, in line *//8*, we use the `res`(ponse) object to create a
+    padded JSON reply with the same data object. We do this because we consider that
+    we could receive calls from any domain (because we enabled CORS) and want to ensure
+    the reply is fully understood. **JSON with Padding** (**JSONP**) is a method to
+    send the response using a different method. We don’t need to worry about this,
+    as both ends (sender and receiver) are handled by the Express server and the Axios
+    client.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the `post` method, the difference is that the data is contained in the body
+    of the message (line *//9*), hence the different treatment. Finally, the server
+    starts listening on the designated port (line *//10*). We can now access the server
+    at [http://localhost:3000](http://localhost:3000), which is the address that we
+    configured in our network service as the default for Axios.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the implementation of this server, we can now have a full test of all the
+    parts of the system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we reviewed some very important concepts to fundamentally improve
+    the architecture and performance of our application. Web workers is an amazing
+    technology that allows web applications to take advantage of modern hardware architectures
+    and modern operating systems. From a fixed point of view, multithreading using
+    web workers involves little additional effort and complications, and the gains
+    are highly rewarding. We also saw how to make use of workers to access network
+    services as well as the local persistent database provided by the browser (IndexedDB).
+    We learned about two more design patterns to implement a scalable architecture
+    for our application and tested the concepts and implementations through simple
+    components and services. The use of web workers marks a significant difference
+    in the performance and execution of a well-designed web application. In the next
+    chapter, we will look into tools and techniques to test our code automatically,
+    ensuring the individual parts comply with their intended purpose to match our
+    software specifications and requirements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Review questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: What limitations does JavaScript have that can compromise the performance of
+    a web application?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What are web workers? What are their limitations?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How can Vue applications communicate with web workers?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What are the benefits of using a design pattern such as the Business Delegate
+    to work with web workers?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What can you change in the example code to manage multiple web workers instead
+    of just one? When would this be advisable, in your opinion?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

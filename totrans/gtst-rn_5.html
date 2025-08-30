@@ -1,0 +1,476 @@
+<html><head></head><body><div class="chapter" title="Chapter&#xA0;5.&#xA0;Displaying and Saving Data"><div class="titlepage"><div><div><h1 class="title"><a id="ch05"/>Chapter 5. Displaying and Saving Data</h1></div></div></div><p>Now that we know how to style a React Native application, let's figure out how to actually make it do something. In this chapter, we'll start saving notes to the device, populate a list with the notes we've saved, and select notes from the list to view and edit.</p><p>In this chapter, we will cover the following topics:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">Using a <code class="literal">ListView</code> to display rows of data</li><li class="listitem" style="list-style-type: disc">Managing state</li><li class="listitem" style="list-style-type: disc">Using props to pass data and callbacks into components</li><li class="listitem" style="list-style-type: disc">Using <code class="literal">AsyncStorage</code> to store data on both iOS and Android devices</li></ul></div><p>Our strategy in this chapter is to first build the basic functionality using dummy data so we can learn some fundamental skills before we learn about saving and loading the data with the <code class="literal">AsyncStorage</code> API. By the end of the chapter, you will have a fully functional note-taking application!</p><div class="section" title="Lists"><div class="titlepage"><div><div><h1 class="title"><a id="ch05lvl1sec24"/>Lists</h1></div></div></div><p>The <a id="id131" class="indexterm"/>
+<code class="literal">HomeScreen</code> of our application is going to display a list of the notes that we have saved. To do this, we will introduce the <a id="id132" class="indexterm"/>
+<code class="literal">ListView</code> component. Let's start by creating a new file in our <code class="literal">Components</code> directory called <code class="literal">NoteList</code> and add the following code:</p><div class="informalexample"><pre class="programlisting">import React, {
+  StyleSheet,
+  Text,
+  View,
+  ListView
+  } from 'react-native';
+
+export default class NoteList extends React.Component {
+
+  constructor (props) {
+    super(props);
+    this.ds = new ListView.DataSource({rowHasChanged: (r1, r2) =&gt; r1 !== r2});
+  }
+
+  render() {
+    return (
+      &lt;ListView
+        dataSource={
+          this.ds.cloneWithRows( [
+              {title:"Note 1", body:"Body 1", id:1}, 
+              {title:"Note 2", body:"Body 2", id:2}
+            ])
+        }
+        renderRow={(rowData) =&gt; {
+              return (
+                 &lt;Text&gt;{rowData.title}&lt;/Text&gt;
+              )
+            }
+          }/&gt;
+      )
+  }
+}</pre></div><p>The <code class="literal">ListView</code> component <a id="id133" class="indexterm"/>is fairly simple to use. You must provide two pieces of information, the <code class="literal">dataSource</code> that will provide the data for all of the rows and the <code class="literal">renderRow</code> function, which is simply a function that takes each row's data (a single note) and returns a React component. In the preceding example, this function returns a <code class="literal">&lt;Text/&gt;</code> component that displays the title of the note.</p><p>We instantiate a <code class="literal">ListView</code>. The <code class="literal">DataSource</code> is in the constructor because we only want to create it once. The <code class="literal">DataSource</code> constructor takes a <code class="literal">params</code> object to configure the <code class="literal">DataSource</code>; however, the only required parameter is a <code class="literal">rowHasChanged</code> function. This function is used by the <code class="literal">DataSource</code> when it receives new data so that it can efficiently determine which rows need to be re-rendered. If <code class="literal">r1</code> and <code class="literal">r2</code> point to the same object, the row hasn't changed.</p><p>You'll also notice that we don't pass the <code class="literal">DataSource</code> reference directly to our <code class="literal">ListView</code>. Instead we use <code class="literal">cloneWithRows()</code>, passing it to the <code class="literal">rowData</code> we want to use. We're hardcoding the row data for now, but by the end of this chapter you will know how to update the <code class="literal">ListView</code> with new data.</p><p>Next, let's add the <code class="literal">NoteList</code> component to the <code class="literal">HomeScreen</code> and learn how to respond to touch events on each row. Open the <code class="literal">HomeScreen</code> component and add the following line to import your new <a id="id134" class="indexterm"/>
+<code class="literal">NoteList</code> component:</p><div class="informalexample"><pre class="programlisting">import NoteList from './NoteList';</pre></div><p>Also, let's drop the <code class="literal">NoteList</code> component into <code class="literal">HomeScreen's</code> <code class="literal">render</code> method just inside the <code class="literal">View</code> component, before the <code class="literal">&lt;Text/&gt;</code> component:</p><div class="informalexample"><pre class="programlisting">render () {
+    return (
+      &lt;View style={styles.container}&gt;
+        &lt;NoteList/&gt;
+        &lt;Text style={styles.noNotesText}&gt;You haven't created any notes!&lt;/Text&gt;
+
+        &lt;SimpleButton
+          onPress={() =&gt; this.props.navigator.push({
+            name: 'createNote'
+          })}
+          customText="Create Note"
+          style={styles.simpleButton}
+          textStyle={styles.simpleButtonText}
+        /&gt;
+      &lt;/View&gt;
+    );
+  }</pre></div><p>Before we try out our <code class="literal">NoteList</code>, let's modify our styles to make sure that the list content isn't obscured by the <code class="literal">NavigationBar</code>:</p><div class="informalexample"><pre class="programlisting">  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 60
+  }</pre></div><p>Now, when you reload the application you should see the following screenshot:</p><div class="mediaobject"><img src="graphics/B05162_05_01.jpg" alt="Lists"/></div><p>We still have the <span class="strong"><strong>You haven't created any notes!</strong></span> Message at the bottom of the screen, but we'll learn how to take care of that later in the chapter.</p><p>Now that we have a list of items, we'd like to be able to respond when the user touches one of the items. To do that, we'll wrap the <code class="literal">&lt;Text/&gt;</code> component in our <code class="literal">renderRow</code> function with the<a id="id135" class="indexterm"/> <code class="literal">TouchableHighlight</code> component. First, let's add <code class="literal">TouchableHighlight</code> to our list of imports:</p><div class="informalexample"><pre class="programlisting">import React, {
+  StyleSheet,
+  Text,
+  View,
+  ListView,
+  TouchableHighlight
+  } from 'react-native';</pre></div><p>Then update<a id="id136" class="indexterm"/> the <code class="literal">renderRow</code> function in our <code class="literal">ListView</code>:</p><div class="informalexample"><pre class="programlisting">renderRow={
+  (rowData) =&gt; {
+    return (
+      &lt;TouchableHighlight onPress={() =&gt; console.log(rowData)}&gt;
+         &lt;Text&gt;{rowData.title}&lt;/Text&gt;
+      &lt;/TouchableHighlight&gt;
+    )
+}</pre></div><p>Now, you can reload the application and touch each row to see that the <code class="literal">rowData</code> has been logged to the console.</p><p>Our goal is to be able to touch a row, navigate to the <code class="literal">NoteScreen</code>, and populate the title and body with the data from the row. Let's add an <code class="literal">_onPress</code> event handler to our <code class="literal">NoteList</code> component, as shown:</p><div class="informalexample"><pre class="programlisting">_onPress (rowData) {
+  this.props.navigator.push(
+    {
+      name: 'createNote',
+      note: {
+        id: rowData.id,
+        title: rowData.title,
+        body: rowData.body
+      }
+    });
+  }</pre></div><p>And we will call this function from our <code class="literal">TouchableHighlight</code>, as shown:</p><div class="informalexample"><pre class="programlisting">                &lt;TouchableHighlight onPress={() =&gt; this._onPress(rowData)}&gt;
+                  &lt;Text&gt;{rowData.title}&lt;/Text&gt;
+                &lt;/TouchableHighlight&gt;</pre></div><p>Before we try this out, take a look at the <code class="literal">_onPress</code> handler and notice that we are referring to <code class="literal">this.props.navigator</code>. This is the navigator that we've been using to go back and forth between the <code class="literal">HomeScreen</code> and the <code class="literal">NoteScreen</code>, but what's this props business?</p><div class="section" title="Understanding props"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec23"/>Understanding props</h2></div></div></div><p>If you take a <a id="id137" class="indexterm"/>look at the constructor function of the <code class="literal">NoteList</code>, you will notice that it takes an argument called <span class="strong"><strong>props</strong></span>:</p><div class="informalexample"><pre class="programlisting">export default class NoteList extends React.Component {
+  constructor (props) {
+    super(props);
+    this.ds = new ListView.DataSource({rowHasChanged: (r1, r2) =&gt; r1 !== r2});
+  }</pre></div><p>Props is the mechanism we use to pass data to React components. In our case, we want to pass a navigator reference from the <code class="literal">HomeScreen</code> component to the <code class="literal">NoteList</code>, so let's make a quick change to our <code class="literal">NoteList</code> declaration, as shown:</p><div class="informalexample"><pre class="programlisting">export default class HomeScreen extends React.Component {
+  render () {
+    return (
+      &lt;View style={styles.container}&gt;
+        &lt;NoteList navigator={this.props.navigator}/&gt;
+       ...
+      &lt;/View&gt;
+    );
+  }
+}</pre></div><p>When you touch a row in the <code class="literal">NoteList</code>, you push the note data associated with that row to the navigator, which then triggers <code class="literal">renderScene</code> that passes the note to the <code class="literal">NoteScreen</code>. So how do we use this note inside the <code class="literal">NoteScreen</code>? We learned earlier that props are passed into the component's constructor, but how do we actually get our <code class="literal">TextInput</code> components to display the note's title and body? Let's see what happens if we bind the value property of each of our inputs to the passed-in note, as shown:</p><div class="informalexample"><pre class="programlisting">        &lt;View style={styles.inputContainer}&gt;
+          &lt;TextInput
+            autoFocus={true}
+            autoCapitalize="sentences"
+            placeholder="Untitled"
+            style={[styles.textInput, styles.title]}
+            onEndEditing={(text) =&gt; {this.refs.body.focus()}}
+            underlineColorAndroid="transparent"
+            value={this.props.note.title}
+          /&gt;
+        &lt;/View&gt;
+        &lt;View style={styles.inputContainer}&gt;
+          &lt;TextInput
+            ref="body"
+            multiline={true}
+            placeholder="Start typing"
+            style={[styles.textInput, styles.body]}
+            textAlignVertical="top"
+            underlineColorAndroid="transparent"
+            value={this.props.note.body}
+          /&gt;
+        &lt;/View&gt;</pre></div><p>Now when we<a id="id138" class="indexterm"/> reload the application and touch the first note in the list, we will see the following screenshot:</p><div class="mediaobject"><img src="graphics/B05162_05_02.jpg" alt="Understanding props"/></div><p>But what happens when you try to edit the title or body? Nothing happens! Before we diagnose what is <a id="id139" class="indexterm"/>wrong, let's tap the <span class="strong"><strong>Back</strong></span> button and touch the second note in the <code class="literal">NoteList</code>. You will see it displayed, as shown:</p><div class="mediaobject"><img src="graphics/B05162_05_03.jpg" alt="Understanding props"/></div><p>Ok, so our <code class="literal">NoteScreen</code> does update, but only when we pass it new props from outside, not when we try to edit the <code class="literal">TextInputs</code>. Props can only be passed from the outside of a component. As tempting <a id="id140" class="indexterm"/>as it may seem, it's a bad idea to try to modify <code class="literal">this.props.note</code> from inside the <code class="literal">NoteScreen</code> when the value of each <code class="literal">TextInput</code> changes. What we need instead is some way to manage the changes made to the internal state of our <code class="literal">NoteScreen</code> when the user makes changes to the <code class="literal">TextInputs</code>. For that, each React component has something called <a id="id141" class="indexterm"/>
+<span class="strong"><strong>state</strong></span>.</p><div class="section" title="Using state"><div class="titlepage"><div><div><h3 class="title"><a id="ch05lvl3sec07"/>Using state</h3></div></div></div><p>React components have <a id="id142" class="indexterm"/>a built-in variable called <code class="literal">state</code> that you can use to keep track of the component's <code class="literal">state</code>. In the preceding example, we know that we are passing in a note that we want to display, so the initial state of the component is represented by that note. Let's do something totally crazy and modify the <code class="literal">NoteScreen</code> constructor, as shown:</p><div class="informalexample"><pre class="programlisting">  constructor (props) {
+    super(props)
+    this.state = {note:this.props.note};
+  }</pre></div><p>So, <code class="literal">this.state</code> is an object with title and body properties that are initially set to the title and body of the note we passed. Why the call to <span class="emphasis"><em>super (props)?</em></span> The superclass of our <code class="literal">NoteScreen</code> is <code class="literal">React.Component</code>, which takes props as an argument and sets <code class="literal">this.props</code>. If we omit <code class="literal">super(props)</code> in <code class="literal">NoteScreen</code>, then <code class="literal">this.props</code> will be undefined.</p><p>You may have already guessed that we're going to update the <code class="literal">TextInputs</code> to bind to <code class="literal">this.state.title</code> and <code class="literal">this.state.body</code> respectively, but we're also going to listen for <code class="literal">onChangeText</code> events for each input:</p><div class="informalexample"><pre class="programlisting">        &lt;View style={styles.inputContainer}&gt;
+          &lt;TextInput
+            ref="title"
+            autoFocus={true}
+            autoCapitalize="sentences"
+            placeholder="Untitled"
+            style={[styles.textInput, styles.title]}
+            onEndEditing={(text) =&gt; {this.refs.body.focus()}}
+            underlineColorAndroid="transparent"
+            value={this.state.note.title}
+            onChangeText={(title) =&gt; {this.setState({title})}}
+          /&gt;
+        &lt;/View&gt;
+        &lt;View style={styles.inputContainer}&gt;
+          &lt;TextInput
+            ref="body"
+            multiline={true}
+            placeholder="Start typing"
+            style={[styles.textInput, styles.body]}
+            textAlignVertical="top"
+            underlineColorAndroid="transparent"
+            value={this.state.body}
+            onChangeText={(body) =&gt; {this.setState({body})}}
+          /&gt;
+        &lt;/View&gt;</pre></div><p>Note that <a id="id143" class="indexterm"/>the <code class="literal">arrow</code> function that we're using to handle the <code class="literal">onChangeText</code> event is calling <code class="literal">this.setState(...)</code> instead of directly setting <code class="literal">this.state.title</code>. This is an important thing to remember. Anytime you modify state you must use <code class="literal">this.setState()</code> so that React knows that your component needs to be re-rendered. For performance reasons, calling <code class="literal">setState()</code> doesn't immediately update <code class="literal">this.state</code>, so don't let that trip you up!</p><p>Reload the application, touch <span class="strong"><strong>Note 1</strong></span> in the list and then change the title to <span class="strong"><strong>My note</strong></span>:</p><div class="mediaobject"><img src="graphics/B05162_05_04.jpg" alt="Using state"/></div><p>The <code class="literal">TextInput</code> attribute now reflects the value of <code class="literal">this.state.title</code> on every call to <code class="literal">render()</code>, which happens after every call to <code class="literal">this.setState({title})</code>. So far so good, but what do you think we will see when we navigate back to the <code class="literal">HomeScreen</code>? Tap the <span class="strong"><strong>Back</strong></span> button and take a look —the title of the first note is still <span class="strong"><strong>Note 1</strong></span> instead of <span class="strong"><strong>My note</strong></span>. Now, when you click on <span class="strong"><strong>Note 1</strong></span> to go back to the <code class="literal">NoteScreen</code> you'll see that your changes have disappeared. Let's fix this!</p><p>We've just identified<a id="id144" class="indexterm"/> the need to update our <code class="literal">ListView</code> when a note is changed. We know that the internal state of the <code class="literal">NoteScreen</code> changes when we type into the <code class="literal">TextInput</code> components, but how do we communicate these changes to the rest of the application?</p></div><div class="section" title="Passing callbacks in props"><div class="titlepage"><div><div><h3 class="title"><a id="ch05lvl3sec08"/>Passing callbacks in props</h3></div></div></div><p>A <a id="id145" class="indexterm"/>common pattern in React is to pass a callback to a component via props. In our case, we want to pass a callback to our <code class="literal">NoteScreen</code> so that it can let us know when the note is changed. Let's return to the <code class="literal">ReactNotes</code> component in our <code class="literal">index.ios.js</code> or <code class="literal">index.android.js</code> file and update our <code class="literal">renderScene</code> function, as shown:</p><div class="informalexample"><pre class="programlisting">  renderScene (route, navigator) {
+    switch (route.name) {
+      case 'home':
+        return (
+          &lt;HomeScreen navigator={navigator} /&gt;
+        );
+      case 'createNote':
+        return (
+          &lt;NoteScreen 
+            note={route.note} 
+            onChangeNote={(note) =&gt; console.log("note changed", note)}/&gt;
+        );
+    }
+  }</pre></div><p>Here, we are defining a prop called <code class="literal">onChangeNote</code> and setting its value to an arrow function that will be called when we invoke <code class="literal">onChangeNote</code> inside our <code class="literal">NoteScreen</code> component. So, somewhere inside our <code class="literal">NoteScreen</code> code we're going to add the following line:</p><div class="informalexample"><pre class="programlisting">this.props.onChangeNote(note);</pre></div><p>Let's revisit the <code class="literal">NoteScreen</code> and a function to handle the updating of notes:</p><div class="informalexample"><pre class="programlisting">class NoteScreen extends React.Component {
+  …
+  updateNote(title, body) {
+    var note = Object.assign(this.state.note, {title:title, body:body});
+    this.props.onChangeNote(note);
+    this.setState(note);
+  }
+  …
+}</pre></div><p>In our title <code class="literal">TextInput</code>, update the <code class="literal">onChangeText</code> function, as shown:</p><div class="informalexample"><pre class="programlisting">onChangeText={(title) =&gt; this.updateNote(title, this.state.note.body)}</pre></div><p>And in the body <code class="literal">TextInput</code>:</p><div class="informalexample"><pre class="programlisting">onChangeText={(body) =&gt; this.updateNote(this.state.note.title, body)}</pre></div><p>Now let's reload <a id="id146" class="indexterm"/>our application, touch <span class="strong"><strong>Note 1</strong></span>, and start making changes. If you look at the console you should see each change being logged:</p><div class="mediaobject"><img src="graphics/B05162_05_05.jpg" alt="Passing callbacks in props"/></div><p>Getting notified of the changes to a note only gets us halfway to our goal to update the <code class="literal">ListView</code>. Recall that our <code class="literal">NoteList</code> component's <code class="literal">dataSource</code> is currently just a hardcoded array of notes:</p><div class="informalexample"><pre class="programlisting">  &lt;ListView
+        dataSource={
+          this.ds.cloneWithRows([
+            { title:"Note 1", body:"body", id:1}, 
+            {title:"Note 2", body:"body", id:2}
+          ])
+        }
+        renderRow={(rowData) =&gt; {
+              return (
+                &lt;TouchableHighlight onPress={() =&gt; this._onPress(rowData)}&gt;
+                  &lt;Text&gt;{rowData.title}&lt;/Text&gt;
+                &lt;/TouchableHighlight&gt;
+              )
+            }
+          }
+/&gt;</pre></div><p>We need to <a id="id147" class="indexterm"/>be able to pass in the list of notes to the <code class="literal">NoteList</code> component instead of hardcoding them. Now that you're familiar with props, you know that we can pass the list in from the <code class="literal">HomeScreen</code>, as shown:</p><div class="informalexample"><pre class="programlisting">export default class HomeScreen extends React.Component {
+  render () {
+    return (
+      &lt;View style={styles.container}&gt;
+        &lt;NoteList 
+          navigator={this.props.navigator} 
+           notes={[{title:"Note 1", body:"body", id:1}, {title:"Note 2", body:"body", id:2}]}
+       /&gt;
+  …
+}</pre></div><p>Then modify the <code class="literal">NoteList</code> component to use <code class="literal">this.props.notes</code> in the <code class="literal">dataSource</code>:</p><div class="informalexample"><pre class="programlisting">export default class NoteList extends React.Component {
+...
+  render() {
+    return (
+      &lt;ListView
+        dataSource={this.ds.cloneWithRows(this.props.notes)}
+        ...
+        /&gt;
+      )
+  }
+}</pre></div><p>Let's take our refactoring one step further. We don't really want the <code class="literal">HomeScreen</code> to be responsible for managing the state of our list of notes, that's a job for our top-level component, <code class="literal">ReactNotes</code>. We can repeat the same trick we just used and replace the hardcoded array of notes in <code class="literal">HomeScreen</code> with <code class="literal">this.props.notes</code>:</p><div class="informalexample"><pre class="programlisting">export default class HomeScreen extends React.Component {
+  render () {
+    return (
+      &lt;View style={styles.container}&gt;
+        &lt;NoteList navigator={this.props.navigator} notes={this.props.notes}/&gt;
+      ...
+     &lt;/View&gt;
+    );
+  }
+}</pre></div><p>In our <code class="literal">ReactNotes</code> component, we <a id="id148" class="indexterm"/>can pass the notes to the <code class="literal">HomeScreen</code> using props:</p><div class="informalexample"><pre class="programlisting">class ReactNotes extends React.Component {
+  renderScene (route, navigator) {
+    switch (route.name) {
+      case 'home':
+        return (
+          &lt;HomeScreen navigator={navigator} 
+          notes={[{title:"Note 1", body:"body", id:1}, {title:"Note 2", body:"body", id:2}]}/&gt;
+        );
+      case 'createNote':
+        return (
+          &lt;NoteScreen note={route.note} onChangeNote={(note) =&gt; console.log("note changed", note)}/&gt;
+        );
+    }
+  }
+  …
+}</pre></div><p>You may sense that we are getting tantalizingly close to our goal of being able to modify notes and see the changes in the <code class="literal">ListView</code>. The source of our notes is now in close proximity to the event handler that knows when the user has modified a note on the <code class="literal">NoteScreen</code>. What we're really talking about here is managing the state of our application.</p><p>The <code class="literal">ReactNotes</code> component is the top-level component that is responsible for managing the application state, which consists entirely of notes. So, let's make it official and move the array of notes into the component's initial state:</p><div class="informalexample"><pre class="programlisting">class ReactNotes extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      notes: [{title: "Note 1", body: "body", id: 1}, {title: "Note 2", body: "body", id: 2}]};
+  }
+  renderScene(route, navigator) {
+    switch (route.name) {
+      case 'home':
+        return (
+          &lt;HomeScreen navigator={navigator} notes={this.state.notes}/&gt;
+        );
+      case 'createNote':
+        return (
+          &lt;NoteScreen note={route.note} onChangeNote={(note) =&gt; console.log("note changed", note)}/&gt;
+        );
+    }
+  }
+
+  ...
+}</pre></div><p>Storing notes<a id="id149" class="indexterm"/> in an array makes it a little tricky to update a particular note; let's do a quick refactor using an object instead of an array, as shown:</p><div class="informalexample"><pre class="programlisting">class ReactNotes extends React.Component {
+
+  constructor(props) {
+    super(props);
+    this.state = {
+      selectedNote: {title:"", body:""},
+      notes: {
+        1: {title: "Note 1", body: "body", id: 1},
+        2: {title: "Note 2", body: "body", id: 2}
+      }
+    }
+  }
+…
+}</pre></div><p>Now, <code class="literal">notes</code> is the object in which the keys correspond to the <code class="literal">ids</code> of the notes. Since the <code class="literal">NoteList</code> component is still expecting an array, let's use <code class="literal">underscore.js</code> to do the conversion:</p><div class="informalexample"><pre class="programlisting">&lt;HomeScreen navigator={navigator} notes={_(this.state.notes).toArray()} /&gt;</pre></div><p>The <code class="literal">NoteList</code> should continue to function the way it did earlier; we are just keeping track of our notes a little differently.</p><p>Here are the changes that we need to make for the <code class="literal">onChangeNote</code> handler to actually update a note via state:</p><div class="informalexample"><pre class="programlisting">class ReactNotes extends React.Component {
+  ...
+  updateNote(note) {
+    var newNotes = Object.assign({}, this.state.notes);
+    newNotes[note.id] = note;
+    this.setState({notes:newNotes});
+  }
+
+  renderScene(route, navigator) {
+    switch (route.name) {
+      case 'createNote':
+
+        return (
+          &lt;NoteScreen note={this.state.selectedNote} onChangeNote={(note) =&gt; this.updateNote(note)}/&gt;
+        );
+    }
+  }
+...
+}</pre></div><p>Let's walk <a id="id150" class="indexterm"/>through the <code class="literal">updateNote</code> function to understand what's happening. First, we create a copy of <code class="literal">this.state.notes</code> using <code class="literal">Object.assign()</code>. Any time you work with nested data in your state object, we recommend making a copy like this to avoid unexpected behavior. React compares the two objects to determine if a component's state has changed and needs to be re-rendered; hence, using a copy like this ensures that the old state and the new state point to different objects. We then put our modified note into <code class="literal">newNotes</code> using <code class="literal">note.id</code> as the key. Lastly, we call <code class="literal">setState()</code> to replace the entire notes object with the new copy.</p><p>We've got a few more refactorings to do before we can try out our handiwork. Now that we know how to pass callbacks to our components via props, we can eliminate the need to pass in a navigator to the <code class="literal">HomeScreen</code> and <code class="literal">NoteList</code> components, and instead pass in a callback so that the <code class="literal">NoteList</code> can tell us when the user has selected a note:</p><div class="informalexample"><pre class="programlisting">class ReactNotes extends React.Component {
+  renderScene(route, navigator) {
+    switch (route.name) {
+      case 'home':
+        return (&lt;HomeScreen navigator={navigator} notes={_(this.state.notes).toArray()} onSelectNote={(note) =&gt; navigator.push({name:"createNote", note: note})}/&gt;);
+      case 'createNote':
+      return (
+          &lt;NoteScreen note={route.note} onChangeNote={(note) =&gt; this.updateNote(note)}/&gt;
+        );
+    }
+  }</pre></div><p>This means that<a id="id151" class="indexterm"/> we have to update our <code class="literal">HomeScreen</code> to pass the <code class="literal">onSelectNote</code> callback into the <code class="literal">NoteList</code>:</p><div class="informalexample"><pre class="programlisting">export default class HomeScreen extends React.Component {
+  render () {
+    return (
+      &lt;View style={styles.container}&gt;
+        &lt;NoteList notes={this.props.notes} onSelectNote={this.props.onSelectNote}/&gt;
+        &lt;Text style={styles.noNotesText}&gt;You haven't created any notes!&lt;/Text&gt;
+        &lt;SimpleButton
+          onPress={() =&gt; this.props.navigator.push({
+            name: 'createNote'
+          })}
+          customText="Create Note"
+          style={styles.simpleButton}
+          textStyle={styles.simpleButtonText}
+        /&gt;
+      &lt;/View&gt;
+    );
+  }
+}</pre></div><p>Also, we'll have to update <code class="literal">NoteList</code>. We no longer need the <code class="literal">_onPress</code> handler or a reference to the navigator, we can just invoke the provided callback with <code class="literal">rowData</code>:</p><div class="informalexample"><pre class="programlisting">export default class NoteList extends React.Component {
+
+  constructor (props) {
+    super(props);
+    this.ds = new ListView.DataSource({rowHasChanged: (r1, r2) =&gt; r1 !== r2});
+  }
+  render() {
+    return (
+      &lt;ListView
+        dataSource={this.ds.cloneWithRows(this.props.notes)}
+        renderRow={(rowData) =&gt; {
+              return (
+            &lt;TouchableHighlight
+              onPress={() =&gt; this.props.onSelectNote(rowData)}
+              style={styles.rowStyle}
+              underlayColor="#9E7CE3"
+            &gt;
+              &lt;Text style={styles.rowText}&gt;{rowData.title}&lt;/Text&gt;
+            &lt;/TouchableHighlight&gt;              )
+            }
+          }/&gt;
+      )
+  }
+}
+
+var styles = StyleSheet.create({
+  rowStyle: {
+    borderBottomColor: '#9E7CE3',
+    borderBottomWidth: 1,
+    padding: 20,
+  },
+  rowText: {
+    fontWeight: '600'
+  }
+});</pre></div><p>You should now <a id="id152" class="indexterm"/>be able to reload the application, touch a note, change the title, go back, and see the updated title appear in the <code class="literal">NoteList</code>, as shown in the following screenshot:</p><div class="mediaobject"><img src="graphics/B05162_05_06.jpg" alt="Passing callbacks in props"/></div><p>When you <a id="id153" class="indexterm"/>select a note and navigate to the <code class="literal">NoteScreen</code>, the title that appears in the <code class="literal">NavigationBar</code> is still <span class="strong"><strong>Create Note</strong></span>. Let's modify it, so that even if we select an existing note from the list, we use the note's title instead of <span class="strong"><strong>Create Note</strong></span>:</p><div class="informalexample"><pre class="programlisting">  Title: function(route, navigator, index, navState) {
+    switch (route.name) {
+      case 'home':
+        return (
+          &lt;Text style={styles.navBarTitleText}&gt;React Notes&lt;/Text&gt;
+        );
+      case 'createNote':
+        return (
+          &lt;Text style={styles.navBarTitleText}&gt;{route.note ? route.note.title : 'Create Note'}&lt;/Text&gt;
+        );
+    }
+  }</pre></div><p>When you reload<a id="id154" class="indexterm"/> the application, the <code class="literal">NoteScreen</code> should reflect the title of the selected note:</p><div class="mediaobject"><img src="graphics/B05162_05_07.jpg" alt="Passing callbacks in props"/></div></div><div class="section" title="Creating new notes"><div class="titlepage"><div><div><h3 class="title"><a id="ch05lvl3sec09"/>Creating new notes</h3></div></div></div><p>So far, we've been<a id="id155" class="indexterm"/> updating <a id="id156" class="indexterm"/>existing notes. How do we add new ones? Well, that's actually very easy. We just need to update the <span class="strong"><strong>Create Note</strong></span> button in the <code class="literal">NavigationBar</code>, as shown:</p><div class="informalexample"><pre class="programlisting">   RightButton: function(route, navigator, index, navState) {
+    switch (route.name) {
+      case 'home':
+        return (
+          &lt;SimpleButton
+            onPress={() =&gt; {
+              navigator.push({
+                name: 'createNote',
+                note: {
+                  id: new Date().getTime(),
+                  title: '',
+                  body: ''
+                }
+              });
+            }}
+            customText='Create Note'
+            style={styles.navBarRightButton}
+            textStyle={styles.navBarButtonText}
+          /&gt;
+        );
+      default:
+         return null;
+    }
+  }</pre></div><p>As you can<a id="id157" class="indexterm"/> see, we're <a id="id158" class="indexterm"/>now passing an empty note with a generated id. (A better approach to generate ids will be to use a <code class="literal">uuid</code> generator, but we'll leave that as an exercise for the reader!)</p><p>That's it! We finally have a full, end-to-end note taking application! However, our notes only exist in memory. We need to be able to save notes to the device, so let's meet our new friend, <code class="literal">AsyncStorage</code>.</p></div><div class="section" title="Using AsyncStorage"><div class="titlepage"><div><div><h3 class="title"><a id="ch05lvl3sec10"/>Using AsyncStorage</h3></div></div></div><p>React Native <a id="id159" class="indexterm"/>provides an abstraction over the native local storage mechanism so that you don't have to worry about the underlying differences between how iOS and Android save data to the device.</p><p>It's really simple to use, so let's update our <code class="literal">ReactNotes</code> component to use <code class="literal">AsyncStorage</code>. First, let's add <code class="literal">AsyncStorage</code> to our list of imports:</p><div class="informalexample"><pre class="programlisting">import React, {
+  AppRegistry,
+  Navigator,
+  StyleSheet,
+  Text,
+  AsyncStorage
+} from 'react-native';</pre></div><p>Next, let's add a <code class="literal">saveNotes()</code> function:</p><div class="informalexample"><pre class="programlisting">  async saveNotes(notes) {
+    try {
+      await AsyncStorage.setItem("@ReactNotes:notes", JSON.stringify(notes));
+    } catch (error) {
+      console.log('AsyncStorage error: ' + error.message);
+    }
+  }</pre></div><p>You may be <a id="id160" class="indexterm"/>wondering what the <code class="literal">async</code> and <code class="literal">await</code> keywords are doing in your JavaScript! These are new keywords in ES7 that simplify working with promises. The <code class="literal">AsyncStorage</code> methods are, well, asynchronous and they return promises. Without going into too much detail, the <code class="literal">async</code> keyword in front of a function allows us to use the await keyword within the function body. The await keyword will resolve the promise, and if there's a problem, it will throw an error.</p><p>Let's modify our <code class="literal">updateNote</code> function to call our new <code class="literal">saveNotes</code> function:</p><div class="informalexample"><pre class="programlisting">  updateNote(note) {
+    var newNotes = Object.assign({}, this.state.notes);
+    newNotes[note.id] = note;
+    this.setState({notes:newNotes});
+    this.saveNotes(newNotes);
+  }</pre></div><p>We'll also need a function to <code class="literal">loadNotes</code> from <code class="literal">AsyncStorage</code>:</p><div class="informalexample"><pre class="programlisting">  async loadNotes() {
+    try {
+      var notes = await AsyncStorage.getItem("@ReactNotes:notes");
+      if (notes !== null) {
+        this.setState({notes:JSON.parse(notes)})
+      }
+    } catch (error) {
+      console.log('AsyncStorage error: ' + error.message);
+    }
+  }</pre></div><p>We want to load our saved notes from the device in our constructor:</p><div class="informalexample"><pre class="programlisting">  constructor(props) {
+    super(props);
+    this.state = {
+      notes: {
+        1: {title: "Note 1", body: "body", id: 1},
+        2: {title: "Note 2", body: "body", id: 2}
+      }
+    }
+    this.loadNotes();
+  }</pre></div><p>Reload your<a id="id161" class="indexterm"/> application, and save the changes made to a note or create a new note. Then reload the application again. Your changes have been saved! We just have one more job to do, deleting notes!</p></div><div class="section" title="Deleting notes"><div class="titlepage"><div><div><h3 class="title"><a id="ch05lvl3sec11"/>Deleting notes</h3></div></div></div><p>The last thing we <a id="id162" class="indexterm"/>need to do before we have a fully functional note-taking application is to add a <span class="strong"><strong>Delete</strong></span> button to our <code class="literal">NoteScreen</code>. To accomplish that, we'll update our <code class="literal">NavigationBarRouteMapper</code> to add a <code class="literal">RightButton</code> when the route name is <code class="literal">createNote</code>:</p><div class="informalexample"><pre class="programlisting">  RightButton: function(route, navigator, index, navState) {
+    switch (route.name) {
+      case 'home':
+        return (
+          &lt;SimpleButton
+            onPress={() =&gt; {
+              navigator.push({
+                name: 'createNote',
+                note: {
+                  id: new Date().getTime(),
+                  title: '',
+                  body: '',
+                  isSaved: false
+                }
+              });
+            }}
+            customText='Create Note'
+            style={styles.navBarRightButton}
+            textStyle={styles.navBarButtonText}
+          /&gt;
+        );
+      case 'createNote':
+        if (route.note.isSaved) {
+          return (
+            &lt;SimpleButton
+              onPress={
+                () =&gt; {
+                  navigator.props.onDeleteNote(route.note);
+                  navigator.pop();
+                }
+              }
+              customText='Delete'
+              style={styles.navBarRightButton}
+              textStyle={styles.navBarButtonText}
+              /&gt;
+          );
+        } else {
+          return null;
+        }
+      default:
+         return null;
+    }
+  },</pre></div><p>The first <a id="id163" class="indexterm"/>thing to notice is that I've added a condition to check if the note has already been saved (we will need to tweak our <code class="literal">updateNote</code> function to set this). This is to make sure that the <span class="strong"><strong>Delete</strong></span> button doesn't show up for new notes. The <code class="literal">Create Note</code> <code class="literal">onPress</code> handler has been updated to set <code class="literal">isSaved = false</code> in the empty note that we pass to the <code class="literal">NoteScreen</code>, when that button is pressed.</p><p>Now, let's look at the <code class="literal">onPress</code> handler for the <span class="strong"><strong>Delete</strong></span> button:</p><div class="informalexample"><pre class="programlisting">              onPress={
+                () =&gt; {
+                  navigator.props.onDeleteNote(route.note);
+                  navigator.pop();
+                }
+              }</pre></div><p>We've seen <code class="literal">navigator.pop()</code> before, but we're also invoking a new callback called <code class="literal">onDeleteNote</code>. We need to pass that callback in through props in our <code class="literal">ReactNotes</code> <code class="literal">render</code> function:</p><div class="informalexample"><pre class="programlisting">  render () {
+    return (
+      &lt;Navigator
+        initialRoute={{name: 'home'}}
+        renderScene={this.renderScene.bind(this)}
+        navigationBar={
+          &lt;Navigator.NavigationBar
+            routeMapper={NavigationBarRouteMapper}
+            style={styles.navBar}
+          /&gt;
+        }
+        onDeleteNote={(note) =&gt; this.deleteNote(note)}
+      /&gt;
+    );
+  }</pre></div><p>Next, we need to modify our <code class="literal">updateNote</code> function to mark the notes that have been saved:</p><div class="informalexample"><pre class="programlisting">  updateNote(note) {
+    var newNotes = Object.assign({}, this.state.notes);
+    note.isSaved = true;
+    newNotes[note.id] = note;
+    this.setState({notes:newNotes});
+    this.saveNotes(newNotes);
+  }</pre></div><p>Just below<a id="id164" class="indexterm"/> that, we'll add the <code class="literal">deleteNote</code> function:</p><div class="informalexample"><pre class="programlisting">  deleteNote(note) {
+    var newNotes = Object.assign({}, this.state.notes);
+    delete newNotes[note.id];
+    this.setState({notes:newNotes});
+    this.saveNotes(newNotes);
+  }</pre></div><p>That's it! Reload the application and create a new note. Notice that there is no <span class="strong"><strong>Delete</strong></span> button in the <code class="literal">NavigationBar</code>. Press the <span class="strong"><strong>Back</strong></span> button to view the note in the list, then tap that item in the list to view it. You should be able to see the <span class="strong"><strong>Delete</strong></span> button in the top right corner, as shown:</p><div class="mediaobject"><img src="graphics/B05162_05_08.jpg" alt="Deleting notes"/></div><p>Press the <span class="strong"><strong>Delete</strong></span> button <a id="id165" class="indexterm"/>and you will be returned to the <code class="literal">HomeScreen</code> where the deleted note will disappear from the list!</p></div></div></div></div>
+<div class="section" title="Summary"><div class="titlepage"><div><div><h1 class="title"><a id="ch05lvl1sec25"/>Summary</h1></div></div></div><p>In this chapter, we have created a complete note-taking application. You have learned how to use the <code class="literal">ListView</code> to display data, pass data into components using props, keep track of a component's state, and save data to the device using AsyncStorage. Moreover, you have done did all of this without writing any <code class="literal">platform-specific</code> code!</p></div></body></html>

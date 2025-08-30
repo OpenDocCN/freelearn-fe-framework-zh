@@ -1,0 +1,635 @@
+<html><head></head><body>
+		<div id="_idContainer064">
+			<h1 id="_idParaDest-127"><em class="italic"><a id="_idTextAnchor237"/>Chapter 7</em>: Use Context to Cover an Area</h1>
+			<p>In the previous chapter, we learned how <strong class="source-inline">useMemo</strong> is designed and how to use <strong class="source-inline">useMemo</strong> to conditionally reuse the last value. In this chapter, we will talk about how to propagate changes to cover an area update. We will introduce what an area update is and how <em class="italic">React</em> context is used to share a value within that area. Then, we will walk through the data structure and source code behind <strong class="source-inline">useContext</strong> to consume the shared value. And finally, we'll provide two practical examples of applying contexts to the theme and the table. The chapter also includes two bonus topics in the <em class="italic">Appendix</em> section: <em class="italic">Propagating a context</em> and <em class="italic">Context scope and value</em>.</p>
+			<p>We will cover the following topics in this chapter:</p>
+			<ul>
+				<li>What is an area update?</li>
+				<li>Introducing the React context</li>
+				<li>Understanding the <strong class="source-inline">useContext</strong> design</li>
+				<li>Test driving <strong class="source-inline">useContext</strong> </li>
+				<li><strong class="source-inline">useContext</strong> examples</li>
+				<li>Questions and answers</li>
+				<li>Appendix</li>
+			</ul>
+			<h1 id="_idParaDest-128"><a id="_idTextAnchor238"/>What is an area update?</h1>
+			<p>On a typical <a id="_idIndexMarker275"/>website, once the site is loaded, it starts listening to all user actions. Each action received gets handled on a first-come, first-served basis. Normally, the impact of each action is limited to one small region of the screen, using a <em class="italic">UI</em> term, a single component. However, sometimes, a user action can do more than that.</p>
+			<p>Let's use the computer as an analogy. Say you decide to change the color settings of your system. Once the color is changed, the computer goes through all the open windows and applies that color to them. Therefore, this action can impact multiple applications spread across the screen. This becomes an area update.</p>
+			<p>Have you wondered how we can make an area update when the impacted components are located very distantly from each other? To be able to answer this question, let's first recall a single update introduced in <a href="B17963_04_Epub.xhtml#_idTextAnchor113"><em class="italic">Chapter 4</em></a>, <em class="italic">Use State to Jumpstart Components</em>.</p>
+			<p>A fiber tree is scheduled for a single update upon receiving an action. This update is localized around a source fiber where the action is received (the red dot in <em class="italic">Figure 7.1</em>). <em class="italic">React</em> follows the source and collects all the changes associated with it and then applies them to the <em class="italic">DOM</em> (red lines). This<a id="_idIndexMarker276"/> is the single update pattern in <em class="italic">React</em>.</p>
+			<div>
+				<div id="_idContainer056" class="IMG---Figure">
+					<img src="image/Figure_7.01_B17963.jpg" alt="Figure 7.1 – A single update originating from a user action&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 7.1 – A single update originating from a user action</p>
+			<p>Say the source fiber is a <strong class="source-inline">Title</strong> component:</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [count, dispatch] = useState(0)</p>
+			<p class="source-code">  <strong class="bold">const</strong> onClick = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    dispatch(count + 1)</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  </p>
+			<p class="source-code">  <strong class="bold">return</strong> ( </p>
+			<p class="source-code">    <strong class="bold">&lt;&gt;</strong></p>
+			<p class="source-code">      <strong class="bold">&lt;div</strong> onClick={onClick}<strong class="bold">&gt;</strong>{count}<strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">      ...</p>
+			<p class="source-code">    <strong class="bold">&lt;/&gt;</strong></p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>The <a id="_idIndexMarker277"/>preceding <strong class="source-inline">Title</strong> component gets updated when the user clicks on <strong class="source-inline">count</strong>. It should also update other children in the <strong class="source-inline">...</strong> section. </p>
+			<p>Now, consider another component called <strong class="source-inline">ThumbUp</strong>:</p>
+			<p class="source-code"><strong class="bold">const</strong> ThumbUp = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  // made up count</p>
+			<p class="source-code">  <strong class="bold">return</strong> count &gt; 5 ? "Awesome" : ""</p>
+			<p class="source-code">}</p>
+			<p>The intention of the <strong class="source-inline">ThumbUp</strong> component is to respond to <strong class="source-inline">count</strong>. When it becomes greater than <strong class="source-inline">5</strong>, we want an <strong class="source-inline">"Awesome"</strong> message to be printed on the screen. The <strong class="source-inline">ThumbUp</strong> component is located in <em class="italic">Figure 7.2</em>:</p>
+			<p class="figure"> </p>
+			<div>
+				<div id="_idContainer057" class="IMG---Figure">
+					<img src="image/Figure_7.02_B17963.jpg" alt="Figure 7.2 – Two updates responding to a single user action&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 7.2 – Two updates responding to a single user action</p>
+			<p>Currently, the <strong class="source-inline">count</strong> variable<a id="_idIndexMarker278"/> in the <strong class="source-inline">ThumbUp</strong> component is a made-up one because we don't know how it can be passed from the <strong class="source-inline">Title</strong> component. All we know is that we want to share this <strong class="source-inline">count</strong> among both components and the challenge somehow lies in their relationship. </p>
+			<p>Apparently, these two components are not a child or parent to one another. There's no direct path from one to the other unless we first go upward multiple steps to the <strong class="source-inline">Branch</strong> component (dark dot in <em class="italic">Figure 7.2</em>) and then go down again picking another route. Essentially, <strong class="source-inline">Branch</strong> is their common ancestor. So how exactly can we send information between two nodes that are not in a direct parent/child relationship? </p>
+			<p>Let's explore this question by taking two approaches, starting with the props approach<a id="_idTextAnchor239"/>.</p>
+			<h2 id="_idParaDest-129"><a id="_idTextAnchor240"/>Props approach</h2>
+			<p>Since the <a id="_idIndexMarker279"/>React props only work for the parent/child setup, to apply the props to this problem, we need to promote the relevant state to a common ancestor, the <strong class="source-inline">Branch</strong> component:</p>
+			<p class="source-code"><strong class="bold">const</strong> Branch = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">   <strong class="bold">const</strong> [count, dispatch] = useState(0)</p>
+			<p class="source-code">   <strong class="bold">const</strong> onClick = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">     dispatch(count + 1)</p>
+			<p class="source-code">   }</p>
+			<p class="source-code">   </p>
+			<p class="source-code">   <strong class="bold">return</strong> (</p>
+			<p class="source-code">     <strong class="bold">&lt;&gt;</strong></p>
+			<p class="source-code">       <strong class="bold">&lt;div&gt;</strong></p>
+			<p class="source-code">         ...</p>
+			<p class="source-code">         &lt;Title count={count} onClick={onClick} /&gt;  </p>
+			<p class="source-code">         ...</p>
+			<p class="source-code">       <strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">       <strong class="bold">&lt;div&gt;</strong></p>
+			<p class="source-code">         ...</p>
+			<p class="source-code">         &lt;ThumbUp count={count} /&gt;</p>
+			<p class="source-code">         ...</p>
+			<p class="source-code">       <strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">     <strong class="bold">&lt;/&gt;</strong></p>
+			<p class="source-code">   )</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, the <strong class="source-inline">count</strong> state is relocated from <strong class="source-inline">Title</strong> to <strong class="source-inline">Branch</strong>. From there, <strong class="source-inline">count</strong> and <strong class="source-inline">dispatch</strong> are then sent to the (distant) children via props. Now, if the state changes, the <strong class="source-inline">Branch</strong> component updates all its children, including <strong class="source-inline">Title</strong> and <strong class="source-inline">ThumbUp</strong>. OK, we managed to share the <strong class="source-inline">count</strong> state.</p>
+			<p>Although the props approach works in general, it does require us to modify the props for both the <strong class="source-inline">Title</strong> and <strong class="source-inline">ThumbUp</strong> components. Since there can be other components in the path between <strong class="source-inline">Branch</strong> and each of them, all components along the way need to be modified as well. Considering a typical site build, the need to share a state happens in the later stage of the project cycle. Taking this approach can be very expensive due to the number of components we need to modify.</p>
+			<p>So, is there a better way of sharing the prop without touching so many components? Looking at <em class="italic">Figure 7.2</em>, an intuitive approach could be to dispatch an update to the <strong class="source-inline">Title</strong> component, and an update to the <strong class="source-inline">ThumbUp</strong> component at the same time. The combined impact<a id="_idIndexMarker280"/> could produce an area update covering both. Let's see if we can make this idea wo<a id="_idTextAnchor241"/>rk.</p>
+			<h2 id="_idParaDest-130"><a id="_idTextAnchor242"/>Combined dispatch approach</h2>
+			<p>To have a <a id="_idIndexMarker281"/>combined dispatch, we need to allow both dispatches to be accessible from an event handler. This is a bit tricky since a dispatch function provided via <strong class="source-inline">useState</strong> is normally defined inside one component, either <strong class="source-inline">Title</strong> or <strong class="source-inline">ThumbUp</strong>. To get around that, let's say we use a global variable for now:</p>
+			<p class="source-code"><strong class="bold">let</strong> dispatch2</p>
+			<p class="source-code"><strong class="bold">const</strong> ThumbUp = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [count, dispatch] = useState(0)</p>
+			<p class="source-code">  dispatch2 = dispatch</p>
+			<p class="source-code">  <strong class="bold">return</strong> count &gt; 5 ? "Awesome" : ""</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, we amended the <strong class="source-inline">ThumbUp</strong> component and added a <strong class="source-inline">count</strong> state and a <strong class="source-inline">dispatch</strong> function. We then used a global variable, <strong class="source-inline">dispatch2</strong>, to point to this <strong class="source-inline">dispatch</strong> function so that it can be invoked by other components. Now, with this change, we can ask the <strong class="source-inline">Title</strong> component to perform both dispatches:</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [count, dispatch] = useState(0)</p>
+			<p class="source-code">  <strong class="bold">const</strong> onClick = () <strong class="bold">=&gt;</strong> { </p>
+			<p class="source-code">    dispatch(v <strong class="bold">=&gt;</strong> v + 1)</p>
+			<p class="source-code">    dispatch2(v <strong class="bold">=&gt;</strong> v + 1)</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  </p>
+			<p class="source-code">  <strong class="bold">return &lt;div</strong> onClick={onClick}<strong class="bold">&gt;</strong>{count}<strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">}</p>
+			<p>From the preceding<a id="_idIndexMarker282"/> setup, after the user clicks on <strong class="source-inline">count</strong>, it performs the <strong class="source-inline">dispatch</strong> from <strong class="source-inline">Title</strong> and performs <strong class="source-inline">dispatch2</strong> from <strong class="source-inline">Greeting</strong>. Although the two <strong class="source-inline">count</strong> states in each component are not pointing to a shared value, both are incremented respectively from these two dispatches. <em class="italic">React</em> batches these two dispatches into one update to the screen, and if the user continues clicking the number, you will see an <strong class="source-inline">"Awesome"</strong> message on the screen when the <strong class="source-inline">count</strong> state gets bigger than <strong class="source-inline">5</strong>.</p>
+			<p>You might not believe this hack-ish approach would work, but it does. The fact that we call a dispatch function for another component is a bit beyond what <em class="italic">React</em> designs <strong class="source-inline">useState</strong> to do, but it's not incorrect. This approach requires fewer changes to the code structure. There's no prop involved. All changes are made on the local side of <strong class="source-inline">Title</strong> and <strong class="source-inline">ThumbUp</strong>. More importantly, it serves as an educational case that an update impacting multiple components can be composed of multiple updates. </p>
+			<p>OK, what we learned from these two approaches is that we want to avoid passing props all the way down in this non-parent/child case, and we want to share the value as well as trigger a sort of combined update following the value change. Moreover, in practice, if the solution can provide the joint dispatch out of the box and require minor modifications to the existing code structure, that would be even better.</p>
+			<p>By the end of 2017, the <em class="italic">React</em> team found such needs and introduced a new version of context to address its current limitations at that time. What the new context does is that it helps to share a value through multiple levels of components without requiring a prop in each level. It also provides a mechanism for a distant child component to access a value from an <a id="_idIndexMarker283"/>ancestor component. Let's take a look at this <em class="italic">React</em> co<a id="_idTextAnchor243"/>ntext.</p>
+			<h1 id="_idParaDest-131"><a id="_idTextAnchor244"/>Introducing the React context</h1>
+			<p>The context is <a id="_idIndexMarker284"/>modeled with a <strong class="source-inline">ReactContext</strong> data type holding a <strong class="source-inline">_currentValue</strong> value.</p>
+			<div>
+				<div id="_idContainer058" class="IMG---Figure">
+					<img src="image/Figure_7.03_B17963.jpg" alt="Figure 7.3 – React context data structure&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 7.3 – React context data structure</p>
+			<p>We can create a context with the <strong class="source-inline">createContext</strong> function. For instance, if we want to share a piece of user info, we can create a <strong class="source-inline">UserContext</strong> and hold a <strong class="source-inline">defaultValue</strong>:</p>
+			<p class="source-code"><strong class="bold">const</strong> UserContext = createContext(defaultValue)</p>
+			<p class="source-code">export default UserContext</p>
+			<p>The created context can be shared via a <em class="italic">JavaScript</em> <strong class="source-inline">export</strong> statement, and this way, when any other file or component needs it, it can be imported.</p>
+			<p>The context allows us to provide the value to all consumers underneath via a <strong class="source-inline">Provider</strong> property:</p>
+			<p class="source-code">import UserContext from './UserContext'</p>
+			<p class="source-code"><strong class="bold">const</strong> Branch = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">return</strong> (    </p>
+			<p class="source-code">    &lt;UserContext.Provider value={...}&gt;      </p>
+			<p class="source-code">    ...    </p>
+			<p class="source-code">    &lt;/UserContext.Provider&gt;  </p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>A context <a id="_idIndexMarker285"/>provider, such as <strong class="source-inline">UserContext.Provider</strong>, accepts a <strong class="source-inline">value</strong> prop to share. The provider is a special component. Unlike a function component, it has its own update implementation. When it gets updated due to a change in <strong class="source-inline">value</strong>, it kicks off a search. </p>
+			<p>The search goes through its children, and its children's children recursively, until everything under gets visited. For all consumers using the context, they are marked to be updated. If you are interested in knowing more about the context provider, check out <em class="italic">Appendix A – Propagating a context</em>, at the end of this chapter.</p>
+			<p>Hence, a provider's job is to share a value. If multiple values of different purposes are required, we can stack them together. Let's say that, on top of <strong class="source-inline">UserContext</strong>, we have one more <strong class="source-inline">ThemeContext</strong> context to share:</p>
+			<p class="source-code"><strong class="bold">const</strong> Branch = ({ user, theme }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    &lt;ThemeContext.Provider value={theme}&gt;</p>
+			<p class="source-code">      &lt;UserContext.Provider value={user}&gt;</p>
+			<p class="source-code">        ...</p>
+			<p class="source-code">      &lt;/UserContext.Provider&gt;</p>
+			<p class="source-code">    &lt;/ThemeContext.Provider&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>The preceding usage would enable any consumer in the<strong class="source-inline">...</strong> section to read the value from <strong class="source-inline">theme</strong> or <strong class="source-inline">user</strong>, or both.</p>
+			<p>One interesting aspect regarding the design of the provider is that a provider can be nested under the<a id="_idIndexMarker286"/> same provider to override the shared value:</p>
+			<p class="source-code"><strong class="bold">const</strong> Branch = ({ theme1, theme2 }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    &lt;ThemeContext.Provider value={theme1}&gt;</p>
+			<p class="source-code">      // A. value = theme1</p>
+			<p class="source-code">      &lt;ThemeContext.Provider value={theme2}&gt;</p>
+			<p class="source-code">        // B. value = theme2</p>
+			<p class="source-code">      &lt;/ThemeContext.Provider&gt;</p>
+			<p class="source-code">      // C. value = theme1</p>
+			<p class="source-code">    &lt;/ThemeContext.Provider&gt;</p>
+			<p class="source-code">    // D. value = defaultTheme</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, <strong class="source-inline">theme1</strong> and <strong class="source-inline">theme2</strong> are provided by two providers from the same <strong class="source-inline">ThemeContext</strong> definition. So, which context value does a consumer see, you might wonder?</p>
+			<p>There are four locations marked <strong class="source-inline">A</strong>, <strong class="source-inline">B</strong>, <strong class="source-inline">C</strong>, and <strong class="source-inline">D</strong> in the preceding code. The value a consumer sees depends on where it's consumed. For location <strong class="source-inline">A</strong>, the value a consumer sees is <strong class="source-inline">theme1</strong>, for location <strong class="source-inline">B</strong>, it's <strong class="source-inline">theme2</strong>, and for location <strong class="source-inline">C</strong>, it's back to <strong class="source-inline">theme1</strong> again. </p>
+			<p>Essentially, the context provider is designed (in a way) like a <em class="italic">JavaScript</em> function. You can get different values in the different function scopes. To figure out the correct value at a particular location, you need to find the first ancestor parent that provides the <strong class="source-inline">value</strong>. The closest ancestor provider should provide the right context value. This should explain why location <strong class="source-inline">C</strong> gets <strong class="source-inline">theme1</strong> instead of <strong class="source-inline">theme2</strong>.</p>
+			<p>Then what is the context value outside of any provider scope, for instance, at location <strong class="source-inline">D</strong>? Since it does not happen to be an ancestor provider that you can find above the <strong class="source-inline">Branch</strong> component. This is where <strong class="source-inline">defaultValue</strong> comes into play:</p>
+			<p class="source-code"><strong class="bold">const</strong> ThemeContext = React.createContext(defaultTheme)</p>
+			<p>When no other provider can be found to provide the value, it takes the <strong class="source-inline">defaultValue</strong> supplied at the time the context is created. This implies that the default value isn't a must-have, but it can be useful for taking a sneak peek into the format of a context type early on:</p>
+			<p class="source-code"><strong class="bold">const</strong> defaultTheme = {</p>
+			<p class="source-code">  mode: 'light'</p>
+			<p class="source-code">}</p>
+			<p>Internally, <em class="italic">React</em> uses a stack to push and pop the context to keep track of context values for all provider scopes. If you are interested in knowing this detail, check out <em class="italic">Appendix B – Context scope and value</em>, at the end of this chapter.</p>
+			<p>OK, now that<a id="_idIndexMarker287"/> we know how to provide a context value, let's see how we can consume it in a consumer/child component. <em class="italic">React</em> provides a <strong class="source-inline">useContext</strong> hook to do j<a id="_idTextAnchor245"/>ust that.</p>
+			<h1 id="_idParaDest-132"><a id="_idTextAnchor246"/>Understanding the useContext design</h1>
+			<p><em class="italic">React</em> provides <a id="_idIndexMarker288"/>a <strong class="source-inline">useContext</strong> hook to consume a context:</p>
+			<p class="source-code">import UserContext from './UserContext'</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {  </p>
+			<p class="source-code">  <strong class="bold">const</strong> user = useContext(UserContext)</p>
+			<p class="source-code">  <strong class="bold">return &lt;div&gt;</strong>{user.name}<strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">}</p>
+			<p>The <strong class="source-inline">useContext</strong> hook function takes one input argument, <strong class="source-inline">context</strong>, and returns the shared value. <strong class="source-inline">context</strong> is <a id="_idIndexMarker289"/>normally imported from a definition file.</p>
+			<h2 id="_idParaDest-133"><a id="_idTextAnchor247"/>useContext data structure</h2>
+			<p>We are<a id="_idIndexMarker290"/> going to explain how <strong class="source-inline">useContext</strong> is designed with a stripped-down version of the source code. Let's take a look at the data structure that makes it happen:</p>
+			<div>
+				<div id="_idContainer059" class="IMG---Figure">
+					<img src="image/Figure_7.04_B17963.jpg" alt="Figure 7.4 – useContext hook data structure&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 7.4 – useContext hook data structure</p>
+			<p>To consume (or read) a context value, each fiber gets a new <strong class="source-inline">dependencies</strong> property to keep track of all the context it consumes. This is because a component can use multiple <strong class="source-inline">useContext</strong> and each usage consumes a different context, such as <strong class="source-inline">UserContext</strong> and <strong class="source-inline">ThemeContext</strong>. </p>
+			<p>The <strong class="source-inline">dependencies</strong> property is designed as a linked list with its <strong class="source-inline">firstContext</strong> property to hold the first context with a <strong class="source-inline">ContextItem</strong> type. Each <strong class="source-inline">ContextItem</strong> holds a <strong class="source-inline">ReactContext</strong> (the context introduced earlier) and a <strong class="source-inline">next</strong> property pointing to the next context. The dependencies list is how the provider finds all consumers while propagating the update.</p>
+			<p>The <strong class="source-inline">useContext</strong> hook<a id="_idIndexMarker291"/> is designed to read a context value for <a id="_idTextAnchor248"/>all updates:</p>
+			<p class="source-code"><strong class="bold">function</strong> useContext(context) {</p>
+			<p class="source-code">  <strong class="bold">const</strong> contextItem = {      </p>
+			<p class="source-code">    context: context,      </p>
+			<p class="source-code">    next: <strong class="bold">null</strong>,    </p>
+			<p class="source-code">  }    </p>
+			<p class="source-code">  <strong class="bold">if</strong> (lastDependency === <strong class="bold">null</strong>) {      </p>
+			<p class="source-code">    lastDependency = contextItem      </p>
+			<p class="source-code">    updatingFiber.dependencies = {        </p>
+			<p class="source-code">      firstContext: contextItem,      </p>
+			<p class="source-code">    }    </p>
+			<p class="source-code">  } <strong class="bold">else</strong> {      </p>
+			<p class="source-code">    lastDependency =        </p>
+			<p class="source-code">      lastDependency.next = contextItem    </p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  ...</p>
+			<p class="source-code">}</p>
+			<p>The main job of <strong class="source-inline">useContext</strong> in the preceding code block is to return <strong class="source-inline">_currentValue</strong> from <strong class="source-inline">context</strong>. It also appends <strong class="source-inline">context</strong> to the fiber's <strong class="source-inline">dependencies</strong> list before returning the context value.</p>
+			<p><strong class="source-inline">lastDependency</strong> is an auxiliary variable that keeps track of the last context of the update. If this is the first context, it's then created as <strong class="source-inline">firstContext</strong>, otherwise it is appended to the <strong class="source-inline">next</strong> of the list. At the beginning of the update, <strong class="source-inline">lastDependency</strong> is set to be <strong class="source-inline">null</strong>. Thus, the list of <strong class="source-inline">dependencies</strong> for each fiber is recreated in every update, and<a id="_idIndexMarker292"/> this reminds us how hooks are created in<a id="_idTextAnchor249"/> each update.</p>
+			<h2 id="_idParaDest-134"><a id="_idTextAnchor250"/>useContext workflow</h2>
+			<p>You have<a id="_idIndexMarker293"/> gone through a stripped-down version of <strong class="source-inline">useContext</strong> code. Here is the summary workflow for both provider and <strong class="source-inline">useContext</strong>:</p>
+			<div>
+				<div id="_idContainer060" class="IMG---Figure">
+					<img src="image/Figure_7.05_B17963.jpg" alt="Figure 7.5 – useContext and ContextProvider workflow&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 7.5 – useContext and ContextProvider workflow</p>
+			<p>Let's have a quick<a id="_idIndexMarker294"/> run-through. A context is provided through a provider. In the event of a value change from the provider, it finds all the consumers and propagates the update. Otherwise, it skips the update.</p>
+			<p>In an update, when a <strong class="source-inline">useContext</strong> hook is invoked with a given context, it appends the context to the fiber's <strong class="source-inline">dependencies</strong> list and returns the context's current value. </p>
+			<p>Now that we have gone through the overall design, let's take it all out for<a id="_idTextAnchor251"/> a test drive.</p>
+			<h1 id="_idParaDest-135"><a id="_idTextAnchor252"/>Test driving useContext</h1>
+			<p>Context is fun<a id="_idIndexMarker295"/> to use and has quite a few common applications. Consider a site with a user logo displayed at the top-right corner of the screen: </p>
+			<div>
+				<div id="_idContainer061" class="IMG---Figure">
+					<img src="image/Figure_7.06_B17963.jpg" alt="Figure 7.6 – An application with App, Header, and Logo&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 7.6 – An application with App, Header, and Logo</p>
+			<p>The site is created with an <strong class="source-inline">App</strong> component, containing <strong class="source-inline">Header</strong> and <strong class="source-inline">Main</strong>. And in turn, <strong class="source-inline">Header</strong> contains <strong class="source-inline">Logo</strong>, and <strong class="source-inline">Site</strong> contains <strong class="source-inline">Greeting</strong>. <strong class="source-inline">App</strong>, <strong class="source-inline">Header</strong>, and <strong class="source-inline">Logo</strong> are defined as follows:</p>
+			<p class="source-code"><strong class="bold">function</strong> App({ initialUser }) {</p>
+			<p class="source-code">  <strong class="bold">const</strong> user = initialUser</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    <strong class="bold">&lt;div&gt;</strong></p>
+			<p class="source-code">      &lt;Header user={user} /&gt;</p>
+			<p class="source-code">      &lt;Main user={user} /&gt;</p>
+			<p class="source-code">    <strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p class="source-code"><strong class="bold">const</strong> Header = ({ user }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">return </strong>&lt;Logo user={user} /&gt;</p>
+			<p class="source-code">}</p>
+			<p class="source-code"><strong class="bold">const</strong> Logo = ({ user }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    <strong class="bold">&lt;div&gt;</strong></p>
+			<p class="source-code">      <strong class="bold">&lt;img</strong> url={ user.imageUrl } <strong class="bold">/&gt;</strong></p>
+			<p class="source-code">      <strong class="bold">&lt;span&gt;</strong>{ user.username }<strong class="bold">&lt;/span&gt;</strong></p>
+			<p class="source-code">    <strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">  )  </p>
+			<p class="source-code">}</p>
+			<p>Assuming the user <a id="_idIndexMarker296"/>gets authenticated as an <strong class="source-inline">initialUser</strong> and sent to the <strong class="source-inline">App</strong>, it gets passed via a prop to <strong class="source-inline">Header</strong> and <strong class="source-inline">Logo</strong>. In <strong class="source-inline">Logo</strong>, it gets consumed by its <strong class="source-inline">imageUrl</strong> property and <strong class="source-inline">username</strong> to display a logo. Notice the interface for all components needs to carry <strong class="source-inline">user</strong> as a prop. Since we want to display a greeting message under <strong class="source-inline">Main</strong>, the <strong class="source-inline">user</strong> needs to be passed via a prop as well.</p>
+			<p>Let's see how a context can help to simplify this setup. Let's say we define a <strong class="source-inline">UserContext</strong>:</p>
+			<p class="source-code"><strong class="bold">const</strong> UserContext = React.createContext()</p>
+			<p class="source-code">export default UserContext</p>
+			<p>In the <strong class="source-inline">App</strong>, we can provide the <strong class="source-inline">initialUser</strong> via <strong class="source-inline">UserContext.Provider</strong>:</p>
+			<p class="source-code">import UserContext from './UserContext'</p>
+			<p class="source-code"><strong class="bold">const</strong> App = ({ initialUser }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [user, changeUser] = useState(initialUser)</p>
+			<p class="source-code">  <strong class="bold">const</strong> value = { user, changeUser }</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    &lt;UserContext.Provider value={value}&gt;</p>
+			<p class="source-code">      <strong class="bold">&lt;div&gt;</strong></p>
+			<p class="source-code">        &lt;Header /&gt;</p>
+			<p class="source-code">        &lt;Site /&gt;</p>
+			<p class="source-code">      <strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">    &lt;/UserContext.Provider&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>Notice <a id="_idIndexMarker297"/>that <strong class="source-inline">Header</strong> and <strong class="source-inline">Main</strong> don't have to carry the <strong class="source-inline">user</strong> prop anymore. </p>
+			<p>The <strong class="source-inline">App</strong> component creates a <strong class="source-inline">user</strong> state for holding <strong class="source-inline">initialUser</strong>. The <strong class="source-inline">changeUser</strong> function can be used to replace the current user if needed. It then assembles a <strong class="source-inline">value</strong> object from <strong class="source-inline">user</strong> and <strong class="source-inline">changeUser</strong> to be shared via <strong class="source-inline">UserContext.Provider</strong>.</p>
+			<p>Inside <strong class="source-inline">Logo</strong>, we can consume the value provided, which includes the <strong class="source-inline">user</strong> property:</p>
+			<p class="source-code">import UserContext from './UserContext'</p>
+			<p class="source-code"><strong class="bold">const</strong> Logo = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> { user } = useContext(UserContext)</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    <strong class="bold">&lt;div&gt;</strong></p>
+			<p class="source-code">      <strong class="bold">&lt;img</strong> url={ user.imageUrl } <strong class="bold">/&gt;</strong></p>
+			<p class="source-code">      <strong class="bold">&lt;span&gt;</strong>{ user.username }<strong class="bold">&lt;/span&gt;</strong></p>
+			<p class="source-code">    <strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">  )  </p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, the <strong class="source-inline">user</strong> object is obtained by reading off the <strong class="source-inline">UserContext</strong> via an ES6 syntax. For those readers who are interested in knowing about ES6 usages, check out the <em class="italic">Embracing JavaScript ES6</em> section in <a href="B17963_10_Epub.xhtml#_idTextAnchor363"><em class="italic">Chapter 10</em></a>, <em class="italic">Building a Website with React</em>. Once the <strong class="source-inline">user</strong> is obtained, we can use the <strong class="source-inline">imageUrl</strong> and <strong class="source-inline">username</strong> properties of <strong class="source-inline">user</strong> to quickly wire them to the existing <strong class="source-inline">Logo</strong> component.</p>
+			<p>The same applies to the components under <strong class="source-inline">Main</strong>, such as <strong class="source-inline">Greeting</strong>, which shows the <strong class="source-inline">Hello Fang</strong> message depending on the currently logged-in user. We can utilize the context to accomplish that with little effort:</p>
+			<p class="source-code">import UserContext from './UserContext'</p>
+			<p class="source-code"><strong class="bold">const</strong> Greeting = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> { user } = useContext(UserContext)</p>
+			<p class="source-code">  <strong class="bold">return &lt;h1&gt;</strong>Hello {user.username}<strong class="bold">&lt;/h1&gt;</strong></p>
+			<p class="source-code">}</p>
+			<p>It's important to note that with a context such as <strong class="source-inline">UserContext</strong>, our app becomes much more manageable and scalable pertaining to everything about accessing the <strong class="source-inline">user</strong> object. Because the information becomes context info, as long as the component falls into this<a id="_idIndexMarker298"/> context, it can access it.</p>
+			<p>Now that we know how to read the user object, let's see if we can change it from <strong class="source-inline">initialUser</strong>, such as allowing the user to log in an<a id="_idTextAnchor253"/>d out of the app.</p>
+			<h2 id="_idParaDest-136"><a id="_idTextAnchor254"/>Changing the context value</h2>
+			<p>Say we <a id="_idIndexMarker299"/>add a <strong class="bold">Logout</strong> button under <strong class="source-inline">Logo</strong>. When this button is clicked, the current user is logged out, meaning their logo should no longer be available for display:</p>
+			<p class="source-code">import UserContext from './UserContext'</p>
+			<p class="source-code"><strong class="bold">const</strong> Logo = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> { user, changeUser } = useContext(UserContext)</p>
+			<p class="source-code">  <strong class="bold">const</strong> { imageUrl, username } = user</p>
+			<p class="source-code">  <strong class="bold">const</strong> authenticated = username != <strong class="bold">undefined</strong></p>
+			<p class="source-code">  <strong class="bold">const</strong> onLogout = () <strong class="bold">=&gt;</strong> { changeUser({}) }</p>
+			<p class="source-code">  <strong class="bold">const</strong> onLogin = () <strong class="bold">=&gt;</strong> { // redirect to LoginForm }</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    <strong class="bold">&lt;div&gt;</strong></p>
+			<p class="source-code">      {authenticated ? (</p>
+			<p class="source-code">        <strong class="bold">&lt;&gt;</strong></p>
+			<p class="source-code">          <strong class="bold">&lt;img</strong> url={ imageUrl } <strong class="bold">/&gt;</strong></p>
+			<p class="source-code">          <strong class="bold">&lt;span&gt;</strong>{ username }<strong class="bold">&lt;/span&gt;</strong></p>
+			<p class="source-code">           <strong class="bold">&lt;button</strong> onClick={onLogout}<strong class="bold">&gt;</strong>Logout<strong class="bold">&lt;/button&gt;</strong></p>
+			<p class="source-code">        <strong class="bold">&lt;/&gt;</strong></p>
+			<p class="source-code">      ) : (</p>
+			<p class="source-code">           <strong class="bold">&lt;button</strong> onClick={onLogin}<strong class="bold">&gt;</strong>Login<strong class="bold">&lt;/button&gt;</strong></p>
+			<p class="source-code">      )}</p>
+			<p class="source-code">    <strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">  )  </p>
+			<p class="source-code">}</p>
+			<p>In the preceding <a id="_idIndexMarker300"/>code, the <strong class="source-inline">changeUser</strong> function is provided via <strong class="source-inline">UserContext</strong>. It defines an <strong class="source-inline">authenticated</strong> flag based on whether the <strong class="source-inline">username</strong> is available. This flag can be used to decide whether the <em class="italic">UI</em> should display the <strong class="bold">Logout</strong> or <strong class="bold">Login</strong> button. </p>
+			<p>If the user is authenticated, the <strong class="bold">Logout</strong> button is displayed. Upon clicking, the <strong class="source-inline">onLogout</strong> event handler is triggered to <strong class="source-inline">changeUser</strong> to an empty object, <strong class="source-inline">{}</strong>. <strong class="source-inline">changeUser</strong> is a dispatch function we defined earlier, and when it updates the <strong class="source-inline">user</strong>, it also propagates the update to all consumers, including the <strong class="source-inline">Logo</strong> component. Thus, when the next update arrives, <strong class="source-inline">user</strong> holds an empty object with no <strong class="source-inline">username</strong>.</p>
+			<p>If the user is not authenticated, the <strong class="bold">Login</strong> button is then displayed. Upon clicking, the <strong class="source-inline">onLogin</strong> event handler is triggered where we can redirect the user to a <strong class="source-inline">LoginForm</strong> (the redirection code is omitted here):</p>
+			<p class="source-code"><strong class="bold">const</strong> LoginForm = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> { changeUser } = useContext(UserContext)</p>
+			<p class="source-code">  <strong class="bold">const</strong> onSubmit = (_user) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    changeUser(_user)</p>
+			<p class="source-code">    // redirect to home page</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  <strong class="bold">return</strong> ...</p>
+			<p class="source-code">}</p>
+			<p><strong class="source-inline">LoginForm</strong> also <a id="_idIndexMarker301"/>consumes the <strong class="source-inline">UserContext</strong> and reads the <strong class="source-inline">changeUser</strong> property. Upon successful submission of the form, we can use <strong class="source-inline">changeUser</strong> again to change the empty user into an authenticated user. Similarly, the new update propagates the update to all consumers, including <strong class="source-inline">Logo</strong> and <strong class="source-inline">Greeting</strong>. Thus, the user will see their logo and username in the top-right corner after logging in, as well as a greeting message on the main body. See <em class="italic">Figure 7.6</em>.</p>
+			<p>User login and logout are generally important operations for a site because it has a direct impact on site authentication and authorization. Especially when refreshing the page entirely isn't an option, the context is a perfect fit in terms of reading and writing the user object without worrying about the out-of-sync moment among various components.</p>
+			<p>Now that we have seen how a context update orchestrates the updating of all components in the event of a context change, let's take a look at two more examples using contexts i<a id="_idTextAnchor255"/>n real applications.</p>
+			<h1 id="_idParaDest-137"><a id="_idTextAnchor256"/>useContext examples</h1>
+			<p>Context is <a id="_idIndexMarker302"/>used for sharing site-wise information, but it can be also very effective in sharing things in a narrower area. In this section, we'll see ex<a id="_idTextAnchor257"/>amples of both cases.</p>
+			<h2 id="_idParaDest-138"><a id="_idTextAnchor258"/>Theme context</h2>
+			<p>One nice <a id="_idIndexMarker303"/>and common usage involving a context is theming, which allows the user to switch between a light and dark theme based on their preference. See <em class="italic">Figure 7.7</em>: </p>
+			<div>
+				<div id="_idContainer062" class="IMG---Figure">
+					<img src="image/Figure_7.07_B17963.jpg" alt="Figure 7.7 – A theme made with light and dark options&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 7.7 – A theme made with light and dark options</p>
+			<p>To implement this feature, let's start with <strong class="source-inline">ThemeContext</strong>:</p>
+			<p class="source-code"><strong class="bold">const</strong> ThemeContext = React.createContext({</p>
+			<p class="source-code">  mode: 'light',  // or 'dark'</p>
+			<p class="source-code">})</p>
+			<p>We can set the default theme with an object supporting a <strong class="source-inline">mode</strong> property, which is a string to hold eithe<a id="_idTextAnchor259"/>r "light" or "dark". </p>
+			<h3>Design theme context</h3>
+			<p>Any <a id="_idIndexMarker304"/>component that requires the theme can read the settings from <strong class="source-inline">ThemeContext</strong>. Let's build a theme-aware <strong class="source-inline">Button</strong> component:</p>
+			<p class="source-code"><strong class="bold">const</strong> Button = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> theme = useContext(ThemeContext)</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    &lt;ButtonStyle mode={theme.mode}&gt;</p>
+			<p class="source-code">     Ok</p>
+			<p class="source-code">    &lt;/ButtonStyle&gt;</p>
+			<p class="source-code">}</p>
+			<p>We can theme the button's style based on the shared <strong class="source-inline">mode</strong> inside the <strong class="source-inline">ButtonStyle</strong> component:</p>
+			<p class="source-code"><strong class="bold">const</strong> color = props <strong class="bold">=&gt;</strong> </p>
+			<p class="source-code">  props.mode === 'light' : 'black' ? 'white'</p>
+			<p class="source-code"><strong class="bold">const</strong> ButtonStyle = styled.button`</p>
+			<p class="source-code">  color: ${color};</p>
+			<p class="source-code">`</p>
+			<p><strong class="source-inline">ButtonStyle</strong> is a styled component applied on top of the host <strong class="source-inline">button</strong> component with modified <em class="italic">CSS</em>. It receives the <strong class="source-inline">mode</strong> prop and, based on that, we can define its <strong class="source-inline">color</strong> with either <strong class="source-inline">"white"</strong> or <strong class="source-inline">"black"</strong>. If you are interested in using <strong class="source-inline">StyledComponent</strong>, please check out the <em class="italic">Adopting CSS-in-JS approach</em> section of <a href="B17963_10_Epub.xhtml#_idTextAnchor363"><em class="italic">Chapter 10</em></a>, <em class="italic">Building a Website with React</em>. </p>
+			<p>Based on this <a id="_idIndexMarker305"/>approach, we can build lots of other theme-aware components. And imagine a situation where we have a couple of them under <strong class="source-inline">App</strong>; in the event of the mode changing, they can all be flipped to their corresponding styles in a single update:</p>
+			<p class="source-code"><strong class="bold">const</strong> App = ({ theme }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    &lt;ThemeContext.Provider value={theme}&gt;</p>
+			<p class="source-code">      ...</p>
+			<p class="source-code">    &lt;/ThemeContext.Provider&gt;</p>
+			<p class="source-code">}</p>
+			<p>Now let's talk about how to design a context. In the preceding theming case, we used <strong class="source-inline">mode</strong> to flip between themes, but we also can bake the exact style into it:</p>
+			<p class="source-code"><strong class="bold">const</strong> ThemeContext = React.createContext({</p>
+			<p class="source-code">  primaryColor: 'blue',</p>
+			<p class="source-code">  secondaryColor: 'red'</p>
+			<p class="source-code">})</p>
+			<p>In the preceding context, two individual colors for primary and secondary purposes are defined. This way, we can directly read the color in <strong class="source-inline">Button</strong>:</p>
+			<p class="source-code"><strong class="bold">const</strong> color = props <strong class="bold">=&gt;</strong> props.primaryColor</p>
+			<p class="source-code"><strong class="bold">const</strong> ButtonStyle = styled.button`</p>
+			<p class="source-code">  color: ${color};</p>
+			<p class="source-code">`</p>
+			<p>There's no right or wrong in terms of how we should design a context. The decision as to what property you should use is more or less based on how you want to consume these properties and<a id="_idIndexMarker306"/> design the components. In our case, the decision is more about whether the component should be based <a id="_idTextAnchor260"/>on <strong class="source-inline">mode</strong> or <strong class="source-inline">primaryColor</strong>.</p>
+			<h3>Apply theme manually</h3>
+			<p>Using a theme <a id="_idIndexMarker307"/>for a group of components works out great with a theme context. However, sometimes there will be a requirement where we want to apply a theme to one particular component without touching the theme of all the other components. This normally applies to a nav header component that gets a different contrast color to the rest of the site.</p>
+			<p>This problem can be solved by applying a context in a separate scope:</p>
+			<p class="source-code"><strong class="bold">const</strong> Header = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    &lt;ThemeContext.Provider value={{ mode: 'dark' }}&gt;</p>
+			<p class="source-code">      &lt;Button /&gt;</p>
+			<p class="source-code">    &lt;/ThemeContext.Provider&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>In the preceding <strong class="source-inline">Header</strong> component, another usage of <strong class="source-inline">ThemeContext.Provider</strong> is written to provide a different <strong class="source-inline">mode</strong> theme, while <strong class="source-inline">App</strong> has already been provided with a <strong class="source-inline">mode</strong> theme. Let's say the <strong class="source-inline">App</strong> theme is <strong class="source-inline">'light'</strong>; it changes to <strong class="source-inline">'dark'</strong> when it enters <strong class="source-inline">Header</strong>.</p>
+			<p>When the theme-aware <strong class="source-inline">Button</strong> component gets updated, it looks for the closest ancestor that defines the provider. Since the ancestor found is <strong class="source-inline">Header</strong> instead of <strong class="source-inline">App</strong>, it reads the <strong class="source-inline">'dark'</strong> mode.</p>
+			<p>We are free to<a id="_idIndexMarker308"/> override parts of the context value instead of overriding the entire value: </p>
+			<p class="source-code"><strong class="bold">const</strong> Header = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> theme = useContext(ThemeContext)</p>
+			<p class="source-code">  <strong class="bold">const</strong> value = { ...theme, primaryColor: 'blue' }</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    &lt;ThemeContext.Provider value={value}&gt;</p>
+			<p class="source-code">      ...</p>
+			<p class="source-code">    &lt;/ThemeContext.Provider&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>In the preceding context, <strong class="source-inline">Header</strong> takes the current theme from the parent scope and overrides the <strong class="source-inline">primaryColor</strong> property to <strong class="source-inline">'blue'</strong>. Thus, all child consumers under <strong class="source-inline">Header</strong> see a modified theme setting.</p>
+			<p class="callout-heading">Playground – Theme Context</p>
+			<p class="callout">Feel free to play with this online example at <a href="https://codepen.io/windmaomao/pen/xxLrwJy">https://codepen.io/windmaomao/pen/xxLrwJy</a>.</p>
+			<p>Now we see that a context is a perfect fit for site-wise subjects such as a theme. The context does not have to always be as big as a site; if we can identify an area, we should be able to apply a context to it. Let's take a look at an example where we apply the context to<a id="_idIndexMarker309"/> a tar<a id="_idTextAnchor261"/>geted area such as a table.</p>
+			<h2 id="_idParaDest-139"><a id="_idTextAnchor262"/>Table context</h2>
+			<p>Another usage<a id="_idIndexMarker310"/> of context is to apply the context to a place that can be small but big enough to contain many relevant components inside, such as a table. See <em class="italic">Figure 7.8</em>: </p>
+			<div>
+				<div id="_idContainer063" class="IMG---Figure">
+					<img src="image/Figure_7.08_B17963.jpg" alt="Figure 7.8 – A table containing customizable cell displays&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 7.8 – A table containing customizable cell displays</p>
+			<p>A table can be quite complex in a modern <em class="italic">UI</em>, where it contains a header, a body, a footer, pagination, and a customizable column setting to drive the look and feel of cells. Moreover, all these elements can be assembled in a mix-and-match way on the fly to suit d<a id="_idTextAnchor263"/>ifferent business purposes.</p>
+			<h3>Customizing table cells</h3>
+			<p>A table is made <a id="_idIndexMarker311"/>up of rows and columns of cells where each cell can be controlled by a cell component such as <strong class="source-inline">DefaultCell</strong>:</p>
+			<p class="source-code"><strong class="bold">const</strong> DefaultCell = ({ value }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">return</strong> <strong class="bold">&lt;div&gt;</strong>{value}<strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">}</p>
+			<p>The prop <strong class="source-inline">value</strong> is used to pass in a primitive value from a property of a row, such as a string or a number. In a typical case, we simply display it as a string format, as in the preceding code. </p>
+			<p>Given a table row tracking a list of fruits:</p>
+			<p class="source-code">const fruits = [</p>
+			<p class="source-code">  { title: 'Apple', status: true },</p>
+			<p class="source-code">  { title: 'Orange', },</p>
+			<p class="source-code">  { title: 'Strawberry' },</p>
+			<p class="source-code">  { title: 'Pineapple', status: true },</p>
+			<p class="source-code">  { title: 'Watermelon' }</p>
+			<p class="source-code">]</p>
+			<p>The preceding<a id="_idIndexMarker312"/> column for <strong class="source-inline">title</strong> is a perfect example, and it should display a list of fruit names. However, not all cells are plain strings, since we can display a cell as a status indicator, a progress bar, a checkbox, and so on. In our case, we have a column for <strong class="source-inline">status</strong> indicating whether the fruit tastes nice or just OK, which can be handled by another cell behavior:</p>
+			<p class="source-code"><strong class="bold">const</strong> StatusCell = ({ value }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> s = value ? 'Nice' : 'Ok'</p>
+			<p class="source-code">  <strong class="bold">return</strong> &lt;div&gt;{s}&lt;/div&gt;</p>
+			<p class="source-code">}</p>
+			<p>In the preceding custom <strong class="source-inline">StatusCell</strong> component, the value passed in is a boolean, and it displays either <strong class="source-inline">'Nice'</strong> or <strong class="source-inline">'Ok'</strong>.</p>
+			<p>This means we need a generic <strong class="source-inline">TableCell</strong> where we can pass in some sort of column information to customize the display:</p>
+			<p class="source-code"><strong class="bold">const</strong> TableCell = ({ col, row }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> value = row[col.name]</p>
+			<p class="source-code">  <strong class="bold">const</strong> Component = col.Cell || DefaultCell</p>
+			<p class="source-code">  <strong class="bold">return </strong>&lt;Component value={value} /&gt;</p>
+			<p class="source-code">}</p>
+			<p>In the preceding <strong class="source-inline">TableCell</strong> component, a <strong class="source-inline">col</strong> prop is provided to describe how a cell should update. Let's take a look at the information in two columns for both <strong class="source-inline">title</strong> and <strong class="source-inline">status</strong>:</p>
+			<p class="source-code">const cols = [</p>
+			<p class="source-code">  { name: 'title' },</p>
+			<p class="source-code">  { name: 'status', Cell: StatusCell }</p>
+			<p class="source-code">]</p>
+			<p>For the second column, the <strong class="source-inline">Cell</strong> property is specified as a custom <strong class="source-inline">StatusCell</strong>, whereas the<a id="_idIndexMarker313"/> first column omits it, thus taking the <strong class="source-inline">DefaultCell</strong>. With this <strong class="source-inline">col</strong> capability, we can design a custom look and<a id="_idTextAnchor264"/> feel for all sorts of cells. </p>
+			<h3>Design table context</h3>
+			<p>The example so<a id="_idIndexMarker314"/> far displays the cell based on the cell content, <strong class="source-inline">row[col.name]</strong>. As long as the column name matches the data stored in the row data, we should find the correct cell value. But sometimes, they might not match or, even worse, sometimes we need to display a cell based on multiple columns. For instance, to display a person's full name, we need the person's first name and last name, which are spread out across two columns. Only <strong class="source-inline">row</strong> can provide enough. But we only have a cell <strong class="source-inline">value</strong>. Where can we get a <strong class="source-inline">row</strong>?</p>
+			<p>We can pass the <strong class="source-inline">row</strong> into each <strong class="source-inline">TableCell</strong> as a prop. But say we want to avoid the props approach to keep the cell interface flexible. In this case, we can create a <strong class="source-inline">TableContext</strong>:</p>
+			<p class="source-code"><strong class="bold">const</strong> TableContext = React.createContext({</p>
+			<p class="source-code">  rows: [],</p>
+			<p class="source-code">  cols: [],</p>
+			<p class="source-code">  row: {}</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export default TableContext</p>
+			<p>In the preceding <strong class="source-inline">TableContext</strong>, we add a <strong class="source-inline">row</strong> property as well as <strong class="source-inline">rows</strong> and <strong class="source-inline">cols</strong> so that all consumers <a id="_idIndexMarker315"/>can share them. We can then provide it to each row of a table in the <strong class="source-inline">TableRow</strong> component:</p>
+			<p class="source-code">import TableContext from './TableContext'</p>
+			<p class="source-code"><strong class="bold">const</strong> TableRow = ({ row }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> table = useContext(TableContext)</p>
+			<p class="source-code">  <strong class="bold">const</strong> value = { ...table, row }</p>
+			<p class="source-code">  <strong class="bold">const</strong> cols = table.cols</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    &lt;TableContext.Provider value={value}&gt;</p>
+			<p class="source-code">      &lt;TableRowStyle&gt;</p>
+			<p class="source-code">        {cols.map(col <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">          &lt;TableCell</p>
+			<p class="source-code">            row={row}</p>
+			<p class="source-code">            col={col}</p>
+			<p class="source-code">          /&gt;</p>
+			<p class="source-code">        })}</p>
+			<p class="source-code">      &lt;/TableRowStyle&gt;</p>
+			<p class="source-code">    &lt;/TableContext.Provider&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>The <strong class="source-inline">TableRow</strong> component is responsible for updating a row of the table. We use <strong class="source-inline">TableContext</strong> for two purposes here, one to get all the <strong class="source-inline">cols</strong> stored, and one to override the <strong class="source-inline">row</strong> property with one provided before providing the context back to each row. Now, when we get to each cell component, we should be able to get the current <strong class="source-inline">row</strong>. To demo it, we can set up another custom column for <strong class="source-inline">'combo'</strong>:</p>
+			<p class="source-code">const cols = [</p>
+			<p class="source-code">  { name: 'title' },</p>
+			<p class="source-code">  { name: 'status', Cell: StatusCell },</p>
+			<p class="source-code">  { name: 'combo', Cell: ComboCell }</p>
+			<p class="source-code">]</p>
+			<p>The idea of the <strong class="source-inline">'combo'</strong> column is to join both <strong class="source-inline">'title'</strong> and <strong class="source-inline">'status'</strong> in a single cell via a<a id="_idIndexMarker316"/> custom <strong class="source-inline">ComboCell</strong> component:</p>
+			<p class="source-code"><strong class="bold">const</strong> ComboCell = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> { row } = useContext(TableContext)</p>
+			<p class="source-code">  <strong class="bold">const</strong> s = row.status ? 'Nice' : 'Ok'</p>
+			<p class="source-code">  <strong class="bold">return</strong> <strong class="bold">&lt;div&gt;</strong>{row.title} – {s}<strong class="bold">&lt;/div&gt;</strong> </p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, we grab the current <strong class="source-inline">row</strong> info from <strong class="source-inline">TableContext</strong> and access both the <strong class="source-inline">title</strong> and <strong class="source-inline">status</strong> properties. With this approach, we can literally assemble any information from the current row. Also, notice that there's no props passed into this component. This means, as long as you import <strong class="source-inline">TableContext</strong>, you can design a custom cell anywhere you want. This decoupling, having no explicit dependency, should make us very comfortable designing a custom cell style on the fly.</p>
+			<p>We can argue, were we to provide the <strong class="source-inline">row</strong> directly to the <strong class="source-inline">ComboCell</strong>, we would achieve the same functionalities without the table context setup. That can be true. The choice of whether you pass the <strong class="source-inline">row</strong> as a prop or from a context impacts how you design the cells. </p>
+			<p>In our case, passing <strong class="source-inline">row</strong> from a context does make the design a bit more flexible. Let's continue our example and see the usage of this <strong class="source-inline">TableContext</strong> in other places. Let's say this time that a cell needs to know more information, such as the <strong class="source-inline">cols</strong> settings, or even a piece of action associated with the table, such as deleting a row.</p>
+			<p>Let's take a look at one example where we delete a row of tables by clicking from a cell. Now, in order to manage the content of the table, we can provide a state <strong class="source-inline">[rows, setRows]</strong> to<a id="_idIndexMarker317"/> the <strong class="source-inline">Table</strong> component:</p>
+			<p class="source-code"><strong class="bold">const</strong> Table = ({ cols, rows, setRows }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> value = { cols, rows, setRows }</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    &lt;TableContext.Provider value={value}&gt;</p>
+			<p class="source-code">      &lt;TableStyle&gt;</p>
+			<p class="source-code">        {rows.map(row <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">          &lt;TableRow row={row} /&gt;</p>
+			<p class="source-code">        })}</p>
+			<p class="source-code">      &lt;/TableStyle&gt;</p>
+			<p class="source-code">    &lt;/TableContext.Provider&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, the <strong class="source-inline">Table</strong> component is responsible for displaying all the rows of a table. The passed-in <strong class="source-inline">rows</strong> and <strong class="source-inline">cols</strong>, as well as a <strong class="source-inline">setRows</strong> dispatch function, are all sent to the <strong class="source-inline">TableContext</strong> provider to be consumed. With this, we can define a custom <strong class="source-inline">DeleteCell</strong> component:</p>
+			<p class="source-code"><strong class="bold">const</strong> DeleteCell = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> { row, rows, setRows } = useContext(TableContext)</p>
+			<p class="source-code">  <strong class="bold">const</strong> onClick = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    <strong class="bold">const</strong> newRows = rows.filter(r <strong class="bold">=&gt;</strong> r.title !== row.title)</p>
+			<p class="source-code">    setRows(newRows)</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  </p>
+			<p class="source-code">  <strong class="bold">return (</strong></p>
+			<p class="source-code"><strong class="bold">    &lt;div&gt;</strong></p>
+			<p class="source-code"><strong class="bold">      &lt;button</strong> onClick={onClick}<strong class="bold">&gt;</strong>Remove<strong class="bold">&lt;/button&gt;</strong></p>
+			<p class="source-code"><strong class="bold">    &lt;/div&gt;</strong></p>
+			<p class="source-code"><strong class="bold">  )</strong></p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, <strong class="source-inline">DeleteCell</strong> contains a <strong class="bold">Remove</strong> button. When clicked, it first assembles the new table rows, <strong class="source-inline">newRows</strong>, by filtering out the current <strong class="source-inline">row</strong> and then uses the <strong class="source-inline">setRows</strong> dispatch function to replace the table content. Once <strong class="source-inline">rows</strong> is updated, it should trigger a provider update and thereby propagate a change to all table components.</p>
+			<p>Without a<a id="_idIndexMarker318"/> context to provide <strong class="source-inline">setRows</strong>, it would have to be passed through lots of layers to reach <strong class="source-inline">DeleteCell</strong>. Even in this brief example, the number of layers is not straightforward. Moreover, in this case, we don't exactly know the name of the component beforehand. It could be <strong class="source-inline">DeleteCell</strong> or <strong class="source-inline">DefaultCell</strong>, or any cell component that hasn't been designed yet. Therefore, the context usage here is really helpful in delivering things to an area underneath without knowing the exact location.</p>
+			<p class="callout-heading">Playground – Table Context</p>
+			<p class="callout">Feel free to play with this online example at <a href="https://codepen.io/windmaomao/pen/VwzWeMa">https://codepen.io/windmaomao/pen/VwzWeMa</a>.</p>
+			<p>Let's conclude<a id="_idIndexMarker319"/> this table example by means of <strong class="source-inline">Table</strong> component usage under the <strong class="source-inline">App</strong> component:</p>
+			<p class="source-code"><strong class="bold">const</strong> cols = [</p>
+			<p class="source-code">  { name: 'combo', Cell: ComboCell },</p>
+			<p class="source-code">  { name: 'action', Cell: DeleteCell }</p>
+			<p class="source-code">]</p>
+			<p class="source-code"><strong class="bold">const</strong> App = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [rows, setRows] = useState(fruits)</p>
+			<p class="source-code">  <strong class="bold">return </strong>&lt;Table</p>
+			<p class="source-code">    rows={rows}</p>
+			<p class="source-code">    cols<a id="_idTextAnchor265"/>={cols}</p>
+			<p class="source-code">    setRows={setRows}</p>
+			<p class="source-code">  /&gt;</p>
+			<p class="source-code">}</p>
+			<h1 id="_idParaDest-140"><a id="_idTextAnchor266"/>Summary</h1>
+			<p>We learned a really cool concept in this chapter, that is, a context. First, we got to know what is a context under <em class="italic">React</em>. We then dug deeper into the context design as well as how to consume it with a <strong class="source-inline">useContext</strong> hook. We then went through a context test drive by managing a user object for a site and further learned two more applications of applying contexts to the <strong class="source-inline">Theme</strong> and the <strong class="source-inline">Table</strong>.</p>
+			<p>In the next chapter, we will get into our next hook in the <em class="italic">React</em> family and see how a ref can be used to hide p<a id="_idTextAnchor267"/>rivate matters away from the engine.</p>
+			<h1 id="_idParaDest-141"><a id="_idTextAnchor268"/>Questions and answers</h1>
+			<p>The following are some questions an<a id="_idTextAnchor269"/>d answers to refresh your knowledge:</p>
+			<ol>
+				<li>What is a <em class="italic">React</em> context?<p>A <em class="italic">React</em> context is an identity that can be used to share a value with consumers. It's designed so that a value can be provided to a localized scope, hence all components within that sc<a id="_idTextAnchor270"/>ope can read from this shared value.</p></li>
+				<li>What is the <strong class="source-inline">useContext</strong> hook?<p>The <strong class="source-inline">useContext</strong> hook is used in a consumer component so that it can read a context given by providers. A component can consume as many contexts as it can. When the provider gets updated, all the consumer components for that particular co<a id="_idTextAnchor271"/>ntext get updated at the same time. </p></li>
+				<li>What's the common usage of <strong class="source-inline">useContext</strong>?<p>The <strong class="source-inline">useContext</strong> hook is a hook in the <em class="italic">React</em> hook family when it comes to an update involving an area of components. We often see this context usage in <strong class="source-inline">User</strong>, <strong class="source-inline">Theme</strong>, and <strong class="source-inline">Table</strong>, which requires the consumption of a value under an ancestor component without passing it explicitly through layers of components. The <strong class="source-inline">useContext</strong> hook also makes it possible to deliver a value to an area without knowi<a id="_idTextAnchor272"/>ng exactl<a id="_idTextAnchor273"/>y where the destination is.</p></li>
+			</ol>
+			<h1 id="_idParaDest-142"><a id="_idTextAnchor274"/>Appendix</h1>
+			<h2 id="_idParaDest-143"><a id="_idTextAnchor275"/>Appendix A – Propagating a context</h2>
+			<p>React comes with different kinds of fibers. While a function component is one of them, the context provider is another one. It gets its own update logic with each update:</p>
+			<p class="source-code"><strong class="bold">function</strong> updateContextProvider(fiber) {</p>
+			<p class="source-code">  <strong class="bold">var</strong> providerType = fiber.type</p>
+			<p class="source-code">  <strong class="bold">var</strong> context = providerType._context</p>
+			<p class="source-code">  <strong class="bold">var</strong> newProps = fiber.pendingProps</p>
+			<p class="source-code">  <strong class="bold">var</strong> oldProps = fiber.memoizedProps</p>
+			<p class="source-code">  <strong class="bold">var</strong> newValue = newProps.value</p>
+			<p class="source-code">  <strong class="bold">if</strong> (oldProps !== <strong class="bold">null</strong>) { ... }</p>
+			<p class="source-code">  <strong class="bold">var</strong> children = newProps.children</p>
+			<p class="source-code">  reconcileChildren(fiber, children)</p>
+			<p class="source-code">  <strong class="bold">return</strong> fiber.child</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, the <strong class="source-inline">updateContextProvider</strong> function takes in <strong class="source-inline">fiber</strong>, and checks whether it has been mounted or not via <strong class="source-inline">oldProps !== null</strong>. If it's a first-time mount, then it does things similar to a function component, reconciling the children into fibers and then returning the first child to work on next.</p>
+			<p>If it's not the first time, such as during an update, it then compares the <strong class="source-inline">value</strong> prop between <strong class="source-inline">oldValue</strong> and <strong class="source-inline">newValue</strong>:</p>
+			<p class="source-code">  <strong class="bold">if</strong> (oldProps !== <strong class="bold">null</strong>) {</p>
+			<p class="source-code">    <strong class="bold">var</strong> oldValue = oldProps.value</p>
+			<p class="source-code">    <strong class="bold">if</strong> (oldValue === newValue) {</p>
+			<p class="source-code">      <strong class="bold">if</strong> (oldProps.children === newProps.children) {</p>
+			<p class="source-code">        <strong class="bold">return</strong> bailoutOnAlreadyFinishedWork(fiber)</p>
+			<p class="source-code">      }</p>
+			<p class="source-code">    } <strong class="bold">else</strong> {</p>
+			<p class="source-code">      propagateContextChange(fiber, context)</p>
+			<p class="source-code">    }</p>
+			<p class="source-code">  }</p>
+			<p>If it turns out that there's no change in the value provided from the strict equal comparison, <strong class="source-inline">===</strong>, and if there's no change in the children, it then bails out the fiber and skips the reconciliation. Otherwise, if there's a change in the value provided, it propagates the context change to all its consumer fibers via the <strong class="source-inline">propagateContextChange</strong> function:</p>
+			<p class="source-code"><strong class="bold">function</strong> propagateContextChange(work, context) {</p>
+			<p class="source-code">  <strong class="bold">var</strong> fiber = work.child;</p>
+			<p class="source-code">  <strong class="bold">while</strong> (fiber !== <strong class="bold">null</strong>) {</p>
+			<p class="source-code">    <strong class="bold">var</strong> nextFiber = <strong class="bold">void</strong> 0</p>
+			<p class="source-code">    <strong class="bold">var</strong> list = fiber.dependencies;</p>
+			<p class="source-code">    <strong class="bold">if</strong> (list !== <strong class="bold">null</strong>) {</p>
+			<p class="source-code">      nextFiber = fiber.child;</p>
+			<p class="source-code">      <strong class="bold">var</strong> dependency = list.firstContext;</p>
+			<p class="source-code">      <strong class="bold">while</strong> (dependency !== <strong class="bold">null</strong>) {</p>
+			<p class="source-code">        <strong class="bold">if</strong> (dependency.context === context) {</p>
+			<p class="source-code">          scheduleWorkOnParentPath(fiber.return) </p>
+			<p class="source-code">          <strong class="bold">break</strong></p>
+			<p class="source-code">        }</p>
+			<p class="source-code">        dependency = dependency.next;</p>
+			<p class="source-code">      }</p>
+			<p class="source-code">    } <strong class="bold">else</strong> {</p>
+			<p class="source-code">      nextFiber = fiber.child;</p>
+			<p class="source-code">    }</p>
+			<p class="source-code">    ...</p>
+			<p class="source-code">    fiber = nextFiber;</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">}</p>
+			<p>The propagation goes for a deep search under the <strong class="source-inline">fiber</strong> fiber and checks to see whether it contains the same <strong class="source-inline">context</strong> as per the <strong class="source-inline">firstContext</strong>. If it finds a match, it invokes a <strong class="source-inline">scheduleWorkOnParentPath</strong> function to schedule an update along the path from the root to the parent. This function is quite similar to <strong class="source-inline">scheduleUpdateOnFiber</strong>, which we see in the <strong class="source-inline">useState</strong> hook. But here, instead of doing it once, this function is applied to all consumers found.</p>
+			<p>In short, you can see that a provider is a special component that schedules an update for all cons<a id="_idTextAnchor276"/>umers reading from the same context.</p>
+			<h2 id="_idParaDest-144"><a id="_idTextAnchor277"/>Appendix B – Context scope and value</h2>
+			<p>A context value changes under different scopes of a context. But what does this statement mean?</p>
+			<p class="source-code"><strong class="bold">Const</strong> provider1 = (value) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> provider2 = (value) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    <strong class="bold">const</strong> provider3 = (value) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">      console.log(value)  </p>
+			<p class="source-code">    }</p>
+			<p class="source-code">    provider3(3)</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  provider2(2)</p>
+			<p class="source-code">}</p>
+			<p class="source-code">provider1(1)</p>
+			<p>In the preceding convoluted example, can you guess what the output is if we invoke <strong class="source-inline">provider1(1)</strong>? Please take a minute to think. The answer is <strong class="source-inline">3</strong>. </p>
+			<p>Because each function has a scope, within the scope of the function, all local variables from the input argument take precedence. Though the outer <strong class="source-inline">value</strong> is <strong class="source-inline">1</strong>, the inner <strong class="source-inline">value</strong> becomes <strong class="source-inline">3</strong> due to the change of scope.</p>
+			<p>The context provider is designed in a similar fashion; it uses a stack to push the old value in before entering one scope, and then pop the old value out after leaving the same scope. This way, an outer scope is always kept in memory when we work in an inner scope.</p>
+			<p>Let's take a look at this process closely. Say <strong class="source-inline">cursor</strong> holds the value in one outer scope, and it wants to enter the inner scope with a new <strong class="source-inline">value</strong>: </p>
+			<p class="source-code"><strong class="bold">function</strong> push(cursor, value) {</p>
+			<p class="source-code">  index++</p>
+			<p class="source-code">  valuesStack[index] = cursor.current</p>
+			<p class="source-code">  cursor.current = value</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, <strong class="source-inline">cursor</strong> is a global variable, which holds the current value under the <strong class="source-inline">current</strong> property. The <strong class="source-inline">push</strong> operation puts the old value in the stack and then replaces the current value of <strong class="source-inline">cursor</strong> with the new <strong class="source-inline">value</strong>. </p>
+			<p>Therefore, once we enter the inner scope, the <strong class="source-inline">current</strong> of <strong class="source-inline">cursor</strong> is updated to the latest, so how do we get back the old value once we finish this inner scope? Yes, we perform a <strong class="source-inline">pop</strong> operation:</p>
+			<p class="source-code"><strong class="bold">function</strong> pop(cursor) {</p>
+			<p class="source-code">  <strong class="bold">if</strong> (index &lt; 0) <strong class="bold">return</strong></p>
+			<p class="source-code">  cursor.current = valueStack[index]</p>
+			<p class="source-code">  valueStack[index] = <strong class="bold">null</strong></p>
+			<p class="source-code">  index--</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, we pop the previous stacked value back to the <strong class="source-inline">cursor</strong>. So now, when we get out of the inner scope, the value gets back to the old value. </p>
+			<p>This mechanism is exactly what's applied to our context provider:</p>
+			<p class="source-code"><strong class="bold">function</strong> updateContextProvider(fiber) {</p>
+			<p class="source-code">  ...</p>
+			<p class="source-code">  pushProvider(fiber, newValue)</p>
+			<p class="source-code">  <strong class="bold">if</strong> (oldProps !== <strong class="bold">null</strong>) { ... }</p>
+			<p class="source-code">  ...</p>
+			<p class="source-code">}</p>
+			<p>When it gets to the update of a provider, it pushes the old value and replaces it with a new value with a <strong class="source-inline">pushProvider</strong> function:</p>
+			<p class="source-code"><strong class="bold">function</strong> pushProvider(fiber, nextValue) {</p>
+			<p class="source-code">  <strong class="bold">var</strong> context = fiber.type._context</p>
+			<p class="source-code">  push(valueCursor, context._currentValue)</p>
+			<p class="source-code">  context._currentValue = nextValue;</p>
+			<p class="source-code">}</p>
+			<p>The last line of <strong class="source-inline">pushProvider</strong> sets the <strong class="source-inline">_currentValue</strong> of the context with the <strong class="source-inline">nextValue</strong> from the <strong class="source-inline">value</strong> prop. This is how the consumer in the inner scope gets the inner value. But before that, it pushes an old value of <strong class="source-inline">_currentValue</strong> in the stack and stores it in a global variable, <strong class="source-inline">valueCursor</strong>.</p>
+			<p>Before we move out of the provider's scope, <strong class="source-inline">popProvider</strong> is invoked:</p>
+			<p class="source-code"><strong class="bold">function</strong> popProvider(fiber) {</p>
+			<p class="source-code">  <strong class="bold">var</strong> currentValue = valueCursor.current</p>
+			<p class="source-code">  pop(valueCursor)</p>
+			<p class="source-code">  <strong class="bold">var</strong> context = fiber.type._context</p>
+			<p class="source-code">  context._currentValue = currentValue</p>
+			<p class="source-code">}</p>
+			<p>The last line of <strong class="source-inline">popProvider</strong> sets the <strong class="source-inline">currentValue</strong> of the context back to the saved value from <strong class="source-inline">valueCursor</strong>. But before that, it pops the old value from the stack. </p>
+			<p>So, at all times, there's a <strong class="source-inline">valueCursor</strong> to hold the outer scope value, while <strong class="source-inline">context._currentValue</strong> holds the current/inner scope value. This means that the context value stored in <strong class="source-inline">_currentValue</strong> is not a fixed value throughout the update. Hopefully, you can now see that a context has a "global" sense and varies based on the scope.</p>
+		</div>
+	</body></html>

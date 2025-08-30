@@ -1,0 +1,608 @@
+<html><head></head><body>
+		<div id="_idContainer078">
+			<h1 id="_idParaDest-162"><em class="italic"><a id="_idTextAnchor314"/>Chapter 9</em>: Use Custom Hooks to Reuse Logic</h1>
+			<p>In the previous chapter, we learned how the <strong class="source-inline">useRef</strong> hook is designed and how to use a ref for a state without updating the screen. In this chapter, we will gather all the hooks we have learned about so far and see how to create a custom hook for our own needs. We will introduce what a custom hook is and then write some custom hooks step by step, including <strong class="source-inline">useToggle</strong>, <strong class="source-inline">useWindow</strong>, <strong class="source-inline">useAsync</strong>, <strong class="source-inline">useDebounced</strong>, <strong class="source-inline">useClickOutside</strong>, <strong class="source-inline">useCurrent</strong>, and <strong class="source-inline">useProxy</strong>.</p>
+			<p>We will cover the following topics in this chapter:</p>
+			<ul>
+				<li>Reviewing React hooks</li>
+				<li><strong class="source-inline">useToggle</strong></li>
+				<li><strong class="source-inline">useWindow</strong></li>
+				<li><strong class="source-inline">useAsync</strong></li>
+				<li><strong class="source-inline">useDebounced</strong></li>
+				<li><strong class="source-inline">useClickOutside</strong></li>
+				<li><strong class="source-inline">useCurrent</strong></li>
+				<li><strong class="source-inline">useProxy</strong></li>
+				<li>Questions and answers</li>
+			</ul>
+			<h1 id="_idParaDest-163"><a id="_idTextAnchor315"/>Reviewing <a id="_idTextAnchor316"/>React hooks</h1>
+			<p>We have seen quite a few hooks<a id="_idIndexMarker361"/> provided by <em class="italic">React</em>. Let's take a moment to review what we have learned so far: </p>
+			<ul>
+				<li>Update a state with the <strong class="source-inline">useState</strong> hook.</li>
+				<li>Handle a side effect with the <strong class="source-inline">useEffect</strong> hook.</li>
+				<li>Reuse the last value with the <strong class="source-inline">useMemo</strong> hook.</li>
+				<li>Update an area with the <strong class="source-inline">useContext</strong> hook.</li>
+				<li>Hide stuff from display with the <strong class="source-inline">useRef</strong> hook.</li>
+			</ul>
+			<p>The <strong class="source-inline">useState</strong> hook is the most popular one, which is used to define<a id="_idIndexMarker362"/> a state and make it dispatchable to trigger a <em class="italic">UI</em> update. <em class="italic">React</em> wants us to use this as the main mechanism to be in sync with the screen. A mental picture of using it is that, as long as the state changes, the <em class="italic">UI</em> should produce an outcome accordingly. Otherwise, the <em class="italic">UI</em> should stay intact. Essentially, what that is saying is to make something happen on the screen, design a state and wire it with elements. This is the <em class="italic">React</em> way. If you take this as a baseline, it can help you understand anything else.</p>
+			<p>The <strong class="source-inline">useEffect</strong> hook allows us to listen to state changes, and based on that, we can perform an action<a id="_idIndexMarker363"/> such as a side effect. Therefore, with it, you are equipped with two ways to make something<a id="_idIndexMarker364"/> happen on the screen, that is, either listen to an event or a state change. The subtlety here is that the side effect doesn't get applied until all the <em class="italic">DOM</em> elements settle after the update. Also, don't forget to clean up the side effect, if any.</p>
+			<p>The <strong class="source-inline">useMemo</strong> hook serves as an optimization so that we can use a value<a id="_idIndexMarker365"/> evaluated in  a previous update. The basic setup is that, if a state has changed, it should drive another round of update. And in that update, all component variables should get updated. But if we intentionally reuse an old value, the value can seem to be "skipped" from the update. This way, we can suppress some high-frequency action that is not relevant to the update of the component. </p>
+			<p>The <strong class="source-inline">useContext</strong> hook is a must-have when it comes<a id="_idIndexMarker366"/> to an area update. A <strong class="source-inline">useState</strong> hook can dispatch a state to one place, but it lacks two things. One, it needs to use props to send a state further down to the children, and two, it needs to know which children it sends props to. A context, once established, can be consumed by any child underneath it no matter how deep the level is. And it supports on-demand usage – you use it when you consume it.</p>
+			<p>The <strong class="source-inline">useRef</strong> hook is a <em class="italic">React</em>-supported way<a id="_idIndexMarker367"/> to bypass the <em class="italic">React</em> engine. By default, <em class="italic">React</em> will want to react to all state changes. The <strong class="source-inline">useRef</strong> hook allows you to continue persisting this value without the update capability. So the <strong class="source-inline">useRef</strong> hook can become very handy in places that <em class="italic">React</em> can't or doesn't allow us to reach.</p>
+			<p>The preceding hooks aren't the entire <em class="italic">React</em> collection of hooks. In fact, <em class="italic">React</em> has more than a dozen built-in hooks; to name some others: <strong class="source-inline">useCallback</strong>, <strong class="source-inline">useLayoutEffect</strong>, <strong class="source-inline">useTransition</strong>, and <strong class="source-inline">useDeferredValue</strong>, and some of them are also in the experimental stage for the future concurrent mode of <em class="italic">React</em>.</p>
+			<p>There's one thing unique about the hooks we have covered so far. Each hook is unique and each is designed for an atomic purpose. There's not much overlapping in between. This provides a solid foundation when<a id="_idIndexMarker368"/> we want to mix and match them in our application, as we have already seen in previous chapters.</p>
+			<p>When it comes to building a website, there might be times when you want to create custom logic that might not be covered by these built-in hooks. You might think about extending some of the hooks, or you might even want to rewrite one or two. In that case, what option do we have? The answer to this question is in the next s<a id="_idTextAnchor317"/>ection.</p>
+			<h2 id="_idParaDest-164"><a id="_idTextAnchor318"/>Making a new hook</h2>
+			<p>Can we make a new hook? In each of the previous<a id="_idIndexMarker369"/> chapters, we have asked you to read the source code, so by now, you should be familiar with how each is implemented under the hood. So can we follow the same process and create one? Unfortunately, it's not that easy, mostly because this process isn't open for extension on the fly.</p>
+			<p>Using a game engine as an analogy, it allows you to work with animations, materials, lights, and even game logic, but it doesn't allow you to change the engine. For instance, you can't add a custom identity type that is not animation nor materials and still expect the game engine to pick it up. You might ask "why not?" This is because a custom identity type requires additional implementations for the engine to support it.  </p>
+			<p class="callout-heading">Note</p>
+			<p class="callout"><em class="italic">React</em> is an open source project, which means<a id="_idIndexMarker370"/> anyone can contribute to the engine. The source code is also actively maintained by the <em class="italic">Facebook React</em> team, and they are constantly looking for new proposals and feature requests.</p>
+			<p>Although the engine is not easily to be extended, the door of creating a custom hook isn't closed. Most of the time, we do not need a new hook type, instead, we want to have a hook with extended behavior. Let's take a look at an example: </p>
+			<p class="source-code"><strong class="bold">const</strong> aFunctionWrittenByOthers = () <strong class="bold">=&gt;</strong> {}</p>
+			<p>Given the preceding function, we can easily encapsulate it in a new function:</p>
+			<p class="source-code"><strong class="bold">const</strong> aFunction = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  aFunctionWrittenByOthers()</p>
+			<p class="source-code">  ...</p>
+			<p class="source-code">}</p>
+			<p>A hook is a function. If a hook<a id="_idIndexMarker371"/> has been designed to manage a state, whenever we need a state, we don't need to re-invent it; similarly, if a hook has been designed to handle a side effect, whenever we need a side effect, we can adopt these functionalities by invoking it. So, as long as the hook we designed so far is useful and usable enough, we should be able to just use it in our own function. This is the basic idea of reusability.</p>
+			<p>Let's take a look at the following example:</p>
+			<p class="source-code"><strong class="bold">const</strong> useUsername = (initialFirst, initialLast) {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [firstName, setFirstname] = useState(initialFirst)</p>
+			<p class="source-code">  <strong class="bold">const</strong> [lastName, setLastname] = useState(initialLast)</p>
+			<p class="source-code">  <strong class="bold">const</strong> fullname = firstName + ' ' + lastName </p>
+			<p class="source-code">  <strong class="bold">return</strong> { fullname, setFirstname, setLastname }</p>
+			<p class="source-code">}</p>
+			<p>In the preceding function, <strong class="source-inline">useUsername</strong> uses the <strong class="source-inline">useState</strong> hook twice, and the output includes a joint <strong class="source-inline">fullname</strong> from two states, <strong class="source-inline">firstName</strong> and <strong class="source-inline">lastName</strong>, as well as two separate dispatch functions to update each of them.</p>
+			<p>Let's examine the <strong class="source-inline">useUsername</strong> function a bit more closely, because <strong class="source-inline">useUsername</strong> is a cu<a id="_idTextAnchor319"/>stom hook.</p>
+			<h2 id="_idParaDest-165"><a id="_idTextAnchor320"/>Writing a custom hook</h2>
+			<p>We can now use the <strong class="source-inline">userUsername</strong> function we just created<a id="_idIndexMarker372"/> as follows:</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> { fullname } = useUsername('John', 'Doe')</p>
+			<p class="source-code">  ...</p>
+			<p class="source-code">}</p>
+			<p>Comparing the preceding two versions with or without the <strong class="source-inline">useUsername</strong> hook, we can see that the <strong class="source-inline">useUsername</strong> function is more or less an extracted utility function through a code refactoring where the interface for the new <strong class="source-inline">useUsername</strong> function emerges as two strings as input arguments and an object with a string and two functions as the return value.</p>
+			<p>This is just how we create<a id="_idIndexMarker373"/> a new function in the first place. We create a function because we need it or because we see some duplication in our code, and we can avoid the duplication by doing some refactoring. This way, not only does the code get cleaner afterward, but the function can also be used in some other places in the future. Refactoring is more like a one-stone-shooting-two-birds kind of approach, as long as there're multiple birds to shoot. </p>
+			<p>This is Computer Science 101, and the custom hook we created so far is one demonstration of it. OK, let's go over some of the basics of the custom hook.</p>
+			<p>The reason why we call <strong class="source-inline">useUsername</strong> a custom hook is that it meets the following requirements: </p>
+			<ul>
+				<li>It is a function.</li>
+				<li>It is named with the prefix <strong class="source-inline">use</strong>.</li>
+				<li>It consumes at least one built-in hook.</li>
+			</ul>
+			<p>Apparently, we can write a function and arbitrarily give it a name with the prefix <strong class="source-inline">use</strong>, but does it qualify as a custom hook? Let's take a look at the following function:</p>
+			<p class="source-code"><strong class="bold">const</strong> useNotAHook = (a) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">return</strong> a</p>
+			<p class="source-code">}</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">return</strong> useNotAHook()</p>
+			<p class="source-code">}</p>
+			<p>A function like <strong class="source-inline">useNotAHook</strong> in the preceding setup is not a hook! Don't we keep saying a hook is a function? Yes, but not all functions are hooks, even when it gets invoked inside a functional component, such as in the <strong class="source-inline">Title</strong> component. The <strong class="source-inline">useNotAHook</strong> is merely a plain function. </p>
+			<p>You might be thinking "Okay, we need<a id="_idIndexMarker374"/> to make a function a bit more complicated to qualify as a custom hook." Let's try with the following function:</p>
+			<p class="source-code"><strong class="bold">const</strong> useValue = (v) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [value] = useState(v)</p>
+			<p class="source-code">  <strong class="bold">return</strong> value</p>
+			<p class="source-code">}</p>
+			<p>There are only two lines in the preceding function, so it's not complicated. It takes the first part of the <strong class="source-inline">useState</strong> hook and returns the state only. That's it. But is it a custom hook? Yes, it is. So, a custom hook doesn't have to be complicated!</p>
+			<p>Hopefully, by now, you don't feel dizzy from looking at these mind-bending examples. In short, by convention, a custom hook needs to meet all the requirements listed earlier. </p>
+			<p>Technically, the only thing that separates the custom hook from a regular function is that it uses at least one of the built-in hooks at least once. What's so special about the built-in hooks? The built-in hooks hook into <em class="italic">React</em> and provide functionalities that you can't make without opening the engine. The functionalities here mostly refer to managing a persistent state. This is where the name "custom" comes from, to distinguish the hook you created and the built-in ones.</p>
+			<p>Before we move into creating a custom hook, there's also one more unique thing worth pointing out. Most of the custom hooks are designed without any visual representation attached to them. So, a custom hook is essentially a piece of reusabl<a id="_idTextAnchor321"/>e algorithm. </p>
+			<p>This is how the <em class="italic">React</em> team envisioned the hooks can bring to us. Hooks "let you reuse logic between components." Keep this in mind when you create custom hooks. If the logic smells generic enough to you, or at least you think there's one more location where you could apply the same logic, it's time for us to experiment with the idea of using a custom function, and if it turns out it uses one of the built-in hooks, then here you go, you create a custom hook.</p>
+			<p>Now with the basic<a id="_idIndexMarker375"/> idea in mind, retrospectively, if we review the code we have written in this book so far, we would spot that we might have hopped on this boat without knowing it. Le<a id="_idTextAnchor322"/>t's revisit it.</p>
+			<h1 id="_idParaDest-166"><a id="_idTextAnchor323"/>useToggle</h1>
+			<p>Hooks used in this custom hook: <strong class="source-inline">useState</strong> </p>
+			<p>Taking one example, we have<a id="_idIndexMarker376"/> had this idea of switching a state between <strong class="source-inline">true</strong> and <strong class="source-inline">false</strong> for a while. We use it in switchable cases, such as toggling a checkbox, hovering over a text, raising an error, or anything that simulates a light switch. See <em class="italic">Figure 9.1</em> for one of the usages:</p>
+			<div>
+				<div id="_idContainer073" class="IMG---Figure">
+					<img src="image/Figure_9.1_B17963.jpg" alt="Figure 9.1 – useToggle&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 9.1 – useToggle</p>
+			<p>Can we abstract this idea to provide such boolean state as well as the toggle functionality? Let's start refactoring:</p>
+			<p class="source-code"><strong class="bold">const</strong> useToggle = (initialStatus = <strong class="bold">false</strong>) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [status, setStatus] = useState(initialStatus)    </p>
+			<p class="source-code">  <strong class="bold">const</strong> toggle = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    dispatch(status <strong class="bold">=&gt;</strong> !status)</p>
+			<p class="source-code">  )    </p>
+			<p class="source-code">  <strong class="bold">return</strong> [status, toggle]</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code block, the <strong class="source-inline">useToggle</strong> custom hook takes an <strong class="source-inline">initialStatus</strong> as the input argument with <strong class="source-inline">false</strong> as the default value, and it returns the <strong class="source-inline">status</strong> and a <strong class="source-inline">toggle</strong> function. Invoking the <strong class="source-inline">toggle</strong> function flips the <strong class="source-inline">status</strong> from <strong class="source-inline">false</strong> to <strong class="source-inline">true</strong>, or <strong class="source-inline">true</strong> to <strong class="source-inline">false</strong>. </p>
+			<p>The <strong class="source-inline">useToggle</strong> hook has a very nice function designed with well-defined input arguments and a return value<a id="_idIndexMarker377"/> and looks handy for supporting the toggle between a boolean status. There's a small improvement we can make here. Sometimes, we also want to toggle into a specific status instead of the flip:</p>
+			<p class="source-code">    <strong class="bold">const</strong> toggle = (newStatus) <strong class="bold">=&gt;</strong> () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">      <strong class="bold">if</strong> (newStatus === <strong class="bold">undefined</strong>) {</p>
+			<p class="source-code">        setState(status <strong class="bold">=&gt;</strong> !status)</p>
+			<p class="source-code">      } <strong class="bold">else</strong> {</p>
+			<p class="source-code">        setState(newStatus)</p>
+			<p class="source-code">      }</p>
+			<p class="source-code">    }</p>
+			<p>In the preceding revised version of <strong class="source-inline">toggle</strong>, when a <strong class="source-inline">newStatus</strong> is given, it toggles to that specific status, otherwise, it flips as in the old <strong class="source-inline">toggle</strong>. Notice we use a double arrow in a row, as in <strong class="source-inline">() =&gt; () =&gt; {}</strong>:</p>
+			<p class="source-code"><strong class="bold">const</strong> toggle = (newStatus) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">      <strong class="bold">return</strong> () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">        …</p>
+			<p class="source-code">      }</p>
+			<p class="source-code">    }</p>
+			<p>If we were to write it slowly, we could use the preceding equivalent version where you can clearly see an inline function is returned from a function, since in this case, we expect what's returned from the <strong class="source-inline">toggle</strong> to be an event handler.</p>
+			<p>A function returning a function is very common in <strong class="bold">Functional Programming</strong> (<strong class="bold">FP</strong>). Although this book<a id="_idIndexMarker378"/> does not cry out for FP (or maybe it already did), it's just natural to use FP in <em class="italic">React</em> code, especially when working with a function<a id="_idIndexMarker379"/> component.</p>
+			<p>Okay, now we have the custom hook designed, let'<a id="_idTextAnchor324"/>s give it a spin.</p>
+			<h2 id="_idParaDest-167"><a id="_idTextAnchor325"/>Usages</h2>
+			<p>Say we apply this <strong class="source-inline">useToggle</strong> hook to an <strong class="source-inline">Avatar</strong> component where an <strong class="source-inline">error</strong> can be toggled. The <strong class="source-inline">Avatar</strong> component<a id="_idIndexMarker380"/> was introduced in <a href="B17963_04_Epub.xhtml#_idTextAnchor113"><em class="italic">Chapter 4</em></a>, <em class="italic">Use State to Jumpstart Components</em>:</p>
+			<p class="source-code"><strong class="bold">Const</strong> Avatar = ({ src, username }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [error, onError] = useToggle()</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    &lt;AvatarStyle&gt;</p>
+			<p class="source-code">      {error ? (</p>
+			<p class="source-code">        <strong class="bold">&lt;div&gt;</strong>{username}<strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">      ) : (</p>
+			<p class="source-code">        <strong class="bold">&lt;img</strong></p>
+			<p class="source-code">          src={src}</p>
+			<p class="source-code">          alt={username}</p>
+			<p class="source-code">          onError={onError()}</p>
+			<p class="source-code">        <strong class="bold">/&gt;</strong></p>
+			<p class="source-code">      )}</p>
+			<p class="source-code">    &lt;/AvatarStyle&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>Interesting! Though there's no drastic difference before and after applying the <strong class="source-inline">useToggle</strong>, the logic becomes quite clear in that an <strong class="source-inline">error</strong> state gets toggled after the image loading runs into an error.</p>
+			<p class="callout-heading">Playground – Avatar with useToggle</p>
+			<p class="callout">Feel free to play with this online example at <a href="https://codepen.io/windmaomao/pen/yLozOJQ">https://codepen.io/windmaomao/pen/yLozOJQ</a>. </p>
+			<p>Let's try to apply <strong class="source-inline">useToggle</strong> in another<a id="_idIndexMarker381"/> place, such as the <strong class="source-inline">Tooltip</strong> component, also introduced in <a href="B17963_04_Epub.xhtml#_idTextAnchor113"><em class="italic">Chapter 4</em></a>, <em class="italic">Use State to Jumpstart Components</em>:</p>
+			<p class="source-code"><strong class="bold">const</strong> Tooltip = ({ children, tooltip }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [entered, onEntered] = useToggle()</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    &lt;TooltipStyle&gt;</p>
+			<p class="source-code">      <strong class="bold">&lt;div</strong></p>
+			<p class="source-code">        onMouseEnter={onEntered(<strong class="bold">true</strong>)}</p>
+			<p class="source-code">        onMouseLeave={onEntered(<strong class="bold">false</strong>)}</p>
+			<p class="source-code">      <strong class="bold">&gt;</strong></p>
+			<p class="source-code">        {children}</p>
+			<p class="source-code">      <strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">      {entered &amp;&amp; (</p>
+			<p class="source-code">        <strong class="bold">&lt;div</strong> className="__tooltip"<strong class="bold">&gt;</strong></p>
+			<p class="source-code">          {tooltip}</p>
+			<p class="source-code">        <strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">      )}</p>
+			<p class="source-code">    &lt;/TooltipStyle&gt;</p>
+			<p class="source-code">  )</p>
+			<p>In the preceding code, we used a <strong class="source-inline">useToggle</strong> to return an <strong class="source-inline">entered</strong> state and an <strong class="source-inline">onEntered</strong> function<a id="_idIndexMarker382"/> that feeds into the <strong class="source-inline">onMouseEnter</strong> and <strong class="source-inline">onMouseLeave</strong> event handler neatly.</p>
+			<p class="callout-heading">Playground – Tooltip with useToggle</p>
+			<p class="callout">Feel free to play with this online example at <a href="https://codepen.io/windmaomao/pen/QWMqNKx">https://codepen.io/windmaomao/pen/QWMqNKx</a>.</p>
+			<p>The concept of having a toggle mechanism is revealed vividly via the <strong class="source-inline">useToggle</strong> hook. The function can be tested separately and can be extended with relatively little effort. If we use this hoo<a id="_idTextAnchor326"/>k often, the cost of creating<a id="_idIndexMarker383"/> it and maintaining it can <a id="_idTextAnchor327"/>become even cheaper. </p>
+			<h2 id="_idParaDest-168"><a id="_idTextAnchor328"/>References</h2>
+			<p>There are a number of people who have written similar hooks to <strong class="source-inline">useToggle</strong> on the internet. Here is a list of some of them as references<a id="_idIndexMarker384"/> in case you'd like to learn more about this custom hook:</p>
+			<ul>
+				<li><strong class="source-inline">useToggle</strong>: <a href="https://usehooks.com/useToggle/">https://usehooks.com/useToggle/</a>.</li>
+				<li><strong class="source-inline">react-use-toggle</strong>: <a href="https://github.com/bsonntag/react-use-toggle">https://github.com/bsonntag/react-use-toggle</a>. It has a good test written.</li>
+			</ul>
+			<h1 id="_idParaDest-169"><a id="_idTextAnchor329"/>useWindow</h1>
+			<p>Hooks used in this custom hook: <strong class="source-inline">useState</strong> and <strong class="source-inline">useEffect</strong></p>
+			<p>A text or image can adjust<a id="_idIndexMarker385"/> its appearance based on the current browser window size. We experimented with this idea in <a href="B17963_05_Epub.xhtml#_idTextAnchor157"><em class="italic">Chapter 5</em></a>, <em class="italic">Use Effect to Handle Side Effects</em>. See <em class="italic">Figure 9.2</em>. </p>
+			<div>
+				<div id="_idContainer074" class="IMG---Figure">
+					<img src="image/Figure_9.2_B17963.jpg" alt="Figure 9.2 – useWindow custom hook&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 9.2 – useWindow custom hook</p>
+			<p>Now the question is: can we abstract<a id="_idIndexMarker386"/> this idea out and apply it to anything on the screen as in a responsive design? Let's refactor the code a bit to come up with a custom <strong class="source-inline">useWindow</strong> hook: </p>
+			<p class="source-code"><strong class="bold">const</strong> useWindow = (size = 0) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [width, setWidth] = useState(0) </p>
+			<p class="source-code">  useEffect(() <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    <strong class="bold">function</strong> handleResize() {</p>
+			<p class="source-code">      setWidth(window.innerWidth)</p>
+			<p class="source-code">    }    </p>
+			<p class="source-code">    handleResize()    </p>
+			<p class="source-code">    window.addEventListener("resize", handleResize)</p>
+			<p class="source-code">    <strong class="bold">return</strong> () <strong class="bold">=&gt;</strong> { </p>
+			<p class="source-code">      window.removeEventListener("resize", handleResize)</p>
+			<p class="source-code">    }</p>
+			<p class="source-code">  }, [setWidth])  </p>
+			<p class="source-code">  <strong class="bold">return</strong> [width, width &gt; size]</p>
+			<p class="source-code">}</p>
+			<p>The preceding <strong class="source-inline">useWindow</strong> hook is taken out of our previous code and returns the current width of the screen. A <strong class="source-inline">useEffect</strong> is used to handle the initialization and cleanup of the system event upon a browser <strong class="source-inline">resize</strong>. During each screen resize, the window's <strong class="source-inline">innerWidth</strong> is stored in the <strong class="source-inline">width</strong> state. </p>
+			<p>In order to make<a id="_idIndexMarker387"/> it easy to use, we can provide the input argument <strong class="source-inline">size</strong> to this custom hook, so that it can also tell us whether the <strong class="source-inline">width</strong> is beyond that <strong class="source-inline">size</strong>, telling us whether the screen is wide enough to suppor<a id="_idTextAnchor330"/>t a large-sized version.</p>
+			<h2 id="_idParaDest-170"><a id="_idTextAnchor331"/>Usages</h2>
+			<p>Let's apply this custom hook to a text<a id="_idIndexMarker388"/> that can adjust to a large version when the screen size reaches beyond 600 <em class="italic">px</em>:</p>
+			<p class="source-code"><strong class="bold">const</strong> Greeting = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [, wide] = useWindow(600)</p>
+			<p class="source-code">  <strong class="bold">return &lt;h1&gt;</strong>{wide ? "Hello World" : "Hello"}<strong class="bold">&lt;/h1&gt;</strong></p>
+			<p class="source-code">}</p>
+			<p>This looks very easy to use, and moreover, the functionalities pertaining to detecting the window size are entirely taken out and outsourced to the <strong class="source-inline">useWindow</strong> hook, therefore reducing the code quite a bit.</p>
+			<p class="callout-heading">Playground – Responsive with useWindow</p>
+			<p class="callout">Feel free to play with this online example at <a href="https://codepen.io/windmaomao/pen/zYdEqog">https://codepen.io/windmaomao/pen/zYdEqog</a>.</p>
+			<p>There's one unique thing about this custom hook. Unlike a classical <strong class="source-inline">media-query</strong> supported by <em class="italic">CSS</em>, the <strong class="source-inline">wide</strong> flag returned from <strong class="source-inline">useWindow</strong> is used to change the layout entirely. This means we can support a very drastic screen change to accommodate the screen size:</p>
+			<p class="source-code"><strong class="bold">const</strong> Header = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [, wide] = useWindow(725)</p>
+			<p class="source-code">  <strong class="bold">return</strong> wide ? &lt;HeaderWide /&gt; : &lt;HeaderMini /&gt;</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, <strong class="source-inline">HeaderWide</strong> and <strong class="source-inline">HeaderMini</strong> are two completely different layout components to display a header for screen sizes of less than <strong class="source-inline">725</strong> and larger than <strong class="source-inline">725</strong>. </p>
+			<p>One thing we learned from making this custom hook is that the functionalities can be tailored to your own purpose. Here, we export a flag, <strong class="source-inline">width &gt; size</strong>, because we believe it's useful<a id="_idIndexMarker389"/> for the current project. However, the responsiveness setting isn't fixed, and it can vary from project to project. This doesn't stop us from creating something useful at the moment. And this is the point of code refactoring, to improv<a id="_idTextAnchor332"/>e the quality of the code.</p>
+			<h2 id="_idParaDest-171"><a id="_idTextAnchor333"/>References</h2>
+			<p>Our version of <strong class="source-inline">useWindow</strong> monitors the window<a id="_idIndexMarker390"/> width only, but we can track both the width and height of the screen, as implemented in the following references:</p>
+			<ul>
+				<li><strong class="source-inline">useWindowSize</strong>: <a href="https://usehooks.com/useWindowSize/">https://usehooks.com/useWindowSize/</a></li>
+				<li><strong class="source-inline">useWindowSize</strong>: <a href="https://github.com/jaredLunde/react-hook/tree/master/packages/window-size">https://github.com/jaredLunde/react-hook/tree/master/packages/window-size</a></li>
+			</ul>
+			<h1 id="_idParaDest-172"><a id="_idTextAnchor334"/>useAsync</h1>
+			<p>Hooks used in this custom hook: <strong class="source-inline">useState</strong>, <strong class="source-inline">useEffect</strong>, <strong class="source-inline">useRef</strong>, and <strong class="source-inline">useMemo</strong></p>
+			<p>One hook everyone wants<a id="_idIndexMarker391"/> to get their hands dirty with is <strong class="source-inline">useAsync</strong>, which is used to fetch an async resource as we introduced in <a href="B17963_05_Epub.xhtml#_idTextAnchor157"><em class="italic">Chapter 5</em></a>, <em class="italic">Use Effect to Handle Side Effects</em>. See <em class="italic">Figure 9.3</em>: </p>
+			<div>
+				<div id="_idContainer075" class="IMG---Figure">
+					<img src="image/Figure_9.3_B17963.jpg" alt="Figure 9.3 – useAsync hook&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 9.3 – useAsync hook</p>
+			<p>As simple as it sounds, everyone comes with different requirements and implementations for their projects. Here are a few features that we would like to have:</p>
+			<ul>
+				<li>Support a loading indicator.</li>
+				<li>Can execute on demand.</li>
+				<li>Support error handling.</li>
+				<li>Can cancel async call.</li>
+				<li>Can cache async data.</li>
+			</ul>
+			<p>The feature list can go on and on. In this book, I will provide a basic version that supports the first two items. </p>
+			<p>At any point, the call should be aware of the <strong class="source-inline">loading</strong> state, and when the resource is resolved, the <strong class="source-inline">data</strong> should<a id="_idIndexMarker392"/> be available to use. Also, we'd like to keep a handle on the <strong class="source-inline">execute</strong> function in case we want to fetch the resource again. Let's design it in a custom hook:</p>
+			<p class="source-code"><strong class="bold">const</strong> useAsync = (</p>
+			<p class="source-code">  asyncFunc, </p>
+			<p class="source-code">  initialParams = {},</p>
+			<p class="source-code">  immediate = <strong class="bold">true</strong></p>
+			<p class="source-code">) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  ...</p>
+			<p class="source-code">  <strong class="bold">return</strong> { execute, loading, data }</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code block, the <strong class="source-inline">useAsync</strong> hook takes three input arguments, <strong class="source-inline">asyncFunc</strong>, <strong class="source-inline">initialParams</strong>, and <strong class="source-inline">immediate</strong>, and returns three properties, <strong class="source-inline">execute</strong>, <strong class="source-inline">loading</strong>, and <strong class="source-inline">data</strong>. The <strong class="source-inline">asyncFunc</strong> function is a user-provided async function, such as a <em class="italic">Promise</em>, defined as follows:</p>
+			<p class="source-code"><strong class="bold">const</strong> fn = ({ id }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">return</strong> fetch('/anAPIResource/${id}')</p>
+			<p class="source-code">    .then(res <strong class="bold">=&gt;</strong> res.json())</p>
+			<p class="source-code">}</p>
+			<p>In the preceding <strong class="source-inline">fn</strong> promise, an <strong class="source-inline">id</strong> is sent as the input argument. This is where the second input argument of <strong class="source-inline">useAsync</strong> becomes useful, and it can be used to provide the <strong class="source-inline">initialParams</strong> in key/value pairs as in <strong class="source-inline">{ id: 3 }</strong>.</p>
+			<p>The <strong class="source-inline">useAsync</strong> hook also supports an optional flag, <strong class="source-inline">immediate</strong>, and when set as <strong class="source-inline">true</strong>, it invokes the async<a id="_idIndexMarker393"/> call immediately after the component mount. Although this is the most popular case, we can set it as <strong class="source-inline">false</strong> so we manually invoke <strong class="source-inline">execute</strong> later.</p>
+			<p>Inside the hook, we use states to model <strong class="source-inline">loading</strong> and <strong class="source-inline">data</strong>:</p>
+			<p class="source-code">  <strong class="bold">const</strong> [loading, setLoading] = useState(immediate)</p>
+			<p class="source-code">  <strong class="bold">const</strong> [data, setData] = useState(<strong class="bold">null</strong>)</p>
+			<p class="source-code">  <strong class="bold">const</strong> mountedRef = useRef(<strong class="bold">true</strong>)</p>
+			<p>A <strong class="source-inline">useRef</strong> is used for <strong class="source-inline">mountedRef</strong> to know when this component is dismounted; we explained this in <a href="B17963_08_Epub.xhtml#_idTextAnchor278"><em class="italic">Chapter 8</em></a>, <em class="italic">Use Ref to Hide Stuff</em>.</p>
+			<p>To provide the capability of fetching the resource on demand, an <strong class="source-inline">execute</strong> function is created and accepts a <strong class="source-inline">params</strong> object:</p>
+			<p class="source-code">  <strong class="bold">const</strong> execute = params <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    setLoading(<strong class="bold">true</strong>)</p>
+			<p class="source-code">    <strong class="bold">return</strong> asyncFunc({</p>
+			<p class="source-code">      ...initialParams,</p>
+			<p class="source-code">      ...params</p>
+			<p class="source-code">    }).then(res <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">      <strong class="bold">if</strong> (!mountedRef.current) <strong class="bold">return</strong> <strong class="bold">null</strong></p>
+			<p class="source-code">      setData(res)</p>
+			<p class="source-code">      setLoading(<strong class="bold">false</strong>)</p>
+			<p class="source-code">      <strong class="bold">return</strong> res</p>
+			<p class="source-code">    })</p>
+			<p class="source-code">  }</p>
+			<p>The preceding <strong class="source-inline">execute</strong> function sets the <strong class="source-inline">loading</strong> to <strong class="source-inline">true</strong> so that if we have a spinner wired with it, it can start to spin. And then it invokes the <strong class="source-inline">asyncFunc</strong> with the combination of <strong class="source-inline">params</strong> and <strong class="source-inline">initialParams</strong> so the <strong class="source-inline">params</strong> can overwrite any keys set by <strong class="source-inline">initialParams</strong>.</p>
+			<p>When the resource is resolved and returned, we first check if the component is still mounted by <strong class="source-inline">mountedRef</strong>, and if not, we skip to avoid the memory leak. Otherwise, it sets the <strong class="source-inline">data</strong> accordingly<a id="_idIndexMarker394"/> and dismisses the spinner by setting <strong class="source-inline">loading</strong> to <strong class="source-inline">false</strong>. </p>
+			<p>There's also a subtlety here that we want to use one version of this <strong class="source-inline">execute</strong> function instead of a new instance in each update, therefore, we can apply <strong class="source-inline">useMemo</strong> here to make that happen:</p>
+			<p class="source-code">  <strong class="bold">const</strong> execute = useMemo(() =&gt; params <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    setLoading(<strong class="bold">true</strong>)</p>
+			<p class="source-code">    <strong class="bold">return</strong> …  </p>
+			<p class="source-code">  }, [asyncFunc, setData, setLoading])</p>
+			<p>When <strong class="source-inline">immediate</strong> is set to <strong class="source-inline">true</strong>, we want to invoke the fetch right after the mount and this is supported through a <strong class="source-inline">useEffect</strong> hook:</p>
+			<p class="source-code">  useEffect(() <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    <strong class="bold">if</strong> (immediate) {</p>
+			<p class="source-code">      execute(initialParams)</p>
+			<p class="source-code">    }</p>
+			<p class="source-code">  }, [immediate, execute])</p>
+			<p>To make sure we don't run into a memory leak, we also need to set the <strong class="source-inline">mountedRef</strong> to <strong class="source-inline">false</strong> when it's unmounted. This is done through another <strong class="source-inline">useEffect</strong>:</p>
+			<p class="source-code">  useEffect(() <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    <strong class="bold">return</strong> () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">      mountedRef.current = <strong class="bold">false</strong></p>
+			<p class="source-code">    }</p>
+			<p class="source-code">  }, [mountedRef])</p>
+			<p>With these<a id="_idIndexMarker395"/> changes, this custom <strong class="source-inline">useAsync</strong> hook is quite feature-rich for fetching a resource in <a id="_idTextAnchor335"/>general. Let's give it a spin. </p>
+			<h2 id="_idParaDest-173"><a id="_idTextAnchor336"/>Usages</h2>
+			<p>Now let's apply the <strong class="source-inline">useAsync</strong> custom hook to a <strong class="source-inline">Title</strong> component and see how<a id="_idIndexMarker396"/> we can preload some info from an <em class="italic">API</em>:</p>
+			<p class="source-code"><strong class="bold">const</strong> fn = () <strong class="bold">=&gt;</strong> fetch("google.com")</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> { data, loading } = useAsync(fn)</p>
+			<p class="source-code">  <strong class="bold">if</strong> (loading) <strong class="bold">return</strong> 'loading ...'</p>
+			<p class="source-code">  <strong class="bold">if</strong> (!data) <strong class="bold">return</strong> <strong class="bold">null</strong> </p>
+			<p class="source-code">  <strong class="bold">return &lt;div&gt;</strong>loaded<strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, the async function is invoked immediately. After the mount, it displays <strong class="source-inline">null</strong>, and during the fetching, it displays <strong class="source-inline">loading...</strong>, and displays <strong class="source-inline">loaded</strong> after the fetch is successful. In this simple case, we added two short circuit pathways:</p>
+			<p class="source-code">  <strong class="bold">if</strong> (loading) <strong class="bold">return</strong> 'loading ...'</p>
+			<p>Upon loading, we switch to a loading status; this is the place where you can install a pretty (inline) loader or spinner: </p>
+			<p class="source-code">  <strong class="bold">const</strong> spinner = &lt;Spinner &gt;  </p>
+			<p class="source-code">  …</p>
+			<p class="source-code">  <strong class="bold">if</strong> (loading) <strong class="bold">return </strong>spinner</p>
+			<p>Regardless of whether the loading hasn't started or the fetch has failed, as long as the data isn't available, we display nothing on the screen:</p>
+			<p class="source-code">  <strong class="bold">if</strong> (!data) <strong class="bold">return</strong> <strong class="bold">null</strong></p>
+			<p>This logic is effective to prevent the user from seeing any incomplete or wrong data. </p>
+			<p class="callout-heading">Playground – Fetch with useAsync</p>
+			<p class="callout">Feel free to play with this online example at <a href="https://codepen.io/windmaomao/pen/jOLaOxO">https://codepen.io/windmaomao/pen/jOLaOxO</a>.</p>
+			<p>Okay, let's try a case without fetching initially. Instead, we fetch a resource of an arbitrary <strong class="source-inline">id</strong> from a user<a id="_idIndexMarker397"/> interaction, such as a <strong class="bold">Delete</strong> button in a table row:</p>
+			<p class="source-code"><strong class="bold">const</strong> fn = ({ id }) <strong class="bold">=&gt;</strong> fetch('google.com/${id}')</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> {</p>
+			<p class="source-code">    execute, data, loading</p>
+			<p class="source-code">  } = useAsync(fn, {}, <strong class="bold">false</strong>)  </p>
+			<p class="source-code">  <strong class="bold">const</strong> onClick = id <strong class="bold">=&gt;</strong> () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    execute({ id })</p>
+			<p class="source-code">  }  </p>
+			<p class="source-code">  <strong class="bold">if</strong> (loading) <strong class="bold">return</strong> 'loading ...'  </p>
+			<p class="source-code">  <strong class="bold">return</strong> data ? &lt;h1&gt;{data}&lt;/h1&gt; : (</p>
+			<p class="source-code">    <strong class="bold">&lt;button</strong> onClick={onClick(3)}<strong class="bold">&gt;</strong>Load 3<strong class="bold">&lt;/button&gt;</strong></p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>In the preceding example, the <strong class="source-inline">fetch</strong> promise is amended to accept <strong class="source-inline">id</strong> as input. We used <strong class="source-inline">execute</strong> manually inside an event handler, <strong class="source-inline">onClick</strong>, where we fetched the resource with a given <strong class="source-inline">id</strong>. </p>
+			<p class="callout-heading">Playground – Manual Fetch with useAsync</p>
+			<p class="callout">Feel free to play with this online example at <a href="https://codepen.io/windmaomao/pen/GRvOgoa">https://c<span id="_idTextAnchor337"/>odepen.io/windmaomao/pen/GRvOgoa</a>.</p>
+			<h2 id="_idParaDest-174"><a id="_idTextAnchor338"/>References</h2>
+			<p>The <strong class="source-inline">useAsync</strong> hook we provided here serves as a basic template for learning purposes. If you are interested<a id="_idIndexMarker398"/> in more functionalities to serve your project needs, you can find more at the following references:</p>
+			<ul>
+				<li><strong class="source-inline">useAsync</strong>: <a href="https://usehooks.com/useAsync/">https://usehooks.com/useAsync/</a></li>
+				<li>Hooks Async: <a href="https://github.com/dai-shi/react-hooks-async">https://github.com/dai-shi/react-hooks-async</a></li>
+				<li>Fetching Library: <a href="https://github.com/marcin-piela/react-fetching-library">https://github.com/marcin-piela/react-fetching-library</a></li>
+				<li>Vercel SWR: <a href="https://swr.vercel.app/">https://swr.vercel.app/</a> – supports caching and server integration</li>
+				<li>React Query: <a href="https://github.com/tannerlinsley/react-query">https://github.com/tannerlinsley/react-query</a></li>
+			</ul>
+			<h1 id="_idParaDest-175"><a id="_idTextAnchor339"/>useDebounced</h1>
+			<p>Hooks used in this custom hook: <strong class="source-inline">useState</strong>, <strong class="source-inline">useEffect</strong>, and <strong class="source-inline">useRef</strong></p>
+			<p>In <a href="B17963_06_Epub.xhtml#_idTextAnchor203"><em class="italic">Chapter 6</em></a>, <em class="italic">Use Memo to Boost Performance</em>, we ran into a very interesting implementation<a id="_idIndexMarker399"/> where we debounced the user keystroke so that we don't invoke a heavy operation (such as search) too frequently. </p>
+			<div>
+				<div id="_idContainer076" class="IMG---Figure">
+					<img src="image/Figure_9.4_B17963.jpg" alt="Figure 9.4 – useDebounced hook&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 9.4 – useDebounced hook</p>
+			<p>A pattern that emerged is that for a given state, whenever we change it via dispatch, we want to wait for a period<a id="_idIndexMarker400"/> of time before we are assured that it's the right time to act upon it. So essentially we want to design a new state as a debounced version of a given state. Let's try to capture this pattern in a custom <strong class="source-inline">useDebounced</strong> hook:</p>
+			<p class="source-code"><strong class="bold">const</strong> useDebounced = (oldState, duration) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [state, dispatch] = useState(oldState)</p>
+			<p class="source-code">  <strong class="bold">const</strong> invokeRef = useRef(<strong class="bold">null</strong>) </p>
+			<p class="source-code">  useEffect(() <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    invokeRef.current = setTimeout(() <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">      dispatch(oldState)</p>
+			<p class="source-code">    }, duration)   </p>
+			<p class="source-code">    <strong class="bold">return</strong> () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">      clearTimeout(invokeRef.current)</p>
+			<p class="source-code">    }</p>
+			<p class="source-code">  }, [oldState, duration]) </p>
+			<p class="source-code">  <strong class="bold">return</strong> state</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code block, the <strong class="source-inline">useDebounced</strong> hook is designed to take two input arguments, the <strong class="source-inline">oldState</strong> and the time <strong class="source-inline">duration</strong> for the debounce duration. The hook returns a new <strong class="source-inline">state</strong> with a debounced value. </p>
+			<p>It actually can't reuse the <strong class="source-inline">debounce</strong> function from the <em class="italic">Lodash</em> library, so the <strong class="source-inline">debounce</strong> functionality is recreated here. The frequency of the new state is controlled by a <strong class="source-inline">useEffect</strong>. Upon each change from <strong class="source-inline">oldState</strong>, it kicks off a <strong class="source-inline">setTimeout</strong>, which is asking to run a callback after a certain <strong class="source-inline">duration</strong>.  </p>
+			<p>Here, we used a <strong class="source-inline">useRef</strong> to make sure we can keep track of a persistent function handle for <strong class="source-inline">setTimeout</strong> during the lifetime of the component. Between now and the duration ends, if another change comes in, it cancels the previous <strong class="source-inline">setTimeout</strong> via <strong class="source-inline">clearTimeout</strong>, thus preventing the change to apply to the <strong class="source-inline">state</strong>. Only when one of the <strong class="source-inline">setTimeout</strong> manages to get invoked does<a id="_idIndexMarker401"/> the change of <strong class="source-inline">oldState</strong> get applied to <strong class="source-inline">state</strong>.</p>
+			<p>In a way, the <strong class="source-inline">oldState</strong> and the <strong class="source-inline">state</strong> lags a bit in between. Let's give it a spin and see how<a id="_idTextAnchor340"/> we can use this <strong class="source-inline">useDebounced</strong> hook. </p>
+			<h2 id="_idParaDest-176"><a id="_idTextAnchor341"/>Usages</h2>
+			<p>Let's take a look at how it's used in the <strong class="source-inline">Title</strong> component<a id="_idIndexMarker402"/> where we need to perform a search based on the user typing:</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [text, setText] = useState('')</p>
+			<p class="source-code">  <strong class="bold">const</strong> query = useDebounced(text, 300)</p>
+			<p class="source-code">  <strong class="bold">const</strong> matched = useMemo(() <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    <strong class="bold">return</strong> fruites.filter(v =&gt; v.includes(query))</p>
+			<p class="source-code">  }, [query]) </p>
+			<p class="source-code">  <strong class="bold">const</strong> onChange = e <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    <strong class="bold">const</strong> t = e.target.value</p>
+			<p class="source-code">    setText(t)</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    <strong class="bold">&lt;&gt;</strong></p>
+			<p class="source-code">      <strong class="bold">&lt;input</strong> value={text} onChange={onChange} <strong class="bold">/&gt;</strong></p>
+			<p class="source-code">      {matched.join(',')}</p>
+			<p class="source-code">    <strong class="bold">&lt;/&gt;</strong></p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, a <strong class="source-inline">text</strong> state is sent to <strong class="source-inline">useDebounced</strong> to form a new <strong class="source-inline">query</strong> state: </p>
+			<p class="source-code">  <strong class="bold">const</strong> query = useDebounced(text, 300)</p>
+			<p>Because the <strong class="source-inline">query</strong> state is less frequently updated, we can wire it to the <strong class="source-inline">filter</strong> via <strong class="source-inline">useMemo</strong>, since otherwise, the <strong class="source-inline">text</strong> state can get updated very rapidly via <strong class="source-inline">onChange</strong>. In a way, we created<a id="_idIndexMarker403"/> a state event out of <strong class="source-inline">query</strong> so the <em class="italic">UI</em> updates according to two data streams with different frequencies.</p>
+			<p class="callout-heading">Playground – Search with useDebounced</p>
+			<p class="callout">Feel free to play with this online example at <a href="https://codepen.io/windmaomao/pen/bGrYNmB">https://codepen.io/windmaomao/pen/bGrYNmB</a>.</p>
+			<p>From this <strong class="source-inline">useDebounced</strong> custom hook, we can see an artificial event created out of listening to a state change that <a id="_idTextAnchor342"/>can be as useful as a physical event. </p>
+			<h3>References</h3>
+			<p>To learn more<a id="_idIndexMarker404"/> about the <strong class="source-inline">useDebounced</strong> hook, here are the reference links for you:</p>
+			<ul>
+				<li><strong class="source-inline">useDebounce</strong>: <a href="https://usehooks.com/useDebounce/">https://usehooks.com/useDebounce/</a>.</li>
+				<li><strong class="source-inline">useDebounce</strong>: <a href="https://github.com/xnimorz/use-debounce">https://github.com/xnimorz/use-debounce</a>. This supports all debounce options.</li>
+			</ul>
+			<h1 id="_idParaDest-177"><a id="_idTextAnchor343"/>useClickOutside</h1>
+			<p>Hooks used in this custom hook: <strong class="source-inline">useEffect</strong></p>
+			<p>In <a href="B17963_08_Epub.xhtml#_idTextAnchor278"><em class="italic">Chapter 8</em></a>, <em class="italic">Use Ref to Hide Stuff</em>, we learned about<a id="_idIndexMarker405"/> a case where we can detect when a user clicks outside a component. This feature is pretty generic and we want to take advantage of this in various parts of the project, such as dismissing a modal or tooltip – see <em class="italic">Figure 9.5</em>. </p>
+			<div>
+				<div id="_idContainer077" class="IMG---Figure">
+					<img src="image/Figure_9.5_B17963.jpg" alt="Figure 9.5 – useClickOutside hook &#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 9.5 – useClickOutside hook </p>
+			<p>Let's see if we can refactor<a id="_idIndexMarker406"/> the old code a bit and turn it into a custom <strong class="source-inline">useClickOutside</strong> hook:</p>
+			<p class="source-code"><strong class="bold">function</strong> useClickOutside(ref, handler) {</p>
+			<p class="source-code">  useEffect(() <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    const evt = e =&gt; {</p>
+			<p class="source-code">      <strong class="bold">if</strong> (!ref.current) <strong class="bold">return</strong> </p>
+			<p class="source-code">      if (!ref.current.contains(e.target)) {</p>
+			<p class="source-code">        handler &amp;&amp; handler()</p>
+			<p class="source-code">      }</p>
+			<p class="source-code">    }  </p>
+			<p class="source-code">    window.addEventListener("mousedown", evt)      </p>
+			<p class="source-code">    <strong class="bold">return</strong> () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">      window.removeEventListener("mousedown", evt)</p>
+			<p class="source-code">    }</p>
+			<p class="source-code">  }, [ref, handler])</p>
+			<p class="source-code">}</p>
+			<p>The <strong class="source-inline">useClickOutside</strong> hook accepts two input arguments, the first one is a <strong class="source-inline">ref</strong> to the element, and<a id="_idIndexMarker407"/> the second is the callback <strong class="source-inline">handler</strong> to invoke after detecting clicking outside. Notice the hook doesn't return any value.</p>
+			<p>A <strong class="source-inline">useEffect</strong> is used to manage a <strong class="source-inline">mousedown</strong> event, and if the click is inside the component, the handler is prevented from being invoked. We basically take our old code into a<a id="_idTextAnchor344"/> separate function. Let's give it a spin.</p>
+			<h2 id="_idParaDest-178"><a id="_idTextAnchor345"/>Usages</h2>
+			<p>We can try<a id="_idIndexMarker408"/> out the <strong class="source-inline">useClickOutside</strong> on a <strong class="source-inline">Menu</strong> component:</p>
+			<p class="source-code"><strong class="bold">const Menu =</strong> ({ on, dismiss }) =&gt; {</p>
+			<p class="source-code">  <strong class="bold">const</strong> ref= useRef()</p>
+			<p class="source-code">  useClickOutside(ref, toggle(<strong class="bold">false</strong>))<strong class="bold"> </strong>   </p>
+			<p class="source-code">  <strong class="bold">if</strong> (!on) <strong class="bold">return</strong> <strong class="bold">null</strong></p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    <strong class="bold">&lt;ul</strong> ref={ref}<strong class="bold">&gt;</strong></p>
+			<p class="source-code">      <strong class="bold">&lt;li&gt;Home&lt;/li&gt;</strong></p>
+			<p class="source-code">      <strong class="bold">&lt;li&gt;</strong>Price<strong class="bold">&lt;/li&gt;</strong></p>
+			<p class="source-code">      <strong class="bold">&lt;li&gt;</strong>Product<strong class="bold">&lt;/li&gt;</strong></p>
+			<p class="source-code">      &lt;li&gt;Support&lt;/li&gt;</p>
+			<p class="source-code">      <strong class="bold">&lt;li&gt;About&lt;/li&gt;</strong></p>
+			<p class="source-code">    <strong class="bold">&lt;/ul&gt;</strong></p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>This time we set up the <strong class="source-inline">Menu</strong> to support two input arguments. One is the <strong class="source-inline">on</strong> flag and the other is the <strong class="source-inline">dismiss</strong> function. Both are provided via props so the <strong class="source-inline">Menu</strong> can be driven<a id="_idIndexMarker409"/> by the parent component: </p>
+			<p class="source-code">const App = () =&gt; {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [on, toggle] = useToggle(true)  </p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    <strong class="bold">&lt;Menu</strong></p>
+			<p class="source-code">      on={on}</p>
+			<p class="source-code"><a id="_idTextAnchor346"/>      dismiss={toggle(false)}</p>
+			<p class="source-code">    &lt;/&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>In the preceding <strong class="source-inline">App</strong> component, we used an <strong class="source-inline">on</strong> state from a custom hook we just built earlier to provide us with a boolean as well as a <strong class="source-inline">toggle</strong> function. We used them to drive a <strong class="source-inline">Menu</strong>. Cool, we started using our own custom hook in no time. Initially, the <strong class="source-inline">on</strong> is set to <strong class="source-inline">true</strong>, indicating the <strong class="source-inline">Menu</strong> is displayed. Clicking anywhere outside of it would dismiss it.</p>
+			<p class="callout-heading">Playground – Menu with useClickOutside</p>
+			<p class="callout">Feel free to play with this online example at <a href="https://codepen.io/windmaomao/pen/qBXVdOe">https://codepen.io/windmaomao/pen/qBXVdOe</a>.</p>
+			<h2 id="_idParaDest-179"><a id="_idTextAnchor347"/>References</h2>
+			<p>To learn more about the <strong class="source-inline">useClickOutside</strong> hook, here are some reference<a id="_idIndexMarker410"/> links for you:</p>
+			<ul>
+				<li><strong class="source-inline">useOnClickOutside</strong>: <a href="https://usehooks.com/useOnClickOutside/">https://usehooks.com/useOnClickOutside/</a></li>
+				<li><strong class="source-inline">useClickOutside</strong>: <a href="https://github.com/ElForastero/use-click-outside">https://github.com/ElForastero/use-click-outside</a></li>
+			</ul>
+			<h1 id="_idParaDest-180"><a id="_idTextAnchor348"/>useCurrent</h1>
+			<p>Built-in hooks used in this custom hook: <strong class="source-inline">useState</strong></p>
+			<p>When using the <strong class="source-inline">useState</strong>, we encountered quite a few issues that prevented a newcomer from understanding<a id="_idIndexMarker411"/> how to use it properly, mainly from the inherited laggy behavior due to the fact that the state value does not change right after the dispatch. </p>
+			<p class="source-code"><strong class="bold">const</strong> [state, dispatchState] = useState(0)</p>
+			<p>In the preceding line, if we understand the <strong class="source-inline">dispatchState</strong> function is to dispatch and request a change, then there's not much we need to do because that's how <em class="italic">React</em> designs the <strong class="source-inline">useState</strong>. However, most often we tend to think differently:</p>
+			<p class="source-code"><strong class="bold">const</strong> [state, setState] = useState(0)</p>
+			<p>The preceding <strong class="source-inline">setState</strong> name is the main reason we push ourselves into trouble, because here we would expect the <strong class="source-inline">state</strong> to change right after the <strong class="source-inline">setState</strong> statement. </p>
+			<p>In <a href="B17963_08_Epub.xhtml#_idTextAnchor278"><em class="italic">Chapter 8</em></a>, <em class="italic">Use Ref to Hide Stuff</em>, we used a <strong class="source-inline">useRef</strong> to locate the current value. There are two different ways to solve this problem: one is to design a container to keep pointing to the current value, the other is to design an access function to give us the current one when needed. Let's give the second method a shot this time:</p>
+			<p class="source-code"><strong class="bold">function</strong> useCurrent(initialState) {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [obj, setObj] = useState({ state: initialState })  </p>
+			<p class="source-code">  <strong class="bold">const</strong> dispatch = newState <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    <strong class="bold">if</strong> (obj.state !== newState) {</p>
+			<p class="source-code">      obj.state = newState</p>
+			<p class="source-code">      setObj({ …obj })</p>
+			<p class="source-code">    }</p>
+			<p class="source-code">  }  </p>
+			<p class="source-code">  <strong class="bold">const</strong> getState = () <strong class="bold">=&gt;</strong> obj.state</p>
+			<p class="source-code">  <strong class="bold">return</strong> [getState, dispatch]</p>
+			<p class="source-code">}</p>
+			<p>In the preceding custom <strong class="source-inline">useCurrent</strong> hook, it stores the state under a <strong class="source-inline">state</strong> property of an <strong class="source-inline">obj</strong>. When you<a id="_idIndexMarker412"/> need to find out the state, you can invoke <strong class="source-inline">getState</strong> function, and when you need to update the state, you perform <strong class="source-inline">dispatch</strong> as used to be. Here, we have to manage the <strong class="source-inline">obj</strong> manually, and if we find out the <strong class="source-inline">newState</strong> is not different than the current <strong class="source-inline">obj.state</strong>, we skip this dispatch. </p>
+			<h2 id="_idParaDest-181"><a id="_idTextAnchor349"/>Usages</h2>
+			<p>Let's give it a spin for our 3-second-delayed<a id="_idIndexMarker413"/> clicks example:</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [getCount, setCount] = useCurrent(0)  </p>
+			<p class="source-code">  <strong class="bold">const</strong> onClick = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    <strong class="bold">setTimeout</strong>(() <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">      setCount(getCount() + 1)</p>
+			<p class="source-code">    }, 3000)</p>
+			<p class="source-code">  } </p>
+			<p class="source-code">  <strong class="bold">return &lt;button</strong> onClick={onClick}<strong class="bold">&gt;</strong>{getCount()}<strong class="bold">&lt;/button&gt;</strong></p>
+			<p class="source-code">}</p>
+			<p>The preceding code shows that this time, the code is simplified a bit since we don't need a ref to track the current value. Instead, we use a custom <strong class="source-inline">useCurrent</strong> to manage the state. The big difference is that anytime we need to find out the <strong class="source-inline">count</strong>, we need to invoke <strong class="source-inline">getCount</strong> returned from the hook. The plus side is that we don't have to always wonder what the current <strong class="source-inline">count</strong> is anymore.</p>
+			<p class="callout-heading">Playground – Current State with useCurrent</p>
+			<p class="callout">Feel free to play with this online example at <a href="https://codepen.io/windmaomao/pen/VwzrvBX">https://codepen.io/windmaomao/pen/VwzrvBX</a>.</p>
+			<h2 id="_idParaDest-182"><a id="_idTextAnchor350"/>References</h2>
+			<p>Check these links out to see how people<a id="_idIndexMarker414"/> approach this problem from different angles:</p>
+			<ul>
+				<li>Use Ref State: <a href="https://scastiel.dev/posts/2019-02-19-react-hooks-get-current-state-back-to-the-future/&#13;">https://scastiel.dev/posts/2019-02-19-react-hooks-get-current-state-back-to-the-future/.</a></li>
+				<li><strong class="source-inline">useStateRef</strong>: <a href="https://github.com/Aminadav/react-useStateRef">https://github.com/Aminadav/react-useStateRef</a></li>
+				<li><strong class="source-inline">useRefState</strong>: <a href="https://github.com/alex-cory/urs">https://github.com/alex-cory/urs</a>.</li>
+				<li>Use Safe State: <a href="https://ahooks.js.org/hooks/advanc﻿ed/use-safe-state/">https://ahooks.js.org/hooks/advanc<span id="_idTextAnchor351"/>ed/use-safe-state/</a>. This implements a safe state.</li>
+			</ul>
+			<h1 id="_idParaDest-183"><a id="_idTextAnchor352"/>useProxy</h1>
+			<p>Built-in hooks used in this custom hook: <strong class="source-inline">useState</strong>, <strong class="source-inline">useEffect</strong>, and <strong class="source-inline">useRef</strong></p>
+			<p>The thinking behind either fixing or improving the <em class="italic">React</em> state never ends. One cool idea originates from the question "why can't we just do a plain assignment for states instead of using the dispatch approach?" One of the technical issues<a id="_idIndexMarker415"/> blocking us is that the assignment can't be done unless there's an object or something to hold the state. So, if we were to allow the storing of properties under an object like so:</p>
+			<p class="source-code">  <strong class="bold">const</strong> p = useProxy({ count: 0, text: '' })</p>
+			<p>Then we could turn a dispatch into an assignment like the following:</p>
+			<p class="source-code">  p.count++</p>
+			<p class="source-code">  p.text = 'Hello World'</p>
+			<p>Let's take a look at how we can design such things with the help of the <em class="italic">Proxy</em> introduced by <em class="italic">ES6</em>: </p>
+			<p class="source-code"><strong class="bold">const</strong> useProxy = (initialObj) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [,dispatch] = useState(initialObj)  </p>
+			<p class="source-code">  <strong class="bold">const</strong> [obj] = useState(<strong class="bold">new</strong> Proxy(initialObj, {</p>
+			<p class="source-code">    get: <strong class="bold">function</strong>() {</p>
+			<p class="source-code">      <strong class="bold">return</strong> Reflect.get(...<strong class="bold">arguments</strong>)</p>
+			<p class="source-code">    },</p>
+			<p class="source-code">    set: <strong class="bold">function</strong>(obj, prop, value) { </p>
+			<p class="source-code">      <strong class="bold">if</strong> (obj[prop] !== value) {</p>
+			<p class="source-code">        obj[prop] = value</p>
+			<p class="source-code">        dispatch({ ...obj })</p>
+			<p class="source-code">      }</p>
+			<p class="source-code">      <strong class="bold">return</strong> <strong class="bold">true</strong></p>
+			<p class="source-code">    }    </p>
+			<p class="source-code">  })) </p>
+			<p class="source-code">  <strong class="bold">return</strong> obj</p>
+			<p class="source-code">}</p>
+			<p>The preceding custom <strong class="source-inline">useProxy</strong> hook takes a similar approach as the <strong class="source-inline">useCurrent</strong> hook and stores the <strong class="source-inline">initialObj</strong> into a state but at the same time creates another special object with the Proxy. Without going<a id="_idIndexMarker416"/> into too much detail about the Proxy usage, the special object basically captures the moment of reading and writing any property into two function calls, <strong class="source-inline">get</strong> and <strong class="source-inline">set</strong>. Here, we don't really care about the <strong class="source-inline">get</strong> so it reverts to the default behavior, whereas the <strong class="source-inline">set</strong> overrides the default behavior with a new version:</p>
+			<p class="source-code">      set: <strong class="bold">function</strong>(obj, prop, value) {        </p>
+			<p class="source-code">        <strong class="bold">if</strong> (obj[prop] !== value) {</p>
+			<p class="source-code">          obj[prop] = value</p>
+			<p class="source-code">          dispatch({ ...obj })</p>
+			<p class="source-code">        }</p>
+			<p class="source-code">        <strong class="bold">return</strong> <strong class="bold">true</strong></p>
+			<p class="source-code">      }</p>
+			<p>The preceding code gets invoked for any statement like <strong class="source-inline">obj.prop = value</strong>. The implementation is quite similar to that of the <strong class="source-inline">getCurrent</strong> hook, where it checks if the new <strong class="source-inline">value</strong> is any different than the stored <strong class="source-inline">obj[prop]</strong> and makes a dispatch if that's the case.</p>
+			<p>Since we are tracking<a id="_idIndexMarker417"/> a couple of states under the properties with an object, it's worthwhile adding a <strong class="source-inline">mountRef</strong> flag in case things go wrong after the component is dismounted:</p>
+			<p class="source-code"><strong class="bold">const</strong> useProxy = (initialObj) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  ...</p>
+			<p class="source-code">  <strong class="bold">const</strong> mountRef = useRef(<strong class="bold">true</strong>)</p>
+			<p class="source-code">  useEffect(() <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    <strong class="bold">return</strong> () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">      mountRef.current = <strong class="bold">false</strong></p>
+			<p class="source-code">    }</p>
+			<p class="source-code">  })  </p>
+			<p class="source-code">  ...</p>
+			<p class="source-code">}</p>
+			<p>Given a <strong class="source-inline">mountRef</strong>, we can modify the <strong class="source-inline">set</strong> to disable it to avoid a memory leak:</p>
+			<p class="source-code">      set: <strong class="bold">function</strong>(obj, prop, value) { </p>
+			<p class="source-code">        <strong class="bold">if</strong> (!mountedRef.current) <strong class="bold">return</strong> <strong class="bold">false</strong></p>
+			<p class="source-code">        ...</p>
+			<p class="source-code">      }</p>
+			<p>Okay, with all these features b<a id="_idTextAnchor353"/>uilt, let's put them together and give them a spin.</p>
+			<h2 id="_idParaDest-184"><a id="_idTextAnchor354"/>Usages</h2>
+			<p>The <strong class="source-inline">useProxy</strong> hook is a lot more powerful<a id="_idIndexMarker418"/> , but it requires you to put all values under an object and it can be really useful especially for form handling:</p>
+			<p class="source-code"><strong class="bold">const</strong> Form = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> form = useProxy({ count: 0, text: '' })</p>
+			<p>In the preceding <strong class="source-inline">Form</strong> component, we define a <strong class="source-inline">form</strong> object to hold two states, <strong class="source-inline">count</strong> and <strong class="source-inline">text</strong>. Let's first take a look how we can increment a number now:</p>
+			<p class="source-code">  <strong class="bold">const</strong> onClick = () <strong class="bold">=&gt;</strong> { ++form.count }</p>
+			<p class="source-code">  <strong class="bold">return</strong>(</p>
+			<p class="source-code">    <strong class="bold">&lt;div&gt;</strong></p>
+			<p class="source-code">      <strong class="bold">&lt;h1&gt;</strong>Count: { form.count }<strong class="bold">&lt;/h1&gt;</strong>  </p>
+			<p class="source-code">      <strong class="bold">&lt;button</strong> onClick={onClick}<strong class="bold">&gt;</strong>Increment<strong class="bold">&lt;/button&gt;</strong></p>
+			<p class="source-code">    <strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">  )</p>
+			<p>In the preceding code, the count is displayed from <strong class="source-inline">form.count</strong>, but when it comes to incrementing it, we simply do <strong class="source-inline">++form.count</strong>. Essentially, this is equivalent to either of the following:</p>
+			<p class="source-code">  form.count += 1</p>
+			<p class="source-code">  from.count = form.count + 1</p>
+			<p>From the usage experience, we don't have to remember what a dispatch is; all we need to do is a plain assignment. The custom <strong class="source-inline">useProxy</strong> hook takes care of the dispatch for us.</p>
+			<p>There's another advantage coming from this custom hook, that is, from now on, both <strong class="source-inline">set</strong> and <strong class="source-inline">get</strong> are done through the same object, <strong class="source-inline">form</strong>. This means if we need to ask a child to handle one form element, we do not have to send two pieces as we normally do. Let's take a look at one example with the other <strong class="source-inline">text</strong> state:</p>
+			<p class="source-code"><strong class="bold">const</strong> Text = (({ form }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> onChange = e <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    form.text = e.target.value</p>
+			<p class="source-code">  }  </p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    <strong class="bold">&lt;input</strong></p>
+			<p class="source-code">      value={form.text}</p>
+			<p class="source-code">      onChange={onChange} </p>
+			<p class="source-code">    <strong class="bold">/&gt;</strong></p>
+			<p class="source-code">  )</p>
+			<p class="source-code">})</p>
+			<p class="source-code"><strong class="bold">const</strong> Form = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> form = useProxy({ count: 0, text: '' })  </p>
+			<p class="source-code">  <strong class="bold">return</strong>(</p>
+			<p class="source-code">    <strong class="bold">&lt;div&gt;</strong></p>
+			<p class="source-code">      &lt;Text form={form} /&gt;</p>
+			<p class="source-code">    <strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>In the preceding example, we define a <strong class="source-inline">Text</strong> component to handle the text input. Notice we only need to send the <strong class="source-inline">form</strong> through a prop. And inside the <strong class="source-inline">Text</strong> component, both the display and assignment<a id="_idIndexMarker419"/> of this text are managed via <strong class="source-inline">form.text</strong>. Crazily handy, isn't it?</p>
+			<p class="callout-heading">Playground – Form with useProxy</p>
+			<p class="callout">Feel free to play with this online example at <a href="https://codepen.io/windmaomao/pen/eYEeZmL">https://codepen.io/windmaomao/pen/eYEeZmL</a>.</p>
+			<p>The <strong class="source-inline">useProxy</strong> hook does ask us to use an object to manage states, but once you are onboard with this approach, you might feel<a id="_idIndexMarker420"/> mor<a id="_idTextAnchor355"/>e like coding normally without the <em class="italic">React</em> state hassle.</p>
+			<h2 id="_idParaDest-185"><a id="_idTextAnchor356"/>References</h2>
+			<ul>
+				<li>Valtio: <a href="https://github.com/pmndrs/valtio">https://github.com/pmndrs/valtio</a></li>
+				<li>Use<a id="_idIndexMarker421"/> State Proxy: <a href="https://github.com/beenotung/use-state-proxy">https://github.com/beenotung/use-state-proxy</a></li>
+				<li>Proxy States: <a href="https://github.com/windmaomao/proxy-state">https://github.com/windmaomao/proxy-state</a></li>
+			</ul>
+			<h1 id="_idParaDest-186"><a id="_idTextAnchor357"/>Summary</h1>
+			<p>In this chapter, we summarized all the <em class="italic">React</em> built-in hooks that we've introduced so far and then went on to how to create a custom hook. Then, once we understood the concept, we went over all the code we wrote in this book and turned some of it into custom hooks, including <strong class="source-inline">useToggle</strong>, <strong class="source-inline">useWindow</strong>, <strong class="source-inline">useAsync</strong>, <strong class="source-inline">useDebounced</strong>, <strong class="source-inline">useClickOutside</strong>, <strong class="source-inline">useCurrent</strong>, and <strong class="source-inline">useProxy</strong>.</p>
+			<p>In the next chapter, we will get to know how <em class="italic">React</em> pulls together all different types of <a id="_idTextAnchor358"/>web resources and orchestrates them to build a website.</p>
+			<h1 id="_idParaDest-187"><a id="_idTextAnchor359"/>Questions and answers</h1>
+			<p>Here ar<a id="_idTextAnchor360"/>e some questions and answers to refresh your knowledge:</p>
+			<ol>
+				<li>What are <em class="italic">React</em> built-in hooks?<p><em class="italic">React</em> built-in hooks refers to all hooks designed by <em class="italic">React</em>, including <strong class="source-inline">useState</strong>, <strong class="source-inline">useEffect</strong>, and so on. You can't create a built-in hook on the fly, but you can contribute your idea an<a id="_idTextAnchor361"/>d send a pull request to the <em class="italic">React</em> core team to review.</p></li>
+				<li>What is a custom hook?<p>We can create a custom hook by consuming one of the <em class="italic">React</em> built-in hooks and giving the hook name prefixed with <strong class="source-inline">use</strong>. A custom hook can be as powerful as a built-in hook. The purpose of the built-in hook is to address atomic core capability whereas the custom hook is normally created to address practical project problems. There're hundreds of custom ho<a id="_idTextAnchor362"/>oks on the internet you might find useful or inspiring.</p></li>
+				<li>What's the best practice for creating a hook?<p>A custom hook can be, and most times is, created naturally out of the code refactoring process. As long as you feel a bundle of code can be reused involving a hook, that's the time you can extract those functionalities out and make it generic to be referenced by other parts of the project. In a way, you can think of a custom hook as a utility function, except it involves a built-in hook.</p></li>
+			</ol>
+		</div>
+	</body></html>

@@ -1,0 +1,308 @@
+<html><head></head><body>
+		<div id="_idContainer029">
+			<h1 id="_idParaDest-47"><em class="italic"><a id="_idTextAnchor080"/>Chapter 3</em>: Hooking into React</h1>
+			<p>In the previous chapter, we learned to perform actions inside a function component with our crafted states. In this chapter, we will go through the challenges we face in creating a good state solution, and then see how <em class="italic">React</em> builds the solution with the underlying Hook. We will then introduce what a hook is and get to know it, as well as its calling order, and learn how to avoid running into conditional hook issues in real applications. The chapter also includes two bonus topics in the <em class="italic">Appendix</em> section, <em class="italic">React Fiber</em> and <em class="italic">Current and WorkInProgress Scenes</em>.</p>
+			<p>We will cover the following topics in this chapter:</p>
+			<ul>
+				<li>Creating good state solution</li>
+				<li>Introducing a React Hook</li>
+				<li>What is a hook?</li>
+				<li>Questions and answers</li>
+				<li>Appendix</li>
+			</ul>
+			<h1 id="_idParaDest-48"><a id="_idTextAnchor081"/>Creating a good state solution</h1>
+			<p>States are <a id="_idIndexMarker097"/>quite capable. A component without states is like a function without variables. It would lack capabilities of reasoning. A piece of UI logic relies on states to work upon continuous interactions from users.</p>
+			<p>We built a custom state in the previous chapter as follows: </p>
+			<p class="source-code"><strong class="bold">let</strong> states = {}</p>
+			<p class="source-code"><strong class="bold">function</strong> _getM2(initialValue, key) {</p>
+			<p class="source-code">  <strong class="bold">if</strong> (states[key] === <strong class="bold">undefined</strong>) {</p>
+			<p class="source-code">    states[key] = initialValue</p>
+			<p class="source-code">  } </p>
+			<p class="source-code">  <strong class="bold">return</strong> states[key]</p>
+			<p class="source-code">}</p>
+			<p class="source-code"><strong class="bold">function</strong> _setM2(v, key) {</p>
+			<p class="source-code">  states[key] = v</p>
+			<p class="source-code">  ReactDOM.render(&lt;Title /&gt;, rootEl)</p>
+			<p class="source-code">}</p>
+			<p>Though <a id="_idIndexMarker098"/>this approach works, there are a few problems we need to address before we can be seriously considered using it with <em class="italic">React</em>. We'll mention these problems one by one as follows.</p>
+			<p>The location where the states are allocated is the first major problem:</p>
+			<p class="source-code"><strong class="bold">let</strong> states = {}</p>
+			<p>The preceding <strong class="source-inline">states</strong> variable is allocated as a global variable, but normally we'd be first interested in states specific to a component. In other words, we need to find a place to define local states.</p>
+			<p>The second problem of using states is the unique key to identify each of them:</p>
+			<p class="source-code"><strong class="bold">const</strong> a = _getM2(0, 'comp_a')</p>
+			<p>As in the preceding state usage, after we name the state <strong class="source-inline">comp_a</strong>, we have to carry this key for any actions involving this state. In a typical application, we could have lots of states like that; if each has to be defined with a unique string, we would have to come up with a lot of unique names. It would be quite some work to keep track of all the used names, not to mention that the variable holding the state inside the function component already has a name, <strong class="source-inline">a</strong>. It's a bit cumbersome to have both the variable name and key string. </p>
+			<p>Other than these two major problems, there are other minor things we need to consider. In demonstrating the usage of the state, we render the <strong class="source-inline">Title</strong> component when we need to request a new update:</p>
+			<p class="source-code">ReactDOM.render(&lt;Title /&gt;, rootEl)</p>
+			<p>Explicitly knowing which component we need to update for each action we perform can be a challenge to developers. It would be better if the engine can help us here to hide away this detail by figuring out what the components are that need to be updated. This is exactly what <em class="italic">React</em> does best; we should wire it with the engine to perform the right update. Last but not least, we know that the states can be used for different <a id="_idIndexMarker099"/>purposes since the underlying concept is a persistency mechanism. If done properly, we should be able to create some sort of infrastructure upon which we can add additional functionalities. </p>
+			<p>The preceding is a list of issues that a good state solution should consider. With these in mind, let's take a look at how <em class="italic">React</em> approaches this state proble<a id="_idTextAnchor082"/>m.</p>
+			<h1 id="_idParaDest-49"><a id="_idTextAnchor083"/>Introducing a React Hook</h1>
+			<p>The <a id="_idIndexMarker100"/>state is mostly local to a component, at least as far as this book is mostly concerned. The natural place for storage would be under a component instance because a component in <em class="italic">React</em> defines a piece of UI. So, where is the component instance of a function component in <em class="italic">React</em> stored?</p>
+			<p>It turns out that a component isn't the smallest unit in <em class="italic">React</em>. There's a more granular structure called fiber, which is used to represent a piece of element. A fiber performs all the tasks for this element. The element can be as simple as <strong class="source-inline">h1</strong>, <strong class="source-inline">div</strong> elements, or it can be an artificial element that does things differently. For instance, a "fragment" element can group other elements without displaying itself, or a "memo" element can remember all the elements from the last update. </p>
+			<p>Actually, a function component is one of the artificial elements that a fiber represents. What a function component does is allow us to define what elements it can display, so whenever it's invoked, it can figure out what DOM elements the screen needs to update. You can find more information in <em class="italic">Appendix A – React Fiber</em> at the end of this chapter. </p>
+			<p>So, now we find the unit for a component instance; that's exactly where <em class="italic">React</em> decides to store states. <em class="italic">React</em> stores them under a <strong class="source-inline">memoizedState</strong> property using a Hook structure, as shown in <em class="italic">Figure 3.1</em>:</p>
+			<div>
+				<div id="_idContainer022" class="IMG---Figure">
+					<img src="image/Figure_3.01_B17963.jpg" alt="Figure 3.1 – Hooks under a fiber&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 3.1 – Hooks under a fiber</p>
+			<p>The Hook <a id="_idIndexMarker101"/>we introduce here is a structure (or a class) to hold a state. This is not exactly the <em class="italic">React</em> hook (function) we will introduce later. Unfortunately, <em class="italic">React</em> uses the same word at both places. To distinguish them, we intentionally use <em class="italic">Hook</em> (with an uppercase <em class="italic">H</em>) for the structure and <em class="italic">hook</em> (with a lowercase <em class="italic">h</em>) for the function.</p>
+			<p>The main functionality of a Hook structure is to hold a single state under the <strong class="source-inline">state</strong> property. Instead of having multiple states in an array (or an object), multiple states are linked together using a linked list, as shown in <em class="italic">Figure 3.2</em>. One Hook points to another one via its <strong class="source-inline">next</strong> property. When it reaches the end of the list, the <strong class="source-inline">next</strong> property of the last Hook is set to be <strong class="source-inline">null</strong>. This is how a typical linked list works in programming. The first Hook, if any, is stored under the <strong class="source-inline">memoizedState</strong> of the fiber; this way, a fiber can find all Hooks following the first one.</p>
+			<div>
+				<div id="_idContainer023" class="IMG---Figure">
+					<img src="image/Figure_3.02_B17963.jpg" alt="Figure 3.2 – Hooks in a Linked List&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 3.2 – Hooks in a Linked List</p>
+			<p>A fiber needs to be updated for the engine to know whether there is any change to the screen. In the update function, this is where the Hook gets initialized. So next, let's take a look at the update function.</p>
+			<h2 id="_idParaDest-50"><a id="_idTextAnchor084"/>Updating a function component</h2>
+			<p><em class="italic">React</em> updates <a id="_idIndexMarker102"/>a function component through an <strong class="source-inline">updateFunctionComponent</strong> function. The input arguments accept a <strong class="source-inline">Component</strong> function and its <strong class="source-inline">props</strong> input: </p>
+			<p class="source-code"><strong class="bold">let</strong> updatingFiber = ...</p>
+			<p class="source-code"><strong class="bold">function</strong> updateFunctionComponent(Component, props) {</p>
+			<p class="source-code">  prevHook = <strong class="bold">null</strong></p>
+			<p class="source-code">  <strong class="bold">let</strong> children = Component(props)</p>
+			<p class="source-code">  ...</p>
+			<p class="source-code">}</p>
+			<p>The main job of the update function is to invoke <strong class="source-inline">Component(props)</strong> to know the new <strong class="source-inline">children</strong> element. Taking a <strong class="source-inline">Title</strong> component as an example, when it gets to be updated, the <strong class="source-inline">updateFunctionComponent</strong> function invokes <strong class="source-inline">Title()</strong>. With that, the engine compares the element returned and what's on the screen and commits the difference.</p>
+			<p>There are two global variables defined in the preceding update function. They are quite easy to follow. <strong class="source-inline">updatingFiber</strong> represents the current fiber that is under update by the engine, and <strong class="source-inline">prevHook</strong> points to the previously worked Hook for this fiber. Before the component is invoked,  <strong class="source-inline">updatingFiber</strong> is populated by the engine, such as <strong class="source-inline">Title</strong>, and <strong class="source-inline">prevHook</strong> is set to be <strong class="source-inline">null</strong>.</p>
+			<p>The first time a component is updated, as in a mount, is when the first Hook for this fiber is creat<a id="_idTextAnchor085"/>ed.</p>
+			<h2 id="_idParaDest-51"><a id="_idTextAnchor086"/>Creating a Hook at the mount</h2>
+			<p>To mount a<a id="_idIndexMarker103"/> Hook under the currently updating fiber,<em class="italic"> React</em> creates a new Hook object and appends it to the linked list:</p>
+			<p class="source-code"><strong class="bold">function</strong> mountHook() {</p>
+			<p class="source-code">  <strong class="bold">const</strong> Hook = {</p>
+			<p class="source-code">    state: <strong class="bold">null</strong></p>
+			<p class="source-code">    next: <strong class="bold">null</strong></p>
+			<p class="source-code">  }  </p>
+			<p class="source-code">  <strong class="bold">if</strong> (prevHook === <strong class="bold">null</strong>) { </p>
+			<p class="source-code">    updatingFiber.memoizedState = Hook</p>
+			<p class="source-code">    prevHook = Hook</p>
+			<p class="source-code">  } <strong class="bold">else</strong> {</p>
+			<p class="source-code">    prevHook.next = Hook</p>
+			<p class="source-code">    prevHook = prevHook.next     </p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  <strong class="bold">return</strong> Hook</p>
+			<p class="source-code">}</p>
+			<p>In the<a id="_idIndexMarker104"/> preceding <strong class="source-inline">mountHook</strong> function, an empty Hook object is allocated first with both <strong class="source-inline">state</strong> and <strong class="source-inline">next</strong> set to <strong class="source-inline">null</strong>. If it's the first Hook to the fiber, as <strong class="source-inline">preHook</strong> is <strong class="source-inline">null</strong>, it gets stored under <strong class="source-inline">memoizedState</strong> of the fiber. Otherwise, it gets appended to the previous Hook's <strong class="source-inline">next</strong> property. After that, the allocated Hook is retu<a id="_idTextAnchor087"/>rned.</p>
+			<h2 id="_idParaDest-52"><a id="_idTextAnchor088"/>Obtaining a Hook at the update</h2>
+			<p>In any <a id="_idIndexMarker105"/>other update after the mount, we can access Hooks that <em class="italic">React</em> created at the mount:</p>
+			<p class="source-code"><strong class="bold">function</strong> updateHook() {</p>
+			<p class="source-code">  <strong class="bold">var</strong> Hook</p>
+			<p class="source-code">  <strong class="bold">if</strong> (prevHook === <strong class="bold">null</strong>) {</p>
+			<p class="source-code">    Hook = updatingFiber.memoizedState</p>
+			<p class="source-code">  } <strong class="bold">else</strong> {</p>
+			<p class="source-code">    Hook = prevHook.next</p>
+			<p class="source-code">  }  </p>
+			<p class="source-code">  prevHook = Hook</p>
+			<p class="source-code">  <strong class="bold">return</strong> Hook</p>
+			<p class="source-code">}</p>
+			<p>In the preceding <strong class="source-inline">updateHook</strong> function, a Hook object is obtained by looking for the first <strong class="source-inline">memoizedState</strong> Hook under the fiber. After the first Hook, it is obtained by following the <strong class="source-inline">next</strong> property of <strong class="source-inline">prevHook</strong>. <em class="italic">React</em> also keeps <strong class="source-inline">prevHook</strong> up to date as we move along the list. The Hook obtained is re<a id="_idTextAnchor089"/>turned.</p>
+			<h2 id="_idParaDest-53"><a id="_idTextAnchor090"/>Using a Hook</h2>
+			<p>Now that <a id="_idIndexMarker106"/>we have made the Hook persistent to all updates, we can put it to work in a function component, similar to the <strong class="source-inline">_getM</strong> or <strong class="source-inline">_getM2</strong> functions we crafted in the previous chapter.</p>
+			<p>Let's create a <strong class="source-inline">_useHook</strong> function this time that accepts an <strong class="source-inline">initialState</strong> value:</p>
+			<p class="source-code"><strong class="bold">function</strong> _useHook(initialState) {</p>
+			<p class="source-code">  <strong class="bold">let</strong> Hook</p>
+			<p class="source-code">  <strong class="bold">if</strong> (isFiberMounting) {</p>
+			<p class="source-code">    Hook = mountHook()</p>
+			<p class="source-code">    Hook.state = initialState</p>
+			<p class="source-code">  } <strong class="bold">else</strong> {</p>
+			<p class="source-code">    Hook = updateHook()</p>
+			<p class="source-code">  }  </p>
+			<p class="source-code">  <strong class="bold">return</strong> Hook.state</p>
+			<p class="source-code">}</p>
+			<p>Based on whether the component is under the mount or not via an <strong class="source-inline">isFiberMounting</strong> flag, the preceding <strong class="source-inline">_useHook</strong> function obtains a persistent Hook. If it's at the mount, <em class="italic">React</em> assigns <strong class="source-inline">initialState</strong> to the Hook. For any other update, the Hook does not get touched. For all cases, <strong class="source-inline">state</strong> under the Hook is returned. </p>
+			<p>You may wonder how <em class="italic">React</em> determines the <strong class="source-inline">isFiberMounting</strong> flag; since it's wired more deeply with the engine, we put this material in <em class="italic">Appendix B – Current and WorkInProgress Scenes</em> at the end of this <a id="_idTextAnchor091"/>chapter.</p>
+			<p>So far we have gone through how <em class="italic">React</em> implements the Hook under the engine. We just bit the hard part, now let us take a look how we can use it.  </p>
+			<h1 id="_idParaDest-54"><a id="_idTextAnchor092"/>What is a Hook?</h1>
+			<p>Now that <a id="_idIndexMarker107"/>we have revealed the stripped-down version of the <em class="italic">React</em> Hook infrastructure and crafted a function using it, let's give it a spin in a function component:</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> a = _useHook(0)</p>
+			<p class="source-code">}</p>
+			<p>The preceding <strong class="source-inline">a</strong> variable is assigned a <strong class="source-inline">0</strong> number upon the mount, and then it serves as a state for the rest of the updates.</p>
+			<p><strong class="source-inline">_useHook</strong> is<a id="_idIndexMarker108"/> technically a <em class="italic">React</em> hook function. Though it's not an officially supported one, and we crafted it here to demonstrate the infrastructure, it has everything about being a hook function. Let's take a close look at it.</p>
+			<p class="callout-heading">Note</p>
+			<p class="callout">To distinguish the educational hook that we crafted from the officially supported hook, we prefixed the hook name with <strong class="source-inline">_</strong>, as in <strong class="source-inline">_useHo<a id="_idTextAnchor093"/>ok</strong>.</p>
+			<p>We’ll further explain the nature of a hook being a function as well as its calling order in the following section.</p>
+			<h2 id="_idParaDest-55"><a id="_idTextAnchor094"/>A hook is a function</h2>
+			<p>A hook is a <a id="_idIndexMarker109"/>function that takes input arguments and returns a value, and it carries a <strong class="source-inline">use</strong> name prefix by convention.</p>
+			<p>If we take <strong class="source-inline">useHook</strong> as a generic hook, the following are sample usages of hooks with different input arguments:</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> a = useHook()</p>
+			<p class="source-code">  <strong class="bold">const</strong> b = useHook(1)</p>
+			<p class="source-code">  <strong class="bold">const</strong> c = useHook(1, 2, "Hello")</p>
+			<p class="source-code">  <strong class="bold">const</strong> d = useHook({ text: "Hello World"})</p>
+			<p class="source-code">}</p>
+			<p>A hook<a id="_idIndexMarker110"/> takes zero or any number of input arguments. An input argument can be used for the initial condition, as the <strong class="source-inline">initialState</strong> parameter in <strong class="source-inline">_useHook</strong>. It's important to know that not all input arguments are used for initialization purposes because, as you can see in the implementation, input arguments such as <strong class="source-inline">initialState</strong> are sent to each update, but it's up to the update whether the input argument needs to be used.</p>
+			<p>As a function, a hook can return a value if needed. The returned value can be designed in any format:</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  useHook(...)</p>
+			<p class="source-code">  <strong class="bold">const</strong> i = useHook(...)</p>
+			<p class="source-code">  <strong class="bold">const</strong> [j, k] = useHook(...)</p>
+			<p class="source-code">  <strong class="bold">const</strong> { value } = useHook(...)</p>
+			<p class="source-code">}</p>
+			<p>Not all hooks return a value. If a value is returned, it can be <strong class="source-inline">null</strong>, a number, a string, an array, an object, or any JavaScript expression.</p>
+			<p>Since one return value can become another's input argument, it's not uncommon to see a chain usage of hooks, such as the following.</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = ({ text }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> i = useHook(...)</p>
+			<p class="source-code">  <strong class="bold">const</strong> j = useHook(i)</p>
+			<p class="source-code">  <strong class="bold">const</strong> k = useHook(i, j, text)</p>
+			<p class="source-code">}</p>
+			<p>In the previous code, <strong class="source-inline">i</strong> and <strong class="source-inline">j</strong> are returned from two hooks and then injected into another hook to come up with <strong class="source-inline">k</strong> through input arguments. Also, a <strong class="source-inline">text</strong> prop is sent to a hook as <a id="_idIndexMarker111"/>an input argument. Practically, a hook statement does not differ too much from a local assignment statement.</p>
+			<p>All in all, a hook technically is a function. Don't be intimidated by it just because it's a hook. Most of the things you know about functions apply to hooks. That being said, a hook is a special function, and it comes with one caveat to be aware of – its c<a id="_idTextAnchor095"/>alling order.</p>
+			<h2 id="_idParaDest-56"><a id="_idTextAnchor096"/>A hook's calling order</h2>
+			<p>By now, we<a id="_idIndexMarker112"/> know that a hook function can be used many times in a function component without causing conflicts because each state points to a separate memory space:</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> a = _useHook(0)</p>
+			<p class="source-code">  <strong class="bold">const</strong> b = _useHook("Hello")</p>
+			<p class="source-code">}</p>
+			<p>Remember <a id="_idIndexMarker113"/>when we were crafting our naive version of <strong class="source-inline">_getM2</strong> to support multiple states, we had to use a key to distinguish the <strong class="source-inline">a</strong> variable from the <strong class="source-inline">b</strong> variable? Now, with the Hook infrastructure, we don't do that anymore. Have you wondered how it is possible without a state key? </p>
+			<p>At the mount, before a first hook function for <strong class="source-inline">a</strong> is used in the function component, there's no Hook created yet:</p>
+			<p class="source-code">  <strong class="bold">const</strong> a = _useHook(0)</p>
+			<p>After running the preceding statement, <em class="italic">React</em> creates one Hook and puts it under the fiber. Then, it sees another hook function for <strong class="source-inline">b</strong>:</p>
+			<p class="source-code">  <strong class="bold">const</strong> b = _useHook("Hello")</p>
+			<p>After seeing the preceding statement, <em class="italic">React</em> creates another Hook and puts it after the first Hook following the linked list. We are done with the first mount update.</p>
+			<p>Now it comes to the second update; when it sees the first hook function for <strong class="source-inline">a</strong> again, it looks into the linked Hooks under the fiber and grabs the first Hook. Similarly, when it sees the second hook function for <strong class="source-inline">b</strong>, it continues looking into the list and finds the second Hook following the first one. </p>
+			<p>Essentially, <em class="italic">React</em> does not use a key because the order of the list serves as a key and the key is<a id="_idIndexMarker114"/> called the <a id="_idIndexMarker115"/>calling order of the hooks. As long as the first hook for <strong class="source-inline">a</strong> calls first and the second hook for <strong class="source-inline">b</strong> calls second, the location of the states stored under the list is marked correctly. So we don't have to consciously keep track of the key because after we write all the hook statements, the calling order should already be determined. </p>
+			<p>This design without an explicit key provided by the developer is quite easy to use. Except there's one caveat; if we can avoid running into it, this design works like a charm practically. </p>
+			<p>So, here's the caveat. This calling order isn't fixed during the code compilation; instead, it's determined at the runtime. What's the difference? The difference is that the runtime thing can be changed. To give you an example, we can set up a case using<a id="_idTextAnchor097"/> an <strong class="source-inline">if</strong> statement.</p>
+			<h2 id="_idParaDest-57"><a id="_idTextAnchor098"/>Conditional hook issue</h2>
+			<p>Let's <a id="_idIndexMarker116"/>say we have the following <strong class="source-inline">Title</strong> component with two usages of hooks:</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = ({ flag }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> a = flag ? _useHook('a') : ' '</p>
+			<p class="source-code">  <strong class="bold">const</strong> b = _useHook('b')</p>
+			<p class="source-code">  <strong class="bold">return &lt;h1&gt;</strong>Hello World+{a}{b}<strong class="bold">&lt;/h1&gt;</strong></p>
+			<p class="source-code">}</p>
+			<p>In the preceding<a id="_idIndexMarker117"/> code logic, what we intend to do is store the <strong class="source-inline">'a'</strong> and <strong class="source-inline">'b'</strong> chars in the <strong class="source-inline">a</strong> and <strong class="source-inline">b</strong> variables, respectively. Except, when the flag is <strong class="source-inline">false</strong>, an empty char <strong class="source-inline">' '</strong> is stored in the <strong class="source-inline">a</strong> variable.</p>
+			<p>To confirm whether the code works, let's make two updates to this component while flipping the <strong class="source-inline">flag</strong> prop. Suppose for the first update that the <strong class="source-inline">flag</strong> prop is set as <strong class="source-inline">true</strong> and for the second update, it gets changed to <strong class="source-inline">false</strong>. For this setup, it generates the following timeline sketch:</p>
+			<p class="source-code">|T-------F---------------&gt; flag</p>
+			<p class="source-code">|a------- ---------------&gt; a</p>
+			<p class="source-code">|b-------a---------------&gt; b</p>
+			<p>At the <a id="_idIndexMarker118"/>first update, both <strong class="source-inline">a</strong> and <strong class="source-inline">b</strong> variables were assigned correctly. But when it came to the second update, the <strong class="source-inline">b</strong> variable was set to the <strong class="source-inline">'a'</strong> char. This is a bit weird since we never asked to set the <strong class="source-inline">'a'</strong> char to the <strong class="source-inline">b</strong> variable in the code. How could that happen?!</p>
+			<p>How could a <strong class="source-inline">_useHook('b')</strong> statement end up returning an <strong class="source-inline">'a'</strong> char, and where does the <strong class="source-inline">'a'</strong> char even come from? To answer the questions, we need to dig down into the Hooks under the fiber behind the <strong class="source-inline">Title</strong> component:</p>
+			<p class="source-code">|T-------F---------------&gt; flag</p>
+			<p class="source-code">|a-------a---------------&gt; Hook1</p>
+			<p class="source-code">|b-------b---------------&gt; Hook2</p>
+			<p>In the <a id="_idIndexMarker119"/>preceding timeline sketch, we printed out the states stored under two Hooks. <strong class="source-inline">Hook1</strong> stored the <strong class="source-inline">'a'</strong> char and <strong class="source-inline">Hook2</strong> stored the <strong class="source-inline">'b'</strong> char for both updates. Let's take a close look at the second update; what the compiler sees is the following code:</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> a = ' '</p>
+			<p class="source-code">  <strong class="bold">const</strong> b = _useHook('b')</p>
+			<p class="source-code">  <strong class="bold">return &lt;h1&gt;</strong>Hello World+{a}{b}<strong class="bold">&lt;/h1&gt;</strong></p>
+			<p class="source-code">}</p>
+			<p>In the preceding arrangement of the code, we hardcode the <strong class="source-inline">flag</strong> prop with <strong class="source-inline">false</strong>. Because of that, the first usage of a hook for <strong class="source-inline">a</strong> is omitted, and we end up with one hook statement for <strong class="source-inline">b</strong> only. You can see this information in <em class="italic">Figure 3.3</em>, where we have both Hooks and what each hook statement reads:</p>
+			<div>
+				<div id="_idContainer024" class="IMG---Figure">
+					<img src="image/Figure_3.03_B17963.jpg" alt="Figure 3.3 – Conditional Hook mismatch I&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 3.3 – Conditional Hook mismatch I</p>
+			<p>In the<a id="_idIndexMarker120"/> first <a id="_idIndexMarker121"/>update, the <strong class="source-inline">a</strong> and <strong class="source-inline">b</strong> variables read from <strong class="source-inline">Hook1</strong> and <strong class="source-inline">Hook2</strong>. But in the second update, due to the first hook statement going, the <strong class="source-inline">b</strong> variable shifts and reads from <strong class="source-inline">Hook1</strong>. In this update, nothing reads from <strong class="source-inline">Hook2</strong> either. Therefore, the <strong class="source-inline">b</strong> variable reads the <strong class="source-inline">'a'</strong> char now. </p>
+			<p class="callout-heading">Playground – Conditional hook I</p>
+			<p class="callout">Feel free to play with this online example at <a href="https://codepen.io/windmaomao/pen/RwLrxbp">https://codepen.io/windmaomao/pen/RwLrxbp</a>.</p>
+			<p>In this case, we changed the <strong class="source-inline">flag</strong> prop from <strong class="source-inline">T</strong> to <strong class="source-inline">F</strong>; we can also test this conditional case by changing the <strong class="source-inline">flag</strong> prop from <strong class="source-inline">F</strong> to <strong class="source-inline">T</strong>. Let's look at the timeline sketch if we do that:</p>
+			<p class="source-code">|F-------T---------------&gt; flag</p>
+			<p class="source-code">| -------b---------------&gt; a</p>
+			<p class="source-code">|b-------b---------------&gt; b</p>
+			<p class="source-code">|b-------b---------------&gt; Hook1</p>
+			<p class="source-code">|~-------b---------------&gt; Hook2</p>
+			<p>From the preceding run, we printed out the <strong class="source-inline">a</strong> and <strong class="source-inline">b</strong> variables as well as two Hooks states. You can see that the <strong class="source-inline">a</strong> variables read the <strong class="source-inline">'b'</strong> char in the second update! We can make<a id="_idIndexMarker122"/> the case clearer using <em class="italic">Figure 3.4</em>: </p>
+			<div>
+				<div id="_idContainer025" class="IMG---Figure">
+					<img src="image/Figure_3.04_B17963.jpg" alt="Figure 3.4 – Conditional Hook mismatch II&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 3.4 – Conditional Hook mismatch II</p>
+			<p>What <a id="_idIndexMarker123"/>happened to this case is the following. In the first update, we had one hook usage for <strong class="source-inline">b</strong> since the flag is <strong class="source-inline">F</strong>. Since this is the mount, the <strong class="source-inline">'b'</strong> char was initialized to <strong class="source-inline">Hook1</strong>, and <strong class="source-inline">Hook2</strong> was omitted. When it came to the second update, since <strong class="source-inline">Hook1</strong> had been initialized already, the value can't be initialized again, thus it continued to hold the <strong class="source-inline">'b'</strong> char. And <strong class="source-inline">Hook2</strong> this time got finally initialized with the <strong class="source-inline">'b'</strong> char. This is why both <strong class="source-inline">a</strong> and <strong class="source-inline">b</strong> stored the <strong class="source-inline">'b'</strong> char after the second update. Pretty mind-blowing, isn't it? In a way, this case is worse than the previous one, of course; both are incorrectly implemented. </p>
+			<p>From these two cases, we can conclude that using the <strong class="source-inline">if</strong> statement with the hook statement leads to strange behavior. And this is all because the calling order of hooks gets changed from update to update, hence the state keys get messed up and the states can't be read as intended.</p>
+			<p class="callout-heading">Playground – Conditional hook II</p>
+			<p class="callout">Feel free to play with this online example at <a href="https://codepen.io/windmaomao/pen/oNGbEzq">https://codepen.io/windmaomao/pen/oNGbEzq</a>.</p>
+			<p>In fact, it's not only <strong class="source-inline">if</strong>; any hook statement involving a condition cannot be used. Here's another example:</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = ({ arr }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> names = arr.map(v <strong class="bold">=&gt;</strong> _useHook(v))</p>
+			<p class="source-code">  <strong class="bold">return &lt;div&gt;</strong>{names.join('')}<strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">}</p>
+			<p>In the <a id="_idIndexMarker124"/>preceding code, we embedded a hook inside a loop iterating an <strong class="source-inline">arr</strong> array. Guess how many hook statements we would run into for this case? Not sure? Yes, you guessed right – we don't know how many elements the <strong class="source-inline">arr</strong> prop contains; it can only be determined at runtime. We will not walk through this case in detail, but you can see the code can easily run into a strange issue if the length of <strong class="source-inline">arr</strong> changes from 0 to 1, or 1 to 2, and so on. </p>
+			<p><em class="italic">React</em> gives their recommendation in their documentation online: <em class="italic">"Don't call hooks inside loops, conditions, or nested functions. Instead, always use hooks at the top level of your React function, before any early returns."</em> Now you have a deeper understanding of why they said that.</p>
+			<p><em class="italic">React</em> is fully <a id="_idIndexMarker125"/>aware of the severity of this issue because it could jeopardize the usage of a hook. Therefore, at the code compilation, the compiler actually alerts the developer when it spots the usage of conditional hook usage. Moreover, if it ever misses catching the case, at runtime, <em class="italic">React</em> monitors the hook list to find out whether there's any messing up of hook orders upon a new update. If it finds one, you see a warning, as shown in <em class="italic">Figure 3.5</em>:</p>
+			<div>
+				<div id="_idContainer026" class="IMG---Figure">
+					<img src="image/Figure_3.05_B17963.jpg" alt="Figure 3.5 – React runtime warning for a conditional hook&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 3.5 – React runtime warnin<a id="_idTextAnchor099"/>g for a conditional hook</p>
+			<h2 id="_idParaDest-58"><a id="_idTextAnchor100"/>Avoiding conditional hooks</h2>
+			<p>So now we <a id="_idIndexMarker126"/>know we shouldn't have written any conditional hook statements, but how can we avoid it? Or, put another way, if we must implement some conditional logic involving hooks, what's the right way to do it?</p>
+			<p>The<a id="_idIndexMarker127"/> solution to this problem isn't difficult. We can still write conditional statements, just not conditional hook statements. As long as we have a fixed number of hooks and a consistent calling order, we can write the hook statement however we want.</p>
+			<p>Let's try to fix our examples, starting with setting <strong class="source-inline">flag</strong> from <strong class="source-inline">T</strong> to <strong class="source-inline">F</strong> first. Instead of declaring <strong class="source-inline">_useHook</strong> conditionally, we can declare two of them beforehand:</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = ({ flag }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> _a = _useHook('a')</p>
+			<p class="source-code">  <strong class="bold">const</strong> b = _useHook('b')</p>
+			<p class="source-code">  <strong class="bold">const</strong> a = flag ? _a : ' '</p>
+			<p class="source-code">  <strong class="bold">return &lt;h1&gt;</strong>Hello World+{a}{b}<strong class="bold">&lt;/h1&gt;</strong></p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, we use an auxiliary <strong class="source-inline">_a</strong> variable to hold an <strong class="source-inline">'a'</strong> char. The <strong class="source-inline">b</strong> variable holds a <strong class="source-inline">'b'</strong> char as before. This way, no matter what, both hooks are maintained with a fixed calling order in all updates.</p>
+			<p>Now, with that, we can relocate the conditional logic part for <strong class="source-inline">a</strong> after the hook statements. We can verify whether this works by looking at the generated timeline sketch:</p>
+			<p class="source-code">|T-------F---------------&gt; flag</p>
+			<p class="source-code">|a-------a---------------&gt; Hook1</p>
+			<p class="source-code">|b-------b---------------&gt; Hook2</p>
+			<p class="source-code">|a------- ---------------&gt; a</p>
+			<p class="source-code">|b-------b---------------&gt; b</p>
+			<p>Similarly, we can generate the timeline for changing <strong class="source-inline">flag</strong> from <strong class="source-inline">F</strong> to <strong class="source-inline">T</strong> :</p>
+			<p class="source-code">|F-------T---------------&gt; flag</p>
+			<p class="source-code">|a-------a---------------&gt; Hook1</p>
+			<p class="source-code">|b-------b---------------&gt; Hook2</p>
+			<p class="source-code">| -------a---------------&gt; a</p>
+			<p class="source-code">|b-------b---------------&gt; b</p>
+			<p>Both cases <a id="_idIndexMarker128"/>turn out to be correctly implemented now. The <strong class="source-inline">a</strong> variable can hold the <strong class="source-inline">'a'</strong> char or an empty <strong class="source-inline">' '</strong> based on <strong class="source-inline">flag</strong>, and the <strong class="source-inline">b</strong> variable holds the <strong class="source-inline">'b'</strong> char always.</p>
+			<p class="callout-heading">Playground – Conditional hook I</p>
+			<p class="callout">Feel free to play with this online example at <a href="https://codepen.io/windmaomao/pen/KKXVQWV">https://codepen.io/windmaomao/pen/KKXVQWV</a>.</p>
+			<p class="callout-heading">Playground – Conditional hook II</p>
+			<p class="callout">Feel free to play with this online example at <a href="https://codepen.io/windmaomao/pen/MWEKQQJ">https://codepen.io/windmaomao/pen/MWEKQQJ</a>.</p>
+			<p>This writing <a id="_idIndexMarker129"/>of moving hook statements to the front of the function is recommended by <em class="italic">React</em>, and it can be applied to the loop case as well:</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = ({ arr }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> t = _useHook(arr)</p>
+			<p class="source-code">  <strong class="bold">const</strong> names = t.map((v, i) <strong class="bold">=&gt;</strong> t[i] || '')</p>
+			<p class="source-code">  <strong class="bold">return</strong> &lt;div&gt;{names.join('')}&lt;/div&gt;</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, we don't know the length of <strong class="source-inline">arr</strong>, so it's better not to loop through each hook statement inside the loop. Instead, we can store the entire <strong class="source-inline">arr</strong> to a state and then iterate this array afterward. This way, we eliminate the possibility of having a variable number of hook statements. </p>
+			<p>Luckily, the previously mentioned caveat is the only issue <em class="italic">React</em> hooks have, and if we run into a conditional statement, we can apply the "right" way by putting the hook statement on the front of the function. </p>
+			<p>In short, a <em class="italic">React</em> hook is a special function that allows persistent states for a function component. Out of the box, <em class="italic">React</em> provides quite a few hooks based on this infrastructure. Starting in the next chapter, we will get to know some of the common ones in detail, including <strong class="source-inline">useState</strong>, <strong class="source-inline">useEffect</strong>, <strong class="source-inline">useMemo</strong>, <strong class="source-inline">useContext</strong>, and <strong class="source-inline">useRef</strong>. And in <a href="B17963_09_Epub.xhtml#_idTextAnchor314"><em class="italic">Chapter 9</em></a>, <em class="italic">Use Custom Hooks to Reuse Logic</em>, we will get toknow how to create our own custom hooks<a id="_idTextAnchor101"/> to meet our specific needs.</p>
+			<h1 id="_idParaDest-59"><a id="_idTextAnchor102"/>Summary</h1>
+			<p>In this chapter, you have learned what makes a good state solution, and got to know how <em class="italic">React</em> builds the Hook to provide this solution. You also learned what a hook is and its calling order, as well as how to avoid running into a conditional hook issuein real applications. </p>
+			<p>In the next chapter, we will get into our first hook in the <em class="italic">React</em> family, with which <em class="italic">React</em> allows us to define a <a id="_idTextAnchor103"/>state to drive a UI display.</p>
+			<h1 id="_idParaDest-60"><a id="_idTextAnchor104"/>Questions and answers</h1>
+			<p>Here are some questions and answer<a id="_idTextAnchor105"/>s to refresh your knowledge:</p>
+			<ol>
+				<li>What is a <em class="italic">React</em> hook?<p>A <em class="italic">React</em> hook is a special function that allows us to have persistent states for a function component. The calling order of hooks is used as an internal key of the states, thus, when we use hooks, we don't need to specify a key. We can have as many hooks as we want under one function component, and each hook can be us<a id="_idTextAnchor106"/>ed for a different purpose. </p></li>
+				<li>How can we avoid conditional hooks? <p>Each hook with a specific calling order gets stored under the hook list. <em class="italic">React</em> doesn't allow the change of this calling order at runtime, thus we should avoid it when using hooks inside a condition, a loop, or any structure that varies its calling order. Instead, we can move all hook statements to the front section of the function to pre-bake their calling orders while leaving the conditional logic afterward <a id="_idTextAnchor107"/>before th<a id="_idTextAnchor108"/>e return statement.</p></li>
+			</ol>
+			<h1 id="_idParaDest-61"><a id="_idTextAnchor109"/>Appendix</h1>
+			<h2 id="_idParaDest-62"><a id="_idTextAnchor110"/>Appendix A – React Fiber</h2>
+			<p>During the <a id="_idIndexMarker130"/>user session with a website, a series of actions is generated. We'd expect to have these actions dispatched and have changes applied back to the <strong class="bold">Document Object Model</strong> (<strong class="bold">DOM</strong>). This<a id="_idIndexMarker131"/> cycle is what makes it a typical web experience. </p>
+			<div>
+				<div id="_idContainer027" class="IMG---Figure">
+					<img src="image/Figure_3.06_B17963.jpg" alt="Figure 3.6 – React Fiber with Render and Commit phrases&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 3.6 – React Fiber with Render and Commit phrases</p>
+			<p>What <em class="italic">React</em> does for us is to allow the dispatched action to update the changes to be reflected on the screen. <em class="italic">React </em>splits each update into two major phrases, the <strong class="bold">Render </strong>and the <strong class="bold">Commit</strong>, illustrated in the preceding figure. What a render does is go through all elements one by one and collect all the changes, whereas a commit applies the changes to the UI in one shot.</p>
+			<p>This engine has a codename, <em class="italic">Fiber</em>. To facilitate all this, <em class="italic">React </em>creates an internal object called a fiber to represent each element. As we have introduced, the element can be a classical element, such<a id="_idIndexMarker132"/> as a DOM element, or an artificial one, such as a function component. The benefits of having a layer between the physical DOM and <em class="italic">React</em> element are twofold.</p>
+			<p>A function component (or a class component) is easier for developers to organize their UI as well as their logic into a functional unit. Having a fiber wrapping a unit like that can offer some generic element behavior as well as add special handling to a specific element. For instance, we have introduced <strong class="source-inline">updateFunctionComponent</strong> for updating a function component, but for other elements, there are different update functions.</p>
+			<p>On the other hand, adding an extra layer to the UI engine allows optimization. In fact, React Fiber does not update to the screen blindly. In the first update, as in the mount, each fiber is created and all DOM elements get created from scratch. This update should be very close to the classical update.</p>
+			<p>However, everything else differs afterward. For a new update, the assumption is that only a small part of the screen needs adjusting. So, before <em class="italic">React</em> updates the screen, it goes through all fibers stored in the previous update and compares them with the new rendered elements. This comparison is referred to as reconciliation, which is to compare the new elements with previous DOM elements to come up with the new DOM changes that need to be applied in this update. <em class="italic">React</em> makes this reconciliation very efficient so that only necessary changes are applied to the screen.</p>
+			<p>The optimization is not only limited to reconciliation. To make sure things can be done efficiently, a fiber also serves as a unit of work. During each update, all fibers are sent to a pipeline where each fiber gets worked on one by one. There are certain advantages of doing that. The update work thus isn't treated as one or nothing anymore. The engine can finish 9 out of 10 units without hurting the integrity of the update job because it can now pause when it's out of resources and come back to finish the last unit once it gets enough computational time. One of the direct benefits is gaining a quick response to mo<a id="_idTextAnchor111"/>re urgent work in the browser.</p>
+			<h2 id="_idParaDest-63"><a id="_idTextAnchor112"/>Appendix B – Current and WorkInProgress Scenes</h2>
+			<p>When we said that <em class="italic">React</em> internally creates a fiber for each element, we lied. Actually, for each<a id="_idIndexMarker133"/> element, <em class="italic">React</em> creates <a id="_idIndexMarker134"/>two fibers, and the name for these two fibers are <strong class="source-inline">current</strong> and <strong class="source-inline">workInProgress</strong>. </p>
+			<p>Imagine the user screen is like a stage with a curtain. The stage facing the audience is a current scene, while there's another work-in-progress scene behind the curtain where it can prepare what's next to show to the audience. While the audience enjoys watching the current scene, the work-in-progress scene is getting prepared at the same time. Only when the time is right is there a wheeler that rotates the current scene behind and pushes the work-in-progress scene to face the audience, as shown in <em class="italic">Figure 3.7</em>:</p>
+			<div>
+				<div id="_idContainer028" class="IMG---Figure">
+					<img src="image/Figure_3.07_B17963.jpg" alt="Figure 3.7 – React two scenes with current and workInProgress&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 3.7 – React two scenes with current and workInProgress</p>
+			<p>This is a well-known mechanism behind any show business, including a computer screen. <em class="italic">React</em> is no exception. In order to facilitate the smoothness of a screen transition before/after the commit, it uses two scenes in memory, named <strong class="source-inline">current</strong> and <strong class="source-inline">workInProgress</strong>. </p>
+			<p>Initially, both scenes are empty, since the show hasn't started yet. We work on the <strong class="source-inline">workInProgress</strong> scene<a id="_idIndexMarker135"/> while <strong class="source-inline">current</strong> is empty; this step is called <a id="_idIndexMarker136"/>the <strong class="bold">Mount</strong>. It means every component needs to be created from scratch, thus the mount is relatively heavy. Once the preparation of <strong class="source-inline">workInProgress</strong> is done, the stage rotates so that <strong class="source-inline">workInProgress</strong> becomes <strong class="source-inline">current</strong>. In programming, it's just a pointer assignment. </p>
+			<p>Upon any future action, the <strong class="source-inline">workInProgress</strong> scene starts to be prepared again. This time, <strong class="source-inline">workInProgress</strong> doesn't need to be created from scratch since it can clone unchanged things from <strong class="source-inline">current</strong>, and this step is <a id="_idIndexMarker137"/>called the <strong class="bold">Update</strong>. Relatively speaking, the update can be a lot less demanding than the mount in terms of DOM access. Once the preparation of <strong class="source-inline">workInProgress</strong> is done, the stage rotates so that <strong class="source-inline">workInProgress</strong> becomes the new <strong class="source-inline">current</strong> scene.</p>
+			<p>During <a id="_idIndexMarker138"/>either the mount or the update, we pick <strong class="source-inline">workInProgress</strong> to work for the future scene while leaving <strong class="source-inline">current</strong> as the finished work from last time, except that during the mount, there's nothing in <strong class="source-inline">current</strong>. So, to tell whether any component is under the mount or the update, we can check whether <strong class="source-inline">current</strong> is empty:</p>
+			<p class="source-code"><strong class="bold">const</strong> isFiberMounting = current === <strong class="bold">null</strong></p>
+			<p>Unless you work on the engine, you wouldn't be given two scenes at the same time since the developer outside of the core works on <strong class="source-inline">workInProgress</strong> while the user watches <strong class="source-inline">current</strong>. To all of them, there's only one scene. </p>
+		</div>
+	</body></html>

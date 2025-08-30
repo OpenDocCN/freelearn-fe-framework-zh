@@ -1,0 +1,464 @@
+<html><head></head><body>
+		<div id="_idContainer038">
+			<h1 id="_idParaDest-64"><em class="italic"><a id="_idTextAnchor113"/>Chapter 4</em>: Use State to Jumpstart Components</h1>
+			<p>In the previous chapter, we learned how <em class="italic">React</em> designs a <em class="italic">hook</em> infrastructure to provide the persistency of a function component. In this chapter, we will begin learning about the built-in hooks in <em class="italic">React</em>, starting with the <strong class="source-inline">useState</strong> hook. We will first explain how the concept of <em class="italic">state</em> is used in <em class="italic">React</em>, and then we will walk through the data structure and source code behind <strong class="source-inline">useState</strong> and describe some common use cases for changing states. We'll give <strong class="source-inline">useState</strong> a test drive, and at the end of the chapter, we'll provide two practical examples of applying <strong class="source-inline">useState</strong> to the <strong class="source-inline">Avatar</strong> and <strong class="source-inline">Tooltip</strong> components. </p>
+			<p>We will cover the following topics in this chapter:</p>
+			<ul>
+				<li>State in React</li>
+				<li><strong class="source-inline">useState</strong> design</li>
+				<li>Dispatching states</li>
+				<li>Test driving the <strong class="source-inline">useState</strong> hook</li>
+				<li><strong class="source-inline">useState</strong> examples</li>
+				<li>Questions and answers</li>
+				<li>Appendix</li>
+			</ul>
+			<h1 id="_idParaDest-65"><a id="_idTextAnchor114"/>State in React</h1>
+			<p>By now, you should have some idea of <a id="_idIndexMarker139"/>what a <em class="italic">state</em> is. To recap, a state is a piece of <em class="italic">memory</em> stored inside a fiber, introduced in <a href="B17963_03_Epub.xhtml#_idTextAnchor080"><em class="italic">Chapter 3</em></a><em class="italic">, Hooking into React</em>. When combined with <em class="italic">props</em>, a state can represent a <em class="italic">UI</em> screen deterministically.</p>
+			<div>
+				<div id="_idContainer030" class="IMG---Figure">
+					<img src="image/Figure_4.01_B17963.jpg" alt="Figure 4.1 – A fiber tree with a source fiber&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.1 – A fiber tree with a source fiber</p>
+			<p>For example, let's say we build a site <a id="_idIndexMarker140"/>and end up with a fiber tree (such as the one seen in <em class="italic">Figure 4.1)</em>. When a user makes an action (such as a click), the action sends a signal via an event handler to a fiber (the red dot in <em class="italic">Figure 4.1</em>). We call this fiber a <em class="italic">source fiber</em>. </p>
+			<p>Now, say the dispatched event changes a counter from <strong class="source-inline">0</strong> to <strong class="source-inline">1</strong>. <em class="italic">React</em> should schedule an update based on this user action and then prepare all of the <strong class="bold">Document Object Model</strong> (<strong class="bold">DOM</strong>) elements for the screen. Assuming the red lines are the fibers that need to be changed, how does React figure this out?</p>
+			<p>Upon receiving this update request, <em class="italic">React</em> goes through the fiber tree from the root. Quite a few fibers (shown as the gray lines) do not have anything to do with this update, so they are cloned from the previous scene. When the update arrives at the source fiber, let's imagine the fiber carries a function component and invokes an update function called <strong class="source-inline">updateFunctionComponent</strong>:</p>
+			<p class="source-code"><strong class="bold">let</strong> updatingFiber = ...</p>
+			<p class="source-code"><strong class="bold">function</strong> updateFunctionComponent(Component, props) {</p>
+			<p class="source-code">  <strong class="bold">let</strong> prevHook = <strong class="bold">null</strong></p>
+			<p class="source-code">  <strong class="bold">let</strong> children = Component(props)</p>
+			<p class="source-code">  ...</p>
+			<p class="source-code">  reconcileChildren(children)</p>
+			<p class="source-code">  <strong class="bold">return</strong> updatingFiber.child</p>
+			<p class="source-code">}</p>
+			<p>We introduced the first part of the <strong class="source-inline">updateFunctionComponent</strong> function in <a href="B17963_03_Epub.xhtml#_idTextAnchor080"><em class="italic">Chapter 3</em></a>, <em class="italic">Hooking into React</em>. The second part of this function takes the children that the <strong class="source-inline">Component</strong> function returns and converts them into fibers via <strong class="source-inline">reconcileChildren</strong>. At the end of the process, the first child fiber tells the engine what to work on next. This continues until all of the fibers under the source fiber are visited – that is, the red areas shown in <em class="italic">Figure 4.1</em>. </p>
+			<p>In this way, a state change propagates into the children fibers through that branch. When a parent gets updated, a child gets a new set of props before updating, thereby carrying the impact of the state. This is essentially how a state plays in the <em class="italic">React</em> ecosystem. Now, let's dive in and see how <em class="italic">React</em> creates the <strong class="source-inline">useState</strong> hook to support this behavior.<a id="_idTextAnchor115"/></p>
+			<h1 id="_idParaDest-66"><a id="_idTextAnchor116"/>useState design</h1>
+			<p><em class="italic">React</em> provides a <strong class="source-inline">useState</strong> hook<a id="_idIndexMarker141"/> to manage the state within function components. The following code example shows its common usage:</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [state, dispatch] = useState(initialState)</p>
+			<p class="source-code">  <strong class="bold">const</strong> onClick = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    dispatch(newState)</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  <strong class="bold">return &lt;button</strong> onClick={onClick} <strong class="bold">/&gt;</strong></p>
+			<p class="source-code">}</p>
+			<p>The <strong class="source-inline">useState</strong> function takes an <strong class="source-inline">initialState</strong> argument as the input argument and returns a <strong class="source-inline">state</strong> object and a <strong class="source-inline">dispatch</strong> function. The <strong class="source-inline">dispatch</strong> function can be used to request a state change into a <strong class="source-inline">newState</strong><em class="italic"> object<a id="_idTextAnchor117"/></em>.</p>
+			<p>Have you ever <a id="_idIndexMarker142"/>wondered how <em class="italic">React</em> designs the <strong class="source-inline">useState</strong> hook behind the scenes? Why does it return an array? How do we know if a new dispatch is successful or not? Most importantly, how can we be sure about the current state in each render? </p>
+			<p>To answer these questions, we will open up the engine and take a look inside. We will read through a stripped-down version of the source code to gain a bird's-eye view of the architecture relating to this hook before we get into its various uses. Let's start with the data structure first.</p>
+			<h2 id="_idParaDest-67"><a id="_idTextAnchor118"/>useState data structure</h2>
+			<p>The data structure to  <a id="_idIndexMarker143"/>make useState work includes a <strong class="source-inline">Hook</strong> type, a <strong class="source-inline">Queue</strong> type as well as an <strong class="source-inline">Update</strong> type, as shown in <em class="italic">Figure 4.2</em>:</p>
+			<div>
+				<div id="_idContainer031" class="IMG---Figure">
+					<img src="image/Figure_4.2_B17963.jpg" alt="Figure 4.2 – The data structure of the useState hook&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.2 – The data structure of the useState hook</p>
+			<p>A Hook uses a <strong class="source-inline">state</strong> property to store the state as well as a <strong class="source-inline">next</strong> property that points to the next hook. We have already explained this architecture in <a href="B17963_03_Epub.xhtml#_idTextAnchor080"><em class="italic">Chapter 3</em></a>, <em class="italic">Hooking into React</em>. What's new now is that in order to support the dispatch functionality, a <strong class="source-inline">queue</strong> property is added, where it provides a <strong class="source-inline">dispatch</strong> function to dispatch an <strong class="source-inline">action</strong> object with a new state. Within the queue, a list of updates is stored under a property called <strong class="source-inline">pending</strong>. The job of the queue is to maintain a list of pending updates to this fiber – this way, a user can dispatch multiple updates to the fiber.</p>
+			<p>An update is defined to <a id="_idIndexMarker144"/>hold an <strong class="source-inline">action</strong> function that needs to be provided by the user to calculate the next state. Each update is linked to another update via a property called <strong class="source-inline">next</strong> to form a circular linked list (see <em class="italic">Figure 4.3)</em>. The linked list is similar to how hooks are linked, except updates are linked in a circle, where the last update always points to the first update.</p>
+			<div>
+				<div id="_idContainer032" class="IMG---Figure">
+					<img src="image/Figure_4.03_B17963.jpg" alt="Figure 4.3 – A hook's queue with its pending updates&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.3 – A hook's queue with its pending updates</p>
+			<p>In the preceding figure, there are three updates in the queue with <strong class="source-inline">pending property</strong> points to the last one making <strong class="source-inline">pending.next</strong> point to the first update of the list. This circular list becomes handy when we need to insert or remove updates at the head or tail of the list.</p>
+			<p>Now that we have seen the data structure of <strong class="source-inline">useState</strong>, it's time for us to go over the source code and see how this data structure is utilized in the implementation.</p>
+			<p>The source code of <strong class="source-inline">useState</strong> is structured in a typical <em class="italic">hook</em> way in that it takes a path of either <strong class="source-inline">mountState</strong> or <strong class="source-inline">updateState</strong>, depending on if the <a id="_idIndexMarker145"/>fiber is under <strong class="source-inline">mount</strong> or <strong class="source-inline">update</strong> (as explained in <a href="B17963_03_Epub.xhtml#_idTextAnchor080"><em class="italic">Chapter 3</em></a>, <em class="italic">Hooking into React</em>):</p>
+			<p class="source-code"><strong class="bold">function</strong> useState(initialState) {</p>
+			<p class="source-code">  <strong class="bold">if</strong> (isFiberMounting) {</p>
+			<p class="source-code">    <strong class="bold">return</strong> mountState(initialState)</p>
+			<p class="source-code">  } </p>
+			<p class="source-code">  <strong class="bold">else</strong> {</p>
+			<p class="source-code">    <strong class="bold">return</strong> updateState(initialState)</p>
+			<p class="source-code">  <a id="_idTextAnchor119"/>}</p>
+			<p class="source-code">}</p>
+			<h2 id="_idParaDest-68"><a id="_idTextAnchor120"/>Mounting a state</h2>
+			<p>When a<a id="_idIndexMarker146"/> component is under <strong class="source-inline">mount</strong>, the <strong class="source-inline">mountState</strong> gets a hook by creating one:</p>
+			<p class="source-code"><strong class="bold">function</strong> mountState(initialState) { </p>
+			<p class="source-code">    <strong class="bold">const</strong> hook = mountHook ()</p>
+			<p class="source-code">    <strong class="bold">if</strong> (<strong class="bold">typeof</strong> initialState === 'function') {</p>
+			<p class="source-code">      initialState = intialState()</p>
+			<p class="source-code">    }</p>
+			<p class="source-code">    hook.state = initialState</p>
+			<p class="source-code">    hook.queue = {</p>
+			<p class="source-code">      pending: <strong class="bold">null</strong> </p>
+			<p class="source-code">      dispatch: dispatchAction.bind(</p>
+			<p class="source-code">        <strong class="bold">null</strong>,</p>
+			<p class="source-code">        updatingFiber,</p>
+			<p class="source-code">        hook.queue</p>
+			<p class="source-code">      )</p>
+			<p class="source-code">    }</p>
+			<p class="source-code">    <strong class="bold">return</strong> [hook.state, hook.queue.dispatch]  </p>
+			<p class="source-code">}</p>
+			<p>Then, it starts to perform the initialization work of the hook. Depending on the form in which the <strong class="source-inline">initialState</strong> object is provided, it can initialize the hook's <strong class="source-inline">state</strong> object with a value or a function:</p>
+			<p class="source-code">    useState(1)        // a value</p>
+			<p class="source-code">    useState(() <strong class="bold">=&gt;</strong> 1)  // a function</p>
+			<p>After initializing<a id="_idIndexMarker147"/> the state, it creates an empty <strong class="source-inline">queue</strong> object with no pending update. Moreover, it sets up a <strong class="source-inline">dispatch</strong> function and stores it under the <strong class="source-inline">queue</strong> object. Let's have a close look at this function, as it's one of the crucial parts of the <strong class="source-inline">useState</strong> <a id="_idTextAnchor121"/>hook.</p>
+			<h2 id="_idParaDest-69"><a id="_idTextAnchor122"/>Dispatching an action</h2>
+			<p>The <strong class="source-inline">dispatch</strong> function<a id="_idIndexMarker148"/> is designed to dispatch an action with a new state. It's created with the help of a utility function, <strong class="source-inline">dispatchAction</strong>, which takes a fiber, a queue, and an action.</p>
+			<p>Upon assigning the <strong class="source-inline">dispatchAction</strong> function to the queue, it binds the updating fiber and the queue so that the <strong class="source-inline">dispatch</strong> function can accept the <strong class="source-inline">action</strong> object as the only input argument:</p>
+			<p class="source-code"><strong class="bold">function</strong> dispatchAction(fiber, queue, action) {</p>
+			<p class="source-code">  <strong class="bold">const</strong> update = {</p>
+			<p class="source-code">    action</p>
+			<p class="source-code">    next: <strong class="bold">null</strong></p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  </p>
+			<p class="source-code">  <strong class="bold">const</strong> pending = queue.pending</p>
+			<p class="source-code">  <strong class="bold">if</strong> (pending === <strong class="bold">null</strong>) {</p>
+			<p class="source-code">    update.next = update</p>
+			<p class="source-code">  } </p>
+			<p class="source-code">  <strong class="bold">else</strong> {</p>
+			<p class="source-code">    update.next = pending.next</p>
+			<p class="source-code">    pending.next = update</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  queue.pending = update</p>
+			<p class="source-code">  </p>
+			<p class="source-code">  // Appendix A: Skip dispatch<strong class="bold"> </strong></p>
+			<p class="source-code">  scheduleUpdateOnFiber(fiber)</p>
+			<p class="source-code">}</p>
+			<p>The function takes an <strong class="source-inline">action</strong> object from its input argument then creates a new <strong class="source-inline">update</strong> object and appends this to the <strong class="source-inline">queue</strong> object. The preceding code relating to <strong class="source-inline">pending</strong> are all list operations, all of which append the <strong class="source-inline">update</strong> object to the end of the list while making sure the <a id="_idIndexMarker149"/>queue continues to form a circular linked list, as illustrated in <em class="italic">Figure 4.3</em>. </p>
+			<p>An <strong class="source-inline">action</strong> object can be in the form of a value or a functional updater, exactly as the <strong class="source-inline">initialState</strong> object is, thereby supporting both formats when we invoke the <strong class="source-inline">dispatch</strong> object. This is shown in the following example: </p>
+			<p class="source-code">    dispatch(1)         // a value</p>
+			<p class="source-code">    dispatch(() =&gt; 1)   // a function</p>
+			<p>After the queue is updated, it requests an update through a <strong class="source-inline">scheduleUpdateOnFiber</strong> function that essentially kicks <em class="italic">React</em> into the update process we introduced at the beginning of this chapter. This is the main pathway for how <em class="italic">React</em> handles a user action.</p>
+			<p><em class="italic">React</em> comes with lots of optimizations inside the engine. Some of these are not publicly accessible because they are part of the engine code. For example, there is a hidden pathway where <a id="_idIndexMarker150"/>the dispatch or the entire update can be canceled without invoking the <strong class="source-inline">scheduleUpdateOnFiber</strong> function. If you are interested, you can find out more about this pathway in the <em class="italic">Appendix A – Skipping the dispatch</em> section at the end of this c<a id="_idTextAnchor123"/>hapter.<strong class="source-inline"> </strong></p>
+			<h2 id="_idParaDest-70"><a id="_idTextAnchor124"/>Updating a state</h2>
+			<p>After the <a id="_idIndexMarker151"/>component is mounted, the next time it gets updated and reaches to the <strong class="source-inline">useState</strong> hook, it goes into <strong class="source-inline">updateState</strong> and gets a hook by cloning one:</p>
+			<p class="source-code"><strong class="bold">function</strong> updateState(initialState) {</p>
+			<p class="source-code">    <strong class="bold">const</strong> hook = updateHook()</p>
+			<p class="source-code">    <strong class="bold">const</strong> queue = hook.queue</p>
+			<p class="source-code">    <strong class="bold">let</strong> updates = queue.pending</p>
+			<p class="source-code">    queue.pending = <strong class="bold">null</strong></p>
+			<p class="source-code">    <strong class="bold">if</strong> (updates != <strong class="bold">null</strong>) {</p>
+			<p class="source-code">      <strong class="bold">const</strong> first = updates.next</p>
+			<p class="source-code">      <strong class="bold">let</strong> newState = hook.state</p>
+			<p class="source-code">      <strong class="bold">let</strong> update = first</p>
+			<p class="source-code">      <strong class="bold">do</strong> {</p>
+			<p class="source-code">        <strong class="bold">const</strong> action = update.action</p>
+			<p class="source-code">        newState = <strong class="bold">typeof</strong> action === 'function' </p>
+			<p class="source-code">          ? action(newState) : action</p>
+			<p class="source-code">        update = update.next</p>
+			<p class="source-code">      } </p>
+			<p class="source-code">      <strong class="bold">while</strong> (update !== <strong class="bold">null</strong> &amp;&amp; update !== first)        </p>
+			<p class="source-code">      <strong class="bold">if</strong> (!Object.is(newState, hook.state)) { … }      </p>
+			<p class="source-code">      hook.state = newState </p>
+			<p class="source-code">    }</p>
+			<p class="source-code">    <strong class="bold">return</strong> [hook.state, hook.queue.dispatch]  </p>
+			<p class="source-code">}</p>
+			<p>Once we have the <a id="_idIndexMarker152"/>hook, we can check if it gets any pending updates under the <strong class="source-inline">queue.pending</strong> object. The reason the <strong class="source-inline">pending</strong> object can have any update is that the <strong class="source-inline">dispatch</strong> function has been previously invoked. It goes through the first <strong class="source-inline">pending.next</strong> updates and iterates through them following the <strong class="source-inline">update.next</strong> update. For each update, it takes the stored <strong class="source-inline">action</strong> object and applies it to the previous stored state to form a <strong class="source-inline">newState</strong> object that gets stored back to the hook in the end.</p>
+			<p>The updated <strong class="source-inline">newState</strong> object gets compared to the previous <strong class="source-inline">state</strong> object to determine if it changes:</p>
+			<p class="source-code">      // Appendix B - Bailing out an update</p>
+			<p class="source-code">      <strong class="bold">if</strong> (!Object.is(newState, hook.state)) {</p>
+			<p class="source-code">        didReceiveUpdate = <strong class="bold">true</strong></p>
+			<p class="source-code">      }</p>
+			<p>If it turns out the <strong class="source-inline">newState</strong> object differs from the previous state, <em class="italic">React</em> sets a <strong class="source-inline">didReceiveUpdate</strong> flag, indicating whether the updating fiber contains any change. The reason why <em class="italic">React</em> uses a global flag here is that there can be lots of other hooks attached to this fiber, therefore, it has to wait until all of the hooks are processed before it can determine if the fiber should be updated or bailed out. If you are interested in the details of the bailing out process, please refer to the pathway in the <em class="italic">Appendix B – Bailing out an update</em> section at the end of this chapter. </p>
+			<h2 id="_idParaDest-71">Returnin<a id="_idTextAnchor125"/>g the hook</h2>
+			<p>For either the <strong class="source-inline">mountState</strong> or <strong class="source-inline">updateState</strong> function, the <strong class="source-inline">state</strong> and the <strong class="source-inline">dispatch</strong> function are returned:</p>
+			<p class="source-code">  <strong class="bold">return</strong> [hook.state, hook.queue.dispatch]  </p>
+			<p>They are returned in an<a id="_idIndexMarker153"/> array with two elements. The array format used here is interesting, as we could have used another format, such as an object with keys:</p>
+			<p class="source-code">  <strong class="bold">return</strong> {</p>
+			<p class="source-code">    state: hook.state,</p>
+			<p class="source-code">    dispatch: hook.queue.dispatch</p>
+			<p class="source-code">  }</p>
+			<p>The preceding key-value design would have worked as well. Instead, <em class="italic">React</em> decides to use an array due to one advantage that this has – that is, we don't have to remember the key name when referencing any of the values. Here are some examples demonstrating this:</p>
+			<p class="source-code"><strong class="bold">const</strong> [state, dispatch] = useState("")</p>
+			<p class="source-code"><strong class="bold">const</strong> [count, setCount] = useState(0)</p>
+			<p class="source-code"><strong class="bold">const</strong> [a, d] = useState(<strong class="bold">null</strong>)</p>
+			<p>As you can see, we can rename the <strong class="source-inline">state</strong> and the <strong class="source-inline">dispatch</strong> functions using any name we want, as long as it fits logically at that moment. This becomes pretty handy practically.</p>
+			<p>All in all, the <strong class="source-inline">state</strong> and <strong class="source-inline">dispatch</strong> functions are directly mapped to the <strong class="source-inline">state</strong> object and the <strong class="source-inline">queue.dispatch</strong> function from the underlying hook. If the state has not changed, it gets the previous state returned. The <strong class="source-inline">dispatch</strong> function is created during the mount and keeps the same function instance for all futu<a id="_idTextAnchor126"/>re updates.</p>
+			<h2 id="_idParaDest-72"><a id="_idTextAnchor127"/>A walkthrough of useState</h2>
+			<p>We have just gone through all<a id="_idIndexMarker154"/> of the <strong class="source-inline">useState</strong> hook's code. Just to make you feel better, <em class="italic">React</em> contains five times the amount of code that we just showed. With the stripped-down version, it's easy to understand the key workflow as it relates to the problem it's designed to solve and what approach it takes. Let's take a look at the workflow sketch in <em class="italic">Figure 4.4</em>.</p>
+			<div>
+				<div id="_idContainer033" class="IMG---Figure">
+					<img src="image/Figure_4.4_B17963.jpg" alt="Figure 4.4 – The useState hook workflow&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.4 – The useState hook workflow</p>
+			<p>Let's explain<a id="_idIndexMarker155"/> what we are seeing in <em class="italic">Figure 4.4</em>. In an update, as a <strong class="source-inline">useState</strong> hook is invoked, it first checks if it's under <strong class="source-inline">mount</strong> or <strong class="source-inline">update</strong>. If it's under the <strong class="source-inline">mount</strong>, it stores the <strong class="source-inline">initialState</strong>, creates a <strong class="source-inline">dispatch</strong> function, and then returns. If under the <strong class="source-inline">update</strong>, it checks for any <strong class="source-inline">pending</strong> updates and applies them to a new <strong class="source-inline">state</strong>. In both cases, <strong class="source-inline">[state, dispatch]</strong> is returned. </p>
+			<p>When a <strong class="source-inline">dispatch</strong> function is invoked, it creates an update with the provided <strong class="source-inline">action</strong> object and appends it to the <strong class="source-inline">pending</strong> updates. Then, a request for a new update is scheduled to <em class="italic">React</em>. </p>
+			<p>It's important to note that the new update is the place where a <strong class="source-inline">state</strong> object is assigned. The purpose of the <strong class="source-inline">dispatch</strong> function is only to request a change, but <em class="italic">the real change does not apply until the next update</em>. </p>
+			<p>Now that we have gone through the design behind <strong class="source-inline">useState</strong>, we can talk about how to dispatch states in general in the n<a id="_idTextAnchor128"/>ext section.</p>
+			<h1 id="_idParaDest-73"><a id="_idTextAnchor129"/>Dispatching states</h1>
+			<p>In this chapter, we have learned<a id="_idIndexMarker156"/> that the <strong class="source-inline">dispatch</strong> function, provided by the <strong class="source-inline">useState</strong> hook, allows us to request a change of state any time we want to. The input argument that represents an action can be a string, a number, an object, an array, or any <em class="italic">JavaScript</em> expression:</p>
+			<p class="source-code">  dispatch(state)</p>
+			<p class="source-code">  dispatch({ state })</p>
+			<p class="source-code">  dispatch([ state ])</p>
+			<p class="source-code">  dispatch(<strong class="bold">null</strong>)</p>
+			<p>We know that, internally, the input argument supports a functional update format as well:</p>
+			<p class="source-code">  dispatch(state <strong class="bold">=&gt;</strong> state + 1)</p>
+			<p>The benefit of using a functional update format here is that it has an opportunity to read the previous state before making a move toward the next state. This sometimes becomes useful if you build a new state that requires an old state. </p>
+			<p>A dispatched state is compared with the current state before making a final call if it changes. This means that not all dispatches end up with a state change. Take the following code as an example:</p>
+			<p class="source-code"><strong class="bold">const</strong> [state, dispatch] = useState(1)</p>
+			<p class="source-code"><strong class="bold">const</strong> onClick = () <strong class="bold">=&gt;</strong> { dispatch(3) }</p>
+			<p>If the state starts with its number as <strong class="source-inline">1</strong>, we can change the state to <strong class="source-inline">3</strong> with the first click. For later clicks, it can't change the number to <strong class="source-inline">3</strong> because it's already <strong class="source-inline">3</strong>. Therefore, upon multiple clicks, the changes taken are <strong class="source-inline">1, 3</strong>, instead of <strong class="source-inline">1, 3, 3, …</strong> – no matter how many times the user <a id="_idIndexMarker157"/>clicks. Let's take a look at how this comparison is perfor<a id="_idTextAnchor130"/>med in detail.</p>
+			<h2 id="_idParaDest-74"><a id="_idTextAnchor131"/>Comparing states</h2>
+			<p>We mentioned<a id="_idIndexMarker158"/> earlier that <em class="italic">React</em> uses the <strong class="source-inline">Object.is</strong> function whenever it compares two states. This is a <em class="italic">JavaScript</em> native function, which is quite similar to the <em class="italic">JavaScript</em> strict equality operator (<strong class="source-inline">===</strong>) and is used to determine whether two values are the same value.</p>
+			<p>For a primitive type, such as a number or a string, this comparison is straightforward: </p>
+			<p class="source-code">1 === 1                 <strong class="bold">true</strong></p>
+			<p class="source-code">"Hello" === "World"     <strong class="bold">false</strong></p>
+			<p class="source-code"><strong class="bold">false</strong> === <strong class="bold">true</strong>          <strong class="bold">false</strong></p>
+			<p>It's not difficult to understand that comparing the numbers <strong class="source-inline">1</strong> and <strong class="source-inline">1</strong> should return <strong class="source-inline">true</strong> and comparing the two strings <strong class="source-inline">Hello</strong> and <strong class="source-inline">World</strong> should return <strong class="source-inline">false</strong>.</p>
+			<p><em class="italic">JavaScript</em> comes with seven primitive data types: string, number, bigint, Boolean, undefined, symbol, and null. These data types <em class="italic">cannot</em> be altered once they are created in memory: </p>
+			<p class="source-code"><strong class="bold">null</strong> === <strong class="bold">null</strong>           <strong class="bold">true</strong></p>
+			<p class="source-code"><strong class="bold">undefined</strong> === <strong class="bold">undefined</strong> <strong class="bold">true</strong></p>
+			<p>A <em class="italic">primitive comparison</em> is something we commonly understand as a <em class="italic">comparison by value</em>. </p>
+			<p>For a non-primitive type in <em class="italic">JavaScript</em>, such as an object or an array, a reference (also known as a pointer) is used to point to a particular memory space:</p>
+			<p class="source-code">{} === {}               <strong class="bold">false</strong></p>
+			<p class="source-code">v === v                 <strong class="bold">true</strong></p>
+			<p>This means that if you allocate two new objects, they can't point to the same memory space. Therefore, comparing the two objects <strong class="source-inline">{}</strong> and <strong class="source-inline">{}</strong> should return <strong class="source-inline">false</strong>, even if both contain exactly the same <em class="italic">content</em>. In contrast, comparing the same object (for example, <strong class="source-inline">v</strong> and <strong class="source-inline">v</strong>) should return <strong class="source-inline">true</strong>, no matter how the content of the object changes. Let's take a look at an example to understand this better:</p>
+			<p class="source-code"><strong class="bold">const</strong> [v, dispatch] = useState({})</p>
+			<p class="source-code"><strong class="bold">const</strong> onClick = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  v.abc = 3</p>
+			<p class="source-code">  dispatch(v)</p>
+			<p class="source-code">}</p>
+			<p>Can you guess if the previous dispatch does anything upon a user click? The answer is <em class="italic">no</em>. Changing an object's content doesn't qualify as a change from the <strong class="source-inline">Object.is</strong> function's point of view, as the <strong class="source-inline">v</strong> variable still points to the same memory location, even when one of its properties has changed. </p>
+			<p>The only way to<a id="_idIndexMarker159"/> cause a change in this case is to dispatch a state pointing to a different memory space, and we can do this by creating a new one:</p>
+			<p class="source-code"><strong class="bold">const</strong> [v, dispatch] = useState({})</p>
+			<p class="source-code"><strong class="bold">const</strong> onClick = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  dispatch({ ...v, abc: 3 })</p>
+			<p class="source-code">}</p>
+			<p>A new object is created with the help of JavaScript's <strong class="bold">ES6</strong> syntax (<strong class="source-inline">{ ...v }</strong>) by cloning the content of <strong class="source-inline">v</strong> while changing the <strong class="source-inline">abc</strong> property to <strong class="source-inline">3</strong>. For readers who are interested in learning more about the <em class="italic">JavaScript</em> <em class="italic">ES6</em> <em class="italic">syntax</em>, please refer to the <em class="italic">JavaScript ES6</em> section of <a href="B17963_10_Epub.xhtml#_idTextAnchor363"><em class="italic">Chapter 10</em></a>, <em class="italic">Building a Website with React</em>.</p>
+			<p>It might take some time to get used to using the <strong class="source-inline">Object.is</strong> function or the strict equality operator (<strong class="source-inline">===</strong>). A simple question to ask yourself is this: <em class="italic">is the value to compare mutable?</em> If it is, it's compared by <em class="italic">reference</em>. If it's not, it's compared by <em class="italic">value</em>. </p>
+			<p><em class="italic">In React, if you can't manage a value change, you can't dispatch a change correctly</em>. So, it's important to understand <strong class="source-inline">object.is</strong>, as it's used extensively for all hook value comparisons, as you'll see during the re<a id="_idTextAnchor132"/>st of this book.</p>
+			<h2 id="_idParaDest-75"><a id="_idTextAnchor133"/>Multiple dispatches</h2>
+			<p>An interesting case arises when <a id="_idIndexMarker160"/>we perform multiple dispatches inside of one event handler. In <em class="italic">React,</em> multiple dispatches in a row are designed to be processed together, as in the following example: </p>
+			<p class="source-code"><strong class="bold">const</strong> [state, dispatch] = useState(1)</p>
+			<p class="source-code"><strong class="bold">const</strong> onClick = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  dispatch(3)</p>
+			<p class="source-code">  ...</p>
+			<p class="source-code">  dispatch(5)</p>
+			<p class="source-code">}</p>
+			<p>Upon the user clicking, if we invoke the dispatch (P-Code) function twice, it would only cause one change in the end because each dispatch appends an update to the queue. When we reach the next update, all registered actions in the queue are iterated to form a single new state. In our case, the state changes from <strong class="source-inline">1</strong> to <strong class="source-inline">5</strong>, skipping <strong class="source-inline">3</strong>. But why do two dispatches trigger only one update? Doesn't each dispatch invoke the <strong class="source-inline">scheduleUpdateOnFiber</strong> function?</p>
+			<p>Each dispatch does invoke <strong class="source-inline">scheduleUpdateOnFiber</strong> to kick <em class="italic">React</em> into the update process. However, this function is designed in such a way that it waits for all dispatches from the same action before making a final update. Therefore, with this functionality, multiple dispatches can be joined into one update operation as a deferred run. </p>
+			<p>A benefit of this is that you can write a <strong class="source-inline">dispatch</strong> statement as easily as an assignment statement without worrying that it might bring unnecessary work to the DOM. This is not only practically easy to use but also makes the update pretty performant. </p>
+			<p>Now that we have gone over the <strong class="source-inline">dispatch</strong> function, we can put the <strong class="source-inline">useS<a id="_idTextAnchor134"/>tate</strong> hook to use.</p>
+			<h1 id="_idParaDest-76"><a id="_idTextAnchor135"/>Test driving the useState hook</h1>
+			<p>A state is one of the most <a id="_idIndexMarker161"/>common techniques in <em class="italic">React</em> for driving user interactions. Let's consider a component with a button. Each time we click the button, it increments a number and appends it to the <strong class="source-inline">Hello World</strong> string (see <em class="italic">Figure 4.5</em>).</p>
+			<div>
+				<div id="_idContainer034" class="IMG---Figure">
+					<img src="image/Figure_4.05_B17963.jpg" alt="Figure 4.5 – The Hello World counter&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.5 – The Hello World counter</p>
+			<p>We can capture this <em class="italic">UI</em> behavior in a <strong class="source-inline">Title</strong> component:</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">let</strong> [count, setCount] = useState(0)</p>
+			<p class="source-code">  </p>
+			<p class="source-code">  <strong class="bold">const</strong> onClick = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    setCount(count + 1)</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  </p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    <strong class="bold">&lt;&gt;</strong></p>
+			<p class="source-code">      <strong class="bold">&lt;button</strong> onClick={onClick}<strong class="bold">&gt;</strong>+<strong class="bold">&lt;/button&gt;</strong></p>
+			<p class="source-code">      <strong class="bold">&lt;h1&gt;</strong>Hello World+{count}<strong class="bold">&lt;/h1&gt;</strong></p>
+			<p class="source-code">    <strong class="bold">&lt;/&gt;</strong></p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>Here, we use <strong class="source-inline">[count, setCount]</strong> to keep <a id="_idIndexMarker162"/>track of the <strong class="source-inline">count</strong> state. Then, we display <strong class="source-inline">count</strong> in the <strong class="source-inline">h1</strong> element of the page and dispatch <strong class="source-inline">setCount</strong> in the click handler of the <strong class="source-inline">button</strong> element. Each time the button is clicked, it should increment the <strong class="source-inline">count</strong> value.</p>
+			<p>In order to confirm what happened under the hood, let's add <strong class="source-inline">console.log</strong> to two locations:</p>
+			<p class="source-code"><strong class="bold">function</strong> Title() {</p>
+			<p class="source-code">  <strong class="bold">let</strong> [count, setCount] = useState(0)</p>
+			<p class="source-code">  </p>
+			<p class="source-code">  <strong class="bold">const</strong> onClick = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    setCount(count + 1)</p>
+			<p class="source-code">    console.log('clicked', count)   ➀</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  </p>
+			<p class="source-code">  console.log('rendered', count)    ➁</p>
+			<p class="source-code">  <strong class="bold">return</strong> ...</p>
+			<p class="source-code"> }</p>
+			<p>The first one is placed<a id="_idIndexMarker163"/> after <strong class="source-inline">setCount</strong> to confirm what the <strong class="source-inline">count</strong> value is after each dispatch. The second one is placed before the <strong class="source-inline">return</strong> statement so that we can confirm when an update has arrived and what the <strong class="source-inline">count</strong> value is in that update. They are marked at <strong class="source-inline">➀</strong> and <strong class="source-inline">➁</strong>:</p>
+			<p class="source-code">|-----0-----1------2-----&gt; clicked  ➀</p>
+			<p class="source-code">0-----1-----2------3-----&gt; updated  ➁</p>
+			<p>From the <strong class="source-inline">updated</strong> series at <strong class="source-inline">➁</strong>, the number is incremented by<em class="italic"> </em><strong class="source-inline">1</strong> from the <strong class="source-inline">clicked</strong> series at <strong class="source-inline">➀</strong>. The <strong class="source-inline">count</strong> value started at <strong class="source-inline">0</strong> during the mount, and with each click, it quickly gets to a new update with an updated number, as shown in <em class="italic">Figure 4.6</em>. </p>
+			<p>The <strong class="source-inline">clicked</strong> series at <strong class="source-inline">➀</strong> confirms that the <strong class="source-inline">count</strong> value doesn't get updated to the new <strong class="source-inline">count + 1</strong> value after the dispatch. Instead, it continues to hold the current state in the update where the <strong class="source-inline">onClick</strong> object is defined.</p>
+			<div>
+				<div id="_idContainer035" class="IMG---Figure">
+					<img src="image/Figure_4.06_B17963.jpg" alt="Figure 4.6 – The Hello World counter&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.6 – The Hello World counter</p>
+			<p>Great! This is how we use <strong class="source-inline">useState</strong> in general. Let's take a look at another popular use of <strong class="source-inline">useState</strong>, which is to install it in a parent component and allow the child comp<a id="_idTextAnchor136"/><a id="_idTextAnchor137"/>onent to drive it.</p>
+			<h2 id="_idParaDest-77"><a id="_idTextAnchor138"/>Letting a child drive</h2>
+			<p>It's very common<a id="_idIndexMarker164"/> to send a <strong class="source-inline">dispatch</strong> function from a parent component to a child component and expect the child to request the state change from the parent: </p>
+			<p class="source-code"><strong class="bold">const</strong> App = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [count, setCount] = useState(0)</p>
+			<p class="source-code">  <strong class="bold">const</strong> onClick = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    console.log('clicked', count)   ➀</p>
+			<p class="source-code">    setCount(count + 1)</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  console.log('rendered', count)    ➁  </p>
+			<p class="source-code">  <strong class="bold">return </strong>&lt;Title onClick={onClick} /&gt;</p>
+			<p class="source-code">}</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = ({ onClick }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">return &lt;button</strong> onClick={onClick}<strong class="bold">&gt;</strong>+<strong class="bold">&lt;/button&gt;</strong></p>
+			<p class="source-code">}</p>
+			<p>In the preceding example, the <strong class="source-inline">Title</strong> component has a button, and when it is clicked, it changes the <strong class="source-inline">count</strong> state in the <strong class="source-inline">App</strong> component. We will set up two <strong class="source-inline">console.log</strong> statements to confirm the updates:</p>
+			<p class="source-code">|-----0-----1------2-----&gt; clicked  ➀</p>
+			<p class="source-code">0-----1-----2------3-----&gt; updated  ➁</p>
+			<p>It's working as expected – the clicks come from the child, but everything else is the same as the previous example. Basically, we have given the child the ability to change the <strong class="source-inline">count</strong> value created at the parent level. </p>
+			<p>This is actually quite handy. It tells us that no matter where we define the state, if its child (or grandchild) needs it, it can access it via a prop. This includes the state and the capability of changing the state. This is one of the most effective strategies for using state in <em class="italic">React</em> and we call it <em class="italic">lifting up</em>.</p>
+			<h2 id="_idParaDest-78"><a id="_idTextAnchor139"/>Lifting up to the parent</h2>
+			<p>Due to its design, <em class="italic">React</em> <a id="_idIndexMarker165"/>doesn't allow information to be sent to an element directly. Instead, the required mechanism is to use a <em class="italic">prop</em> that passes the information from a parent to a child, then to a child's child, and so on.</p>
+			<p>In another way, to share information between two children, the information needs to be available to the parent first before sending it to each of the children:</p>
+			<p class="source-code"><strong class="bold">const</strong> App = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    <strong class="bold">&lt;&gt;</strong></p>
+			<p class="source-code">      &lt;Title /&gt;</p>
+			<p class="source-code">      &lt;Content /&gt;</p>
+			<p class="source-code">    <strong class="bold">&lt;/&gt;</strong></p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [count, setCount] = useState(0)</p>
+			<p class="source-code">  <strong class="bold">return &lt;button&gt;</strong>+<strong class="bold">&lt;/button&gt;</strong></p>
+			<p class="source-code">}</p>
+			<p class="source-code"><strong class="bold">const</strong> Content = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">return</strong> ...</p>
+			<p class="source-code">}</p>
+			<p>In the preceding setup, we have a parent, <strong class="source-inline">App</strong>, rendering two children, <strong class="source-inline">Title</strong> and <strong class="source-inline">Content</strong>. The <strong class="source-inline">count</strong> object installed in the <strong class="source-inline">Title</strong> object can't be accessed by either its sibling, <strong class="source-inline">Content</strong>, or its parent, <strong class="source-inline">App</strong>. So, to make the <strong class="source-inline">count</strong> object available to access, we need to <a id="_idIndexMarker166"/>relocate the <strong class="source-inline">count</strong> object to <strong class="source-inline">App</strong>:</p>
+			<p class="source-code"><strong class="bold">const</strong> App = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [count, setCount] = useState(0)</p>
+			<p class="source-code">  <strong class="bold">const</strong> onClick = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">    setCount(count + 1)</p>
+			<p class="source-code">  }  </p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    <strong class="bold">&lt;&gt;</strong></p>
+			<p class="source-code">      &lt;Title onClick={onClick} /&gt;</p>
+			<p class="source-code">      &lt;Content count={count} /&gt;</p>
+			<p class="source-code">    <strong class="bold">&lt;/&gt;</strong></p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, <strong class="source-inline">useState</strong> is declared in <strong class="source-inline">App</strong>, therefore, we can send the <strong class="source-inline">onClick</strong> object to <strong class="source-inline">Title</strong>, and we can send the <strong class="source-inline">count</strong> object to <strong class="source-inline">Content</strong>. Therefore, we can allow the sharing of things with a sibling by <em class="italic">lifting</em> those things to the parent. This highlights an important aspect of <em class="italic">React's</em> design: <em class="italic">if your parent has it, you can have it</em>. This is one of the most basic and effective behaviors we rely on when designing a <em class="italic">React</em> app.</p>
+			<p class="callout-heading">Important Note</p>
+			<p class="callout">If you are a <em class="italic">React</em> beginner, you should try to work with props as often as you can. Not only are they easy to understand, but they're also a way to make sure everything is wired up correctly. </p>
+			<p>Now that we have<a id="_idIndexMarker167"/> had a test drive of the <strong class="source-inline">useState</strong> hook, let's look at two more practical examples of how real applications use <strong class="source-inline">useState<a id="_idTextAnchor140"/></strong> to drive <em class="italic">UI</em> behavior.</p>
+			<h1 id="_idParaDest-79"><a id="_idTextAnchor141"/>useState examples</h1>
+			<p>In this section, we are going to look at two examples of how the <strong class="source-inline">useState</strong> hook is<a id="_idTextAnchor142"/> applied in practice. </p>
+			<h2 id="_idParaDest-80"><a id="_idTextAnchor143"/>Making an avatar component</h2>
+			<p>Let's say you want to <a id="_idIndexMarker168"/>display an image of a person that you have pulled from the internet. Most of the time, it will turn out to be a good<a id="_idIndexMarker169"/> picture (see <em class="italic">Figure 4.7</em>). But sometimes, an image can be unavailable to download due to network or permission issues. When this happens, the browser throws a broken icon (the logo in the middle of <em class="italic">Figure 4.7</em>), which is not as nice to look at. The latest UX research shows that if we replace any broken image icons with something more unique (such as a user's name or initials, as shown on the right of <em class="italic">Figure 4.7</em>), this improves the user experience.</p>
+			<div>
+				<div id="_idContainer036" class="IMG---Figure">
+					<img src="image/Figure_4.07_B17963.jpg" alt="Figure 4.7 – An avatar component using useState&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.7 – An avatar component using useState</p>
+			<p>In order to switch between an image and text, we can apply <strong class="source-inline">useState</strong> to define a condition. We will also need an event handler to notify us when an image URL is broken. If we put this logic together, we get an <strong class="source-inline">Avatar</strong> component: </p>
+			<p class="source-code"><strong class="bold">const</strong> Avatar = ({ src, username }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [error, setError] = useState(<strong class="bold">false</strong>)</p>
+			<p class="source-code">  <strong class="bold">const</strong> onError = () <strong class="bold">=&gt;</strong> { setError(<strong class="bold">true</strong>) }</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    &lt;AvatarStyle&gt;</p>
+			<p class="source-code">      {error ? (</p>
+			<p class="source-code">        <strong class="bold">&lt;div&gt;</strong>{username}<strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">      ) : (</p>
+			<p class="source-code">        <strong class="bold">&lt;img</strong></p>
+			<p class="source-code">          src={src}</p>
+			<p class="source-code">          alt={username}</p>
+			<p class="source-code">          onError={onError}</p>
+			<p class="source-code">        <strong class="bold">/&gt;</strong></p>
+			<p class="source-code">      )}</p>
+			<p class="source-code">    &lt;/AvatarStyle&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>In the preceding <a id="_idIndexMarker170"/>code, first, we define a state, <strong class="source-inline">error</strong>, with <strong class="source-inline">useState</strong>. and then we set the initial state to <strong class="source-inline">false</strong>, assuming that there's <a id="_idIndexMarker171"/>no error before loading the image. </p>
+			<p>In the component's <strong class="source-inline">return</strong>, it follows this simple logic:</p>
+			<p class="source-code">  { error ? A : B }</p>
+			<p>If <strong class="source-inline">error</strong> is <strong class="source-inline">true</strong>, it will display <strong class="source-inline">A</strong>. Otherwise, it will display <strong class="source-inline">B</strong>. In our case, <strong class="source-inline">A</strong> will return the user's initials and <strong class="source-inline">B</strong> will return an image. Therefore, it initially displays the image. If the image loads successfully, the job is done. However, if the image happens to fail, it fires an <strong class="source-inline">onError</strong> event handler. In the <strong class="source-inline">onError</strong> event handler, it makes a dispatch to flip the <strong class="source-inline">error</strong> flag to <strong class="source-inline">true</strong>. In the next update, as the <strong class="source-inline">error</strong> flag changes to <strong class="source-inline">true</strong>, it displays the user's initials. So, the job is done – sweet!</p>
+			<p>To make it easy to use, the <strong class="source-inline">Avatar</strong> component is built with two props, <strong class="source-inline">src</strong> and <strong class="source-inline">username</strong>, where the first prop is the image URL and the second prop is the username string. Here's what the code looks like:</p>
+			<p class="source-code"><strong class="bold">const</strong> LOGO = 'https://gravatar.com/avatar/7aa1ac6'</p>
+			<p class="source-code"><strong class="bold">const</strong> App = () =&gt; {</p>
+			<p class="source-code">  <strong class="bold">return</strong> &lt;Avatar src={LOGO} username="F" /&gt;</p>
+			<p class="source-code">}</p>
+			<p class="callout-heading">Playground – Avatar Component</p>
+			<p class="callout">Feel free to play with this example online at <a href="https://codepen.io/windmaomao/pen/VwzaqEo">https://codepen.io/windmaomao/pen/VwzaqEo</a>. </p>
+			<p>The <strong class="source-inline">AvatarStyle</strong> component<a id="_idIndexMarker172"/> is a style component<a id="_idIndexMarker173"/> that allows us to write CSS inside of a component. If you are interested in learning more about this approach, please refer to the <em class="italic">Adopting CSS-in-JS approach</em> section in <a href="B17963_10_Epub.xhtml#_idTextAnchor363"><em class="italic">Chapter 10</em></a>, <em class="italic">Building a Website w<a id="_idTextAnchor144"/>ith React, </em>for more details.</p>
+			<h2 id="_idParaDest-81"><a id="_idTextAnchor145"/>Making a custom tooltip component</h2>
+			<p>Here is another <a id="_idIndexMarker174"/>example of using <strong class="source-inline">useState</strong>. Say you have an avatar (you could borrow the one from the previous example), and when hovering over it, you'd like to see some tooltip text (as shown in <em class="italic">Figure 4.8</em>). This has to be a custom tooltip because we want it to allow a custom border, color, font, and even the inclusion of paragraphs. A browser's built-in tooltips won't provide these options in the <strong class="source-inline">title</strong> attribute.</p>
+			<div>
+				<div id="_idContainer037" class="IMG---Figure">
+					<img src="image/Figure_4.08_B17963.jpg" alt="Figure 4.8 – A custom tooltip component using useState&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.8 – A custom tooltip component using useState</p>
+			<p>In order to support this pop-up effect, we can use <strong class="source-inline">useState</strong> to set up a Boolean state to indicate when the mouse hovers over the avatar area. We also need both event handlers to <a id="_idIndexMarker175"/>monitor when the mouse enters or leaves the avatar area. We can put this logic into a <strong class="source-inline">Tooltip</strong> component: </p>
+			<p class="source-code"><strong class="bold">const</strong> Tooltip = ({ children, tooltip }) <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">const</strong> [entered, setEntered] = useState(<strong class="bold">false</strong>)</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    &lt;TooltipStyle&gt;</p>
+			<p class="source-code">      <strong class="bold">&lt;div</strong></p>
+			<p class="source-code">        onMouseEnter={() <strong class="bold">=&gt;</strong> { setEntered(<strong class="bold">true</strong>) }}</p>
+			<p class="source-code">        onMouseLeave={() <strong class="bold">=&gt;</strong> { setEntered(<strong class="bold">false</strong>) }}</p>
+			<p class="source-code">      <strong class="bold">&gt;</strong></p>
+			<p class="source-code">        {children}</p>
+			<p class="source-code">      <strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">      {entered &amp;&amp; (</p>
+			<p class="source-code">        <strong class="bold">&lt;div</strong> className="__tooltip"<strong class="bold">&gt;</strong></p>
+			<p class="source-code">          {tooltip}</p>
+			<p class="source-code">        <strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code">      )}</p>
+			<p class="source-code">    &lt;/TooltipStyle&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>We define a state, <strong class="source-inline">entered</strong>, and set its initial value to <strong class="source-inline">false</strong> (as when we first see this component, the tooltip will not be visible). We wire <strong class="source-inline">setEntered</strong> to the <strong class="source-inline">onMouseEnter</strong> and <strong class="source-inline">onMouseLeave</strong> event handlers to flip the state.</p>
+			<p>Notice that this time the <strong class="source-inline">?</strong> operator isn't used for the conditional display of the tooltip – instead, a <strong class="source-inline">&amp;&amp;</strong> operator is used: </p>
+			<p class="source-code">{ entered &amp;&amp; A }</p>
+			<p>That's because in <strong class="source-inline">Tooltip</strong>, there's no <strong class="source-inline">B</strong>. Depending on whether the mouse is in the right area or not, <strong class="source-inline">A</strong> is either displayed or hidden. Therefore, the <strong class="source-inline">&amp;&amp;</strong> operator is serving as a short circuit – if the condition isn't met, it skips the next statement.</p>
+			<p>The <strong class="source-inline">Tooltip</strong> component<a id="_idIndexMarker176"/> takes both <strong class="source-inline">children</strong> and <strong class="source-inline">tooltip</strong> as props, and this allows it to host any component as the <strong class="source-inline">Avatar</strong> object and any component as the tooltip content, as shown in the following code:</p>
+			<p class="source-code"><strong class="bold">const</strong> TooltipBox = <strong class="bold">&lt;div&gt;</strong>Account<strong class="bold">&lt;/div&gt;</strong></p>
+			<p class="source-code"><strong class="bold">const</strong> Title = () <strong class="bold">=&gt;</strong> {</p>
+			<p class="source-code">  <strong class="bold">return</strong> (</p>
+			<p class="source-code">    &lt;Tooltip tooltip={&lt;TooltipBox /&gt;}&gt;</p>
+			<p class="source-code">      &lt;Avatar&gt;</p>
+			<p class="source-code">    &lt;/Tooltip&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code block, we define a custom <strong class="source-inline">TooltipBox</strong> component to pass in the <strong class="source-inline">Tooltip</strong> component via the <strong class="source-inline">tooltip</strong> prop. </p>
+			<p class="callout-heading">Playground – Tooltip Component</p>
+			<p class="callout">Feel free to play with this example online at <a href="https://codepen.io/windmaomao/pen/qBXZvKV">https://codepen.io/windmaomao/pen/qBXZvKV</a>. </p>
+			<p>This is the <a id="_idIndexMarker177"/>best part of the <strong class="source-inline">Tooltip</strong> component. It's not just designed as a component to suit the needs for one use case – instead, it's designed to be a mechanism that allows you to craft flexible tooltip behavior. </p>
+			<p>With <strong class="source-inline">useState</strong>, we can tailor our function components to be stateful engines, making it possible to handle<a id="_idTextAnchor146"/> a range of user interactions.</p>
+			<h1 id="_idParaDest-82"><a id="_idTextAnchor147"/>Summary</h1>
+			<p>In this chapter, you learned what the concept of <em class="italic">state</em> is in <em class="italic">React</em>. You dug deeper into the <strong class="source-inline">useState</strong> design, which is divided into mounting a state and updating a state. We learned about various ways of dispatching states and ways to determine if a state has changed. Then, we also learned that a dispatch can support a value format or a functional updater format, and we learned that we can dispatch multiple times in one event handler. Then, we took <strong class="source-inline">useState</strong> for a test drive and learned how to send the state change to a child component via props. We also learned a common technique called <em class="italic">lifting up</em>, which involves lifting a state up to a parent. Last but not least, we designed two components – an avatar component and a tooltip component – to learn how to apply <strong class="source-inline">useState</strong> in the design of components.</p>
+			<p>In the next chapter, we will explore our second hook in the <em class="italic">React</em> family. We will also see how <em class="italic">React</em> defines an action called <strong class="bold">effect</strong> and allows you to i<a id="_idTextAnchor148"/>nvoke it after a state change.</p>
+			<h1 id="_idParaDest-83"><a id="_idTextAnchor149"/>Questions and answers</h1>
+			<p>Here are some questions and answ<a id="_idTextAnchor150"/>ers to refresh your knowledge:</p>
+			<ol>
+				<li>What is <strong class="source-inline">useState</strong>?<p>The <strong class="source-inline">useState</strong> hook is a built-in hook in <em class="italic">React</em> that allows you to define a state within a functional component and di<a id="_idTextAnchor151"/>spatch an action to change it.</p></li>
+				<li>What is the most common use of <strong class="source-inline">useState</strong>?<p>The <strong class="source-inline">useState</strong> hook is probably the most common hook in the <em class="italic">React</em> hook family. Whenever you need a variable to change <em class="italic">UI</em> elements, you can normally resort to <strong class="source-inline">useState</strong> to accomplish this. Touching a widget, clicking a vote-up button, hovering over an icon, toggling a checkbox, and much more can be implemented with <a id="_idTextAnchor152"/>the use of <strong class="source-inline">useState</strong>. </p></li>
+			</ol>
+			<h1 id="_idParaDest-84"><a id="_idTextAnchor153"/>Appendix</h1>
+			<h2 id="_idParaDest-85"><a id="_idTextAnchor154"/>Appendix A – Skipping the dispatch</h2>
+			<p>We say that not all dispatched states end up with a change. But actually, not all dispatches end up with a successful dispatch. When a mouse clicks, it goes into the <strong class="source-inline">dispatch</strong> function. It has a special pathway, and when you hit that condition and find out there's no state change, it can return early without performing a dispatch: </p>
+			<p class="source-code"><strong class="bold">function</strong> dispatchAction(fiber, queue, action) {</p>
+			<p class="source-code">  ...</p>
+			<p class="source-code">    </p>
+			<p class="source-code">  <strong class="bold">if</strong> (NoWorkUnderFiber) {</p>
+			<p class="source-code">    <strong class="bold">const</strong> currentState = queue.lastRenderedState</p>
+			<p class="source-code">    <strong class="bold">const</strong> newState = <strong class="bold">typeof</strong> action === 'function' </p>
+			<p class="source-code">      ? action(currentState) : action</p>
+			<p class="source-code">    <strong class="bold">if</strong> (Object.is(newState, currentState)) {</p>
+			<p class="source-code">      <strong class="bold">return</strong></p>
+			<p class="source-code">    }</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  scheduleUpdateOnFiber(fiber)</p>
+			<p class="source-code">}</p>
+			<p>In the preceding <strong class="source-inline">dispatchAction</strong> function, a new state is computed when it detects there's no work currently under the fiber. The way it calculates the <strong class="source-inline">newState</strong> value is similar to how the calculation in the <strong class="source-inline">updateState</strong> function works, except it only deals with one <strong class="source-inline">action</strong> object here. Basically, it asks if the action causes a state change from the last updated state.</p>
+			<p>If it turns out that there's no change, it returns without an update, pretending nothing happened. This results in no <em class="italic">UI</em> updates whatsoever. This pathway is important because it can come very often (for instance, when the user keeps performing the same action over and over ag<a id="_idTextAnchor155"/>ain without any state change).</p>
+			<h2 id="_idParaDest-86"><a id="_idTextAnchor156"/>Appendix B – Bailing out an update</h2>
+			<p>For any fiber that has been updated, there is a collective flag that is added to it called <strong class="source-inline">didReceiveUpdate</strong>, which indicates if a change has taken place for the fiber. After the work starts on the fiber, any hook that causes a change can set this flag to <strong class="source-inline">true</strong>. Afterward, if the work is done and if the flag is still <strong class="source-inline">false</strong>, that means there's been absolutely no change for the fiber, so <em class="italic">React</em> bails out the fiber by cloning it from the previous scene and then moves on to the next fiber to work:</p>
+			<p class="source-code"><strong class="bold">let</strong> updatingFiber = ...</p>
+			<p class="source-code"><strong class="bold">function</strong> updateFunctionComponent(Component, props) {</p>
+			<p class="source-code">  <strong class="bold">let</strong> prevHook = <strong class="bold">null</strong></p>
+			<p class="source-code">  <strong class="bold">let</strong> didReceiveUpdate = <strong class="bold">false</strong>  </p>
+			<p class="source-code">  <strong class="bold">let</strong> children = Component(props)  </p>
+			<p class="source-code">  <strong class="bold">if</strong> (!isFiberMounting &amp;&amp; !didReceiveUpdate) {</p>
+			<p class="source-code">    <strong class="bold">return</strong> bailout(updatingFiber)</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  ...</p>
+			<p class="source-code">}</p>
+			<p>In the preceding <strong class="source-inline">updateFunctionComponent</strong> function, after the <strong class="source-inline">Component</strong> function is invoked, it checks two flags. One is <strong class="source-inline">isFiberMounting</strong>, as when the site is under mount, nothing can be bailed out since all of the fibers still need to be created. Another flag is <strong class="source-inline">didReceiveUpdate</strong>. When both are false, it kicks into the bailout of the fiber.</p>
+			<p>It bails out the fiber by cloning the children fibers from the current tree, which in turn carries all finished work over, including the old props and rendered <em class="italic">DOM</em>. Basically, by bailing out, it doesn't need to do the regular reconciliation work to figure out the new children fibers. And even better, if it turns out there's no work under the children of this fiber, the entire branch bails out. This corresponds to all the gray lines in <em class="italic">Figure 4.1</em>.</p>
+		</div>
+	</body></html>

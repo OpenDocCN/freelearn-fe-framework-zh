@@ -1,0 +1,2555 @@
+- en: '6'
+  id: totrans-0
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: '6'
+- en: Exploring Test Doubles
+  id: totrans-1
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 探索测试替身
+- en: 'In this chapter, we’ll look at the most involved piece of the TDD puzzle: test
+    doubles.'
+  id: totrans-2
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章中，我们将查看TDD谜题中最复杂的一部分：测试替身。
+- en: Jest has a set of convenience functions for test doubles, such as `jest.spyOn`
+    and `jest.fn`. Unfortunately, using test doubles well is a bit of a dark art.
+    If you don’t know what you’re doing, you can end up with complicated, brittle
+    tests. Maybe this is why Jest doesn’t promote them as a first-class feature of
+    its framework.
+  id: totrans-3
+  prefs: []
+  type: TYPE_NORMAL
+  zh: Jest提供了一系列方便的测试替身函数，例如`jest.spyOn`和`jest.fn`。不幸的是，正确使用测试替身有点像一门黑暗的艺术。如果您不知道自己在做什么，可能会得到复杂、脆弱的测试。也许这就是为什么Jest没有将其作为其框架的一级特性来推广。
+- en: 'Don’t be turned off: test doubles are a highly effective and versatile tool.
+    The trick is to restrict your usage to a small set of well-defined patterns, which
+    you’ll learn about in the next few chapters.'
+  id: totrans-4
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 不要被吓倒：测试替身是一种高度有效且多功能的工具。诀窍是限制您的使用范围在一个小型、定义良好的模式集中，您将在接下来的几章中了解到这些模式。
+- en: In this chapter, we will build our own set of hand-crafted test double functions.
+    They work pretty much just how Jest functions do, but with a simpler (and more
+    clunky) interface. The aim is to take the magic out of these functions, showing
+    you how they are built and how they can be used to simplify your tests.
+  id: totrans-5
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章中，我们将构建自己的手工艺品测试替身函数集。它们几乎与Jest函数一样工作，但具有更简单（且更笨拙）的接口。目标是去除这些函数的魔力，向您展示它们是如何构建的以及如何使用它们来简化您的测试。
+- en: 'In the test suites you’ve built so far, some tests didn’t use the normal `expect.hasAssertions`.
+    In a real code base, I would always avoid using this function and instead use
+    test doubles, which help reorder the test into AAA order. We’ll start there: refactoring
+    our existing tests to use our hand-crafted test doubles, and then swapping them
+    out for Jest’s own test double functions.'
+  id: totrans-6
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在您迄今为止构建的测试套件中，一些测试没有使用正常的`expect.hasAssertions`。在一个真实的代码库中，我会始终避免使用此函数，而是使用测试替身，这有助于将测试重新排序为AAA顺序。我们将从这里开始：重构现有测试以使用我们手工制作的测试替身，然后将其替换为Jest自己的测试替身函数。
+- en: 'The following topics will be covered in this chapter:'
+  id: totrans-7
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 本章将涵盖以下主题：
+- en: What is a test double?
+  id: totrans-8
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 什么是测试替身？
+- en: Submitting forms using spies
+  id: totrans-9
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 使用间谍提交表单
+- en: Spying on the Fetch API
+  id: totrans-10
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 监控Fetch API
+- en: Stubbing `fetch` responses
+  id: totrans-11
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 模拟`fetch`响应
+- en: Migrating to Jest’s built-in test double support
+  id: totrans-12
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 迁移到Jest内置的测试替身支持
+- en: By the end of the chapter, you’ll have learned how to make effective use of
+    Jest’s test double functionality.
+  id: totrans-13
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 到本章结束时，您将学会如何有效地使用Jest的测试替身功能。
+- en: Technical requirements
+  id: totrans-14
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 技术要求
+- en: 'The code files for this chapter can be found here:'
+  id: totrans-15
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 本章的代码文件可以在此处找到：
+- en: '[https://github.com/PacktPublishing/Mastering-React-Test-Driven-Development-Second-Edition/tree/main/Chapter06](https://github.com/PacktPublishing/Mastering-React-Test-Driven-Development-Second-Edition/tree/main/Chapter06)'
+  id: totrans-16
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '[https://github.com/PacktPublishing/Mastering-React-Test-Driven-Development-Second-Edition/tree/main/Chapter06](https://github.com/PacktPublishing/Mastering-React-Test-Driven-Development-Second-Edition/tree/main/Chapter06)'
+- en: The code samples for this chapter and beyond contain extra commits that add
+    a working backend to the application. This allows you to make requests to fetch
+    data, which you’ll start doing in this chapter.
+  id: totrans-17
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 本章及以后的代码示例包含额外的提交，这些提交为应用程序添加了一个可工作的后端。这允许您发出请求以获取数据，您将在本章开始这样做。
+- en: In the companion code repository, from `Chapter06/Start` onward, the `npm run
+    build` command will automatically build the server.
+  id: totrans-18
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在配套代码存储库中，从`Chapter06/Start`开始，`npm run build`命令将自动构建服务器。
+- en: You can then start the application by using the `npm run serve` command and
+    browsing to `http://localhost:3000` or `http://127.0.0.1:3000`.
+  id: totrans-19
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然后，您可以通过使用`npm run serve`命令并浏览到`http://localhost:3000`或`http://127.0.0.1:3000`来启动应用程序。
+- en: If you run into problems
+  id: totrans-20
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果您遇到问题
+- en: Check out the *Troubleshooting* section of the repository’s `README.md` file
+    if you’re not able to get the application running.
+  id: totrans-21
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果您无法运行应用程序，请查看存储库`README.md`文件的*故障排除*部分。
+- en: What is a test double?
+  id: totrans-22
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 什么是测试替身？
+- en: 'A *unit* in unit testing refers to a single function or component that we focus
+    on for the duration of that test. The **Act** phase of a test should involve just
+    one action on one unit. But units don’t act in isolation: functions call other
+    functions, and components render child components and call callback props passed
+    in from parent components. Your application can be thought of as a web of dependencies,
+    and test doubles help us to design and test those dependencies.'
+  id: totrans-23
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 单元测试中的**单元**指的是在测试期间我们关注的单个函数或组件。测试的**行为**阶段应该只涉及一个单元的一个动作。但单元不会孤立行动：函数调用其他函数，组件渲染子组件并调用从父组件传入的回调属性。可以将您的应用程序视为一个依赖关系的网络，测试替身帮助我们设计和测试这些依赖关系。
+- en: When we’re writing tests, we **isolate** the unit under test. Often, that means
+    we avoid exercising any of the **collaborating objects**. Why? Firstly, it helps
+    us work toward our goal of independent, laser-focused tests. Secondly, sometimes
+    those collaborating objects have side effects that would complicate our tests.
+  id: totrans-24
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 当我们编写测试时，我们会**隔离**被测试的单元。通常这意味着我们避免对任何协作对象进行操作。为什么？首先，这有助于我们朝着独立、专注的测试目标前进。其次，有时那些协作对象会有副作用，这会复杂化我们的测试。
+- en: To give one example, with React components, we sometimes want to avoid rendering
+    child components because they perform network requests when they are mounted.
+  id: totrans-25
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 以一个例子来说明，在React组件中，我们有时想避免渲染子组件，因为它们在挂载时会执行网络请求。
+- en: A `onSubmit` function, which is a prop passed to both `CustomerForm` and `AppointmentForm`.
+    We can swap that out with a test double in our tests. As we’ll see, that helps
+    us define the relationship between the two.
+  id: totrans-26
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 一个`onSubmit`函数，它被传递给`CustomerForm`和`AppointmentForm`两个组件。我们可以在测试中用测试替身替换它。正如我们将看到的，这有助于我们定义两者之间的关系。
+- en: 'The most important place to use test doubles is at the edges of our system
+    when our code interacts with anything external to the page content: **HyperText
+    Transfer Protocol** (**HTTP**) requests, filesystem access, sockets, local storage,
+    and so on.'
+  id: totrans-27
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们的系统中，测试替身最重要的使用地方是在与页面内容之外的任何外部事物交互的边缘：**超文本传输协议**（**HTTP**）请求、文件系统访问、套接字、本地存储等等。
+- en: 'Test doubles are categorized into several different types: spies, stubs, mocks,
+    dummies, and fakes. We normally only use the first two, and that’s what we’ll
+    concentrate on in this chapter.'
+  id: totrans-28
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 测试替身被分为几种不同的类型：间谍、存根、模拟、哑元和伪造。我们通常只使用前两种，这也是本章我们将要集中讨论的内容。
+- en: Learning to avoid fakes
+  id: totrans-29
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 学习避免伪造
+- en: A **fake** is any test double that has any kind of logic or control structure
+    within it, such as conditional statements or loops. Other types of test objects,
+    such as spies and stubs, are made up entirely of variable assignments and function
+    calls.
+  id: totrans-30
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**伪造**是指任何包含任何逻辑或控制结构的测试替身，例如条件语句或循环。其他类型的测试对象，如间谍和存根，完全由变量赋值和函数调用组成。'
+- en: One type of fake you’ll see is an in-memory repository. You can use this in
+    place of **Structured Query Language** (**SQL**) data stores, message brokers,
+    and other complex sources of data.
+  id: totrans-31
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 您会看到的一种伪造类型是内存中的存储库。您可以使用它来替代**结构化查询语言**（**SQL**）数据存储、消息代理和其他复杂的数据源。
+- en: Fakes are useful when testing complex collaborations between two units. We’ll
+    often start by using spies and stubs and then refactor to a fake once the code
+    starts to feel unwieldy. A single fake can cover a whole set of tests, which is
+    simpler than maintaining a whole bunch of spies and stubs.
+  id: totrans-32
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 伪造在测试两个单元之间的复杂协作时很有用。我们通常会先使用间谍和存根，然后在代码开始变得难以控制时重构为伪造。一个伪造可以覆盖一组测试，这比维护大量间谍和存根要简单。
+- en: 'We avoid fakes for these reasons:'
+  id: totrans-33
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们避免使用伪造的原因如下：
+- en: Any logic requires tests, which means we must write tests for fakes, even though
+    they are part of the test code. Spies and stubs don’t require tests.
+  id: totrans-34
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 任何逻辑都需要测试，这意味着我们必须为伪造编写测试，即使它们是测试代码的一部分。间谍和存根不需要测试。
+- en: Often, spies and stubs work in place of fakes. Only a small category of testing
+    is simpler when we use fakes.
+  id: totrans-35
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 通常，间谍和存根可以替代伪造。当我们使用伪造时，只有一小部分测试会更简单。
+- en: Fakes increase test brittleness because they are shared between tests, unlike
+    other test doubles.
+  id: totrans-36
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 伪造增加了测试的脆弱性，因为它们在测试之间是共享的，而其他测试替身则不是。
+- en: Now that we’ve covered the theory of test doubles, let’s move on to using them
+    in our code.
+  id: totrans-37
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 既然我们已经涵盖了测试替身的理论，让我们继续在代码中使用它们。
+- en: Submitting forms using spies
+  id: totrans-38
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 使用间谍提交表单
+- en: In this section, you’ll hand-craft a reusable spy function and adjust your tests
+    to get them back into AAA order.
+  id: totrans-39
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本节中，您将手动创建一个可重用的间谍函数，并调整您的测试以使它们回到AAA顺序。
+- en: 'Here’s a reminder of how one of those tests looked, from the `CustomerForm`
+    test suite. It’s complicated by the fact it’s wrapped in a test generator, but
+    you can ignore that bit for now—it’s the test content that’s important:'
+  id: totrans-40
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这里是一个提醒，说明了`CustomerForm`测试套件中的一个测试看起来是怎样的。由于它被测试生成器包裹，所以有点复杂，但你现在可以忽略这一点——重要的是测试内容：
+- en: '[PRE0]'
+  id: totrans-41
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE0]'
+- en: 'There are a couple of issues with this code, as follows:'
+  id: totrans-42
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这段代码有几个问题，如下所述：
+- en: The **Assert** phase of the test—the expectation—appears wrapped within the
+    **Act** phase. That makes the test difficult to read and understand.
+  id: totrans-43
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 测试的**断言**阶段——期望——似乎被包裹在**行为**阶段中。这使得测试难以阅读和理解。
+- en: The call to `expect.hasAssertions` is ugly and is only there because our expectation
+    is called as part of the `onSubmit` function, which may or may not be called.
+  id: totrans-44
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 调用`expect.hasAssertions`很丑陋，它只在那里是因为我们的期望被作为`onSubmit`函数的一部分调用，而这个函数可能被调用也可能不被调用。
+- en: We can fix both issues by building a spy.
+  id: totrans-45
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们可以通过构建一个间谍来解决这两个问题。
+- en: What is a spy?
+  id: totrans-46
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 什么是间谍？
+- en: A **spy** is a type of test double that records the arguments it is called with
+    so that those values can be inspected later.
+  id: totrans-47
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**间谍**是一种测试双重角色，它记录了被调用的参数，以便稍后可以检查这些值。'
+- en: Untangling AAA
+  id: totrans-48
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 解开 AAA
+- en: To move the expectation under the `firstName` value that’s passed into the `onSubmit`
+    function. We then write the expectation against that stored value.
+  id: totrans-49
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 将期望放在传递给`onSubmit`函数的`firstName`值下面。然后我们针对存储的值编写期望。
+- en: 'Let’s do that now, as follows:'
+  id: totrans-50
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们现在这样做，如下所示：
+- en: 'Modify the `saves existing value when submitted` test-generator function in
+    `test/CustomerForm.test.js`, like so:'
+  id: totrans-51
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 修改`test/CustomerForm.test.js`中的`saves existing value when submitted`测试生成器函数，如下所示：
+- en: '[PRE1]'
+  id: totrans-52
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE1]'
+- en: 'The `submitArg` variable is assigned within our `onSubmit` handler and then
+    asserted in the very last line of the test. This fixes both the issues we had
+    with the first test: our test is back in AAA order and we got rid of the ugly
+    `expect.hasAssertions()` call.'
+  id: totrans-53
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`submitArg`变量在`onSubmit`处理程序中分配，然后在测试的最后一条语句中断言。这解决了第一个测试中的两个问题：我们的测试回到了 AAA
+    顺序，并且我们摆脱了丑陋的`expect.hasAssertions()`调用。'
+- en: 'If you run your tests now, they should be green. However, any time you refactor
+    tests in this way, you should verify that you’re still testing the right thing
+    by unwinding the production code and watching the test fail. To check that our
+    tests still work, locate this line in `src/CustomerForm.js`:'
+  id: totrans-54
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 如果你现在运行测试，它们应该都是绿色的。然而，每次你以这种方式重构测试时，你应该通过展开生产代码并观察测试失败来验证你仍在测试正确的事情。为了检查我们的测试是否仍然有效，定位`src/CustomerForm.js`中的这一行：
+- en: '[PRE2]'
+  id: totrans-55
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE2]'
+- en: 'Remove the `onSubmit` prop entirely, like so:'
+  id: totrans-56
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 完全移除`onSubmit`属性，如下所示：
+- en: '[PRE3]'
+  id: totrans-57
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE3]'
+- en: 'Run `npm test`. You’ll get multiple test failures from various different tests.
+    However, we’re only interested in this one test generator, so update its declaration
+    to `it.only` rather than `it`, as follows:'
+  id: totrans-58
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 运行`npm test`。你会从不同的测试中得到多个测试失败。然而，我们只对这一个测试生成器感兴趣，所以将其声明更新为`it.only`而不是`it`，如下所示：
+- en: '[PRE4]'
+  id: totrans-59
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE4]'
+- en: 'Now, you should have just three failures, one for each of the fields that uses
+    this generator function, as illustrated in the following code snippet. That’s
+    a good sign; any fewer and we would have been generating false positives:'
+  id: totrans-60
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 现在，你应该只有三个失败，每个字段使用此生成器函数一个，如下面的代码片段所示。这是一个好兆头；如果更少，我们就可能产生了假阳性：
+- en: '[PRE5]'
+  id: totrans-61
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE5]'
+- en: We’ve proved the test works, so you can go ahead and change the `it.only` declaration
+    back to `it`, and reinsert the `onSubmit` prop that you removed from `CustomerForm.js`.
+  id: totrans-62
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 我们已经证明了测试是有效的，所以你可以继续将`it.only`声明改回`it`，并重新插入你从`CustomerForm.js`中移除的`onSubmit`属性。
+- en: 'The code you’ve written in this test shows the essence of the spy function:
+    we set a variable when the spy is called, and then we write an expectation based
+    on that variable value.'
+  id: totrans-63
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 你在这个测试中编写的代码显示了间谍函数的本质：当间谍被调用时，我们设置一个变量，然后基于该变量的值编写期望。
+- en: But we don’t yet have an *actual* spy function. We’ll create that next.
+  id: totrans-64
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 但我们还没有一个真正的间谍函数。我们将在下一步创建它。
+- en: Making a reusable spy function
+  id: totrans-65
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 制作可重用的间谍函数
+- en: We still have other tests within both `CustomerForm` and `AppointmentForm` that
+    use the `expect.hasAssertions` form. How can we reuse what we’ve built in this
+    one test across everything else? We can create a generalized `spy` function that
+    can be used any time we want spy functionality.
+  id: totrans-66
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们仍然在`CustomerForm`和`AppointmentForm`中都有其他使用`expect.hasAssertions`形式的测试。我们如何将这个测试中构建的内容重用于其他所有内容？我们可以创建一个通用的`spy`函数，这样我们就可以在需要间谍功能时使用它。
+- en: 'Let’s start by defining a function that can stand in for any single-argument
+    function, such as the event handlers we would pass to the `onSubmit` form prop,
+    as follows:'
+  id: totrans-67
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们首先定义一个可以替代任何单个参数函数的函数，例如我们传递给`onSubmit`表单属性的处理器，如下所示：
+- en: 'Define the following function at the top of `test/CustomerForm.test.js`. Notice
+    how the `fn` definition has a similar format to the `onSubmit` handler we used
+    in the previous test:'
+  id: totrans-68
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在`test/CustomerForm.test.js`的顶部定义以下函数。注意`fn`定义的格式与我们在上一个测试中使用的`onSubmit`处理器相似：
+- en: '[PRE6]'
+  id: totrans-69
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE6]'
+- en: 'Rewrite your test generator to use this function. Although your tests should
+    still pass, remember to watch your tests fail by unwinding the production code.
+    The code is illustrated in the following snippet:'
+  id: totrans-70
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 重新编写您的测试生成器以使用此函数。尽管您的测试应该仍然通过，但请记住通过撤销生产代码来观察测试失败。代码如下所示：
+- en: '[PRE7]'
+  id: totrans-71
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE7]'
+- en: 'Make your spy function work for functions with any number of arguments by replacing
+    `singleArgumentSpy` with the following function:'
+  id: totrans-72
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 通过将`singleArgumentSpy`替换为以下函数，使你的间谍函数能够适用于任何数量的参数的函数：
+- en: '[PRE8]'
+  id: totrans-73
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE8]'
+- en: This uses parameter destructuring to save an entire array of parameters. We
+    can use `receivedArguments` to return that array or use `receivedArgument(n)`
+    to retrieve the *n*th argument.
+  id: totrans-74
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这使用参数解构来保存整个参数数组。我们可以使用`receivedArguments`来返回该数组，或者使用`receivedArgument(n)`来检索第*n*个参数。
+- en: 'Update your test code to use this new function, as shown in the following code
+    snippet. You can include an extra expectation that checks `toBeDefined` on `receivedArguments`.
+    This is a way of saying “I expect the function to be called”:'
+  id: totrans-75
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 更新您的测试代码以使用这个新函数，如下面的代码片段所示。您可以在`receivedArguments`上添加一个额外的期望来检查`toBeDefined`。这是一种表示“我期望函数被调用”的方式：
+- en: '[PRE9]'
+  id: totrans-76
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE9]'
+- en: 'That’s really all there is to a spy: it’s just there to keep track of when
+    it was called, and the arguments it was called with.'
+  id: totrans-77
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 间谍（spy）实际上很简单：它只是用来跟踪何时被调用以及调用时的参数。
+- en: Using a matcher to simplify spy expectations
+  id: totrans-78
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 使用matcher简化间谍期望
+- en: 'Let’s write a matcher that encapsulates these expectations into one single
+    statement, like this:'
+  id: totrans-79
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们编写一个matcher，将这些期望封装成一个单独的语句，如下所示：
+- en: '[PRE10]'
+  id: totrans-80
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE10]'
+- en: This is more descriptive than using a `toBeDefined()` argument on the matcher.
+    It also encapsulates the notion that if `receivedArguments` hasn’t been set, then
+    it hasn’t been called.
+  id: totrans-81
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这比在matcher上使用`toBeDefined()`参数更具有描述性。它还封装了如果`receivedArguments`尚未设置，则它尚未被调用的概念。
+- en: Throwaway code
+  id: totrans-82
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 抛弃代码
+- en: We’ll **spike** this code—in other words, we won’t write tests. That’s because
+    soon, we’ll replace this with Jest’s own built-in spy functionality. There’s no
+    point in going too deep into a “real” implementation since we’re not intending
+    to keep it around for long.
+  id: totrans-83
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将**spike**这段代码——换句话说，我们不会编写测试。这是因为不久之后，我们将用Jest的内置间谍功能来替换它。由于我们并不打算长时间保留它，所以深入到“真实”实现中是没有意义的。
+- en: 'We’ll start by replacing the functionality of the first expectation, as follows:'
+  id: totrans-84
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将首先替换第一个期望的功能，如下所示：
+- en: 'Add the following code at the bottom of `test/domMatchers.js`. It adds the
+    new matcher, ready for our tests:'
+  id: totrans-85
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在`test/domMatchers.js`的底部添加以下代码。它添加了新的matcher，为我们的测试做好准备：
+- en: '[PRE11]'
+  id: totrans-86
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE11]'
+- en: 'Update the test to use the new matcher, replacing the first expectation that
+    used `toBeDefined`, as follows:'
+  id: totrans-87
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 更新测试以使用新的matcher，如下所示，替换使用`toBeDefined`的第一个期望：
+- en: '[PRE12]'
+  id: totrans-88
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE12]'
+- en: Verify the new matcher works by commenting out the call to `onSubmit` in your
+    production code and watching the test fail. Then, undo the comment and try the
+    negated form in your `.not.toBeCalled` test.
+  id: totrans-89
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 通过在您的生产代码中注释掉对`onSubmit`的调用并观察测试失败来验证新的matcher是否工作。然后，取消注释并尝试在`.not.toBeCalled`测试中的否定形式。
+- en: 'Now we can work on the second expectation—the one that checks the function
+    arguments. Add the following code to your new matcher and rename it from `toBeCalled`
+    to `toBeCalledWith`:'
+  id: totrans-90
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 现在，我们可以开始处理第二个期望——检查函数参数的期望。将以下代码添加到您的新matcher中，并将名称从`toBeCalled`更改为`toBeCalledWith`：
+- en: '[PRE13]'
+  id: totrans-91
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE13]'
+- en: Using this.equals in a matcher
+  id: totrans-92
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在matcher中使用this.equals
+- en: The `this.equals` method is a special type of equality function that can be
+    used in matchers. It does deep equality matching, meaning it will recurse through
+    hashes and arrays looking for differences. It also allows the use of `expect.anything()`,
+    `expect.objectContaining()`, and `expect.arrayContaining()` special functions.
+  id: totrans-93
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`this.equals`方法是一种特殊类型的相等函数，可以在matcher中使用。它执行深度相等匹配，这意味着它会递归遍历散列和数组以查找差异。它还允许使用`expect.anything()`、`expect.objectContaining()`和`expect.arrayContaining()`特殊函数。'
+- en: If you were test-driving this matcher and had extracted it into its own file,
+    you wouldn’t use `this.equals`. Instead, you’d import the `equals` function from
+    the `@jest/expect-utils` package. We’ll do this in [*Chapter 7*](B18423_07.xhtml#_idTextAnchor125)*,
+    Testing useEffect and Mocking Components*.
+  id: totrans-94
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果你正在测试驱动此匹配器并将其提取到自己的文件中，你将不会使用 `this.equals`。相反，你会从 `@jest/expect-utils` 包中导入
+    `equals` 函数。我们将在 [*第 7 章*](B18423_07.xhtml#_idTextAnchor125)* 测试 useEffect 和组件模拟*
+    中这样做。
+- en: 'Update your test to merge both expectations into one, as follows:'
+  id: totrans-95
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 更新你的测试以将这两个期望合并为一个，如下所示：
+- en: '[PRE14]'
+  id: totrans-96
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE14]'
+- en: Make this fail by changing the `onSubmit` call in your `CustomerForm` test suite
+    to send obviously wrong data—for example, `onSubmit(1, 2, 3)`. Then, try the negated
+    form of the matcher too.
+  id: totrans-97
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 通过在 `CustomerForm` 测试套件中更改 `onSubmit` 调用来发送明显错误的数据（例如，`onSubmit(1, 2, 3)`）来使它失败。然后，也尝试匹配器的否定形式。
+- en: 'This completes our spy implementation, and you’ve seen how to test callback
+    props. Next, we’ll look at spying on a more difficult function: `global.fetch`.'
+  id: totrans-98
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这完成了我们的监视器实现，你已经看到了如何测试回调属性。接下来，我们将探讨如何监视更复杂的函数：`global.fetch`。
+- en: Spying on the fetch API
+  id: totrans-99
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 监视 fetch API
+- en: In this section, we’ll use the `Fetch` API to send customer data to our backend
+    service. We already have an `onSubmit` prop that is called when the form is submitted.
+    We’ll morph this `onSubmit` call into a `global.fetch` call, in the process of
+    adjusting our existing tests.
+  id: totrans-100
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本节中，我们将使用 `Fetch` API 将客户数据发送到我们的后端服务。我们已经有了一个在表单提交时被调用的 `onSubmit` 属性。我们将在这个过程中将
+    `onSubmit` 调用转换为 `global.fetch` 调用，并调整我们的现有测试。
+- en: In our updated component, when the `POST` HTTP request is sent to the `/customers`
+    endpoint via the `fetch` function. The body of the request will be a **JavaScript
+    Object Notation** (**JSON**) object representation of our customer.
+  id: totrans-101
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们更新的组件中，当通过 `fetch` 函数将 `POST` HTTP 请求发送到 `/customers` 端点时，请求体将是我们客户的 **JavaScript
+    对象表示法**（**JSON**）对象。
+- en: 'The server implementation that’s included in the GitHub repository will return
+    an updated `customer` object with an additional field: the customer `id` value.'
+  id: totrans-102
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 包含在 GitHub 仓库中的服务器实现将返回一个包含额外字段的更新后的 `customer` 对象：客户 `id` 值。
+- en: If the `fetch` request is successful, we’ll call a new `onSave` callback prop
+    with the `fetch` response. If the request isn’t successful, `onSave` won’t be
+    called and we’ll instead render an error message.
+  id: totrans-103
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果 `fetch` 请求成功，我们将调用一个新的 `onSave` 回调属性，并带有 `fetch` 响应。如果请求不成功，则不会调用 `onSave`，我们将渲染一个错误消息。
+- en: 'You can think of `fetch` as a more advanced form on `onSubmit`: both are functions
+    that we’ll call with our customer object. But `fetch` needs a special set of parameters
+    to define the HTTP request being made. It also returns a `Promise` object, so
+    we’ll need to account for that, and the request body needs to be a string, rather
+    than a plain object, so we’ll need to make sure we translate it in our component
+    and in our test suite.'
+  id: totrans-104
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 你可以将 `fetch` 视为 `onSubmit` 的更高级形式：两者都是我们将用客户对象调用的函数。但是 `fetch` 需要一组特殊的参数来定义正在进行的
+    HTTP 请求。它还返回一个 `Promise` 对象，因此我们需要考虑这一点，并且请求体需要是一个字符串，而不是一个普通对象，因此我们需要确保在我们的组件和测试套件中将其转换。
+- en: 'One final difference: `fetch` is a global function, accessible via `global.fetch`.
+    We don’t need to pass that as a prop. In order to spy on it, we replace the original
+    function with our spy.'
+  id: totrans-105
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 最后的一个区别是：`fetch` 是一个全局函数，可以通过 `global.fetch` 访问。我们不需要将其作为属性传递。为了监视它，我们用我们的监视器替换了原始函数。
+- en: Understanding the Fetch API
+  id: totrans-106
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 理解 Fetch API
+- en: The following code samples show how the `fetch` function expects to be called.
+    If you’re unfamiliar with this function, see the *Further reading* section at
+    the end of this chapter.
+  id: totrans-107
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 以下代码示例显示了 `fetch` 函数期望如何被调用。如果你不熟悉这个函数，请参阅本章末尾的 *进一步阅读* 部分。
+- en: 'With all that in mind, we can plan our route forward: we’ll start by replacing
+    the global function with our own spy, then we’ll add new tests to ensure we call
+    it correctly, and finally, we’ll update our `onSubmit` tests to adjust its existing
+    behavior.'
+  id: totrans-108
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 考虑到所有这些，我们可以规划我们的前进路线：我们首先将全局函数替换为我们自己的监视器，然后添加新的测试以确保我们正确调用它，最后我们将更新 `onSubmit`
+    测试以调整其现有行为。
+- en: Replacing global functions with spies
+  id: totrans-109
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 替换全局函数为监视器
+- en: We’ve seen how to spy on a callback prop, by simply passing the spy as the callback’s
+    prop value. To spy on a global function, we simply overwrite its value before
+    our test runs and reset it back to the original function afterward.
+  id: totrans-110
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们已经看到了如何通过简单地将监视器作为回调属性的值来监视回调属性。要监视全局函数，我们只需在测试运行之前覆盖其值，并在之后将其重置回原始函数。
+- en: Since `global.fetch` is a required dependency of your component—it won’t function
+    without it—it makes sense to set a default spy in the test suite’s `beforeEach`
+    block so that the spy is primed in all tests. The `beforeEach` block is also a
+    good place for setting default return values of stubs, which we’ll do a little
+    later in the chapter.
+  id: totrans-111
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于`global.fetch`是组件的必需依赖——没有它将无法工作——因此，在测试套件的`beforeEach`块中设置一个默认的spy是有意义的，这样spy就可以在所有测试中预先设置。`beforeEach`块也是设置stubs默认返回值的好地方，我们将在本章稍后进行操作。
+- en: 'Follow these steps to set a default spy on `global.fetch` for your test suite:'
+  id: totrans-112
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 按照以下步骤为你的测试套件在`global.fetch`上设置默认spy：
+- en: 'Add the following declarations at the top of the outer `describe` block in
+    `test/CustomerForm.test.js`:'
+  id: totrans-113
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在`test/CustomerForm.test.js`的外部`describe`块的顶部添加以下声明：
+- en: '[PRE15]'
+  id: totrans-114
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE15]'
+- en: The `originalFetch` constant will be used when restoring the spy after our tests
+    are complete. The `fetchSpy` variable will be used to store our `fetch` object
+    so that we can write expectations against it.
+  id: totrans-115
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`originalFetch`常量将在测试完成后恢复spy时使用。`fetchSpy`变量将用于存储我们的`fetch`对象，这样我们就可以针对它编写期望。'
+- en: 'Change the `beforeEach` block to read as follows. This sets up `global.fetch`
+    as a spy for every test in your test suite:'
+  id: totrans-116
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将`beforeEach`块修改如下。这将为你的测试套件中的每个测试设置`global.fetch`作为spy：
+- en: '[PRE16]'
+  id: totrans-117
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE16]'
+- en: 'Just below the `beforeEach` block, add an `afterEach` block to unset your mock,
+    like so:'
+  id: totrans-118
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在`beforeEach`块下方，添加一个`afterEach`块来取消mock，如下所示：
+- en: '[PRE17]'
+  id: totrans-119
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE17]'
+- en: Resetting global spies with original values
+  id: totrans-120
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 使用原始值重置全局spies
+- en: 'It’s important to reset any global variables that you replace with spies. This
+    is a common cause of test interdependence: with a “dirty” spy, one test may break
+    because some other test failed to reset its spies.'
+  id: totrans-121
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 重置任何用spies替换的全局变量是很重要的。这是测试相互依赖的常见原因：由于一个“脏”的spy，一个测试可能会因为另一个测试未能重置其spies而失败。
+- en: 'In this specific case, the Node.js runtime environment doesn’t actually have
+    a `global.fetch` function, so the `originalFetch` constant will end up as `undefined`.
+    You could argue, then, that this is unnecessary: in our `afterEach` block, we
+    could simply delete the `fetch` property from `global` instead.'
+  id: totrans-122
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在这个特定情况下，Node.js运行时环境实际上没有`global.fetch`函数，所以`originalFetch`常量最终会是`undefined`。然后，你可以争论说这是不必要的：在我们的`afterEach`块中，我们只需简单地从`global`中删除`fetch`属性即可。
+- en: Later in the chapter, we’ll modify our approach to setting global spies when
+    we use Jest’s built-in spy functions.
+  id: totrans-123
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章的后面，我们将修改设置全局spies的方法，当我们使用Jest内置的spy函数时。
+- en: With the global spy in place, you’re ready to make use of it in your tests.
+  id: totrans-124
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在全局spy就位后，你就可以在测试中使用它了。
+- en: Test-driving fetch argument values
+  id: totrans-125
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 测试驱动fetch参数值
+- en: It’s time to add `global.fetch` to our component. When the `global.fetch` is
+    called with the right arguments. Similar to how we tested `onSubmit`, we’ll split
+    this into a test for each field, specifying that each field must be passed along.
+  id: totrans-126
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 是时候将`global.fetch`添加到我们的组件中了。当`global.fetch`使用正确的参数被调用时。类似于我们测试`onSubmit`的方式，我们将这个测试拆分为针对每个字段的测试，指定每个字段都必须传递。
+- en: It turns out that `global.fetch` needs a whole bunch of parameters passed to
+    it. Rather than test them all in one single unit test, we’re going to split up
+    the tests according to their meaning.
+  id: totrans-127
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 结果表明`global.fetch`需要传递一大堆参数。我们不会在一个单独的单元测试中测试它们，而是根据它们的含义将测试拆分。
+- en: 'We’ll start by checking the basics of the request: that it’s a `POST` request
+    to the `/customers` endpoint. Follow these steps:'
+  id: totrans-128
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们首先检查请求的基本情况：这是一个对`/customers`端点的`POST`请求。按照以下步骤操作：
+- en: 'Add the following new test at the bottom of your `CustomerForm` test suite.
+    Notice how `onSubmit` is given an empty function definition—`() => {}`—rather
+    than a spy since we aren’t interested in that prop in this test:'
+  id: totrans-129
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在你的`CustomerForm`测试套件的底部添加以下新测试。注意`onSubmit`被赋予了一个空函数定义—`() => {}`—而不是spy，因为我们对这个测试中的属性不感兴趣：
+- en: '[PRE18]'
+  id: totrans-130
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE18]'
+- en: 'Run tests with `npm test` and verify that you receive an expectation failure
+    with a `Spy was not called` message, as shown in the following code snippet:'
+  id: totrans-131
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 使用`npm test`运行测试，并验证你是否收到一个期望失败的消息，显示为以下代码片段：
+- en: '[PRE19]'
+  id: totrans-132
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE19]'
+- en: 'To make that pass, modify `CustomerForm`’s `handleSubmit` function by adding
+    a call to `global.fetch` *above* the call to `onSubmit`, as shown in the following
+    code snippet:'
+  id: totrans-133
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 为了使其通过，通过在`onSubmit`调用之前添加对`global.fetch`的调用，修改`CustomerForm`的`handleSubmit`函数，如下所示代码片段：
+- en: '[PRE20]'
+  id: totrans-134
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE20]'
+- en: Side-by-side implementations
+  id: totrans-135
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 并行实现
+- en: This is a side-by-side implementation. We leave the “old” implementation—the
+    call to `onSubmit`—in place so that the other tests continue to pass.
+  id: totrans-136
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这是一个并行实现。我们保留“旧”实现——即对 `onSubmit` 的调用——以便其他测试继续通过。
+- en: 'With that test passing, add the next one. In this test, we test all the plumbing
+    that’s necessary for our request, which we’ll call “configuration,” but you can
+    think of this as batching up all the constant, less relevant information. This
+    test also uses two new functions, `expect.anything` and `expect.objectContaining`,
+    which are shown in the following code snippet:'
+  id: totrans-137
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在这个测试通过后，添加下一个测试。在这个测试中，我们测试了请求所需的全部管道，我们将其称为“配置”，但您可以将这视为将所有常量、不太相关的信息批量处理。这个测试还使用了两个新函数，`expect.anything`
+    和 `expect.objectContaining`，如下面的代码片段所示：
+- en: '[PRE21]'
+  id: totrans-138
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE21]'
+- en: Testing a subset of properties with expect.anything and expect.objectContaining
+  id: totrans-139
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 使用 `expect.anything` 和 `expect.objectContaining` 测试属性子集
+- en: 'The `expect.anything` function is a useful way of saying: “I don’t care about
+    this argument in this test; I’ve tested it somewhere else.” It’s another great
+    way of keeping your tests independent of each other. In this case, our previous
+    test checks that the first parameter is set to `/customers`, so we don’t need
+    to test that again in this test.'
+  id: totrans-140
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`expect.anything` 函数是一种很有用的说法：“在这个测试中，我不关心这个参数；我在别处已经测试过了。”这是保持测试相互独立的好方法。在这种情况下，我们之前的测试检查第一个参数是否设置为
+    `/customers`，因此我们不需要在这个测试中再次测试这一点。'
+- en: The `expect.objectContaining` function is just like `expect.arrayContaining`,
+    and allows us to test just a slice of the full argument value.
+  id: totrans-141
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`expect.objectContaining` 函数与 `expect.arrayContaining` 函数类似，它允许我们测试完整参数值的一个子集。'
+- en: 'Run that test and observe the test failure. You can see in the following code
+    snippet that our matcher hasn’t done a great job of printing the message: the
+    second actual parameter is printed as `[object Object]`. Let’s ignore that for
+    now since later in the chapter, we’ll move to using Jest’s built-in matcher:'
+  id: totrans-142
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 运行该测试并观察测试失败。您可以在以下代码片段中看到，我们的匹配器在打印消息方面做得并不出色：第二个实际参数被打印为 `[object Object]`。现在我们先忽略这个问题，因为在本章的后面部分，我们将转向使用
+    Jest 的内置匹配器：
+- en: '[PRE22]'
+  id: totrans-143
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE22]'
+- en: 'To make that pass, simply insert the remaining properties into your call to
+    `global.fetch`:'
+  id: totrans-144
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 要使测试通过，只需将剩余的属性插入到您的 `global.fetch` 调用中：
+- en: '[PRE23]'
+  id: totrans-145
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE23]'
+- en: 'That gets the plumbing in place for our `global.fetch` call, with each of the
+    constant arguments defined and in its place. Next, we’ll add in the dynamic argument:
+    the request body.'
+  id: totrans-146
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这为我们的 `global.fetch` 调用设置了管道，每个常量参数都已定义并放在适当的位置。接下来，我们将添加动态参数：请求体。
+- en: Reworking existing tests with the side-by-side implementation
+  id: totrans-147
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 使用并行实现重写现有测试
+- en: You’ve already started to build out the side-be-side implementation by using
+    new tests. Now, it’s time to rework the existing tests. We’ll remove the old implementation
+    (`onSubmit`, in this case) and replace it with the new implementation (`global.fetch`).
+  id: totrans-148
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 您已经通过使用新测试开始构建并行实现。现在，是时候重写现有测试了。我们将移除旧实现（在这个例子中是 `onSubmit`）并用新实现（`global.fetch`）替换它。
+- en: Once we’ve completed that, all the tests will point to `global.fetch` and so
+    we can update our implementation to remove the `onSubmit` call from the `handleSubmit`
+    function.
+  id: totrans-149
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 完成这一步后，所有测试都将指向 `global.fetch`，因此我们可以更新我们的实现，从 `handleSubmit` 函数中移除 `onSubmit`
+    调用。
+- en: 'We’ve got two tests to update: the test that checks submitting existing values,
+    and the test that checks submitting new values. They are complicated by the fact
+    that they are wrapped in test-generator functions. That means as we change them,
+    we should expect all the generated tests—one for each field—to fail as a group.
+    It’s not ideal, but the process we’re following would be the same even if it were
+    just a plain test.'
+  id: totrans-150
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们有两个测试需要更新：一个是检查提交现有值的测试，另一个是检查提交新值的测试。由于它们被封装在测试生成函数中，这使得测试变得复杂。这意味着当我们修改它们时，我们应该预期所有生成的测试——每个字段一个——作为一个组都会失败。这不是理想的情况，但即使只是一个普通的测试，我们遵循的过程也会是相同的。
+- en: 'Let’s get started with the test you’ve already worked on in this chapter, for
+    submitting existing values. Follow these steps:'
+  id: totrans-151
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们从本章中已经练习过的测试开始，提交现有值。请按照以下步骤操作：
+- en: 'Move back to the `itSubmitsExistingValue` test-generator function and update
+    it by inserting a new expectation at the bottom. Leave the existing expectation
+    as it is (for now). Run the test and ensure the generated test fails. The code
+    is illustrated in the following snippet:'
+  id: totrans-152
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 返回到 `itSubmitsExistingValue` 测试生成函数，并在底部插入一个新的期望值。暂时保留现有的期望值。运行测试并确保生成的测试失败。代码如下所示：
+- en: '[PRE24]'
+  id: totrans-153
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE24]'
+- en: 'To make that pass, update the `handleSubmit` function in your `CustomerForm`
+    component, as shown in the following code snippet. After this change, your tests
+    should pass:'
+  id: totrans-154
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 为了使它通过，更新你的`CustomerForm`组件中的`handleSubmit`函数，如下所示代码片段。在此更改之后，你的测试应该会通过：
+- en: '[PRE25]'
+  id: totrans-155
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE25]'
+- en: 'The final test reference to the `onSubmit` prop is the `itSubmitsNewValue`
+    test generator. This test still uses the old `expect.hasAssertions` style; we’ll
+    get round to deleting that later. For now, simply add in a new expectation at
+    the bottom of the test, as shown here:'
+  id: totrans-156
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 对`onSubmit`属性的最终测试引用是`itSubmitsNewValue`测试生成器。此测试仍然使用旧的`expect.hasAssertions`样式；我们稍后会删除它。现在，只需在测试底部添加一个新的期望，如下所示：
+- en: '[PRE26]'
+  id: totrans-157
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE26]'
+- en: 'Run the test and verify that this test fails with a `Spy was called with the
+    wrong arguments: /customers,[object Object]` failure message.'
+  id: totrans-158
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: '运行测试并验证此测试失败，失败信息为`Spy was called with the wrong arguments: /customers,[object
+    Object]`。'
+- en: 'To make that pass, it’s a case of changing `original` to `customer` in your
+    `handleSubmit` function, as follows:'
+  id: totrans-159
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 为了使它通过，你需要在`handleSubmit`函数中将`original`更改为`customer`，如下所示：
+- en: '[PRE27]'
+  id: totrans-160
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE27]'
+- en: 'Your call to `fetch` is now complete, so you can remove the original implementation.
+    Start by removing the `onSubmit` prop and the `submitSpy` variable from the `itSubmitsExistingValue`
+    test generator. The new version looks like this:'
+  id: totrans-161
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 你对`fetch`的调用现在已完成，因此你可以删除原始实现。首先从`itSubmitsExistingValue`测试生成器中移除`onSubmit`属性和`submitSpy`变量。新版本如下所示：
+- en: '[PRE28]'
+  id: totrans-162
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE28]'
+- en: 'Do the same for `itSubmitsNewValue`—you can get rid of the `hasAssertions`
+    call too. The new version looks like this:'
+  id: totrans-163
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 对于`itSubmitsNewValue`也做同样的操作——你还可以删除`hasAssertions`调用。新版本如下所示：
+- en: '[PRE29]'
+  id: totrans-164
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE29]'
+- en: Remove the call to `onSubmit` in the `handleSubmit` method.
+  id: totrans-165
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 从`handleSubmit`方法中移除对`onSubmit`的调用。
+- en: Remove the `onSubmit` prop from the `CustomerForm` component definition.
+  id: totrans-166
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 从`CustomerForm`组件定义中移除`onSubmit`属性。
+- en: Finally, remove the `onSubmit` prop from the `prevents the default action...`
+    test.
+  id: totrans-167
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 最后，从`prevents the default action...`测试中移除`onSubmit`属性。
+- en: Verify that all your tests are passing with `npm test`.
+  id: totrans-168
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 使用`npm test`验证所有测试是否通过。
+- en: You’ve now seen how you can continue your side-by-side implementation by reworking
+    tests. Once all the tests are reworked, you can delete the original implementation.
+  id: totrans-169
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 你现在已经看到了如何通过重构测试来继续并行实现。一旦所有测试都已完成重构，你可以删除原始实现。
+- en: Our tests have gotten pretty long-winded again. Let’s finish this section with
+    a little cleanup.
+  id: totrans-170
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们的测试又变得相当冗长。让我们通过一点清理来完成这一部分。
+- en: Improving spy expectations with helper functions
+  id: totrans-171
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 使用辅助函数改进间谍期望
+- en: When we’re writing expectations for our spies, we aren’t just limited to using
+    the `toBeCalledWith` matcher. We can pull out arguments and give them names, and
+    then use standard Jest matchers on them instead. This way, we can avoid all the
+    ceremony with `expect.anything` and `expect.objectContaining`.
+  id: totrans-172
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 当我们为我们的间谍编写期望时，我们不仅限于使用`toBeCalledWith`匹配器。我们可以提取参数并给它们命名，然后使用标准的Jest匹配器来处理它们。这样，我们可以避免使用`expect.anything`和`expect.objectContaining`的所有仪式。
+- en: 'Let’s do that now. Proceed as follows:'
+  id: totrans-173
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们现在就做。按照以下步骤进行：
+- en: 'Add a new helper function, `bodyOfLastFetchRequest`, at the top of `CustomerForm`,
+    as follows:'
+  id: totrans-174
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在`CustomerForm`顶部添加一个新的辅助函数`bodyOfLastFetchRequest`，如下所示：
+- en: '[PRE30]'
+  id: totrans-175
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE30]'
+- en: 'Update your `itSubmitsExistingValue` test generator to use this new helper
+    to simplify its expectation. Note here the use of `toMatchObject`, which takes
+    the place of `expect.objectContaining` in the previous version of this test:'
+  id: totrans-176
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 更新你的`itSubmitsExistingValue`测试生成器，使用这个新助手来简化其期望。注意这里使用了`toMatchObject`，它取代了之前版本此测试中的`expect.objectContaining`：
+- en: '[PRE31]'
+  id: totrans-177
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE31]'
+- en: 'Since you’ve modified your test, you should verify that it still tests the
+    right thing: mark it as `it.only` and then delete the `body` property from the
+    `global.fetch` call. Check the test fails, and then undo the change, getting you
+    back to a passing test.'
+  id: totrans-178
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 由于你已修改了测试，你应该验证它仍然测试正确的事情：将其标记为`it.only`，然后从`global.fetch`调用中删除`body`属性。检查测试失败，然后撤销更改，使测试重新通过。
+- en: 'Repeat for the `itSubmitsNewValue` test helper, as shown here:'
+  id: totrans-179
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 如此重复`itSubmitsNewValue`测试生成器的操作，如下所示：
+- en: '[PRE32]'
+  id: totrans-180
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE32]'
+- en: These tests are now looking very smart!
+  id: totrans-181
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这些测试现在看起来非常聪明！
+- en: 'This has been a complicated change: we’ve replaced the `onSubmit` prop with
+    a call to `global.fetch`. We did that by introducing a global spy in the `beforeEach`
+    block and writing a side-by-side implementation while we reworked our tests.'
+  id: totrans-182
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这是一次复杂的变更：我们用对`global.fetch`的调用替换了`onSubmit`属性。我们通过在`beforeEach`块中引入一个全局间谍并在重构测试的同时编写并行实现来完成这项工作。
+- en: In the next part of this chapter, we’ll add to our knowledge of spies, turning
+    them into stubs.
+  id: totrans-183
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章的下一部分，我们将扩展我们对间谍的了解，将它们变成存根。
+- en: Stubbing fetch responses
+  id: totrans-184
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 模拟获取响应
+- en: 'As with many HTTP requests, our `POST /customers` endpoint returns data: it
+    will return the customer object together with a newly generated identifier that
+    the backend has chosen for us. Our application will make use of this by taking
+    the new ID and sending it back to the parent component (although we won’t build
+    this parent component until [*Chapter 8*](B18423_08.xhtml#_idTextAnchor147), *Building
+    an Application Component*).'
+  id: totrans-185
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 就像许多 HTTP 请求一样，我们的 `POST /customers` 端点返回数据：它将返回客户对象以及后端为我们选择的新生成的标识符。我们的应用程序将通过获取新
+    ID 并将其发送回父组件来使用它（尽管我们不会在 [*第 8 章*](B18423_08.xhtml#_idTextAnchor147)，*构建应用程序组件*）之前构建这个父组件）。
+- en: To do that, we’ll create a new `CustomerForm` prop, `onSave`, which will be
+    called with the result of the `fetch` call.
+  id: totrans-186
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要做到这一点，我们将创建一个新的 `CustomerForm` 属性，`onSave`，它将使用 `fetch` 调用的结果被调用。
+- en: But hold on—didn’t we just remove an `onSubmit` prop? Yes, but this isn’t the
+    same thing. The original `onSubmit` prop received the form values submitted by
+    the user. This `onSave` prop is going to receive the customer object from the
+    server after a successful save.
+  id: totrans-187
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 但是等等——我们不是刚刚移除了一个 `onSubmit` 属性吗？是的，但这不是同一回事。原始的 `onSubmit` 属性接收用户提交的表单值。这个
+    `onSave` 属性将接收在成功保存后从服务器返回的客户对象。
+- en: To write tests for this new `onSave` prop, we’ll need to provide a stub value
+    for `global.fetch`, which essentially says, “This is the return value of calling
+    the `POST /customers` endpoint with `global.fetch.`”
+  id: totrans-188
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要为这个新的 `onSave` 属性编写测试，我们需要为 `global.fetch` 提供一个模拟值，这本质上意味着，“这是调用 `POST /customers`
+    端点时 `global.fetch` 的返回值。”
+- en: What is a stub?
+  id: totrans-189
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 什么是模拟？
+- en: A **stub** is a test double that always returns the same value when it is invoked.
+    You decide what this value is when you construct the stub.
+  id: totrans-190
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**模拟**是一个测试双胞胎，当它被调用时总是返回相同的值。你在构造模拟时决定这个值是什么。'
+- en: In this section, we’ll upgrade our hand-crafted spy function so that it can
+    also stub function return values. Then, we’ll use it to test the addition of the
+    new `onSave` prop to `CustomerForm`. Finally, we’ll use it to display an error
+    to the user if, for some reason, the server failed to save the new customer object.
+  id: totrans-191
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本节中，我们将升级我们手工制作的间谍函数，使其也能模拟函数返回值。然后，我们将使用它来测试 `CustomerForm` 中新 `onSave` 属性的添加。最后，我们将使用它来在服务器由于某种原因未能保存新的客户对象时向用户显示错误。
+- en: Upgrading spies to stubs
+  id: totrans-192
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 升级间谍为模拟
+- en: A stub is different from a spy because it’s not interested in tracking the call
+    history of the function being stubbed—it just cares about returning a single value.
+  id: totrans-193
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 模拟与间谍不同，因为它对跟踪被模拟函数的调用历史不感兴趣——它只关心返回单个值。
+- en: However, it turns out that our existing tests that use spies will also need
+    to stub values. That’s because as soon as we use the returned value in our production
+    code, the spy must return something; otherwise, the test will break. So, all spies
+    end up being stubs, too.
+  id: totrans-194
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然而，结果证明，我们现有的使用间谍的测试也需要模拟值。这是因为一旦我们在生产代码中使用返回值，间谍必须返回一些东西；否则，测试会失败。所以，所有间谍最终也变成了模拟。
+- en: 'Since we already have a `spy` function, we can “upgrade” it so that it has
+    the ability to stub values too. Here’s how we can do this:'
+  id: totrans-195
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于我们已经有了一个 `spy` 函数，我们可以“升级”它，使其也有模拟值的能力。以下是我们可以这样做的方法：
+- en: 'In `test/CustomerForm.test.js`, change the `spy` function to include the following
+    new variable declaration at the top. This variable will store the value, ready
+    to be returned by our function:'
+  id: totrans-196
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在 `test/CustomerForm.test.js` 中，将 `spy` 函数更改为在顶部包含以下新的变量声明。这个变量将存储值，以便我们的函数返回：
+- en: '[PRE33]'
+  id: totrans-197
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE33]'
+- en: 'Change the `fn` definition to the one shown here:'
+  id: totrans-198
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将 `fn` 定义更改为以下所示：
+- en: '[PRE34]'
+  id: totrans-199
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE34]'
+- en: 'Add this new function to your spy object, which sets the `returnValue` variable:'
+  id: totrans-200
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将这个新函数添加到你的间谍对象中，该函数设置 `returnValue` 变量：
+- en: '[PRE35]'
+  id: totrans-201
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE35]'
+- en: 'It’s as simple as that: your function is now both a spy and a stub. Let’s make
+    use of it in our tests.'
+  id: totrans-202
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 就这么简单：你的函数现在既是间谍也是模拟。让我们在我们的测试中使用它。
+- en: Acting on the fetch response
+  id: totrans-203
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 对获取响应采取行动
+- en: So far, the `handleSubmit` function causes a `fetch` request to be made, but
+    it doesn’t do anything with the response. In particular, it doesn’t *wait* for
+    a response; the `fetch` API is asynchronous and returns a promise. Once that promise
+    resolves, we can do something with the data that’s returned.
+  id: totrans-204
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 到目前为止，`handleSubmit` 函数会导致发起一个 `fetch` 请求，但它对响应没有任何操作。特别是，它不会*等待*响应；`fetch`
+    API 是异步的，并返回一个承诺。一旦这个承诺解决，我们就可以对返回的数据做些事情。
+- en: The next tests we’ll write will specify what our component should do with the
+    resolved data.
+  id: totrans-205
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将要编写的下一个测试将指定我们的组件应该对解决的数据做什么。
+- en: The asynchronous form of act
+  id: totrans-206
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '`act`的异步形式'
+- en: 'When we’re dealing with promises in React callbacks, we need to use the asynchronous
+    form of `act`. It looks like this:'
+  id: totrans-207
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 当我们在React回调中处理承诺时，我们需要使用`act`的异步形式。它看起来是这样的：
+- en: '[PRE36]'
+  id: totrans-208
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE36]'
+- en: The `performAsyncAction` function doesn’t necessarily need to return a promise;
+    `act` will wait for the browser’s `async` task queue to complete before it returns.
+  id: totrans-209
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`performAsyncAction`函数不一定需要返回一个承诺；`act`将在返回之前等待浏览器`async`任务队列完成。'
+- en: The action may be a button click, form submission, or any kind of input field
+    event. It could also be a component render that has a `useEffect` hook that performs
+    some asynchronous side effects, such as loading data.
+  id: totrans-210
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 动作可能是一个按钮点击、表单提交或任何类型的输入字段事件。它也可能是具有执行某些异步副作用（如加载数据）的`useEffect`钩子的组件渲染。
+- en: Adding async tasks to an existing component
+  id: totrans-211
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: 向现有组件添加异步任务
+- en: Now, we’ll use the asynchronous form of `act` to test that the `fetch` promise
+    is awaited. Unfortunately, introducing `async`/`await` into our `handleSubmit`
+    function will then require us to update all our submission tests to use the asynchronous
+    form of `act`.
+  id: totrans-212
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在，我们将使用`act`的异步形式来测试`fetch`承诺是否被等待。不幸的是，将`async`/`await`引入我们的`handleSubmit`函数将需要我们更新所有提交测试以使用`act`的异步形式。
+- en: 'As usual, we start with the test. Proceed as follows:'
+  id: totrans-213
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如同往常，我们从测试开始。按照以下步骤进行：
+- en: 'Define a test helper function in `test/CustomerForm.test.js` that builds you
+    a type of `Response` object to mimic what would be returned from the `fetch` API.
+    That means it returns a `Promise` object with an `ok` property with a value of
+    `true`, and a `json` function that returns another `Promise` that, when resolved,
+    returns the JSON we pass in. You can define this just under your `spy` function,
+    like so:'
+  id: totrans-214
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在`test/CustomerForm.test.js`中定义一个测试辅助函数，该函数构建一个`Response`对象类型，以模拟`fetch` API返回的内容。这意味着它返回一个具有`ok`属性值为`true`的`Promise`对象，以及一个`json`函数，该函数返回另一个`Promise`，当解决时返回我们传递的JSON。你可以在你的`spy`函数下面定义这个，如下所示：
+- en: '[PRE37]'
+  id: totrans-215
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE37]'
+- en: fetch return values
+  id: totrans-216
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`fetch`返回值'
+- en: The `ok` property returns `true` if the HTTP response status code was in the
+    `2xx` range. Any other kind of response, such as `404` or `500`, will cause `ok`
+    to be `false`.
+  id: totrans-217
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`ok`属性在HTTP响应状态码在`2xx`范围内时返回`true`。任何其他类型的响应，如`404`或`500`，都会导致`ok`为`false`。'
+- en: 'Add the following code to `test/reactTestExtensions.js`, just below the definition
+    of `click`:'
+  id: totrans-218
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在`test/reactTestExtensions.js`中添加以下代码，位于`click`定义下方：
+- en: '[PRE38]'
+  id: totrans-219
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE38]'
+- en: 'Now, import the new helper function into `test/CustomerForm.test.js`, as follows:'
+  id: totrans-220
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 现在，将新的辅助函数导入到`test/CustomerForm.test.js`中，如下所示：
+- en: '[PRE39]'
+  id: totrans-221
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE39]'
+- en: 'Add the next test to the `CustomerForm` test suite, which checks that the `onSave`
+    prop function is called when the user submits the form, and passes back the customer
+    object. The best place for this test is under the `calls fetch with correct configuration`
+    test. The code is illustrated in the following snippet:'
+  id: totrans-222
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将下一个测试添加到`CustomerForm`测试套件中，该测试检查当用户提交表单时是否调用`onSave`属性函数，并返回客户对象。这个测试的最佳位置是在`calls
+    fetch with correct configuration`测试之下。以下代码片段展示了代码示例：
+- en: '[PRE40]'
+  id: totrans-223
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE40]'
+- en: 'To make this pass, start by defining a new `onSave` prop for `CustomerForm`,
+    in `src/CustomerForm.js`, as follows:'
+  id: totrans-224
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 要使这个测试通过，首先在`src/CustomerForm.js`中为`CustomerForm`定义一个新的`onSave`属性，如下所示：
+- en: '[PRE41]'
+  id: totrans-225
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE41]'
+- en: 'Add the following code at the end of `handleSubmit`. The function is now declared
+    `async` and uses `await` to unwrap the promise returned from `global.fetch`:'
+  id: totrans-226
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在`handleSubmit`的末尾添加以下代码。现在，该函数被声明为`async`，并使用`await`来展开`global.fetch`返回的承诺：
+- en: '[PRE42]'
+  id: totrans-227
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE42]'
+- en: 'If you run tests, you’ll notice that although your latest test passes, your
+    previous test fails and there’s a whole bunch of unhandled promise exceptions.
+    In fact, anything that submits the form will fail, because they use the `fetchSpy`
+    variable that’s initialized in the `beforeEach` block, and this is not a stub—it’s
+    just a plain old spy. Fix that now by giving the spy a return value, within `beforeEach`.
+    In this case, we don’t need to give it a customer; an empty object will do, as
+    illustrated in the following code snippet:'
+  id: totrans-228
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 如果你运行测试，你会注意到尽管你的最新测试通过了，但之前的测试失败了，并且有一大堆未处理的承诺异常。实际上，任何提交表单的操作都会失败，因为它们使用了在`beforeEach`块中初始化的`fetchSpy`变量，而这不是一个存根——它只是一个普通的间谍。现在通过在`beforeEach`中给间谍一个返回值来修复这个问题。在这种情况下，我们不需要给它一个客户；一个空对象就足够了，以下代码片段展示了这一点：
+- en: '[PRE43]'
+  id: totrans-229
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE43]'
+- en: Dummy values in beforeEach blocks
+  id: totrans-230
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`beforeEach`块中的占位值'
+- en: When stubbing out global functions such as `global.fetch`, always set a default
+    dummy value within your `beforeEach` block and then override it in individual
+    tests that need specific stubbed values.
+  id: totrans-231
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 当模拟全局函数，如`global.fetch`时，始终在`beforeEach`块中设置一个默认的虚拟值，然后在需要特定模拟值的单个测试中覆盖它。
+- en: 'Run tests again. You might see some odd behavior at this point; I see my recent
+    test supposedly run six times with failures! What’s happening is that our previous
+    tests are now firing off a whole bunch of promises that continue running even
+    when the tests end. Those asynchronous tasks cause Jest to incorrectly report
+    failures. To solve this, we need to update all our tests to use `await clickAndWait`.
+    In addition, the tests need to be marked as `async`. Do this now for every test
+    that calls `click`. An example is shown here:'
+  id: totrans-232
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 再次运行测试。此时你可能会看到一些奇怪的行为；我看到我的最近测试据说运行了六次，并且失败了！发生的事情是，我们之前的测试现在正在触发一大堆承诺，即使在测试结束时这些异步任务仍在继续运行。这些异步任务导致Jest错误地报告失败。为了解决这个问题，我们需要更新所有测试以使用`await
+    clickAndWait`。此外，测试需要标记为`async`。现在为每个调用`click`的测试执行此操作。这里有一个示例：
+- en: '[PRE44]'
+  id: totrans-233
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE44]'
+- en: Delete the `click` import, leaving `clickAndWait`.
+  id: totrans-234
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 删除`click`导入，留下`clickAndWait`。
+- en: 'There’s one more test that has this issue, and that’s the test that submits
+    the form: `prevents the default action when submitting the form`. This test calls
+    our `submit` helper function. We need to wrap that in `act`, too. Let’s create
+    a `submitAndWait` helper function in our test extensions file. Add the following
+    function just below `submit` to `test/reactTestExtensions.js`:'
+  id: totrans-235
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 还有一个测试存在这个问题，那就是提交表单的测试：`在提交表单时阻止默认操作`。这个测试调用了我们的`submit`辅助函数。我们也需要在`act`中包裹它。让我们在我们的测试扩展文件中创建一个`submitAndWait`辅助函数。将以下函数添加到`submit`下面，在`test/reactTestExtensions.js`中：
+- en: '[PRE45]'
+  id: totrans-236
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE45]'
+- en: 'Add `submitAndWait` into your `import` statements, just below `clickAndWait`,
+    as follows:'
+  id: totrans-237
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在你的`import`语句中添加`submitAndWait`，在`clickAndWait`下面，如下所示：
+- en: '[PRE46]'
+  id: totrans-238
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE46]'
+- en: 'Now, you can update the test to use the new helper function, like so:'
+  id: totrans-239
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 现在，你可以更新测试以使用新的辅助函数，如下所示：
+- en: '[PRE47]'
+  id: totrans-240
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE47]'
+- en: 'If you run tests again, we still have test failures (although thankfully, things
+    look more orderly with the `async` tasks being properly accounted for). You’ll
+    see that you now have a bunch of failures that say `onSave is not a function`.
+    To fix that, we need to ensure we specify the `onSave` prop for every test that
+    submits the form. A blank, no-op function will do. An example is shown here. Go
+    ahead and add this prop to every test that submits the form. After this change,
+    your tests should be passing without any warnings:'
+  id: totrans-241
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 如果你再次运行测试，我们仍然有测试失败（尽管幸运的是，`async`任务被正确地考虑在内，事情看起来更有序）。你会看到现在有一大堆失败，说`onSave不是一个函数`。为了解决这个问题，我们需要确保为每个提交表单的测试指定`onSave`属性。一个空的无操作函数就可以。这里有一个示例。现在将这个属性添加到每个提交表单的测试中。在这个更改之后，你的测试应该会通过，没有任何警告：
+- en: '[PRE48]'
+  id: totrans-242
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE48]'
+- en: Introducing testProps objects when required props are added
+  id: totrans-243
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在需要时引入testProps对象
+- en: The introduction of this `onSave` no-op function creates noise, which doesn’t
+    help with the readability of our test. This would be a perfect opportunity to
+    introduce a `testProps` object, as covered in [*Chapter 5*](B18423_05.xhtml#_idTextAnchor079),
+    *Adding Complex Form Interactions*.
+  id: totrans-244
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 引入这个`onSave`无操作函数会导致噪音，这并不利于我们测试的可读性。这是一个引入`testProps`对象的绝佳机会，正如在[*第五章*](B18423_05.xhtml#_idTextAnchor079)中所述，*添加复杂表单交互*。
+- en: 'Add another test to ensure that we do not call `onSave` when the `fetch` response
+    has an error status (in other words, when the `ok` property is set to `false`).
+    Start by defining another helper, `fetchResponseError`, right under `fetchResponseOk`,
+    as illustrated in the following code snippet. This one doesn’t need a body as
+    we aren’t interested in it just yet:'
+  id: totrans-245
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 添加另一个测试以确保在`fetch`响应有错误状态（换句话说，当`ok`属性设置为`false`）时，我们不调用`onSave`。首先定义另一个辅助函数`fetchResponseError`，在`fetchResponseOk`下面，如下代码片段所示。这个不需要体，因为我们目前对它不感兴趣：
+- en: '[PRE49]'
+  id: totrans-246
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE49]'
+- en: 'Use the new function in the next `CustomerForm` test, as follows:'
+  id: totrans-247
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在下一个`CustomerForm`测试中使用这个新函数，如下所示：
+- en: '[PRE50]'
+  id: totrans-248
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE50]'
+- en: Negating toBeCalledWith
+  id: totrans-249
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 取反toBeCalledWith
+- en: 'This expectation is not what we really want: this one would pass if we still
+    called `onSave` but passed the wrong arguments—for example, if we wrote `onSave(null)`.
+    What we really want is `.not.toBeCalled()`, which will fail if `onSave` is called
+    in any form. But we haven’t built that matcher. Later in the chapter, we’ll fix
+    this expectation by moving to Jest’s built-in spy function.'
+  id: totrans-250
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这个期望并不是我们真正想要的：如果我们仍然调用`onSave`但传递了错误的参数——例如，如果我们写了`onSave(null)`，这个期望就会通过。我们真正想要的是`.not.toBeCalled()`，这将导致`onSave`以任何形式被调用时失败。但我们还没有构建这个匹配器。在本章的后面，我们将通过移动到Jest的内置spy函数来修复这个期望。
+- en: 'To make this pass, move the `onSave` call into a new conditional in `handleSubmit`,
+    as follows:'
+  id: totrans-251
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 要使这通过，将`onSave`调用移动到`handleSubmit`中的新条件中，如下所示：
+- en: '[PRE51]'
+  id: totrans-252
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE51]'
+- en: As you’ve seen, moving a component from synchronous to asynchronous behavior
+    can really disrupt our test suites. The steps just outlined are fairly typical
+    of the work needed when this happens.
+  id: totrans-253
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如你所看到的，将组件从同步行为移动到异步行为真的会扰乱我们的测试套件。上面概述的步骤是这种情况所需工作的典型步骤。
+- en: Async component actions can cause misreported Jest test failures
+  id: totrans-254
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 异步组件操作可能导致Jest测试失败报告不准确
+- en: If you’re ever surprised to see a test fail and you’re at a loss to explain
+    why it’s failing, double-check all the tests in the test suite to ensure that
+    you’ve used the async form of `act` when it’s needed. Jest won’t warn you when
+    a test finishes with async tasks still to run, and since your tests are using
+    a shared DOM document, those async tasks will affect the results of subsequent
+    tests.
+  id: totrans-255
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果你看到测试失败而感到惊讶，并且无法解释为什么它失败了，请仔细检查测试套件中的所有测试，以确保在需要时使用了`act`的异步形式。Jest在测试以异步任务完成时不会警告你，并且由于你的测试使用的是共享的DOM文档，这些异步任务将影响后续测试的结果。
+- en: Those are the basics of dealing with async behavior in tests. Now, let’s add
+    a little detail to our implementation.
+  id: totrans-256
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这些就是处理测试中异步行为的基本方法。现在，让我们对我们的实现添加一些细节。
+- en: Displaying errors to the user
+  id: totrans-257
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 向用户显示错误
+- en: 'Let’s display an error to the user if the fetch returns an `ok` value of `false`.
+    This would occur if the HTTP status code returned was in the `4xx` or `5xx` range,
+    although for our tests we won’t need to worry about the specific status code.
+    Follow these steps:'
+  id: totrans-258
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果fetch返回的`ok`值为`false`，则向用户显示错误。这会在HTTP状态码返回在`4xx`或`5xx`范围内时发生，尽管对于我们的测试，我们不需要担心具体的状态码。遵循以下步骤：
+- en: 'Add the following test to `test/CustomerForm.test.js`. This checks that an
+    area is shown on the page for errors. It relies on the ARIA role of `alert`, which
+    is a special signifier for screen readers that this area could change to hold
+    important information:'
+  id: totrans-259
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将以下测试添加到`test/CustomerForm.test.js`。这个测试检查页面上是否显示了错误区域。它依赖于ARIA角色`alert`，这是屏幕阅读器的特殊标识符，表示该区域可能改变以包含重要信息：
+- en: '[PRE52]'
+  id: totrans-260
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE52]'
+- en: 'To make that pass, first, define a new `Error` component, as follows. This
+    can live in `src/CustomerForm.js`, just above the `CustomerForm` component itself:'
+  id: totrans-261
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 要使这通过，首先，定义一个新的`Error`组件，如下所示。这可以放在`src/CustomerForm.js`中，正好在`CustomerForm`组件本身之上：
+- en: '[PRE53]'
+  id: totrans-262
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE53]'
+- en: 'Then, add an instance of that component into the `CustomerForm`’s JSX, just
+    at the top of the `form` element, as follows:'
+  id: totrans-263
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 然后，在`CustomerForm`的JSX中添加该组件的一个实例，正好在`form`元素顶部，如下所示：
+- en: '[PRE54]'
+  id: totrans-264
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE54]'
+- en: 'Back in `test/CustomerForm.test.js`, add the next test, which checks the error
+    message in the alert, as follows:'
+  id: totrans-265
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 回到`test/CustomerForm.test.js`，添加下一个测试，该测试检查警告中的错误信息，如下所示：
+- en: '[PRE55]'
+  id: totrans-266
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE55]'
+- en: 'To make that pass, all we need to do is hardcode the string in the `Error`
+    component. We’ll use another test to triangulate to get to the real implementation,
+    as follows:'
+  id: totrans-267
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 要使这通过，我们只需要在`Error`组件中硬编码字符串。我们将使用另一个测试来三角定位以到达真正的实现，如下所示：
+- en: '[PRE56]'
+  id: totrans-268
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE56]'
+- en: 'Add the final test to `test/CustomerForm.test.js`, like so:'
+  id: totrans-269
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将最后的测试添加到`test/CustomerForm.test.js`中，如下所示：
+- en: '[PRE57]'
+  id: totrans-270
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE57]'
+- en: 'To make this pass, introduce a new `error` state variable at the top of the
+    `CustomerForm` definition, like so:'
+  id: totrans-271
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 要使这通过，在`CustomerForm`定义的顶部引入一个新的`error`状态变量，如下所示：
+- en: '[PRE58]'
+  id: totrans-272
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE58]'
+- en: 'Change the `handleSubmit` function, as follows:'
+  id: totrans-273
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 修改`handleSubmit`函数，如下所示：
+- en: '[PRE59]'
+  id: totrans-274
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE59]'
+- en: 'In the component’s JSX, update the `Error` instance to include a new `hasError`
+    prop and set it to the `error` state, like so:'
+  id: totrans-275
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在组件的JSX中，更新`Error`实例以包括新的`hasError`prop并将其设置为`error`状态，如下所示：
+- en: '[PRE60]'
+  id: totrans-276
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE60]'
+- en: 'All that remains is to complete the `Error` component with the new prop, as
+    follows:'
+  id: totrans-277
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 剩下的只是用新的prop完成`Error`组件，如下所示：
+- en: '[PRE61]'
+  id: totrans-278
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE61]'
+- en: That’s it for our `CustomerForm` implementation. Time for a little cleanup of
+    our tests.
+  id: totrans-279
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们的`CustomerForm`实现到此结束。现在是时候对我们的测试进行一点清理了。
+- en: Grouping stub scenarios in nested describe contexts
+  id: totrans-280
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 在嵌套的describe上下文中对stub场景进行分组
+- en: A common practice is to use nested `describe` blocks to set up stub values as
+    scenarios for a group of tests. We have just written four tests that deal with
+    the scenario of the `POST /customers` endpoint returning an error. Two of these
+    are good candidates for a nested `describe` context.
+  id: totrans-281
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 一种常见的做法是使用嵌套的`describe`块来设置存根值作为一组测试的场景。我们刚刚编写了四个测试，这些测试处理了`POST /customers`端点返回错误的场景。其中两个是嵌套`describe`上下文的良好候选。
+- en: 'We can then pull up the stub value into a `beforeEach` block. Let’s start with
+    the `describe` block. Follow these steps:'
+  id: totrans-282
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然后，我们可以将存根值拉入一个`beforeEach`块中。让我们从`describe`块开始。按照以下步骤进行：
+- en: 'Look at the last four tests you’ve written. Two of them are about the alert
+    space and are not related to the error case. Leave those two in place, and move
+    the other two into a new `describe` block named `when POST requests return an
+    error`, as shown here:'
+  id: totrans-283
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 看看您最后写的四个测试。其中两个是关于警报空间的，与错误情况无关。保留这两个测试，并将另外两个移动到一个新的`describe`块中，命名为`when
+    POST requests return an error`，如下所示：
+- en: '[PRE62]'
+  id: totrans-284
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE62]'
+- en: 'Notice how the two of the test descriptions repeat themselves, saying the same
+    thing as the `describe` block but in slightly different ways? Remove the `if`/`when`
+    statements from the two test descriptions, as follows:'
+  id: totrans-285
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 注意，两个测试描述是如何重复的，它们以不同的方式说同样的话，就像`describe`块一样？从两个测试描述中删除`if`/`when`语句，如下所示：
+- en: '[PRE63]'
+  id: totrans-286
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE63]'
+- en: 'The two tests have identical `global.fetch` stubs. Pull that stub up into a
+    new `beforeEach` block, as shown here:'
+  id: totrans-287
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 这两个测试具有相同的`global.fetch`存根。将这个存根拉入一个新的`beforeEach`块中，如下所示：
+- en: '[PRE64]'
+  id: totrans-288
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE64]'
+- en: Finally, delete the stub call from the two tests, leaving just the stub call
+    in the `beforeEach` block.
+  id: totrans-289
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 最后，从两个测试中删除存根调用，只留下`beforeEach`块中的存根调用。
+- en: You’ve now seen how to use nested `describe` blocks to describe specific test
+    scenarios, and that covers all the basic stubbing techniques. In the next section,
+    we’ll continue our cleanup by introducing Jest’s own spy and stub functions, which
+    are slightly simpler than the ones we’ve built ourselves.
+  id: totrans-290
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 您现在已经看到了如何使用嵌套的`describe`块来描述特定的测试场景，这涵盖了所有基本的存根技术。在下一节中，我们将通过介绍 Jest 的自有存根和存根函数来继续我们的清理工作，这些函数比我们自己构建的稍微简单一些。
+- en: Migrating to Jest’s built-in test double support
+  id: totrans-291
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 迁移到 Jest 的内置测试双倍支持
+- en: So far in this chapter, you’ve built your own hand-crafted spy function, with
+    support for stubbing values and with its own matcher. The purpose of that has
+    been to teach you how test doubles work and to show the essential set of spy and
+    stub patterns that you’ll use in your component tests.
+  id: totrans-292
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 到目前为止，在本章中，您已经构建了自己的手工制作的存根函数，支持存根值和具有自己的匹配器。这样做的目的是为了教您如何使用测试双倍，并展示您将在组件测试中使用的基本存根和存根模式。
+- en: However, our spy function and the `toBeCalledWith` matcher are far from complete.
+    Rather than investing any more time in our hand-crafted versions, it makes sense
+    to switch to Jest’s own functions now. These work in essentially the same way
+    as our `spy` function but have a couple of subtle differences.
+  id: totrans-293
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然而，我们的存根函数和`toBeCalledWith`匹配器还远远不够完善。与其在我们手工制作的版本上投入更多时间，现在切换到 Jest 的自有函数似乎更有意义。这些函数基本上与我们的`spy`函数以相同的方式工作，但有一些细微的差别。
+- en: This section starts with a rundown of Jest’s test double functionality. Then,
+    we’ll migrate the `CustomerForm` test suite away from our hand-crafted spy function.
+    Finally, we’ll do a little more cleanup by extracting more test helpers.
+  id: totrans-294
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 本节首先概述了 Jest 的测试双倍功能。然后，我们将`CustomerForm`测试套件从我们手工制作的存根函数迁移出去。最后，我们将通过提取更多测试辅助工具进行一些清理。
+- en: Using Jest to spy and stub
+  id: totrans-295
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 使用 Jest 进行存根和存根
+- en: 'Here’s a rundown of Jest test double support:'
+  id: totrans-296
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 下面是 Jest 测试双倍支持的概述：
+- en: To create a new spy function, call `jest.fn()`. For example, you might write
+    `const fetchSpy = jest.fn()`.
+  id: totrans-297
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 要创建一个新的存根函数，请调用`jest.fn()`。例如，您可能编写`const fetchSpy = jest.fn()`。
+- en: To override an existing property, call `jest.spyOn(object, property)`. For example,
+    you might write `jest.spyOn(global, "fetch")`.
+  id: totrans-298
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 要覆盖现有属性，请调用`jest.spyOn(object, property)`。例如，您可能编写`jest.spyOn(global, "fetch")`。
+- en: To set a return value, call `spy.mockReturnValue()`. You can also pass this
+    value directly to the `jest.fn()` call.
+  id: totrans-299
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 要设置返回值，请调用`spy.mockReturnValue()`。您也可以直接将此值传递给`jest.fn()`调用。
+- en: You can set multiple return values by chaining calls to `spy.mockReturnValueOnce()`.
+  id: totrans-300
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 您可以通过链式调用`spy.mockReturnValueOnce()`来设置多个返回值。
+- en: When your function returns promises, you can use `spy.mockResolvedValue()` and
+    `spy.mockRejectedValue()`.
+  id: totrans-301
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 当您的函数返回承诺时，您可以使用`spy.mockResolvedValue()`和`spy.mockRejectedValue()`。
+- en: To check that your spy was called, use `expect(spy).toBeCalled()`.
+  id: totrans-302
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 要检查您的存根是否被调用，请使用`expect(spy).toBeCalled()`。
+- en: To check the arguments passed to your spy, you can use `expect(spy).toBeCalledWith(arguments)`.
+    Or, if your spy is called multiple times and you want to check the last time it
+    was called, you can use `expect(spy).toHaveLastBeenCalledWith(arguments)`.
+  id: totrans-303
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 要检查传递给您的间谍的参数，您可以使用 `expect(spy).toBeCalledWith(arguments)`。或者，如果您的间谍被多次调用，并且您想检查它最后一次被调用的情况，您可以使用
+    `expect(spy).toHaveLastBeenCalledWith(arguments)`。
+- en: Calling `spy.mockReset()` removes all mocked implementations, return values,
+    and existing call history from a spy.
+  id: totrans-304
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 调用 `spy.mockReset()` 将从间谍中移除所有模拟实现、返回值和现有的调用历史。
+- en: Calling `spy.mockRestore()` will remove the mock and give you back the original
+    implementation.
+  id: totrans-305
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 调用 `spy.mockRestore()` 将移除模拟并恢复原始实现。
+- en: In Jest’s configuration section of your `package.json` file, you can set `restoreMocks`
+    to `true` and all spies that were created with `jest.spyOn` will be automatically
+    restored after each test.
+  id: totrans-306
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 在您的 `package.json` 文件的 Jest 配置部分，您可以将 `restoreMocks` 设置为 `true`，这样在每次测试之后，使用
+    `jest.spyOn` 创建的所有间谍都将自动恢复。
+- en: When using `toBeCalledWith`, you can pass an argument value of `expect.anything()`
+    to say that you don’t care what the value of that argument is.
+  id: totrans-307
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 当使用 `toBeCalledWith` 时，您可以将 `expect.anything()` 作为参数值传递，表示您不关心该参数的值是什么。
+- en: You can use `expect.objectMatching(object)` to check that an argument has all
+    the properties of the object you pass in, rather than being exactly equal to the
+    object.
+  id: totrans-308
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 您可以使用 `expect.objectMatching(object)` 来检查一个参数是否具有您传递的对象的所有属性，而不是与该对象完全相等。
+- en: When your spy is called multiple times, you can check the parameters passed
+    to specific calls by using `spy.mock.calls[n]`, where `n` is the call number (for
+    example, `calls[0]` will return the arguments for the first time it was called).
+  id: totrans-309
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 当您的间谍被多次调用时，您可以使用 `spy.mock.calls[n]` 来检查特定调用传递的参数，其中 `n` 是调用编号（例如，`calls[0]`
+    将返回第一次被调用的参数）。
+- en: If you need to perform complex matching on a specific argument, you can use
+    `spy.mock.calls[0][n]`, where `n` is in the argument number.
+  id: totrans-310
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 如果您需要对特定参数执行复杂的匹配，您可以使用 `spy.mock.calls[0][n]`，其中 `n` 是参数编号。
+- en: You can stub out and spy on entire modules using the `jest.mock()` function,
+    which we’ll look at in the next chapter.
+  id: totrans-311
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 您可以使用 `jest.mock()` 函数来模拟和间谍化整个模块，我们将在下一章中探讨这一点。
+- en: There’s a lot more available with the Jest API, but these are the core features
+    and should cover most of your test-driven use cases.
+  id: totrans-312
+  prefs: []
+  type: TYPE_NORMAL
+  zh: Jest API 提供了更多功能，但这些是核心特性，应该覆盖您的大多数测试驱动用例。
+- en: Migrating the test suite to use Jest’s test double support
+  id: totrans-313
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 将测试套件迁移到使用 Jest 的测试双工支持
+- en: Let’s convert our `CustomerForm` tests away from our hand-crafted spy function.
+    We’ll start with the `fetchSpy` variable.
+  id: totrans-314
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们将 `CustomerForm` 测试从我们手工制作的间谍函数中转换出来。我们将从 `fetchSpy` 变量开始。
+- en: We’ll use `jest.spyOn` for this. It essentially creates a spy with `jest.fn()`
+    and then assigns it to the `global.fetch` variable. The `jest.spyOn` function
+    keeps track of every object that has been spied on so that it can auto-restore
+    them without our intervention, using the `restoreMock` configuration property.
+  id: totrans-315
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将使用 `jest.spyOn` 来完成这项工作。它本质上创建了一个使用 `jest.fn()` 的间谍，并将其分配给 `global.fetch`
+    变量。`jest.spyOn` 函数会跟踪所有被间谍监视的对象，以便在没有我们干预的情况下自动恢复它们，使用 `restoreMock` 配置属性。
+- en: It also has a feature that blocks us from spying on any property that isn’t
+    already a function. That will affect us because Node.js doesn’t have a default
+    implementation of `global.fetch`. We’ll see how to solve that issue in the next
+    set of steps.
+  id: totrans-316
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 它还有一个特性，阻止我们间谍化任何不是函数的属性。这会影响我们，因为 Node.js 没有默认的 `global.fetch` 实现。我们将在下一组步骤中看到如何解决这个问题。
+- en: It’s worth pointing out a really great feature of `jest.fn()`. The returned
+    spy object acts as both the function itself and the mock object. It does this
+    by attaching a special `mock` property to the returned function. The upshot of
+    this is that we no longer need a `fetchSpy` variable to store our spy object.
+    We can just refer to `global.fetch` directly, as we’re about to see.
+  id: totrans-317
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 值得指出的是，`jest.fn()` 函数的一个非常出色的特性。返回的间谍对象既充当函数本身，也充当模拟对象。它是通过将一个特殊的 `mock` 属性附加到返回的函数上来实现这一点的。结果是，我们不再需要一个
+    `fetchSpy` 变量来存储我们的间谍对象。我们可以直接引用 `global.fetch`，正如我们即将看到的。
+- en: 'Follow these steps:'
+  id: totrans-318
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 按照以下步骤操作：
+- en: 'Update the `beforeEach` block to read as follows. This uses `mockResolvedValue`
+    to set a return value wrapped in a promise (as opposed to `mockReturnedValue`,
+    which just returns a value with no promise involved):'
+  id: totrans-319
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 更新 `beforeEach` 块，如下所示。这使用 `mockResolvedValue` 来设置一个被 promise 包装的返回值（与 `mockReturnedValue`
+    相反，后者只是返回一个值，不涉及任何 promise）：
+- en: '[PRE65]'
+  id: totrans-320
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE65]'
+- en: 'There are two lines in the `CustomerForm` test suite that follow the pattern
+    shown here:'
+  id: totrans-321
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: '`CustomerForm`测试套件中有两行遵循此模式：'
+- en: '[PRE66]'
+  id: totrans-322
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE66]'
+- en: 'Go ahead and replace them with the following code:'
+  id: totrans-323
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 将它们替换为以下代码：
+- en: '[PRE67]'
+  id: totrans-324
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE67]'
+- en: 'There are two expectations that check `fetchSpy`. Go ahead and replace `expect(fetchSpy)`
+    with `expect(global.fetch)`. Removing the `fetchSpy` variable gives you greater
+    readability and understanding of what’s happening. Here’s one of the expectations:'
+  id: totrans-325
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 有两个期望检查`fetchSpy`。将`expect(fetchSpy)`替换为`expect(global.fetch)`。移除`fetchSpy`变量可以提供更好的可读性和对正在发生的事情的理解。以下是一个期望的例子：
+- en: '[PRE68]'
+  id: totrans-326
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE68]'
+- en: 'The `bodyOflastFetchRequest` function needs to be updated to use the `mock`
+    property of the Jest spy object. Update it to read as follows:'
+  id: totrans-327
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: '`bodyOflastFetchRequest`函数需要更新以使用Jest间谍对象的`mock`属性。更新如下所示：'
+- en: '[PRE69]'
+  id: totrans-328
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE69]'
+- en: 'Open `package.json` and add the `restoreMocks` property, which ensures the
+    `global.fetch` spy is reset to its original setting after each test. The code
+    is illustrated in the following snippet:'
+  id: totrans-329
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 打开`package.json`并添加`restoreMocks`属性，这确保在每个测试之后将`global.fetch`间谍重置到其原始设置。代码如下所示：
+- en: '[PRE70]'
+  id: totrans-330
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE70]'
+- en: That should be it for your `global.fetch` spy. You can delete the `afterEach`
+    block, the `fetchSpy` variable declaration, and the `originalFetch` constant definition.
+  id: totrans-331
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 这应该就是你的`global.fetch`间谍的全部内容。你可以删除`afterEach`块、`fetchSpy`变量声明和`originalFetch`常量定义。
+- en: 'Let’s move on to `saveSpy`. Back in your `CustomerForm` test suite, find the
+    `notifies onSave when form it submitted` test. Update it as shown in the following
+    code snippet. We’re replacing the use of `spy()` with `jest.fn()`. Notice how
+    we no longer need to set the `onSave` prop to `saveSpy.fn` but just `saveSpy`
+    itself:'
+  id: totrans-332
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 让我们继续到`saveSpy`。回到你的`CustomerForm`测试套件中，找到`表单提交时通知onSave`测试。按照以下代码片段更新它。我们正在用`jest.fn()`替换`spy()`的使用。注意我们不再需要将`onSave`属性设置为`saveSpy.fn`，而是直接设置为`saveSpy`：
+- en: '[PRE71]'
+  id: totrans-333
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE71]'
+- en: Repeat for the `does not notify onSave if the POST request returns an error`
+    test.
+  id: totrans-334
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 为`如果POST请求返回错误则不通知onSave`测试重复此操作。
+- en: Delete your `spy` function definition at the top of the test suite.
+  id: totrans-335
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在测试套件的顶部删除你的`spy`函数定义。
+- en: Delete your `toBeCalledWith` matcher in `test/domMatchers.js`.
+  id: totrans-336
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在`test/domMatchers.js`中删除你的`toBeCalledWith`匹配器。
+- en: 'We’re now close to a working test suite. Try running your tests—you’ll see
+    the following error:'
+  id: totrans-337
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 我们现在几乎接近一个可工作的测试套件。尝试运行你的测试——你会看到以下错误：
+- en: '[PRE72]'
+  id: totrans-338
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE72]'
+- en: 'To fix this, we need to let Jest think that `global.fetch` is indeed a function.
+    The simplest way to do this is to set a dummy implementation when your test suite
+    launches. Create a `test/globals.js` file and add the following definition to
+    it:'
+  id: totrans-339
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 为了解决这个问题，我们需要让Jest认为`global.fetch`确实是一个函数。最简单的方法是在测试套件启动时设置一个虚拟实现。创建一个`test/globals.js`文件，并在其中添加以下定义：
+- en: '[PRE73]'
+  id: totrans-340
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE73]'
+- en: 'Now, back in `package.json`, add that file to the `setupFilesAfterEnv` property,
+    like so:'
+  id: totrans-341
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 现在，回到`package.json`中，将此文件添加到`setupFilesAfterEnv`属性中，如下所示：
+- en: '[PRE74]'
+  id: totrans-342
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE74]'
+- en: Run all tests with `npm test`. They should be passing.
+  id: totrans-343
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 使用`npm test`运行所有测试。它们应该会通过。
+- en: 'There’s just one final cleanup to do. Find the following expectation:'
+  id: totrans-344
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 最后还需要做一件清理工作。找到以下期望：
+- en: '[PRE75]'
+  id: totrans-345
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE75]'
+- en: 'As mentioned earlier in the chapter, this expectation is not correct, and we
+    only used it because our hand-rolled matcher didn’t fully support this use case.
+    What we want is for the expectation to fail if `onSave` is called in any form.
+    Now that we’re using Jest’s own matchers, we can solve this more elegantly. Replace
+    this expectation with the following code:'
+  id: totrans-346
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如本章前面所述，这个期望是不正确的，我们之所以使用它，仅仅是因为我们手工制作的匹配器并没有完全支持这个用例。我们想要的期望是在任何形式下调用`onSave`时失败。现在我们正在使用Jest自己的匹配器，我们可以更优雅地解决这个问题。用以下代码替换这个期望：
+- en: '[PRE76]'
+  id: totrans-347
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE76]'
+- en: Your `CustomerForm` test suite is now fully migrated. We’ll end this chapter
+    by extracting some more helpers.
+  id: totrans-348
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 你的`CustomerForm`测试套件现在已经完全迁移。我们将以提取一些额外的辅助函数来结束本章。
+- en: Extracting fetch test functionality
+  id: totrans-349
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 提取fetch测试功能
+- en: '`CustomerForm` is not the only component that will call `fetch`: one of the
+    exercises is to update `AppointmentForm` to also submit appointments to the server.
+    It makes sense to reuse the common code we’ve used by pulling it out into its
+    own module. Proceed as follows:'
+  id: totrans-350
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`CustomerForm`不是唯一会调用`fetch`的组件：其中一个练习是更新`AppointmentForm`以将预约提交到服务器。将我们使用的通用代码抽取出来作为一个单独的模块是有意义的。按照以下步骤进行：'
+- en: 'Create a file named `test/spyHelpers.js` and add the following function definition,
+    which is the same as the function in your test suite, except this time it’s marked
+    as an export:'
+  id: totrans-351
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 创建一个名为`test/spyHelpers.js`的文件，并添加以下函数定义，它与测试套件中的函数相同，但这次标记为导出：
+- en: '[PRE77]'
+  id: totrans-352
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE77]'
+- en: 'Create a file named `test/builders/fetch.js` and add the following two functions
+    to it:'
+  id: totrans-353
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 创建一个名为 `test/builders/fetch.js` 的文件，并将以下两个函数添加到其中：
+- en: '[PRE78]'
+  id: totrans-354
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE78]'
+- en: 'Delete those definitions from within `test/CustomerForm.test.js` and replace
+    them with an `import` statement, as illustrated in the following code snippet.
+    After this change, run your tests and check they are still passing:'
+  id: totrans-355
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 从 `test/CustomerForm.test.js` 内删除那些定义，并用以下代码片段中的 `import` 语句替换它们。在此更改后，运行您的测试并检查它们是否仍然通过：
+- en: '[PRE79]'
+  id: totrans-356
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE79]'
+- en: 'Finally, we can simplify `fetchResponseOk` and `fetchResponseError` by removing
+    the call to `Promise.resolve` shown here. That’s because Jest’s `mockResolvedValue`
+    function will automatically wrap the value in a promise:'
+  id: totrans-357
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 最后，我们可以通过移除此处显示的 `Promise.resolve` 调用来简化 `fetchResponseOk` 和 `fetchResponseError`。这是因为
+    Jest 的 `mockResolvedValue` 函数将自动将值包装在一个承诺中：
+- en: '[PRE80]'
+  id: totrans-358
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE80]'
+- en: Ensure you’ve run all tests and you’re on green before continuing.
+  id: totrans-359
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 确保您已运行所有测试，并且在继续之前状态为绿色。
+- en: You’re now ready to reuse these functions in the `AppointmentForm` test suite.
+  id: totrans-360
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在，您已经准备好在 `AppointmentForm` 测试套件中重用这些函数。
+- en: Summary
+  id: totrans-361
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 摘要
+- en: We’ve just explored test doubles and how they are used to verify interactions
+    with collaborating objects, such as component props (`onSave`) and browser API
+    functions (`global.fetch`). We looked in detail at spies and stubs, the two main
+    types of doubles you’ll use. You also saw how to use a side-by-side implementation
+    as a technique to keep your test failures under control while you switch from
+    one implementation to another.
+  id: totrans-362
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们刚刚探讨了测试替身及其如何用于验证与协作对象的交互，例如组件属性（`onSave`）和浏览器 API 函数（`global.fetch`）。我们详细研究了间谍和存根，这是您将使用的两种主要类型的替身。您还看到了如何使用并排实现作为一项技术，在您从一个实现切换到另一个实现时，保持测试失败在可控范围内。
+- en: Although this chapter covered the primary patterns you’ll use when dealing with
+    test doubles, we have one major one still to cover, and that’s how to spy on and
+    stub out React components. That’s what we’ll look at in the next chapter.
+  id: totrans-363
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 尽管本章涵盖了您在处理测试替身时将使用的核心模式，但我们还有一个主要模式尚未介绍，那就是如何监视和模拟 React 组件。这就是我们将在下一章中探讨的内容。
+- en: Exercises
+  id: totrans-364
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 练习
+- en: 'Try the following exercises:'
+  id: totrans-365
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 尝试以下练习：
+- en: Add a test to the `CustomerForm` test suite to specify that the error state
+    is cleared when the form is submitted a second time with all validation errors
+    corrected.
+  id: totrans-366
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 向 `CustomerForm` 测试套件添加一个测试，指定当表单在所有验证错误纠正后第二次提交时，错误状态会被清除。
+- en: Update the `AppointmentForm` test suite to use `jest.fn()` and `jest.spyOn()`.
+  id: totrans-367
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 更新 `AppointmentForm` 测试套件以使用 `jest.fn()` 和 `jest.spyOn()`。
+- en: Extend `AppointmentForm` so that it submits an appointment using a `POST` request
+    to `/appointments`. The `/appointments` endpoint returns a `201 Created` response
+    without a body, so you don’t need to call `json` on the response object or send
+    back any parameters to `onSave`.
+  id: totrans-368
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 扩展 `AppointmentForm` 以使其通过向 `/appointments` 发送 `POST` 请求来提交预约。`/appointments`
+    端点返回一个没有主体的 `201 Created` 响应，因此您不需要在响应对象上调用 `json` 或向 `onSave` 发送任何参数。
+- en: Further reading
+  id: totrans-369
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 进一步阅读
+- en: 'For more information, refer to the following sources:'
+  id: totrans-370
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 更多信息，请参考以下资源：
+- en: A cheat sheet showing all the Jest mocking constructs you’ll need for testing
+    React code bases
+  id: totrans-371
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 一个速查表，显示了您在测试 React 代码库时需要的所有 Jest 模拟构造函数
+- en: '[https://reacttdd.com/mocking-cheatsheet](https://reacttdd.com/mocking-cheatsheet)'
+  id: totrans-372
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '[https://reacttdd.com/mocking-cheatsheet](https://reacttdd.com/mocking-cheatsheet)'
+- en: A good introduction to the different kinds of test doubles
+  id: totrans-373
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 不同类型测试替身的好介绍
+- en: '[https://martinfowler.com/articles/mocksArentStubs.xhtml](https://martinfowler.com/articles/mocksArentStubs.xhtml)'
+  id: totrans-374
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '[https://martinfowler.com/articles/mocksArentStubs.xhtml](https://martinfowler.com/articles/mocksArentStubs.xhtml)'
+- en: An introduction to using the Fetch API
+  id: totrans-375
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: Fetch API 使用简介
+- en: '[https://github.github.io/fetch](https://github.github.io/fetch)'
+  id: totrans-376
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '[https://github.github.io/fetch](https://github.github.io/fetch)'
+- en: 'Information on the ARIA alert role: [https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/alert_role](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/alert_role)'
+  id: totrans-377
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 关于 ARIA 提醒角色信息：[https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/alert_role](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/alert_role)

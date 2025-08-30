@@ -1,0 +1,526 @@
+<html><head></head><body>
+<div id="sbo-rt-content"><div id="_idContainer035">
+<h1 class="chapter-number" id="_idParaDest-187"><a id="_idTextAnchor207"/>11</h1>
+<h1 id="_idParaDest-188"><a id="_idTextAnchor208"/>Test-Driving React Router</h1>
+<p><strong class="bold">React Router</strong> is a popular library of components that integrate with the browser’s own navigation system. It manipulates the browser’s address bar so that changes in your UI appear as page transitions. To the user, it seems like they are navigating between separate pages. In reality, they remain on the same page and avoid an expensive page reload.</p>
+<p>In this chapter, we’ll refactor our example appointments system to make use of React Router. Unlike the rest of the book, this chapter is not a walkthrough. That’s because the refactoring process is quite long and laborious. Instead, we’ll look at each of the main changes in turn.</p>
+<p>This chapter covers the following:</p>
+<ul>
+<li>Designing React Router applications from a test-first perspective</li>
+<li>Testing components within a router</li>
+<li>Testing router links</li>
+<li>Testing programmatic navigation</li>
+</ul>
+<p>By the end of the chapter, you’ll have learned all the necessary techniques for test-driving React Router integrations.</p>
+<h1 id="_idParaDest-189"><a id="_idTextAnchor209"/>Technical requirements</h1>
+<p>The code files for this chapter can be found here: </p>
+<p><a href="https://github.com/PacktPublishing/Mastering-React-Test-Driven-Development-Second-Edition/tree/main/Chapter11">https://github.com/PacktPublishing/Mastering-React-Test-Driven-Development-Second-Edition/tree/main/Chapter11</a></p>
+<h1 id="_idParaDest-190"><a id="_idTextAnchor210"/>Designing React Router applications from a test-first perspective</h1>
+<p>This section is a run-down of<a id="_idIndexMarker1024"/> all the major pieces of the React Router ecosystem, just in case you’re not familiar with it. It also contains guidance on how to test a system that relies on React Router.</p>
+<h2 id="_idParaDest-191"><a id="_idTextAnchor211"/>A list of all the React Router pieces</h2>
+<p>Here’s what you’ll be working <a id="_idIndexMarker1025"/>with from the React Router library:</p>
+<ul>
+<li>A <strong class="source-inline">Router</strong> component. You’ll generally <a id="_idIndexMarker1026"/>have one of these, and there are a bunch of different types. The basic one is <strong class="source-inline">BrowserRouter</strong> but you’ll <a id="_idIndexMarker1027"/>undoubtedly upgrade to <strong class="source-inline">HistoryRouter</strong> if you need<a id="_idIndexMarker1028"/> to manipulate history outside of the router, which, since you’re writing tests, you will. In <a href="B18423_12.xhtml#_idTextAnchor231"><em class="italic">Chapter 12</em></a>, <em class="italic">Test-Driving Redux</em>, you’ll also see how this is necessary if you’re causing page transitions to occur within Redux actions.</li>
+<li>A <strong class="source-inline">Routes</strong> component. This is <a id="_idIndexMarker1029"/>analogous to the <strong class="source-inline">switch</strong> statement in our existing <strong class="source-inline">App</strong> component. It has a list of <strong class="source-inline">Route</strong> children and will choose just one of those children to display at one time.</li>
+<li>A set of <strong class="source-inline">Route</strong> components with the <strong class="source-inline">Routes</strong> parent. Each <strong class="source-inline">Route</strong> has a path property, for example, <strong class="source-inline">/addCustomer</strong>, that the <strong class="source-inline">Router</strong> component <a id="_idIndexMarker1030"/>uses to compare with the window’s current location. The route that matches is the one that is displayed.</li>
+<li>One or more <strong class="source-inline">Link</strong> components. These <a id="_idIndexMarker1031"/>display like normal HTML hyperlinks, but they don’t act like them; React Router stops the browser from receiving these navigation events and instead sends them back to the <strong class="source-inline">Routes</strong> component, meaning a page transition doesn’t occur.</li>
+<li>The <strong class="source-inline">useNavigate</strong> hook. This is used to <a id="_idIndexMarker1032"/>perform a page transition as part of a React side effect or event handler.</li>
+<li>The <strong class="source-inline">useLocation</strong> and <strong class="source-inline">useSearchParams</strong> hooks. These are used to get parts of the current window <a id="_idIndexMarker1033"/>location within your <a id="_idIndexMarker1034"/>components.</li>
+</ul>
+<h2 id="_idParaDest-192"><a id="_idTextAnchor212"/>Splitting tests when the window location changes</h2>
+<p>You can see from this list that <a id="_idIndexMarker1035"/>React Router’s core function is to manipulate the window location and modify your application’s behavior based on that location.</p>
+<p>One way to think about this is that we will utilize the window location as a form of application state that is accessible to all our components. Importantly, this state persists across web requests, because a user can save or bookmark links for use later.</p>
+<p>A consequence of this is that we must now split apart some of our unit tests. Take, for example, the <strong class="bold">Create appointment</strong> button that was previously used to switch out the main component on display on the page. With React Router in place, this button will become a link. Previously, we had a single unit test named as follows:</p>
+<pre class="source-code">
+displays the AppointmentFormLoader after the CustomerForm is submitted</pre>
+<p>But now, we’ll split that into two tests:</p>
+<pre class="source-code">
+navigates to /addAppointment after the CustomerForm is submitted
+renders AppointmentFormRoute at /addAppointment</pre>
+<p>You can see that the first test stops at the moment the window location changes. The second test begins at the moment the browser navigates to the same location.</p>
+<p>It’s important to make this change because React Router isn’t just refactoring, it’s adding a new feature: the URL is now accessible as an entry point into your application.</p>
+<p>That is, in essence, the most important thing you need to know before introducing React Router into your projects.</p>
+<h2 id="_idParaDest-193"><a id="_idTextAnchor213"/>Up-front design for our new routes</h2>
+<p>Before launching into this refactor, let’s take a look at the routes we’ll be introducing:</p>
+<ul>
+<li>The default route, <strong class="source-inline">/</strong>, will remain as our <strong class="source-inline">AppointmentsDayViewLoader</strong> together with navigation buttons. This is<a id="_idIndexMarker1036"/> extracted out as a new component named <strong class="source-inline">MainScreen</strong>.</li>
+<li>A route to add a new customer, at <strong class="source-inline">/addCustomer</strong>.</li>
+<li>A route to add a new appointment for a given customer, at <strong class="source-inline">/addAppointment?customer=&lt;id&gt;</strong>.</li>
+<li>A route to search for customers at <strong class="source-inline">/searchCustomers</strong>. This can receive a set of<a id="_idIndexMarker1037"/> query string values: <strong class="source-inline">searchTerm</strong>, <strong class="source-inline">limit</strong>, and <strong class="source-inline">previousRowIds</strong>. For example, the query string might look as follows:<p class="source-code">?searchTerm=An&amp;limit=20&amp;previousRowIds=123,456</p></li>
+</ul>
+<p>Next, we’ll look at test-driving a <strong class="source-inline">Router</strong> component along with its <strong class="source-inline">Route</strong> children.</p>
+<h1 id="_idParaDest-194"><a id="_idTextAnchor214"/>Testing components within a router</h1>
+<p>In this section, we’ll look at how <a id="_idIndexMarker1038"/>to use the primary <strong class="source-inline">Router</strong>, <strong class="source-inline">Routes</strong>, and <strong class="source-inline">Route</strong> components.</p>
+<p class="callout-heading">No walkthrough in this chapter</p>
+<p class="callout">As mentioned in the chapter introduction, this chapter does not follow the usual walkthrough approach. The examples shown here are taken from the completed refactoring of our Appointments code base, which you’ll find in the <strong class="source-inline">Chapter11/Complete</strong> directory of the GitHub repository.</p>
+<h2 id="_idParaDest-195"><a id="_idTextAnchor215"/>The Router component and its test equivalent</h2>
+<p>This is a top-level <a id="_idIndexMarker1039"/>component that hooks into your browser’s location mechanics. We do not generally test drive this because JSDOM doesn’t deal with page transitions, or <a id="_idIndexMarker1040"/>have full support for the <strong class="source-inline">window.location</strong> API.</p>
+<p>Instead, we put it in the <strong class="source-inline">src/index.js</strong> file:</p>
+<pre class="source-code">
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import { App } from "./App";
+ReactDOM.createRoot(
+  document.getElementById("root")
+).render(
+  &lt;BrowserRouter&gt;
+    &lt;App /&gt;
+  &lt;/B<a id="_idTextAnchor216"/>rowserRouter&gt;
+);</pre>
+<p>This is necessary because if you try to use any of the other React Router components outside of a child of a <strong class="source-inline">Router</strong> component, it will blow up. The same is true for our tests: our components need to be rendered<a id="_idIndexMarker1041"/> inside of a router. So, we introduce a new render helper called <strong class="source-inline">renderWithRouter</strong>.</p>
+<p>This definition is within <strong class="source-inline">test/reactTestExtensions.js</strong>:</p>
+<pre class="source-code">
+import { createMemoryHistory } from "history";
+import {
+  unstable_HistoryRouter as HistoryRouter
+} from "react-router-dom";
+export let history;
+export const renderWithRouter = (
+  component,
+  { location } = { location: "" }
+) =&gt; {
+  history = createMemoryHistory({
+    initialEntries: [location]
+  });
+  act(() =&gt;
+    reactRoot.render(
+      &lt;HistoryRouter history={history}&gt;
+        {component}
+      &lt;/HistoryRouter&gt;
+    )
+  );
+};</pre>
+<p class="callout-heading">MemoryRouter versus HistoryRouter</p>
+<p class="callout">The React Router<a id="_idIndexMarker1042"/> documentation will suggest<a id="_idIndexMarker1043"/> you use <strong class="source-inline">MemoryRouter</strong>, which is often good enough. Using <strong class="source-inline">HistoryRouter</strong> allows you to control the history instance that is passed in, meaning you can manipulate it from within your tests.</p>
+<p class="callout">For more<a id="_idIndexMarker1044"/> information, take a look at <a href="https://reacttdd.com/unpublished/memory-router-vs-history-router/">https://reacttdd.com/memory-router-vs-history-router</a>.</p>
+<p>It’s important to <a id="_idIndexMarker1045"/>export the <strong class="source-inline">history</strong> variable itself if you want to manipulate the window location from within your own tests. A special case of this is if you want to set the window location before mounting the component; in this <a id="_idIndexMarker1046"/>situation, you can simply pass a <strong class="source-inline">location</strong> property to the <strong class="source-inline">renderWithRouter</strong> function. You’ll see how this works next.</p>
+<h2 id="_idParaDest-196"><a id="_idTextAnchor217"/>Using the Routes component to replace a switch statement</h2>
+<p>Now let’s look at using the <strong class="source-inline">Routes</strong> component to switch components depending on the window location. This <a id="_idIndexMarker1047"/>component is generally at the top<a id="_idIndexMarker1048"/> of the application component hierarchy, and in our case, it is indeed the first component within <strong class="source-inline">App</strong>.</p>
+<p>The <strong class="source-inline">Routes</strong> component is analogous to the <strong class="source-inline">switch</strong> statement that existed in the original app. The <strong class="source-inline">switch</strong> statement was using a state variable to determine which component should be shown. The <strong class="source-inline">Routes</strong> component relies on the parent <strong class="source-inline">Router</strong> to feed it the window location as context.</p>
+<p>Here’s what the original <strong class="source-inline">switch</strong> statement looked like in the <strong class="source-inline">App</strong> component:</p>
+<pre class="source-code">
+const [view, setView] = useState("dayView");
+...
+switch (view) {
+  case "addCustomer":
+    return (
+      &lt;CustomerForm ... /&gt;
+    );
+  case "searchCustomers":
+    return (
+      &lt;CustomerSearch ... /&gt;
+    );
+  case "addAppointment":
+    return (
+      &lt;AppointmentFormLoader ... /&gt;
+    );
+  default:
+    return ...
+}</pre>
+<p>Its <strong class="source-inline">Router</strong> replacement<a id="_idIndexMarker1049"/> looks like<a id="_idIndexMarker1050"/> this:</p>
+<pre class="source-code">
+&lt;Routes&gt;
+  &lt;Route
+    path="/addCustomer"
+    element={&lt;CustomerForm ... /&gt;}
+  /&gt;
+  &lt;Route
+    path="/addAppointment"
+    element={&lt;AppointmentFormRoute ... /&gt;}
+  /&gt;
+  &lt;Route
+    path="/searchCustomers"
+    element={&lt;CustomerSearchRoute ... /&gt;}
+  /&gt;
+  &lt;Route path="/" element={&lt;MainScreen /&gt;} /&gt;
+&lt;/Routes&gt;</pre>
+<p>The <strong class="source-inline">view</strong> state variable is no longer needed. Notice how we have a couple of new components with a <strong class="source-inline">Route</strong> suffix. These <a id="_idIndexMarker1051"/>components <a id="_idIndexMarker1052"/>are small wrappers that pull out the customer ID and other parameters from the window location before passing it to the original components. We’ll lo<a id="_idTextAnchor218"/>ok at those soon.</p>
+<p>But first, how do the tests look for these new routes?</p>
+<p>For the default route, the<a id="_idIndexMarker1053"/> tests are simple, and are updates to the tests that were there before:</p>
+<pre class="source-code">
+it("initially shows the AppointmentDayViewLoader", () =&gt; {
+  renderWithRouter(&lt;App /&gt;);
+  expect(AppointmentsDayViewLoader).toBeRendered();
+});
+it("has a menu bar", () =&gt; {
+  renderWithRouter(&lt;App /&gt;);
+  expect(element("menu")).not.toBeNull();
+});</pre>
+<p>The only difference is that we use the <strong class="source-inline">render<a id="_idTextAnchor219"/>WithRouter</strong> helper, not <strong class="source-inline">render</strong>.</p>
+<p>The other routes are similar, except that they use the <strong class="source-inline">location</strong> property to set the initial window location, and their assertions are based on mocked components:</p>
+<pre class="source-code">
+it("renders CustomerForm at the /addCustomer endpoint", () =&gt; {
+  renderWithRouter(&lt;App /&gt;, {
+    location: "/addCustomer"
+  });
+  expect(CustomerForm).toBeRendered();
+});
+it("renders AppointmentFormRoute at /addAppointment", () =&gt; {
+  renderWithRouter(&lt;App /&gt;, {
+    location: "/addAppointment?customer=123",
+  });
+  expect(AppointmentFormRoute).toBeRendered();
+});
+it("renders CustomerSearchRoute at /searchCustomers", () =&gt; {
+  renderWithRouter(&lt;App /&gt;, {
+    location: "/searchCustomers"
+  });
+  expect(CustomerSearchRoute).toBeRendered();
+});</pre>
+<h2 id="_idParaDest-197"><a id="_idTextAnchor220"/>Using intermediate components to translate URL state</h2>
+<p>Let’s take a closer<a id="_idIndexMarker1054"/> look at <strong class="source-inline">AppointmentFormRoute</strong> and <strong class="source-inline">CustomerSearchRoute</strong>. What are these components <a id="_idIndexMarker1055"/>doing?</p>
+<p>Here’s the <a id="_idIndexMarker1056"/>definition of <strong class="source-inline">AppointmentFormRoute</strong>:</p>
+<pre class="source-code">
+import React from "react";
+import { useSearchParams } from "react-router-dom";
+import {
+  AppointmentFormLoader
+} from "./AppointmentFormLoader";
+const blankAppointment = {
+  service: "",
+  stylist: "",
+  startsAt: null,
+};
+export const AppointmentFormRoute = (props) =&gt; {
+  const [params, _] = useSearchParams();
+  return (
+    &lt;AppointmentFormLoader
+      {...props}
+      original={{
+        ...blankAppointment,
+        customer: params.get("customer"),
+      }}
+    /&gt;
+  );
+};</pre>
+<p>This component is an intermediate component that sits between the <strong class="source-inline">Route</strong> component instance for <strong class="source-inline">/addAppointment</strong> and the <strong class="source-inline">AppointmentFormLoader</strong> component instance.</p>
+<p>It would have been <a id="_idIndexMarker1057"/>possible to simply reference<a id="_idIndexMarker1058"/> the <strong class="source-inline">useSearchParams</strong> function from within <strong class="source-inline">AppointmentFormLoader</strong> itself, but by using this intermediate class, we can avoid modifying that component and keep the two responsibilities separate. </p>
+<p>Having a single responsibility per component helps with comprehension. It also means that should we ever wish to rip out React Router at a later date, <strong class="source-inline">AppointmentFormLoader</strong> doesn’t need to be touched.</p>
+<p>There are a couple of interesting tests for this component. The first is the check for parsing the <strong class="source-inline">customer</strong> search parameter:</p>
+<pre class="source-code">
+it("adds the customer id into the original appointment object", () =&gt; {
+  renderWithRouter(&lt;AppointmentFormRoute /&gt;, {
+    location: "?customer=123",
+  });
+  expect(AppointmentFormLoader).toBeRenderedWithProps({
+    original: expect.objectContaining({
+      customer: "123",
+    }),
+  });
+});</pre>
+<p>The <strong class="source-inline">location</strong> property sent to <strong class="source-inline">renderWithRouter</strong> is just a standard query string: <strong class="source-inline">?customer=123</strong>. We <a id="_idIndexMarker1059"/>could have entered a full URL <a id="_idIndexMarker1060"/>here, but the test is clearer by<a id="_idIndexMarker1061"/> focusing purely on the query string portion of the URL.</p>
+<p>The second test is for the remainder of the props:</p>
+<pre class="source-code">
+it("passes all other props through to AppointmentForm", () =&gt; {
+  const props = { a: "123", b: "456" };
+  renderWithRouter(&lt;AppointmentFormRoute {...props} /&gt;);
+  expect(AppointmentFormLoader).toBeRenderedWithProps(
+    expect.objectContaining({
+      a: "123",
+      b: "456",
+    })
+  );
+});</pre>
+<p>The test is important <a id="_idIndexMarker1062"/>because the <strong class="source-inline">Route</strong> element passes through an <strong class="source-inline">onSave</strong> property that is for <strong class="source-inline">AppointmentFormLoader</strong>:</p>
+<pre class="source-code">
+&lt;Route
+  path="/addAppointment"
+  element={
+    &lt;AppointmentFormRoute onSave={transitionToDayView} /&gt;
+  }
+/&gt;</pre>
+<p>We’ll look at what the <strong class="source-inline">transitionToDayView</strong> function does in the <em class="italic">Testing navigation</em> section a little further on.</p>
+<p>Now let’s see <strong class="source-inline">CustomerSearchRoute</strong>. This is a little more complicated because it parses some of the <a id="_idIndexMarker1063"/>query string parameters, using a function called <strong class="source-inline">convertParams</strong>:</p>
+<pre class="source-code">
+const convertParams = () =&gt; {
+  const [params] = useSearchParams();
+  const obj = {};
+  if (params.has("searchTerm")) {
+    obj.searchTerm = params.get("searchTerm");
+  }
+  if (params.has("limit")) {
+    obj.limit = parseInt(params.get("limit"), 10);
+  }
+  if (params.has("lastRowIds")) {
+    obj.lastRowIds = params
+      .get("lastRowIds")
+      .split(",")
+      .filter((id) =&gt; id !== "");
+  }
+  return obj;
+};</pre>
+<p>This function replaces the<a id="_idIndexMarker1064"/> three state variables that were used in the existing <strong class="source-inline">CustomerSearch</strong> component. Since all query string <a id="_idIndexMarker1065"/>parameters are strings, each value needs to be parsed into the right format. These values are then <a id="_idIndexMarker1066"/>passed into <strong class="source-inline">CustomerSearch</strong> as props:</p>
+<pre class="source-code">
+import React from "react";
+import {
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
+import {
+  CustomerSearch
+} from "./CustomerSearch/CustomerSearch";
+const convertParams = ...; // as above
+export const CustomerSearchRoute = (props) =&gt; (
+  &lt;CustomerSearch
+    {...props}
+    navigate={useNavigate()}
+    {...convertParams()}
+  /&gt;
+);</pre>
+<p>This parameter<a id="_idIndexMarker1067"/> parsing functionality could <a id="_idIndexMarker1068"/>have been put into <strong class="source-inline">CustomerSearch</strong>, but keeping that logic in a separate component helps with readability.</p>
+<p>This example also shows the use of <strong class="source-inline">useNavigate</strong>, which is passed through to <strong class="source-inline">CustomerSearch</strong>. Passing this hook function return value as a prop means we can test <strong class="source-inline">CustomerSearch</strong> with a standard Jest spy function for the value of <strong class="source-inline">navigate</strong>, avoiding the need to render the test component within a router.</p>
+<p>The tests for this component are<a id="_idIndexMarker1069"/> straightforward. Let’s take a look at one example:</p>
+<pre class="source-code">
+it("parses lastRowIds from query string", () =&gt; {
+  const location =
+    "?lastRowIds=" + encodeURIComponent("1,2,3");
+  renderWithRouter(&lt;CustomerSearchRoute /&gt;, { location });
+  expect(CustomerSearch).toBeRenderedWithProps(
+    expect.objectContaining({
+      lastRowIds: ["1", "2", "3"],
+    })
+  );
+});</pre>
+<p>You’ve now learned all there is to working with the three components: <strong class="source-inline">Router</strong>, <strong class="source-inline">Routes</strong>, and <strong class="source-inline">Route</strong>. Next up is the <strong class="source-inline">Link</strong> component.</p>
+<h1 id="_idParaDest-198"><a id="_idTextAnchor221"/>Testing router links</h1>
+<p>In this section, you’ll learn how<a id="_idIndexMarker1070"/> to use and test the <strong class="source-inline">Link</strong> component. This component is React Router’s version of the humble HTML anchor (or <strong class="source-inline">a</strong>) tag.</p>
+<p>There are two forms of the <strong class="source-inline">Link</strong> component that we use. The first uses the <strong class="source-inline">to</strong> prop as a string, for example, <strong class="source-inline">/addCustomer</strong>:</p>
+<pre class="source-code">
+&lt;Link to="/addCustomer" role="button"&gt;
+  Add customer and appointment
+&lt;/Link&gt;</pre>
+<p>The second sets the <strong class="source-inline">to</strong> prop to an object with a <strong class="source-inline">search</strong> property:</p>
+<pre class="source-code">
+&lt;Link
+    to={{
+      search: objectToQueryString(queryParams),
+    }}
+&gt;
+  {children}
+&lt;/Link&gt;</pre>
+<p>This object form <a id="_idIndexMarker1071"/>also takes a <strong class="source-inline">pathname</strong> property, but we can avoid setting that since the path remains the same for our use case.</p>
+<p>We’ll look at two different ways of testing links: the standard way (by checking for hyperlinks), and the slightly more painful way of using mocks.</p>
+<h2 id="_idParaDest-199"><a id="_idTextAnchor222"/>Checking the page for hyperlinks</h2>
+<p>Here’s<a id="_idIndexMarker1072"/> the <strong class="source-inline">MainScreen</strong> component in <strong class="source-inline">src/App.js</strong>, which shows<a id="_idIndexMarker1073"/> the navigation links and the appointments day view:</p>
+<pre class="source-code">
+export const MainScreen = () =&gt; (
+  &lt;&gt;
+    &lt;menu&gt;
+      &lt;li&gt;
+        &lt;Link to="/addCustomer" role="button"&gt;
+          Add customer and appointment
+        &lt;/Link&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;Link to="/searchCustomers" role="button"&gt;
+          Search customers
+        &lt;/Link&gt;
+      &lt;/li&gt;
+    &lt;/menu&gt;
+    &lt;AppointmentsDayViewLoader /&gt;
+  &lt;/&gt;
+);</pre>
+<p class="callout-heading">Extracted component</p>
+<p class="callout">The <strong class="source-inline">MainScreen</strong> component has been extracted out of <strong class="source-inline">App</strong>. The same code previously l<a id="_idTextAnchor223"/>ived in the <strong class="source-inline">switch</strong> statement as the default case.</p>
+<p>The <strong class="source-inline">Link</strong> component <a id="_idIndexMarker1074"/>generates a standard HTML anchor<a id="_idIndexMarker1075"/> tag. This means we create a helper to find a specific link by looking for an anchor tag with a matching <strong class="source-inline">href</strong> attribute. This is in <strong class="source-inline">test/reactTestExtensions.js</strong>:</p>
+<pre class="source-code">
+export const linkFor = (href) =&gt;
+  elements("a").find(
+    (el) =&gt; el.getAttribute("href") === href
+  );</pre>
+<p>That can be then used to test for the presence of a link and its caption:</p>
+<pre class="source-code">
+it("renders a link to the /addCustomer route", async () =&gt; {
+  renderWithRouter(&lt;App /&gt;);
+  expect(linkFor("/addCustomer")).toBeDefined();
+});
+it("captions the /addCustomer link as 'Add customer and appointment'", async () =&gt; {
+  renderWithRouter(&lt;App /&gt;);
+  expect(linkFor("/addCustomer")).toContainText(
+    "Add customer and appointment"
+  );
+});</pre>
+<p>Another way to test this would be to click the link and check that it works, as shown in the following test. However, as mentioned at the beginning of this chapter, this test isn’t necessary <a id="_idIndexMarker1076"/>because you’ve already tested the two “halves” of this<a id="_idIndexMarker1077"/> test: that the link is displayed, and that navigating to the URL renders the right component:</p>
+<pre class="source-code">
+it("displays the CustomerSearch when link is clicked", async () =&gt; {
+  renderWithRouter(&lt;App /&gt;);
+  click(linkFor("/searchCustomers"));
+  expect(CustomerSearchRoute).toBeRendered();
+});</pre>
+<p>That covers the main way to test <strong class="source-inline">Link</strong> components. Another way to test links is to mock the <strong class="source-inline">Link</strong> component, which we’ll cover next.</p>
+<h2 id="_idParaDest-200"><a id="_idTextAnchor224"/>Mocking the Link component</h2>
+<p>This method is slightly<a id="_idIndexMarker1078"/> more complicated than simply testing for HTML <a id="_idIndexMarker1079"/>hyperlinks. However, it does mean you can avoid rendering your component under test within a <strong class="source-inline">Router</strong> component.</p>
+<p>The <strong class="source-inline">src/CustomerSearch/RouterButton.js</strong> file contains this <a id="_idIndexMarker1080"/>component:</p>
+<pre class="source-code">
+import React from "react";
+import {
+  objectToQueryString
+} from "../objectToQueryString";
+import { Link } from "react-router-dom";
+export const RouterButton = ({
+  queryParams,
+  children,
+  disabled,
+}) =&gt; (
+  &lt;Link
+    className={disabled ? "disabled" : ""}
+    role="button"
+    to={{
+      search: objectToQueryString(queryParams),
+    }}
+  &gt;
+    {children}
+  &lt;/Link&gt;
+);</pre>
+<p>To test this <a id="_idIndexMarker1081"/>using plain <strong class="source-inline">render</strong>, instead of <strong class="source-inline">renderWithRouter</strong>, we’ll need to mock <a id="_idIndexMarker1082"/>out the <strong class="source-inline">Link</strong> component. Here’s<a id="_idIndexMarker1083"/> how that looks in <strong class="source-inline">test/CustomerSearch/RouterButton.test.js</strong>:</p>
+<pre class="source-code">
+import { Link } from "react-router-dom";
+import {
+  RouterButton
+} from "../../src/CustomerSearch/RouterButton";
+jest.mock("react-router-dom", () =&gt; ({
+  Link: jest.fn(({ children }) =&gt; (
+    &lt;div id="Link"&gt;{children}&lt;/div&gt;
+  )),
+}));</pre>
+<p>Now, you can happily<a id="_idIndexMarker1084"/> use that mock in your test:</p>
+<pre class="source-code">
+it("renders a Link", () =&gt; {
+  render(&lt;RouterButton queryParams={queryParams} /&gt;);
+  expect(Link).toBeRenderedWithProps({
+    className: "",
+    role: "button",
+    to: {
+      search: "?a=123&amp;b=234",
+    },
+  });
+});</pre>
+<p>There’s one final piece to <a id="_idIndexMarker1085"/>think about. Sometimes, you have a single mocked component that has multiple rendered instances on the same page, and this happens frequently with <strong class="source-inline">Link</strong> instances.</p>
+<p>In our case, this is the <strong class="source-inline">SearchButtons</strong> component, which contains a list of <strong class="source-inline">RouterButton</strong> and <strong class="source-inline">ToggleRouterButton</strong> components:</p>
+<pre class="source-code">
+&lt;menu&gt;
+  ...
+  &lt;li&gt;
+    &lt;RouterButton
+      id="previous-page"
+      queryParams={previousPageParams()}
+      disabled={!hasPrevious}
+    &gt;
+      Previous
+    &lt;/RouterButton&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;RouterButton
+      id="next-page"
+      queryParams={nextPageParams()}
+      disabled={!hasNext}
+    &gt;
+      Next
+    &lt;/RouterButton&gt;
+  &lt;/li&gt;
+&lt;/menu&gt;</pre>
+<p>When it comes to testing<a id="_idIndexMarker1086"/> these links, the simplest approach is to use <strong class="source-inline">renderWithRouter</strong> to<a id="_idIndexMarker1087"/> render the <strong class="source-inline">SearchButtons</strong> components and then check the rendered HTML hyperlinks.</p>
+<p>However, if you’ve decided to mock, then you need a way to easily find the element you’ve rendered.</p>
+<p>First, you’d specify the mock to include an <strong class="source-inline">id</strong> property:</p>
+<pre class="source-code">
+jest.mock("../../src/CustomerSearch/RouterButton", () =&gt; ({
+  RouterButton: jest.fn(({ id, children }) =&gt; (
+    &lt;div id={id}&gt;{children}&lt;/div&gt;
+  )),
+}));</pre>
+<p>Then, you can use a new test extension called <strong class="source-inline">propsMatching</strong> to find the specific instance. Here’s the <a id="_idIndexMarker1088"/>definition from <strong class="source-inline">test/reactTestExtensions.js</strong>:</p>
+<pre class="source-code">
+export const propsMatching = (mockComponent, matching) =&gt; {
+  const [k, v] = Object.entries(matching)[0];
+  const call = mockComponent.mock.calls.find(
+    ([props]) =&gt; props[k] === v
+  );
+  return call?.[0];
+};</pre>
+<p>You can then write your<a id="_idIndexMarker1089"/> test to make use of that, as shown in the following code. Remember though, it’s probably going to be easier not to mock this component and simply use <strong class="source-inline">renderWithRouter</strong>, and then check the HTML hyperlinks directly:</p>
+<pre class="source-code">
+const previousPageButtonProps = () =&gt;
+  propsMatching(RouterButton, { id: "previous-page" });
+it("renders", () =&gt; {
+  render(&lt;SearchButtons {...testProps} /&gt;);
+  expect(previousPageButtonProps()).toMatchObject({
+    disabled: false,
+  });
+  expect(element("#previous-page")).toContainText(
+    "Previous"
+  );
+});</pre>
+<p>That’s everything <a id="_idIndexMarker1090"/>there is to testing the <strong class="source-inline">Link</strong> component. In the next section, we’ll look at the final aspect of <a id="_idIndexMarker1091"/>testing React Router: navigating programmatically.</p>
+<h1 id="_idParaDest-201"><a id="_idTextAnchor225"/>Testing programmatic navigation</h1>
+<p>Sometimes, you’ll want to<a id="_idIndexMarker1092"/> trigger a location change programmatically—in other words, without waiting for a user to click a link.</p>
+<p>There are two ways to do this: one using the <strong class="source-inline">useNavigate</strong> hook, and the second using a <strong class="source-inline">history</strong> instance that you pass into your top-level router.</p>
+<p class="callout-heading">Navigation inside and outside of components</p>
+<p class="callout">In this chapter, we’ll look at just the first method, using the hook. Later, in <a href="B18423_12.xhtml#_idTextAnchor231"><em class="italic">Chapter 12</em></a>, <em class="italic">Test-Driving Redux</em>, we’ll use the second method to change the location within a Redux action.</p>
+<p>The <strong class="source-inline">useNavigate</strong> hook is the appropriate method when you’re able to navigate from within a React component.</p>
+<p>In the Appointments application, this happens in two places. The first is after a customer has been added and we want to move the user on to the <strong class="source-inline">/addAppointment</strong> route. The second is after that form has been completed and the appointment has been created—then we want to move them back to the default route.</p>
+<p>Since these are very similar, we’ll look at just the first.</p>
+<p>Here’s how the <strong class="source-inline">/addCustomer</strong> route definition looks in <strong class="source-inline">src/App.js</strong>:</p>
+<pre class="source-code">
+&lt;Route
+  path="/addCustomer"
+  element={
+    &lt;CustomerForm
+      original={blankCustomer}
+      onSave={transitionToAddAppointment}
+    /&gt;
+  }
+/&gt;</pre>
+<p>Notice the <strong class="source-inline">onSave</strong> prop; this is the callback that gets called once the customer form submission is completed. Here’s that <a id="_idIndexMarker1093"/>callback definition, together with the bits<a id="_idIndexMarker1094"/> relevant for the <strong class="source-inline">useNavigate</strong> hook:</p>
+<pre class="source-code">
+import {
+  ...,
+  useNavigate,
+} from "react-router-dom";
+export const App = () =&gt; {
+  const navigate = useNavigate();
+  const transitionToAddAppointment = (customer) =&gt;
+    navigate(`/addAppointment?customer=${customer.id}`);
+  ...
+};</pre>
+<p>When it comes to<a id="_idIndexMarker1095"/> testing this, clearly, we can’t simply rely on the presence of a <strong class="source-inline">Link</strong> component, because there isn’t one. Instead, we must call the <strong class="source-inline">onSave</strong> callback:</p>
+<pre class="source-code">
+import {
+  ...,
+  history,
+} from "./reactTestExtensions";
+...
+it("navigates to /addAppointment after the CustomerForm is submitted", () =&gt; {
+  renderWithRouter(&lt;App /&gt;);
+  click(linkFor("/addCustomer"));
+  const onSave = propsOf(CustomerForm).onSave;
+  act(() =&gt; onSave(customer));
+  expect(history.location.pathname).toEqual(
+    "/addAppointment"
+  );
+});</pre>
+<p>The expectation is to test that the history is updated correctly. This history is the exported constant from <strong class="source-inline">test/reactTestExtensions.js</strong> that is set in the <strong class="source-inline">renderWithRouter</strong> function that we defined in the <em class="italic">Testing components within a router</em> section.</p>
+<p>There is a variation of this. Instead of using the <strong class="source-inline">history</strong> import, you could also simply use the <strong class="source-inline">window.location</strong> instance:</p>
+<pre class="source-code">
+expect(
+  window.location.pathname
+).toEqual("/addAppointment");</pre>
+<p>You’ve now learned<a id="_idIndexMarker1096"/> how to test programmatic React Router navigation.</p>
+<p>In the next chapter, <em class="italic">Test-Driving Redux</em>, we’ll see how we can use this same history instance from a Redux saga.</p>
+<h1 id="_idParaDest-202"><a id="_idTextAnchor226"/>Summary</h1>
+<p>This chapter has shown you how to use React Router in a testable fashion. You have learned how to test-drive the <strong class="source-inline">Router</strong>, <strong class="source-inline">Routes</strong>, <strong class="source-inline">Route</strong>, and <strong class="source-inline">Link</strong> components. You have seen how to use the React Router <strong class="source-inline">useSearchParams</strong> and <strong class="source-inline">useNavigate</strong> hooks.</p>
+<p>Most importantly, you’ve seen that because routes give an extra level of entry into your application, you must split your existing navigation tests into two parts: one to test that a link exists (or is followed), and one to check that if you visit that URL, the right component is displayed.</p>
+<p>Now that we’ve successfully integrated one library, the next one shouldn’t be too tricky, right? In the next chapter, we’ll apply all the skills we’<a id="_idTextAnchor227"/>ve learned in this chapter to the integration of another library: Redux.</p>
+<h1 id="_idParaDest-203"><a id="_idTextAnchor228"/>Exercise</h1>
+<p>In this chapter, there was no walkthrough because the refactoring process is quite involved and would have taken up a decent chunk of time and space.</p>
+<p>Use this opportunity to try refactoring yourself. Use a <em class="italic">systematic refactoring</em> approach to break down the change to React Router into many small steps. At each step, you should still have working software.</p>
+<p>You can find a guide on how to approach this <a id="_idTextAnchor229"/>type of refactoring at <a href="https://reacttdd.com/unpublished/refactoring-to-react-router/">https://reacttdd.com/refactoring-to-react-router</a>.</p>
+<h1 id="_idParaDest-204"><a id="_idTextAnchor230"/>Further reading</h1>
+<p>The official React Router documentation can be found at the following link:</p>
+<p><a href="https://reacttraining.com/react-router/">https://reacttraining.com/react-router/</a></p>
+</div>
+<div>
+<div id="_idContainer036">
+</div>
+</div>
+</div></body></html>

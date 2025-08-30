@@ -1,0 +1,252 @@
+<html><head></head><body>
+  <div id="_idContainer099" class="Basic-Text-Frame">
+    <h1 class="chapterNumber">10</h1>
+    <h1 id="_idParaDest-157" class="chapterTitle">High-Performance State Updates</h1>
+    <p class="normal"><strong class="keyWord">State</strong> represents the dynamic aspect of your React application. When the state changes, your components <a id="_idIndexMarker363"/>react to those changes. Without state, you would have nothing more than a fancy HTML template language. Usually, the time required to perform a state update and have the changes rendered on the screen is barely, if at all, noticeable. However, there are times that complex state changes can lead to noticeable lag for your users. The goal of this chapter is to address these cases and find out how we can avoid those lags.</p>
+    <p class="normal">In this chapter, you’ll learn how to do the following:</p>
+    <ul>
+      <li class="bulletList">Batch your state changes together for minimal re-rendering</li>
+      <li class="bulletList">Prioritize state updates to render content that’s critical for your user experience first</li>
+      <li class="bulletList">Develop strategies for performing asynchronous actions while <strong class="keyWord">batching</strong> and prioritizing <strong class="keyWord">state updates</strong></li>
+    </ul>
+    <h1 id="_idParaDest-158" class="heading-1">Technical requirements</h1>
+    <p class="normal">For this chapter, you’ll need your code editor (<strong class="keyWord">Visual Studio Code</strong>). The code we’ll be following can be found here: <a href="https://github.com/PacktPublishing/React-and-React-Native-5E/tree/main/Chapter10"><span class="url">https://github.com/PacktPublishing/React-and-React-Native-5E/tree/main/Chapter10</span></a>.</p>
+    <p class="normal">You can open the terminal within Visual Studio Code and run <code class="inlineCode">npm install</code> to make sure you’re able to follow along with the examples as you read through the chapter.</p>
+    <h1 id="_idParaDest-159" class="heading-1">Batching state updates</h1>
+    <p class="normal">In this section, you’ll learn about how React can <strong class="keyWord">batch state </strong>updates together to prevent unnecessary <a id="_idIndexMarker364"/>rendering when multiple state changes happen simultaneously. In particular, we’ll look at the changes introduced in <strong class="keyWord">React 18</strong> that make <strong class="keyWord">automatic batching</strong> of state updates commonplace.</p>
+    <p class="normal">When your React component issues a state change, this causes the React internals to re-render the parts of your component that have changed visually as a result of this state update. For example, imagine you have a component with a name state that’s rendered inside of a <code class="inlineCode">&lt;span&gt;</code> element, and you change the name state from <code class="inlineCode">Adam</code> to <code class="inlineCode">Ashley</code>. That’s a straightforward change that results in a re-render that’s too fast for the user to even notice. Unfortunately, state updates in web applications are rarely this straightforward. Instead, there might be dozens of state changes in 10 milliseconds. For example, the name state might follow changes like this:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1"><code class="inlineCode">Adam</code></li>
+      <li class="numberedList"><code class="inlineCode">Ashley</code></li>
+      <li class="numberedList"><code class="inlineCode">Andrew</code></li>
+      <li class="numberedList"><code class="inlineCode">Ashley</code></li>
+      <li class="numberedList"><code class="inlineCode">Aaron</code></li>
+      <li class="numberedList"><code class="inlineCode">Adam</code></li>
+    </ol>
+    <p class="normal">Here, we have six changes that took place with the name state in a short amount of time. This means that React would have re-rendered the <strong class="keyWord">DOM</strong> six times, once for each value that was set as the name state. What’s interesting to note about this scenario is the final state update: we’re back where we started with <code class="inlineCode">Adam</code>. This means that we just re-rendered the DOM five times for no reason. Now, imagine these wasted re-renders on a web application scale and how these types of state updates might cause problems for performance. For example, when the app uses complex animations, user interactions like drag and drops, timeouts, and intervals can all lead to unnecessary re-renders, negatively impacting performance.</p>
+    <p class="normal">The answer to <a id="_idIndexMarker365"/>this problem is <strong class="keyWord">batching</strong>. This is how React takes several state updates that were made in our component code and treats them as a single state update. Rather than process every state update individually, while re-rendering the DOM between each update, the state changes are all merged, which results in one DOM re-render. In the aggregate, this reduces the amount of work that our web applications need to do by a lot.</p>
+    <p class="normal">In <strong class="keyWord">React 17</strong>, automatic batching of state updates only happened inside of event handler functions. For example, let’s say you have a button with an <code class="inlineCode">onClick()</code> handler that performs five <a id="_idIndexMarker366"/>state updates. React will batch all of these state updates together so that only one re-render is necessary. The problem arises when your event handlers make asynchronous calls, usually to fetch some data, and then make state updates when the asynchronous call finishes. These state changes are no longer automatically batched because they’re not running directly inside of the event handler function. Instead, they’re running in the <code class="inlineCode">callback</code> code of the asynchronous operation and React 17 will not batch these updates. This is a challenge because it’s common for our React components to fetch data asynchronously and perform state updates in response to events! </p>
+    <p class="normal">Now we know how we can handle the most common problem with unnecessary re-renders, which is multiple changes to a state in a short time. Now, let’s understand it by example.</p>
+    <h2 id="_idParaDest-160" class="heading-2">React 18 batching</h2>
+    <p class="normal">Let’s turn our attention to some code now to see how <strong class="keyWord">React 18</strong> addresses the batching problem that <a id="_idIndexMarker367"/>we’ve just outlined. For this example, we’ll render a button that, when clicked, will perform 100 state updates. We’ll use <code class="inlineCode">setTimeout()</code> so that the updates are performed asynchronously, outside of the event handler function. The idea is to show the difference between how this code is handled by two different <a id="_idIndexMarker368"/>React versions. To do this, we can open the <strong class="keyWord">React profiler</strong> in the browser dev tools and hit record before we press the button to execute our state changes. Here’s what the code looks like:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> * <span class="hljs-keyword">as</span> <span class="hljs-title">React</span> <span class="hljs-keyword">from</span> <span class="hljs-string">"react"</span>;
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-keyword">function</span> <span class="hljs-title">BatchingUpdates</span>() {
+  <span class="hljs-keyword">let</span> [value, setValue] = <span class="hljs-title">React</span>.<span class="hljs-title">useState</span>(<span class="hljs-string">"loading..."</span>);
+  <span class="hljs-keyword">function</span> <span class="hljs-title">onStart</span>() {
+    <span class="hljs-built_in">setTimeout</span>(<span class="hljs-function">() =&gt;</span> {
+      <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">100</span>; i++) {
+        <span class="hljs-title">setValue</span>(<span class="hljs-string">'value </span><span class="hljs-subst">${i + </span><span class="hljs-number">1</span><span class="hljs-subst">}</span><span class="hljs-string">'</span>);
+      }
+    }, <span class="hljs-number">1</span>);
+  }
+  <span class="hljs-keyword">return</span> (
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">p</span><span class="hljs-tag">&gt;</span>
+        Value: <span class="hljs-tag">&lt;</span><span class="hljs-name">em</span><span class="hljs-tag">&gt;</span>{value}<span class="hljs-tag">&lt;/</span><span class="hljs-name">em</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;/</span><span class="hljs-name">p</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">button</span><span class="hljs-tag"> </span><span class="hljs-attr">onClick</span><span class="hljs-tag">=</span><span class="hljs-string">{onStart}</span><span class="hljs-tag">&gt;</span>Start<span class="hljs-tag">&lt;/</span><span class="hljs-name">button</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-tag">&lt;/</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+  );
+}
+</code></pre>
+    <p class="normal">By clicking the button that this component renders, we call the <code class="inlineCode">onStart()</code> event handler function defined by our component. Then, our handler calls <code class="inlineCode">setValue()</code> 100 times inside a loop. Ideally, we do not want to perform 100 re-renders because this will hurt the performance <a id="_idIndexMarker369"/>of our application, and it doesn’t need to. Only the final call to <code class="inlineCode">setValue()</code> matters here. </p>
+    <p class="normal">Let’s first take a look at the profile captured for this component using React 17:</p>
+    <figure class="mediaobject"><img src="../Images/B19636_10_01.png" alt="Figure 13.1 – Using React dev tools to view re-renders every time state updates are made "/></figure>
+    <p class="packt_figref">Figure 10.1: Using React dev tools to view re-renders every time state updates are made</p>
+    <p class="normal">By pressing the button with our event handler attached to it, we’re making 100 state update calls. Since this is done outside of the event handler function in <code class="inlineCode">setTimeout()</code>, automatic batching doesn’t happen. We can see this in the profile output of the <code class="inlineCode">BactchingUpdates</code> component, where there’s a long list of renders. Most of these aren’t necessary and contribute to the amount of work React needs to do in response to user interactions, hurting the overall performance of our application.</p>
+    <p class="normal">Let’s capture <a id="_idIndexMarker370"/>a profile of the same component being rendered using React 18:</p>
+    <figure class="mediaobject"><img src="../Images/B19636_10_02.png" alt="Figure 13.2 – React dev tools showing only one render with automatic batching enabled "/></figure>
+    <p class="packt_figref">Figure 10.2: React dev tools showing only one render with automatic batching enabled</p>
+    <p class="normal"><strong class="keyWord">Automatic batching</strong> is applied everywhere that state updates are made, even in common <a id="_idIndexMarker371"/>asynchronous scenarios such as this one. As the profile shows, there’s only one re-render when we click the button instead of 100. We didn’t have to make any adjustments to our component code to make this happen either. However, there is one change that’s required in order to make state updates batch automatically. Let’s say you used <code class="inlineCode">ReactDOM.render()</code> to render your root component, like so:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-title">ReactDOM</span>.<span class="hljs-title">render</span>(
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">React.StrictMode</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">App</span><span class="hljs-tag"> /&gt;</span>
+  <span class="hljs-tag">&lt;/</span><span class="hljs-name">React.StrictMode</span><span class="hljs-tag">&gt;</span>,
+  <span class="hljs-variable">document</span>.<span class="hljs-title">getElementById</span>(<span class="hljs-string">"root"</span>)
+);
+</code></pre>
+    <p class="normal">Instead, you can use <code class="inlineCode">ReactDOM.createRoot()</code> and render that:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-title">ReactDOM</span>.<span class="hljs-title">createRoot</span>(<span class="hljs-variable">document</span>.<span class="hljs-title">getElementById</span>(<span class="hljs-string">"root"</span>)!).<span class="hljs-title">render</span>(
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">React.StrictMode</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">App</span><span class="hljs-tag"> /&gt;</span>
+  <span class="hljs-tag">&lt;/</span><span class="hljs-name">React.StrictMode</span><span class="hljs-tag">&gt;</span>
+);
+</code></pre>
+    <p class="normal">By creating and rendering your root node this way, you can ensure that with <strong class="keyWord">React 18</strong>, you’ll get batched state updates throughout your application. You no longer need to worry about <a id="_idIndexMarker372"/>manually optimizing state updates so that they take place immediately: React does this for you now. However, sometimes, you’ll have state updates that are of higher priority than others. In cases like these, we need a way to tell React to prioritize certain state updates over others, instead of batching everything together.</p>
+    <h1 id="_idParaDest-161" class="heading-1">Prioritizing state updates</h1>
+    <p class="normal">When something happens in our React application, we usually make several state updates so that the UI can reflect these changes. Typically, you can make these state changes without <a id="_idIndexMarker373"/>much thought about how the rendering performance is impacted. For example, let’s say you have a long list of items that need to be rendered. This will probably have some impact on the UI: while the list is being rendered, the user probably won’t be able to interact with certain page elements because the JavaScript engine is 100% utilized for a brief moment.</p>
+    <p class="normal">However, this can become an issue when expensive rendering disrupts the normal browser behavior that users expect. For example, if the user types in a text box, they expect the character they just typed to show up immediately. But if your component is busy rendering a large item list, the text box state cannot be updated right away. This is where the new React state update prioritization API comes in handy.</p>
+    <p class="normal">The <code class="inlineCode">startTransition()</code> API is used to mark certain state updates as transitional, meaning that the updates are treated as a lower priority. If you think about a list of items either being rendered for the first time or being changed to another list of items, this is a transition that doesn’t have to be immediate. On the other hand, state updates such as changing the value in a text box should be as close to immediate as possible. By using <code class="inlineCode">startTransition()</code>, you tell React that any state updates within can wait if there are more important updates.</p>
+    <p class="normal">A good rule of thumb for <code class="inlineCode">startTransition()</code> is to use it for the following:</p>
+    <ul>
+      <li class="bulletList">Anything that has the potential to perform a lot of rendering work</li>
+      <li class="bulletList">Anything that doesn’t require immediate feedback from the user in response to their interactions</li>
+    </ul>
+    <p class="normal">Let’s walk through an example that renders a large list of items in response to a user typing in a text box to filter a list.</p>
+    <p class="normal">This component will render a text box that the user can type in to filter a list of 25,000 items. I’ve chosen this number based on the performance of the laptop I’m using to write this code: you might want to tweak it up if there’s no delay or down if it takes too long to render <a id="_idIndexMarker374"/>anything. When the page first loads, you should see a filter text box that looks like this:</p>
+    <figure class="mediaobject"><img src="../Images/B19636_10_03.png" alt="" role="presentation"/></figure>
+    <p class="packt_figref">Figure 10.3: The filter box before the user types anything</p>
+    <p class="normal">When you start typing in the filter text box, the filtered items will render underneath it. It might take a second or two, since there are so many items to render:</p>
+    <figure class="mediaobject"><img src="../Images/B19636_10_4.png" alt="" role="presentation"/></figure>
+    <p class="packt_figref">Figure 10.4: Filtered items underneath the filter input when the user starts typing</p>
+    <p class="normal">Now, let’s walk through the code, starting with a large array of items:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">let</span> unfilteredItems = <span class="hljs-keyword">new</span> <span class="hljs-title">Array</span>(<span class="hljs-number">25000</span>)
+  .<span class="hljs-title">fill</span>(<span class="hljs-literal">null</span>)
+  .<span class="hljs-title">map</span>(<span class="hljs-function">(</span><span class="hljs-params">_, i</span><span class="hljs-function">) =&gt;</span> ({ <span class="hljs-attr">id</span>: i, <span class="hljs-attr">name</span>: <span class="hljs-string">'Item </span><span class="hljs-subst">${i}</span><span class="hljs-string">'</span> }));
+</code></pre>
+    <p class="normal">The size of the array is specified in the array constructor, and then it’s filled with numbered string values that we can filter by. </p>
+    <p class="normal">Next, let’s look at the state used by this component:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">let</span> [filter, setFilter] = <span class="hljs-title">React</span>.<span class="hljs-title">useState</span>(<span class="hljs-string">""</span>);
+<span class="hljs-keyword">let</span> [items, setItems] = <span class="hljs-title">React</span>.<span class="hljs-title">useState</span>([]);
+</code></pre>
+    <p class="normal">The <code class="inlineCode">filter</code> state represents the value of the filter text box and defaults to an empty string. The <code class="inlineCode">items</code> state represents the filtered items from our <code class="inlineCode">unfilteredItems</code> array. This array is <a id="_idIndexMarker375"/>populated when the user types in the filter text box. </p>
+    <p class="normal">Next, let’s look at the markup rendered by this component:</p>
+    <pre class="programlisting code"><code class="hljs-code">&lt;div&gt;
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">input</span>
+<span class="hljs-tag">      </span><span class="hljs-attr">type</span><span class="hljs-tag">=</span><span class="hljs-string">"text"</span>
+<span class="hljs-tag">      </span><span class="hljs-attr">placeholder</span><span class="hljs-tag">=</span><span class="hljs-string">"Filter"</span>
+<span class="hljs-tag">      </span><span class="hljs-attr">value</span><span class="hljs-tag">=</span><span class="hljs-string">{filter}</span>
+<span class="hljs-tag">      </span><span class="hljs-attr">onChange</span><span class="hljs-tag">=</span><span class="hljs-string">{onChange}</span>
+<span class="hljs-tag">    /&gt;</span>
+  <span class="hljs-tag">&lt;/</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">ul</span><span class="hljs-tag">&gt;</span>
+      {items.map((item) =&gt; (
+        <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag"> </span><span class="hljs-attr">key</span><span class="hljs-tag">=</span><span class="hljs-string">{item.id}</span><span class="hljs-tag">&gt;</span>{item.name}<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+      ))}
+    <span class="hljs-tag">&lt;/</span><span class="hljs-name">ul</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;/</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+&lt;/div&gt;
+</code></pre>
+    <p class="normal">The filter text box is rendered by an <code class="inlineCode">&lt;input&gt;</code> element, while the filtered results are rendered as a list by iterating over the <code class="inlineCode">items</code> array. </p>
+    <p class="normal">Finally, let’s look at the event handler function that’s fired when the user types in the filter text box:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">const</span> <span class="hljs-title">onChange</span> = (<span class="hljs-params">e</span>) =&gt; {
+  <span class="hljs-title">setFilter</span>(e.<span class="hljs-property">target</span>.<span class="hljs-property">value</span>);
+  <span class="hljs-title">setItems</span>(
+    e.<span class="hljs-property">target</span>.<span class="hljs-property">value</span> === <span class="hljs-string">""</span>
+      ? []
+      : unfilteredItems.<span class="hljs-title">filter</span>(<span class="hljs-function">(</span><span class="hljs-params">item</span><span class="hljs-function">) =&gt;</span> item.<span class="hljs-property">name</span>.<span class="hljs-title">includes</span>(e.<span class="hljs-property">target</span>.<span class="hljs-property">value</span>))
+  );
+};
+</code></pre>
+    <p class="normal">The <code class="inlineCode">onChange()</code> function is called when the user types in the filter text box and sets two state values. First, it uses <code class="inlineCode">setFilter()</code> to set the value of the filter text box. Then, it calls <code class="inlineCode">setItems()</code> to set the filtered items to render unless the filter text is empty, in which case, we render nothing. </p>
+    <p class="normal">When interacting with this example, you might notice a problem with the responsiveness of the text box when typing in it. This is because, in this function, we’re setting not only the text box value but also the filtered items. This means that <a id="_idIndexMarker376"/>before the text value can be rendered, we have to wait for thousands of items to be rendered.</p>
+    <p class="normal">Even though these are two separate state updates (<code class="inlineCode">setFilter()</code> and <code class="inlineCode">setItems()</code>), they’re batched and treated as a single state update. Likewise, when the rendering starts, React makes all the changes at once, which means that the CPU won’t let the user interact with the text box because it’s fully utilized, rendering the long list of filter results. Ideally, we want to prioritize the text box state update while letting the items render afterward. To put it another way, we want to deprioritize the item rendering, since it’s expensive and the user doesn’t interact with it directly.</p>
+    <p class="normal">This is where the <code class="inlineCode">startTransition()</code> API comes in. Any state updates that take place within the function that’s passed to <code class="inlineCode">startTransition()</code> will be treated with lower priority than any state updates that happen outside of it. In our filtering example, we can fix the text box responsiveness issue by moving the <code class="inlineCode">setItems()</code> state change inside of <code class="inlineCode">startTransition()</code>.</p>
+    <p class="normal">Here’s what our new <code class="inlineCode">onChange()</code> event handler looks like:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">const</span> <span class="hljs-title">onChange</span> = (<span class="hljs-params">e</span>) =&gt; {
+  <span class="hljs-title">setFilter</span>(e.<span class="hljs-property">target</span>.<span class="hljs-property">value</span>);
+  <span class="hljs-title">React</span>.<span class="hljs-title">startTransition</span>(<span class="hljs-function">() =&gt;</span> {
+    <span class="hljs-title">setItems</span>(
+      e.<span class="hljs-property">target</span>.<span class="hljs-property">value</span> === <span class="hljs-string">""</span>
+        ? []
+        : unfilteredItems.<span class="hljs-title">filter</span>(<span class="hljs-function">(</span><span class="hljs-params">item</span><span class="hljs-function">) =&gt;</span> item.<span class="hljs-property">name</span>.<span class="hljs-title">includes</span>(e.<span class="hljs-property">target</span>.<span class="hljs-property">value</span>))
+    );
+  });
+};
+</code></pre>
+    <p class="normal">Note that we didn’t have to make any changes to how the item’s state is updated: the same code is moved to a function that’s passed to <code class="inlineCode">startTransition()</code>. This tells React to only execute this state change after any other state changes are complete. In our case, this allows the text box to update and render before the <code class="inlineCode">setItems()</code> state change runs. If you run the example now, you’ll see that the responsiveness of the text box is no longer affected <a id="_idIndexMarker377"/>by how long it takes to render a long list of items.</p>
+    <p class="normal">Before this new API was introduced, you could achieve state update prioritizations via workarounds with <code class="inlineCode">setTimeout()</code>. The main disadvantage of this approach is that the internal React scheduler knows nothing about your state updates and their priorities. For example, by using <code class="inlineCode">startTransitiion()</code>, React can cancel the update entirely if the state changes again before completion or if the component is unmounted.</p>
+    <p class="normal">In real applications, it isn’t simply a matter of prioritizing which state updates should run first. Rather, it’s a combination of fetching data asynchronously while making sure that priorities are taken into account. In the final section of this chapter, we’ll tie all of this together.</p>
+    <h1 id="_idParaDest-162" class="heading-1">Handling asynchronous state updates</h1>
+    <p class="normal">In this final section of the chapter, we’ll look at the common scenario of fetching data asynchronously <a id="_idIndexMarker378"/>and setting render priorities. The key scenario that we want to address is making sure that users aren’t interrupted when typing or doing any other interaction that requires immediate feedback. This requires both proper prioritization and handling asynchronous responses from the server. Let’s start by looking at the React APIs that can potentially help with this scenario.</p>
+    <p class="normal">The <code class="inlineCode">startTransition()</code> API can be used as a <strong class="keyWord">Hook</strong>. When we do this, we also get a Boolean value that we can check to see whether the transition is still pending. This is useful for showing the user that things are loading. Let’s modify the example from the previous section to use an asynchronous data-fetching function for our items. We’ll also use <a id="_idIndexMarker379"/>the <code class="inlineCode">useTransition()</code> Hook and add loading behavior to the output of our component:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">let</span> unfilteredItems = <span class="hljs-keyword">new</span> <span class="hljs-title">Array</span>(<span class="hljs-number">25000</span>)
+  .<span class="hljs-title">fill</span>(<span class="hljs-literal">null</span>)
+  .<span class="hljs-title">map</span>(<span class="hljs-function">(</span><span class="hljs-params">_, i</span><span class="hljs-function">) =&gt;</span> ({ <span class="hljs-attr">id</span>: i, <span class="hljs-attr">name</span>: <span class="hljs-string">'Item </span><span class="hljs-subst">${i}</span><span class="hljs-string">'</span> }));
+<span class="hljs-keyword">function</span> <span class="hljs-title">filterItems</span>(<span class="hljs-params">filter: string</span>) {
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-title">Promise</span>(<span class="hljs-function">(</span><span class="hljs-params">resolve</span><span class="hljs-function">) =&gt;</span> {
+    <span class="hljs-built_in">setTimeout</span>(<span class="hljs-function">() =&gt;</span> {
+      <span class="hljs-title">resolve</span>(unfilteredItems.<span class="hljs-title">filter</span>(<span class="hljs-function">(</span><span class="hljs-params">item</span><span class="hljs-function">) =&gt;</span> item.<span class="hljs-property">name</span>.<span class="hljs-title">includes</span>(filter)));
+    }, <span class="hljs-number">1000</span>);
+  });
+}
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-keyword">function</span> <span class="hljs-title">AsyncUpdates</span>() {
+  <span class="hljs-keyword">const</span> [isPending, startTransition] = <span class="hljs-title">React</span>.<span class="hljs-title">useTransition</span>();
+  <span class="hljs-keyword">const</span> [isLoading, setIsLoading] = <span class="hljs-title">React</span>.<span class="hljs-title">useState</span>(<span class="hljs-literal">false</span>);
+  <span class="hljs-keyword">const</span> [filter, setFilter] = <span class="hljs-title">React</span>.<span class="hljs-title">useState</span>(<span class="hljs-string">""</span>);
+  <span class="hljs-keyword">const</span> [items, setItems] = <span class="hljs-title">React</span>.<span class="hljs-property">useState</span>&lt;{ <span class="hljs-attr">id</span>: number; <span class="hljs-attr">name</span>: string }[]&gt;([]);
+  <span class="hljs-keyword">const</span> <span class="hljs-attr">onChange</span>: <span class="hljs-title">React</span>.<span class="hljs-property">ChangeEventHandler</span>&lt;<span class="hljs-title">HTMLInputElement</span>&gt; = <span class="hljs-title">async</span> (e) =&gt; {
+    <span class="hljs-title">setFilter</span>(e.<span class="hljs-property">target</span>.<span class="hljs-property">value</span>);
+    <span class="hljs-title">startTransition</span>(<span class="hljs-function">() =&gt;</span> {
+      <span class="hljs-keyword">if</span> (e.<span class="hljs-property">target</span>.<span class="hljs-property">value</span> === <span class="hljs-string">""</span>) {
+        <span class="hljs-title">setItems</span>([]);
+      } <span class="hljs-keyword">else</span> {
+        <span class="hljs-title">filterItems</span>(e.<span class="hljs-property">target</span>.<span class="hljs-property">value</span>).<span class="hljs-title">then</span>(<span class="hljs-function">(</span><span class="hljs-params">result</span><span class="hljs-function">) =&gt;</span> {
+          <span class="hljs-title">setItems</span>(result);
+        });
+      }
+    });
+  };
+  <span class="hljs-keyword">return</span> (...);
+}
+</code></pre>
+    <p class="normal">What this example shows is that once you start typing in the filter text box, it will trigger the <code class="inlineCode">onChange()</code> handler, which will call the <code class="inlineCode">filterItems()</code> function. We also have an <code class="inlineCode">isLoading</code> value that we can use to show the user that something is happening in the background:</p>
+    <pre class="programlisting code"><code class="hljs-code">&lt;div&gt;
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">input</span>
+<span class="hljs-tag">      </span><span class="hljs-attr">type</span><span class="hljs-tag">=</span><span class="hljs-string">"text"</span>
+<span class="hljs-tag">      </span><span class="hljs-attr">placeholder</span><span class="hljs-tag">=</span><span class="hljs-string">"Filter"</span>
+<span class="hljs-tag">      </span><span class="hljs-attr">value</span><span class="hljs-tag">=</span><span class="hljs-string">{filter}</span>
+<span class="hljs-tag">      </span><span class="hljs-attr">onChange</span><span class="hljs-tag">=</span><span class="hljs-string">{onChange}</span>
+<span class="hljs-tag">    /&gt;</span>
+  <span class="hljs-tag">&lt;/</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+    {isPending &amp;&amp; <span class="hljs-tag">&lt;</span><span class="hljs-name">em</span><span class="hljs-tag">&gt;</span>loading...<span class="hljs-tag">&lt;/</span><span class="hljs-name">em</span><span class="hljs-tag">&gt;</span>}
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">ul</span><span class="hljs-tag">&gt;</span>
+      {items.map((item) =&gt; (
+        <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag"> </span><span class="hljs-attr">key</span><span class="hljs-tag">=</span><span class="hljs-string">{item.id}</span><span class="hljs-tag">&gt;</span>{item.name}<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+      ))}
+    <span class="hljs-tag">&lt;/</span><span class="hljs-name">ul</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;/</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+&lt;/div&gt;
+</code></pre>
+    <p class="normal">Here’s what <a id="_idIndexMarker380"/>the user will see when <code class="inlineCode">isLoading</code> is <code class="inlineCode">true</code>:</p>
+    <figure class="mediaobject"><img src="../Images/B19636_10_05.png" alt="" role="presentation"/></figure>
+    <p class="packt_figref">Figure 10.5: A loading indicator while a state transition is pending</p>
+    <p class="normal">However, there’s a slight problem with our approach. You might have noticed the loading message flash briefly when typing into the text box. But then, you probably had a longer period when the items still weren’t visible, and the loading message disappeared. What’s happening here? Well, the <code class="inlineCode">isPending</code> value that comes from the <code class="inlineCode">useTransition()</code> Hook can be misleading. We’ve designed our component in such a way that <code class="inlineCode">isPending</code> will be <code class="inlineCode">true</code> in the following situations:</p>
+    <ul>
+      <li class="bulletList">If the <code class="inlineCode">filterItems()</code> function is still fetching our data</li>
+      <li class="bulletList">If the <code class="inlineCode">setItems()</code> state update is still performing an expensive render with lots of items</li>
+    </ul>
+    <p class="normal">Unfortunately, this isn’t how <code class="inlineCode">isPending</code> works. The only time this value is <code class="inlineCode">true</code> is before the function we pass to <code class="inlineCode">startTransition()</code> is run. This is why you’ll see the loading indicator flash briefly instead of being displayed throughout the data-fetching operation and the rendering operation. Remember, React schedules state updates internally, and by using <code class="inlineCode">startTransition()</code>, we’ve scheduled <code class="inlineCode">setItems()</code> to run after other state updates.</p>
+    <p class="normal">Another way to think about <code class="inlineCode">isPending</code> is that it’s <code class="inlineCode">true</code> while high-priority updates are still running. We can call it <code class="inlineCode">highPriorityUpdatesPending</code> to avoid confusion. That said, the uses of <a id="_idIndexMarker381"/>this value are narrow, but they do happen from time to time. For our more common case of fetching data and performing an expensive render, we need to think of another solution. Let’s walk through our code and refactor it in such a way that the loading indicator is displayed while the fetch and the higher-priority updates happen. First, let’s introduce a new <code class="inlineCode">isLoading</code> state that defaults to <code class="inlineCode">false</code>:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">const</span> [isLoading, setIsLoading] = <span class="hljs-title">React</span>.<span class="hljs-title">useState</span>(<span class="hljs-literal">false</span>);
+<span class="hljs-keyword">const</span> [filter, setFilter] = <span class="hljs-title">React</span>.<span class="hljs-title">useState</span>(<span class="hljs-string">""</span>);
+<span class="hljs-keyword">const</span> [items, setItems] = <span class="hljs-title">React</span>.<span class="hljs-title">useState</span>([]);
+</code></pre>
+    <p class="normal">Now, inside of our <code class="inlineCode">onChange()</code> handler, we can set the state to <code class="inlineCode">true</code>. Inside of the transition that runs after the data fetch completes, we set it back to <code class="inlineCode">false</code>:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">const</span> <span class="hljs-attr">onChange</span>: <span class="hljs-title">React</span>.<span class="hljs-property">ChangeEventHandler</span>&lt;<span class="hljs-title">HTMLInputElement</span>&gt; = <span class="hljs-title">async</span> (e) =&gt; {
+  <span class="hljs-title">setFilter</span>(e.<span class="hljs-property">target</span>.<span class="hljs-property">value</span>);
+  <span class="hljs-title">setIsLoading</span>(<span class="hljs-literal">true</span>);
+  <span class="hljs-title">React</span>.<span class="hljs-title">startTransition</span>(<span class="hljs-function">() =&gt;</span> {
+    <span class="hljs-keyword">if</span> (e.<span class="hljs-property">target</span>.<span class="hljs-property">value</span> === <span class="hljs-string">""</span>) {
+      <span class="hljs-title">setItems</span>([]);
+      <span class="hljs-title">setIsLoading</span>(<span class="hljs-literal">false</span>);
+    } <span class="hljs-keyword">else</span> {
+      <span class="hljs-title">filterItems</span>(e.<span class="hljs-property">target</span>.<span class="hljs-property">value</span>).<span class="hljs-title">then</span>(<span class="hljs-function">(</span><span class="hljs-params">result</span><span class="hljs-function">) =&gt;</span> {
+        <span class="hljs-title">setItems</span>(result);
+        <span class="hljs-title">setIsLoading</span>(<span class="hljs-literal">false</span>);
+      });
+    }
+  });
+};
+</code></pre>
+    <p class="normal">Now that we’re keeping track of the <code class="inlineCode">isLoading</code> state, we know exactly when all the heavy lifting is done and can hide the loading indicator. The final change is to base the indicator display on <code class="inlineCode">isLoading</code> instead of <code class="inlineCode">isPending</code>:</p>
+    <pre class="programlisting code"><code class="hljs-code">&lt;div&gt;
+  {isLoading &amp;&amp; <span class="hljs-tag">&lt;</span><span class="hljs-name">em</span><span class="hljs-tag">&gt;</span>loading...<span class="hljs-tag">&lt;/</span><span class="hljs-name">em</span><span class="hljs-tag">&gt;</span>}
+  &lt;ul&gt;
+    {items.<span class="hljs-title">map</span>(<span class="hljs-function">(</span><span class="hljs-params">item</span><span class="hljs-function">) =&gt;</span> (
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag"> </span><span class="hljs-attr">key</span><span class="hljs-tag">=</span><span class="hljs-string">{item.id}</span><span class="hljs-tag">&gt;</span>{item.name}<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+    ))}
+  &lt;<span class="hljs-regexp">/ul&gt;</span>
+<span class="hljs-regexp">&lt;/</span>div&gt;
+</code></pre>
+    <p class="normal">When you run the <a id="_idIndexMarker382"/>example with these changes, the results should be a lot more predictable. The <code class="inlineCode">setLoading()</code> and <code class="inlineCode">setFilter()</code> state updates are high-priority and execute immediately. The call to fetch data using <code class="inlineCode">filterItems()</code> isn’t made until the high-priority state updates are completed. </p>
+    <p class="normal">Only after we have the data do we hide the loading indicator.</p>
+    <h1 id="_idParaDest-163" class="heading-1">Summary</h1>
+    <p class="normal">This chapter introduced you to the new APIs available in React 18 that help you achieve high-performance state updates. We started with a look at the changes to automatic state update batching in React 18 and how to best take advantage of them. We then explored the new <code class="inlineCode">startTransition()</code> API and how it can be used to mark certain state updates as having a lower priority than those that require immediate feedback for user interactions. Finally, we looked at how state update prioritization can be combined with asynchronous data fetching.</p>
+    <p class="normal">In the next chapter, we’ll go over fetching data from the server.</p>
+  </div>
+</body></html>

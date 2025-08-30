@@ -1,0 +1,205 @@
+<html><head></head><body>
+  <div id="_idContainer078" class="Basic-Text-Frame">
+    <h1 class="chapterNumber">8</h1>
+    <h1 id="_idParaDest-130" class="chapterTitle">Code Splitting Using Lazy Components and Suspense</h1>
+    <p class="normal"><strong class="keyWord">Code splitting</strong> has been a significant part of React<a id="_idIndexMarker286"/> applications for many years, even<a id="_idIndexMarker287"/> before official support was included in the <strong class="keyWord">React API</strong>. The evolution of React has brought about APIs that are specifically designed to assist in code-splitting scenarios. Code splitting becomes crucial when dealing with large applications containing a vast amount of JavaScript code that needs to be delivered to a browser.</p>
+    <p class="normal">In the past, <strong class="keyWord">monolithic JavaScript bundles</strong> containing an entire application<a id="_idIndexMarker288"/> could cause usability issues due to long initial page load times. Thanks to code splitting, we now have much more granular control over how code is transferred from the server to the browser. This gives us ample opportunities<a id="_idIndexMarker289"/> to optimize load-time <strong class="keyWord">User Experience</strong> (<strong class="keyWord">UX</strong>).</p>
+    <p class="normal">In this chapter, we will revisit how to implement this in your React applications by using the <code class="inlineCode">lazy()</code> API and the <code class="inlineCode">Suspense</code> components. These features are very powerful tools in the React toolbox. By gaining a thorough understanding of how these components function, you’ll be fully equipped to seamlessly integrate code splitting into your applications.</p>
+    <p class="normal">We’ll cover the following topics in this chapter:</p>
+    <ul>
+      <li class="bulletList">Using the <code class="inlineCode">lazy()</code> API</li>
+      <li class="bulletList">Using the <code class="inlineCode">Suspense</code> component</li>
+      <li class="bulletList">Avoiding <strong class="keyWord">lazy components</strong></li>
+      <li class="bulletList">Exploring <strong class="keyWord">lazy pages</strong> and <strong class="keyWord">routes</strong></li>
+    </ul>
+    <h1 id="_idParaDest-131" class="heading-1">Technical requirements</h1>
+    <p class="normal">You can find the code files of this chapter on GitHub at <a href="https://github.com/PacktPublishing/React-and-React-Native-5E/tree/main/Chapter08"><span class="url">https://github.com/PacktPublishing/React-and-React-Native-5E/tree/main/Chapter08</span></a>.</p>
+    <h1 id="_idParaDest-132" class="heading-1">Using the lazy API</h1>
+    <p class="normal">There are two pieces involved<a id="_idIndexMarker290"/> with using the <code class="inlineCode">lazy()</code> API in React. First, there’s bundling components into their own separate files so that they can be downloaded by the browser separately from other parts of the application. Second, once you have created the bundles, you can build React components that are lazy: they don’t download anything until they are needed. Let’s look at both of these.</p>
+    <h2 id="_idParaDest-133" class="heading-2">Dynamic imports and bundles</h2>
+    <p class="normal">The code examples<a id="_idIndexMarker291"/> in this book use the <strong class="keyWord">Vite</strong> tooling for creating<a id="_idIndexMarker292"/> bundles. The nice<a id="_idIndexMarker293"/> thing about<a id="_idIndexMarker294"/> this approach<a id="_idIndexMarker295"/> is that you don’t have to maintain any bundle configuration. Instead, bundles are created for you automatically, based on how you import your modules. If you’re using the plain <code class="inlineCode">import</code> statement (not to be confused with the <code class="inlineCode">import</code> method) everywhere, your app will be downloaded all at once in one bundle. When your app gets bigger, there will likely be features that some users never use or don’t use as frequently as others. You can use the <code class="inlineCode">import()</code> function to import modules on demand. By using this function, you’re telling Vite to create a separate bundle for the code that you’re importing dynamically.</p>
+    <p class="normal">Let’s look at a simple component that we might want to bundle separately from the rest of the application:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-keyword">function</span> <span class="hljs-title">MyComponent</span>() {
+  <span class="hljs-keyword">return</span> <span class="hljs-tag">&lt;</span><span class="hljs-name">p</span><span class="hljs-tag">&gt;</span>My Component<span class="hljs-tag">&lt;/</span><span class="hljs-name">p</span><span class="hljs-tag">&gt;</span>;
+}
+</code></pre>
+    <p class="normal">Now, let’s take a look at how we would import this module dynamically using the <code class="inlineCode">import()</code> function, resulting in a separate bundle:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">function</span> <span class="hljs-title">App</span>() {
+  <span class="hljs-keyword">const</span> [<span class="hljs-title">MyComponent</span>, setMyComponent] = <span class="hljs-title">React</span>.<span class="hljs-property">useState</span>&lt;<span class="hljs-function">() =&gt;</span> <span class="hljs-title">React</span>.<span class="hljs-property">ReactNode</span>&gt;(
+    <span class="hljs-function">() =&gt;</span> <span class="hljs-function">() =&gt;</span> <span class="hljs-literal">null</span>
+  );
+  <span class="hljs-title">React</span>.<span class="hljs-title">useEffect</span>(<span class="hljs-function">() =&gt;</span> {
+    <span class="hljs-keyword">import</span>(<span class="hljs-string">"./MyComponent"</span>).<span class="hljs-title">then</span>(<span class="hljs-function">(</span><span class="hljs-variable">module</span><span class="hljs-function">) =&gt;</span> {
+      <span class="hljs-title">setMyComponent</span>(<span class="hljs-function">() =&gt;</span> <span class="hljs-variable">module</span>.<span class="hljs-property">default</span>);
+    });
+  }, []);
+  <span class="hljs-keyword">return</span> <span class="hljs-tag">&lt;</span><span class="hljs-name">MyComponent</span><span class="hljs-tag"> /&gt;</span>;
+}
+</code></pre>
+    <p class="normal">When you run this example, you’ll see the <code class="inlineCode">&lt;p&gt;</code> text rendered right away. If you open the browser dev tools and look at the network requests, you’ll notice that a separate call is made to fetch the bundle containing the <code class="inlineCode">MyComponent</code> code. This happens because of the call to <code class="inlineCode">import("./MyComponent")</code>. The <code class="inlineCode">import()</code> function returns a promise that resolves with the module object. Since we need the default export to access <code class="inlineCode">MyComponent</code>, we reference <code class="inlineCode">module.default</code> when we call <code class="inlineCode">setMyComponent()</code>.</p>
+    <p class="normal">The reason why we’re setting a component as the <code class="inlineCode">MyComponent</code> state is that when the <code class="inlineCode">App</code> component renders for the first time, we don’t have the <code class="inlineCode">MyComponent</code> code loaded yet. Once it loads, <code class="inlineCode">MyComponent</code> will reference the proper value, which results in the correct text being rendered.</p>
+    <p class="normal">Now that you have an idea<a id="_idIndexMarker296"/> of how bundles get<a id="_idIndexMarker297"/> created and<a id="_idIndexMarker298"/> are fetched<a id="_idIndexMarker299"/> by the app, it’s time to see how the <code class="inlineCode">lazy()</code> API greatly simplifies this process for us.</p>
+    <h2 id="_idParaDest-134" class="heading-2">Making components lazy</h2>
+    <p class="normal">Instead of manually handling<a id="_idIndexMarker300"/> the promise<a id="_idIndexMarker301"/> returned by <code class="inlineCode">import()</code> by returning the default export and setting state, you can lean on the <code class="inlineCode">lazy()</code> API. This function takes a function that returns an <code class="inlineCode">import()</code> promise. The return value is a lazy component that you can just render. Let’s modify the <code class="inlineCode">App</code> component to use this API:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> * <span class="hljs-keyword">as</span> <span class="hljs-title">React</span> <span class="hljs-keyword">from</span> <span class="hljs-string">"react"</span>;
+<span class="hljs-keyword">const</span> <span class="hljs-title">MyComponent</span> = <span class="hljs-title">React</span>.<span class="hljs-title">lazy</span>(<span class="hljs-function">() =&gt;</span> <span class="hljs-keyword">import</span>(<span class="hljs-string">"./MyComponent"</span>));
+<span class="hljs-keyword">function</span> <span class="hljs-title">App</span>() {
+  <span class="hljs-keyword">return</span> <span class="hljs-tag">&lt;</span><span class="hljs-name">MyComponent</span><span class="hljs-tag"> /&gt;</span>;
+}
+</code></pre>
+    <p class="normal">The <code class="inlineCode">MyComponent</code> value is created by calling <code class="inlineCode">lazy()</code>, passing in the dynamic module import as an argument. Now, you have a separate bundle for your component and a lazy component that loads the bundle when it’s first rendered. </p>
+    <p class="normal">In this section, you learned how code splitting works. You learned that the <code class="inlineCode">import()</code> function handles bundle creation for you. You also learned that the <code class="inlineCode">lazy()</code> API makes your components lazy and handles all of the gritty work of importing components for you. But there’s one last thing<a id="_idIndexMarker302"/> we need, the <code class="inlineCode">Suspense</code> component, to help display<a id="_idIndexMarker303"/> placeholders while components are loading.</p>
+    <h1 id="_idParaDest-135" class="heading-1">Using the Suspense component</h1>
+    <p class="normal">In this section, we’ll explore some of the more common<a id="_idIndexMarker304"/> usage scenarios of the <code class="inlineCode">Suspense</code> component. We’ll look at where to place <code class="inlineCode">Suspense</code> components in your component tree, how to simulate latency when fetching bundles, and some of the options available to us to use as the fallback content.</p>
+    <h2 id="_idParaDest-136" class="heading-2">Top-level Suspense components</h2>
+    <p class="normal"><strong class="keyWord">Lazy components</strong> need to be<a id="_idIndexMarker305"/> rendered inside<a id="_idIndexMarker306"/> of a <code class="inlineCode">Suspense</code> component. However, they do not have to be direct children of <code class="inlineCode">Suspense</code> though, which is important because this means that you can have one <code class="inlineCode">Suspense</code> component handle every lazy component in your app. Let’s illustrate this concept with an example. Here’s a component that we would like to bundle separately and use lazily:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-keyword">function</span> <span class="hljs-title">MyFeature</span>() {
+  <span class="hljs-keyword">return</span> <span class="hljs-tag">&lt;</span><span class="hljs-name">p</span><span class="hljs-tag">&gt;</span>My Feature<span class="hljs-tag">&lt;/</span><span class="hljs-name">p</span><span class="hljs-tag">&gt;</span>;
+}
+</code></pre>
+    <p class="normal">Next, let’s make the <code class="inlineCode">MyFeature</code> component lazy and render it inside of a <code class="inlineCode">MyPage</code> component:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">const</span> <span class="hljs-title">MyFeature</span> = <span class="hljs-title">React</span>.<span class="hljs-title">lazy</span>(<span class="hljs-function">() =&gt;</span> <span class="hljs-keyword">import</span>(<span class="hljs-string">"./MyFeature"</span>));
+<span class="hljs-keyword">function</span> <span class="hljs-title">MyPage</span>() {
+  <span class="hljs-keyword">return</span> (
+    <span class="hljs-tag">&lt;&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">h1</span><span class="hljs-tag">&gt;</span>My Page<span class="hljs-tag">&lt;/</span><span class="hljs-name">h1</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">MyFeature</span><span class="hljs-tag"> /&gt;</span>
+    <span class="hljs-tag">&lt;/&gt;</span>
+  );
+}
+</code></pre>
+    <p class="normal">Here, we’re using the <code class="inlineCode">lazy()</code> API to make<a id="_idIndexMarker307"/> the <code class="inlineCode">MyFeature</code> component lazy. This means that when the <code class="inlineCode">MyPage</code> component is rendered, the code bundle that contains <code class="inlineCode">MyFeature</code> will be downloaded because <code class="inlineCode">MyFeature</code> was also rendered. What’s important to note with the <code class="inlineCode">MyPage</code> component is that it is rendering a lazy component (<code class="inlineCode">MyFeature</code>) but isn’t rendering a <code class="inlineCode">Suspense</code> component. This is because our hypothetical app has many page components, each with its own lazy components. Having each of these components render its own <code class="inlineCode">Suspense</code> component would be redundant. Instead, we can render one <code class="inlineCode">Suspense</code> component inside of our <code class="inlineCode">App</code> component, like so:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">function</span> <span class="hljs-title">App</span>() {
+  <span class="hljs-keyword">return</span> (
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">React.Suspense</span><span class="hljs-tag"> </span><span class="hljs-attr">fallback</span><span class="hljs-tag">=</span><span class="hljs-string">{</span><span class="hljs-tag">"</span><span class="hljs-attr">loading...</span><span class="hljs-tag">"}&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">MyPage</span><span class="hljs-tag"> /&gt;</span>
+    <span class="hljs-tag">&lt;/</span><span class="hljs-name">React.Suspense</span><span class="hljs-tag">&gt;</span>
+  );
+}
+</code></pre>
+    <p class="normal">While the <code class="inlineCode">MyFeature</code> code bundle is being downloaded, <code class="inlineCode">&lt;MyPage&gt;</code> is replaced with the fallback text passed to <code class="inlineCode">Suspense</code>. So, even though <code class="inlineCode">MyPage</code> isn’t lazy itself, it renders a lazy component that <code class="inlineCode">Suspense</code> knows about and will replace its children with the fallback content while this happens.</p>
+    <p class="normal">So far, we haven’t really been able to see the fallback content that displays while our lazy components load their code bundles. This is because when developing locally, these bundles load almost instantly. To be able to see fallback component and loading process, you can enable throttling in <strong class="screenText">Network</strong> tab of the dev tools:</p>
+    <figure class="mediaobject"><img src="../Images/B19636_08_01.png" alt="" role="presentation"/></figure>
+    <p class="packt_figref">Figure 8.1: Enabling throttling in the browser</p>
+    <p class="normal">This setting emulates a slow internet connection. Instead of loading instantly, the page will be rendering for a few seconds<a id="_idIndexMarker308"/> and you will see a <strong class="screenText">loading …</strong> fallback.</p>
+    <p class="normal">In the next section, we’ll look at an approach to use loading spinners as a fallback component.</p>
+    <h2 id="_idParaDest-137" class="heading-2">Working with spinner fallbacks</h2>
+    <p class="normal">The simplest fallback that you<a id="_idIndexMarker309"/> can use with the <code class="inlineCode">Suspense</code> component is some text that indicates to the user that something is happening. The fallback property can be any valid React element, which means that we can enhance the fallback to be something more visually appealing. For example, the <code class="inlineCode">react-spinners</code> package has a selection of <code class="inlineCode">spinner</code> components, all of which can be used as a fallback with <code class="inlineCode">Suspense</code>.</p>
+    <p class="normal">Let’s modify the <code class="inlineCode">App</code> component from the last section to include a <code class="inlineCode">spinner</code> from the <code class="inlineCode">react-spinners</code> package as the <code class="inlineCode">Suspense</code> fallback:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> * <span class="hljs-keyword">as</span> <span class="hljs-title">React</span> <span class="hljs-keyword">from</span> <span class="hljs-string">"react"</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">FadeLoader</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">"react-spinners"</span>;
+<span class="hljs-keyword">import</span> <span class="hljs-title">MyPage</span> <span class="hljs-keyword">from</span> <span class="hljs-string">"./MyPage"</span>;
+<span class="hljs-keyword">function</span> <span class="hljs-title">App</span>() {
+  <span class="hljs-keyword">return</span> (
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">React.Suspense</span><span class="hljs-tag"> </span><span class="hljs-attr">fallback</span><span class="hljs-tag">=</span><span class="hljs-string">{</span><span class="hljs-tag">&lt;</span><span class="hljs-attr">FadeLoader</span><span class="hljs-tag"> </span><span class="hljs-attr">color</span><span class="hljs-tag">=</span><span class="hljs-string">"lightblue"</span><span class="hljs-tag"> /&gt;</span>}&gt;
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">MyPage</span><span class="hljs-tag"> /&gt;</span>
+    <span class="hljs-tag">&lt;/</span><span class="hljs-name">React.Suspense</span><span class="hljs-tag">&gt;</span>
+  );
+}
+</code></pre>
+    <p class="normal">The <code class="inlineCode">FadeLoader</code> component will render a <code class="inlineCode">spinner</code> that we’ve configured with a color value of <code class="inlineCode">lightblue</code>. The rendered element of the <code class="inlineCode">FadeLoader</code> component is passed to the <code class="inlineCode">fallback</code> property. With the Slow 3G throttling, you should be able to see the <code class="inlineCode">spinner</code> when you first load the app:</p>
+    <figure class="mediaobject"><img src="../Images/B19636_08_02.png" alt="" role="presentation"/></figure>
+    <p class="packt_figref">Figure 8.2: The image rendered by the loader component</p>
+    <p class="normal">Now, instead of text, we’re showing an animated <code class="inlineCode">spinner</code>. This likely provides a user experience that your users are more accustomed to. The <code class="inlineCode">react-spinners</code> package has several <code class="inlineCode">spinners</code> for you to choose from, each of which has several configuration options. There are other spinner libraries that you can use or implement on your own.</p>
+    <p class="normal">In this section, you learned that you can use a single <code class="inlineCode">Suspense</code> component that will display its fallback content for any lazy components that are lower in the tree. You learned how to simulate latency during local development so that you can experience what your users will experience with your <code class="inlineCode">Suspense</code> fallback content. Finally, you learned how to use components<a id="_idIndexMarker310"/> from other libraries as the fallback content to provide something that looks better than plain text.</p>
+    <p class="normal">In the next section, you’ll learn about why it doesn’t make sense to make every component in your app a lazy component.</p>
+    <h1 id="_idParaDest-138" class="heading-1">Avoiding lazy components</h1>
+    <p class="normal">It might be tempting to make<a id="_idIndexMarker311"/> most of your React components lazy components that live in their own bundle. After all, there isn’t much extra work that needs to happen to set up separate bundles and make lazy components. However, there are some downsides to this. If you have too many lazy components, your app will end up making several HTTP requests to fetch them: at the same time. There’s no benefit to having separate bundles for components used on the same part of the app. You’re better off trying to bundle components together in a way that one HTTP request is made to load what is needed on the current page.</p>
+    <p class="normal">A helpful way to think of this is to associate <strong class="keyWord">pages</strong> with <strong class="keyWord">bundles</strong>. If you have<a id="_idIndexMarker312"/> lazy page components, everything<a id="_idIndexMarker313"/> on that page will also be lazy yet bundled together with other components on the page. Let’s build an example that demonstrates how to organize our lazy components. Let’s say that your app has a couple of pages and a few features on each page. We don’t necessarily<a id="_idIndexMarker314"/> want to make these features lazy if they’re all going to be needed when the page loads. Here’s the <code class="inlineCode">App</code> component that shows the user a selector to pick which page to load:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">const</span> <span class="hljs-title">First</span> = <span class="hljs-title">React</span>.<span class="hljs-title">lazy</span>(<span class="hljs-function">() =&gt;</span> <span class="hljs-keyword">import</span>(<span class="hljs-string">"./First"</span>));
+<span class="hljs-keyword">const</span> <span class="hljs-title">Second</span> = <span class="hljs-title">React</span>.<span class="hljs-title">lazy</span>(<span class="hljs-function">() =&gt;</span> <span class="hljs-keyword">import</span>(<span class="hljs-string">"./Second"</span>));
+<span class="hljs-keyword">function</span> <span class="hljs-title">ShowComponent</span>(<span class="hljs-params">{ name }: { name: string }</span>) {
+  <span class="hljs-keyword">switch</span> (name) {
+    <span class="hljs-keyword">case</span> <span class="hljs-string">"first"</span>:
+      <span class="hljs-keyword">return</span> <span class="hljs-tag">&lt;</span><span class="hljs-name">First</span><span class="hljs-tag"> /&gt;</span>;
+    <span class="hljs-keyword">case</span> <span class="hljs-string">"second"</span>:
+      <span class="hljs-keyword">return</span> <span class="hljs-tag">&lt;</span><span class="hljs-name">Second</span><span class="hljs-tag"> /&gt;</span>;
+    <span class="hljs-attr">default</span>:
+      <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;
+  }
+}
+</code></pre>
+    <p class="normal">The <code class="inlineCode">First</code> and <code class="inlineCode">Second</code> components are the pages that make up our app, so we want them to be lazy components that load their bundles on demand. The <code class="inlineCode">ShowComponent</code> component renders the appropriate page when the user changes the selector:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">function</span> <span class="hljs-title">App</span>() {
+  <span class="hljs-keyword">const</span> [component, setComponent] = <span class="hljs-title">React</span>.<span class="hljs-title">useState</span>(<span class="hljs-string">""</span>);
+  <span class="hljs-keyword">return</span> (
+    <span class="hljs-tag">&lt;&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">label</span><span class="hljs-tag">&gt;</span>
+        Load Component:{" "}
+        <span class="hljs-tag">&lt;</span><span class="hljs-name">select</span>
+<span class="hljs-tag">          </span><span class="hljs-attr">value</span><span class="hljs-tag">=</span><span class="hljs-string">{component}</span>
+<span class="hljs-tag">          </span><span class="hljs-attr">onChange</span><span class="hljs-tag">=</span><span class="hljs-string">{(e)</span><span class="hljs-tag"> =&gt;</span> setComponent(e.target.value)}
+        &gt;
+          <span class="hljs-tag">&lt;</span><span class="hljs-name">option</span><span class="hljs-tag"> </span><span class="hljs-attr">value</span><span class="hljs-tag">=</span><span class="hljs-string">""</span><span class="hljs-tag">&gt;</span>None<span class="hljs-tag">&lt;/</span><span class="hljs-name">option</span><span class="hljs-tag">&gt;</span>
+          <span class="hljs-tag">&lt;</span><span class="hljs-name">option</span><span class="hljs-tag"> </span><span class="hljs-attr">value</span><span class="hljs-tag">=</span><span class="hljs-string">"first"</span><span class="hljs-tag">&gt;</span>First<span class="hljs-tag">&lt;/</span><span class="hljs-name">option</span><span class="hljs-tag">&gt;</span>
+          <span class="hljs-tag">&lt;</span><span class="hljs-name">option</span><span class="hljs-tag"> </span><span class="hljs-attr">value</span><span class="hljs-tag">=</span><span class="hljs-string">"second"</span><span class="hljs-tag">&gt;</span>Second<span class="hljs-tag">&lt;/</span><span class="hljs-name">option</span><span class="hljs-tag">&gt;</span>
+        <span class="hljs-tag">&lt;/</span><span class="hljs-name">select</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;/</span><span class="hljs-name">label</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">React.Suspense</span><span class="hljs-tag"> </span><span class="hljs-attr">fallback</span><span class="hljs-tag">=</span><span class="hljs-string">{</span><span class="hljs-tag">&lt;</span><span class="hljs-attr">p</span><span class="hljs-tag">&gt;</span>loading...<span class="hljs-tag">&lt;/</span><span class="hljs-name">p</span><span class="hljs-tag">&gt;</span>}&gt;
+        <span class="hljs-tag">&lt;</span><span class="hljs-name">ShowComponent</span><span class="hljs-tag"> </span><span class="hljs-attr">name</span><span class="hljs-tag">=</span><span class="hljs-string">{component}</span><span class="hljs-tag"> /&gt;</span>
+      <span class="hljs-tag">&lt;/</span><span class="hljs-name">React.Suspense</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-tag">&lt;/&gt;</span>
+  );
+}
+</code></pre>
+    <p class="normal">Next, let’s look at the first page and see how it’s composed, starting with the <code class="inlineCode">First</code> component:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> <span class="hljs-title">One</span> <span class="hljs-keyword">from</span> <span class="hljs-string">"./One"</span>;
+<span class="hljs-keyword">import</span> <span class="hljs-title">Two</span> <span class="hljs-keyword">from</span> <span class="hljs-string">"./Two"</span>;
+<span class="hljs-keyword">import</span> <span class="hljs-title">Three</span> <span class="hljs-keyword">from</span> <span class="hljs-string">"./Three"</span>;
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-keyword">function</span> <span class="hljs-title">First</span>() {
+  <span class="hljs-keyword">return</span> (
+    <span class="hljs-tag">&lt;&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">One</span><span class="hljs-tag"> /&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">Two</span><span class="hljs-tag"> /&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">Three</span><span class="hljs-tag"> /&gt;</span>
+    <span class="hljs-tag">&lt;/&gt;</span>
+  );
+}
+</code></pre>
+    <p class="normal">The <code class="inlineCode">First</code> component pulls in three components and renders them: <code class="inlineCode">One</code>, <code class="inlineCode">Two</code>, and <code class="inlineCode">Three</code>. These three components will be part of the same bundle. While we could make them lazy, there would be no point, as all we would be doing is making three HTTP requests for bundles at the same time<a id="_idIndexMarker315"/> instead of one.</p>
+    <p class="normal">Now that you have a better understanding of how to map the page structures of your application to bundles, let’s look at another use case where we use a router component to navigate around our app.</p>
+    <h1 id="_idParaDest-139" class="heading-1">Exploring lazy pages and routes</h1>
+    <p class="normal">In the <em class="italic">Avoiding lazy components</em> section, you saw where<a id="_idIndexMarker316"/> to avoid making components <a id="_idIndexMarker317"/>lazy when there is no benefit in doing so. The same pattern can be applied when you’re using <code class="inlineCode">react-router</code> as the mechanism to navigate around your application. Let’s take a look at an example. Here are the imports we’ll need:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">const</span> <span class="hljs-title">First</span> = <span class="hljs-title">React</span>.<span class="hljs-title">lazy</span>(<span class="hljs-function">() =&gt;</span> <span class="hljs-keyword">import</span>(<span class="hljs-string">"./First"</span>));
+<span class="hljs-keyword">const</span> <span class="hljs-title">Second</span> = <span class="hljs-title">React</span>.<span class="hljs-title">lazy</span>(<span class="hljs-function">() =&gt;</span> <span class="hljs-keyword">import</span>(<span class="hljs-string">"./Second"</span>));
+<span class="hljs-keyword">function</span> <span class="hljs-title">Layout</span>() {
+  <span class="hljs-keyword">return</span> (
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">section</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">nav</span><span class="hljs-tag">&gt;</span>
+        <span class="hljs-tag">&lt;</span><span class="hljs-name">span</span><span class="hljs-tag">&gt;</span>
+          <span class="hljs-tag">&lt;</span><span class="hljs-name">Link</span><span class="hljs-tag"> </span><span class="hljs-attr">to</span><span class="hljs-tag">=</span><span class="hljs-string">"first"</span><span class="hljs-tag">&gt;</span>First<span class="hljs-tag">&lt;/</span><span class="hljs-name">Link</span><span class="hljs-tag">&gt;</span>
+        <span class="hljs-tag">&lt;/</span><span class="hljs-name">span</span><span class="hljs-tag">&gt;</span>
+        <span class="hljs-tag">&lt;</span><span class="hljs-name">span</span><span class="hljs-tag">&gt;</span> | <span class="hljs-tag">&lt;/</span><span class="hljs-name">span</span><span class="hljs-tag">&gt;</span>
+        <span class="hljs-tag">&lt;</span><span class="hljs-name">span</span><span class="hljs-tag">&gt;</span>
+          <span class="hljs-tag">&lt;</span><span class="hljs-name">Link</span><span class="hljs-tag"> </span><span class="hljs-attr">to</span><span class="hljs-tag">=</span><span class="hljs-string">"second"</span><span class="hljs-tag">&gt;</span>Second<span class="hljs-tag">&lt;/</span><span class="hljs-name">Link</span><span class="hljs-tag">&gt;</span>
+        <span class="hljs-tag">&lt;/</span><span class="hljs-name">span</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;/</span><span class="hljs-name">nav</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">section</span><span class="hljs-tag">&gt;</span>
+        <span class="hljs-tag">&lt;</span><span class="hljs-name">React.Suspense</span><span class="hljs-tag"> </span><span class="hljs-attr">fallback</span><span class="hljs-tag">=</span><span class="hljs-string">{</span><span class="hljs-tag">&lt;</span><span class="hljs-attr">FadeLoader</span><span class="hljs-tag"> </span><span class="hljs-attr">color</span><span class="hljs-tag">=</span><span class="hljs-string">"lightblue"</span><span class="hljs-tag"> /&gt;</span>}&gt;
+          <span class="hljs-tag">&lt;</span><span class="hljs-name">Outlet</span><span class="hljs-tag"> /&gt;</span>
+        <span class="hljs-tag">&lt;/</span><span class="hljs-name">React.Suspense</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;/</span><span class="hljs-name">section</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-tag">&lt;/</span><span class="hljs-name">section</span><span class="hljs-tag">&gt;</span>
+  );
+}
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-keyword">function</span> <span class="hljs-title">App</span>() {
+  <span class="hljs-keyword">return</span> (
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">Router</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">Routes</span><span class="hljs-tag">&gt;</span>
+        <span class="hljs-tag">&lt;</span><span class="hljs-name">Route</span><span class="hljs-tag"> </span><span class="hljs-attr">path</span><span class="hljs-tag">=</span><span class="hljs-string">"/"</span><span class="hljs-tag"> </span><span class="hljs-attr">element</span><span class="hljs-tag">=</span><span class="hljs-string">{</span><span class="hljs-tag">&lt;</span><span class="hljs-attr">Layout</span><span class="hljs-tag"> /&gt;</span>}&gt;
+          <span class="hljs-tag">&lt;</span><span class="hljs-name">Route</span><span class="hljs-tag"> </span><span class="hljs-attr">path</span><span class="hljs-tag">=</span><span class="hljs-string">"/first"</span><span class="hljs-tag"> </span><span class="hljs-attr">element</span><span class="hljs-tag">=</span><span class="hljs-string">{</span><span class="hljs-tag">&lt;</span><span class="hljs-attr">First</span><span class="hljs-tag"> /&gt;</span>} /&gt;
+          <span class="hljs-tag">&lt;</span><span class="hljs-name">Route</span><span class="hljs-tag"> </span><span class="hljs-attr">path</span><span class="hljs-tag">=</span><span class="hljs-string">"/second"</span><span class="hljs-tag"> </span><span class="hljs-attr">element</span><span class="hljs-tag">=</span><span class="hljs-string">{</span><span class="hljs-tag">&lt;</span><span class="hljs-attr">Second</span><span class="hljs-tag"> /&gt;</span>} /&gt;
+        <span class="hljs-tag">&lt;/</span><span class="hljs-name">Route</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;/</span><span class="hljs-name">Routes</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-tag">&lt;/</span><span class="hljs-name">Router</span><span class="hljs-tag">&gt;</span>
+  );
+}
+</code></pre>
+    <p class="normal">In the preceding<a id="_idIndexMarker318"/> code, we have<a id="_idIndexMarker319"/> two lazy page components that will be bundled separately from the rest of the app. The fallback content in this example uses the same <code class="inlineCode">FadeLoader</code> <code class="inlineCode">spinner</code> component that was introduced in the <em class="italic">Working with spinner fallbacks</em> section.</p>
+    <p class="normal">Note that the <code class="inlineCode">Suspense</code> component is placed beneath the navigation links. This means that the fallback content will be rendered in the spot where the page content will eventually show when it loads. The children of the <code class="inlineCode">Suspense</code> component are the <code class="inlineCode">Route</code> components that will render our lazy page components: for example, when the <code class="inlineCode">/first</code> route is activated, the <code class="inlineCode">First</code> component<a id="_idIndexMarker320"/> is rendered for the first time, triggering<a id="_idIndexMarker321"/> the bundle download.</p>
+    <p class="normal">That brings us to the end of this chapter.</p>
+    <h1 id="_idParaDest-140" class="heading-1">Summary</h1>
+    <p class="normal">This chapter was all about code splitting and bundling, which are important concepts for large React applications. We started by looking at how code is split into bundles in your React applications by using the <code class="inlineCode">import()</code> function. Then, we looked at the <code class="inlineCode">lazy()</code> React API and how it helps to simplify loading bundles when components are rendered for the first time. Next, we looked more deeply at the <code class="inlineCode">Suspense</code> component, which is used to manage content while component bundles are being fetched. The <code class="inlineCode">fallback</code> property is how we specify the content to be shown while bundles are being loaded. You typically don’t need more than one <code class="inlineCode">Suspense</code> component in your app, as long as you follow a consistent pattern for bundling pages of your app.</p>
+    <p class="normal">In the next chapter, you’ll learn how to use the <strong class="keyWord">Next.js</strong> framework to handle rendering React components on the server. The Next.js framework allows you to create pages that act as React components and can be rendered on the server and in the browser. This is an important capability for applications that need good initial page load performance: that is, all applications.</p>
+  </div>
+</body></html>

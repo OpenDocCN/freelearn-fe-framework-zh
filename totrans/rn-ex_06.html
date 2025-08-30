@@ -1,0 +1,1831 @@
+<html><head></head><body>
+        <section>
+
+            <header>
+                <h1 class="header-title">Advanced Facebook App Functionality</h1>
+            </header>
+
+            <article>
+                
+<p>Now that we have gained access to Facebook's Graph API, it's time to finish building our app.</p>
+<p>In this chapter, we will:</p>
+<ul>
+<li>Continue building <kbd>Friends</kbd>, our Facebook-connected application, by grabbing additional data from the Graph APIs, such as media attachments, comments, and number of likes from each existing post in our feed</li>
+<li>Add a pull-to-refresh mechanism for our app to allow the user to reload data</li>
+<li>Learn about the <kbd>Image</kbd> component, which will allow us to render images in our application</li>
+<li>Discover WebView, to open links in a locally available <kbd>View</kbd> component</li>
+<li>Include a log out screen for the app</li>
+<li>Make changes to the app in order to build an Android version</li>
+</ul>
+<p>Let's continue where we left off from the last chapter and work on the extension of our <kbd>FeedListRow</kbd> component.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Creating a PostView</h1>
+            </header>
+
+            <article>
+                
+<p>At the end of <a href="7c70bcd0-1366-49e8-9022-9c9996073cc6.xhtml">Chapter 5</a>, <em>Third Project - The Facebook Client</em>, we created a <kbd>FeedListRow</kbd> component with a <kbd>TouchableHighlight</kbd> that fired the following function when pressed:</p>
+<pre>
+// Friends/app/components/FeedListRow/index.js 
+
+... 
+  _navigateToPostView () { 
+    console.log('pushed'); 
+  } 
+... 
+</pre>
+<p>We will build a <kbd>PostView</kbd> component that our users will navigate to when the <kbd>TouchableHighlight</kbd> component is pressed in <kbd>FeedListRow</kbd> and replace the current login within this <kbd>_navigfateToPostView</kbd> function to handle that navigation.</p>
+<p>This <kbd>PostView</kbd> component should, upon loading, look in <kbd>AsyncStorage</kbd> for this post's details and load them if it exists. If it does not, then it should make a request to the Facebook Graph API for the post's details and save them into <kbd>AsyncStorage</kbd> for future use.</p>
+<p>The details that we are interested in, are the post's attachments, comments, and likes. Since each post on Facebook is assigned a unique post ID, we can also save an object containing the attachments, comments, and likes data under that post ID as its key in <kbd>AsyncStorage</kbd>.</p>
+<p>First, we will start by creating a new function in <kbd>storageMethods.js</kbd> that performs the following functions:</p>
+<ul>
+<li>Accepts a post ID and batch callback to execute as arguments</li>
+<li>Makes three separate <kbd>GraphRequest</kbd> instances, one for each of the three edges we will be obtaining (attachments, comments, and likes), saving its return data into an object</li>
+<li>Starts one <kbd>GraphRequestManager</kbd>, chaining the three <kbd>GraphRequest</kbd> instances and passing in the batch callback, thus passing in the return data object to the batch callback function</li>
+</ul>
+<p>Then, create a <kbd>PostView</kbd> component that does the following:</p>
+<ul>
+<li>It renders the same created story and message strings that <kbd>FeedListRow</kbd> created so that the user retains the context of what they tapped on.</li>
+<li>It uses a storage method to check for the existence of data pertaining to that specific post's ID. If it exists, then <kbd>PostView</kbd> will use it. If not, then it should use our new storage method to grab the attachments, comments, and likes from that post's ID.</li>
+<li>The batch callback passed into our new storage method should include the saving of its results into <kbd>AsyncStorage</kbd> under the same key as the post ID.</li>
+<li>It visually displays the number of comments and likes the post has, into a row.</li>
+</ul>
+<p>Finally, modify the <kbd>FeedListRow</kbd> component so that it uses its existing <kbd>_navigateToPostView</kbd> method to navigate to <kbd>PostView</kbd>, passing any necessary props.</p>
+<p>Create a <kbd>resultsObject</kbd> to store the results of each unique <kbd>GraphRequest</kbd>:</p>
+<pre>
+// Friends/app/utils/graphMethods.js 
+
+... 
+export const getPostDetails = (id, batchCallback) =&gt; { 
+  let resultsObject = { 
+    attachments: undefined, 
+    comments: undefined, 
+    likes: undefined 
+  } 
+</pre>
+<p>For each of the three <kbd>GraphRequest</kbd> instances in the preceding code, use the post ID given to it and call its corresponding <kbd>attachments</kbd>, <kbd>comments</kbd>, and <kbd>likes</kbd> edges from the API. Then, save those results into the <kbd>resultsObject</kbd> under their corresponding key:</p>
+<pre>
+  const attachmentsRequest = new GraphRequest('/' + id + 
+  '/attachments', null, (error, response) =&gt; { 
+    if (error) { 
+      console.log(error); 
+    } 
+    resultsObject.attachments = response.data; 
+  }); 
+ 
+  const commentsRequest = new GraphRequest('/' + id + '/comments', 
+  null, (error, response) =&gt; { 
+    if (error) { 
+      console.log(error); 
+    } 
+    resultsObject.comments = response.data; 
+  }); 
+ 
+  const likesRequest = new GraphRequest('/' + id + '/likes', null, 
+  (error, response) =&gt; { 
+    if (error) { 
+      console.log(error); 
+    } 
+    resultsObject.likes = response.data; 
+  }); 
+</pre>
+<p>Finally, create a new <kbd>GraphRequestManager</kbd> instance, and add all three requests to it along with the <kbd>batchCallback</kbd> given to this function as an argument. Pass <kbd>resultsObject</kbd> into the <kbd>batchCallback</kbd> to give that callback access to the data obtained from the <kbd>attachments</kbd>, <kbd>comments</kbd>, and <kbd>likes</kbd> edges:</p>
+<pre>
+  new GraphRequestManager() 
+    .addRequest(attachmentsRequest) 
+    .addRequest(commentsRequest) 
+    .addRequest(likesRequest) 
+    .addBatchCallback(() =&gt; batchCallback(resultsObject)) 
+    .start(); 
+} 
+</pre>
+<p>Then, import various different helper methods that will be used in this component, as follows:</p>
+<pre>
+// Friends/app/components/PostView/index.js 
+
+import React, { Component } from 'react'; 
+import { 
+  ActivityIndicator, 
+  Text, 
+  TouchableHighlight, 
+  View 
+} from 'react-native'; 
+ 
+import { getAsyncStorage, setAsyncStorage } from '../../utils/storageMethods'; 
+import { getDateTimeString } from '../../utils/dateMethods'; 
+import { getPostDetails } from '../../utils/graphMethods'; 
+import styles from './styles'; 
+</pre>
+<p>Set the <kbd>loading</kbd> Boolean in state to <kbd>true</kbd> for <kbd>ActivityIndicator</kbd>:</p>
+<pre>
+export default class PostView extends Component { 
+  constructor (props) { 
+    super (props); 
+ 
+    this.state = { 
+      loading: true 
+    } 
+  } 
+</pre>
+<p>During <kbd>componentWillMount</kbd>, grab the object in storage under this post's ID key. Check for the existence of data: If no data exists, <kbd>getAsyncStorage</kbd> is configured to return an empty object. Call <kbd>_getPostDetails</kbd> if this is <kbd>true</kbd>; otherwise, save the details to local state:</p>
+<pre>
+  async componentWillMount () { 
+    const result = await getAsyncStorage(this.props.postID); 
+ 
+    if (Object.keys(result).length === 0) { 
+      this._getPostDetails(); 
+      return; 
+    } 
+    this._savePostDetailsToState(result); 
+  } 
+</pre>
+<p>Just like <kbd>FeedListRow</kbd>, render the created date, story, and message if applicable. Conditionally, call <kbd>_renderActivityIndicator</kbd> or <kbd>_renderDetails</kbd> depending on the loading Boolean. At the end, render a separator in anticipation of adding comments to this component:</p>
+<pre>
+   render () { 
+    return ( 
+      &lt;View style={ styles.container }&gt; 
+        &lt;View&gt; 
+          &lt;Text style={ styles.created }&gt; 
+            { this._renderCreatedString() } 
+          &lt;/Text&gt; 
+            { this._renderStoryString() } 
+          &lt;Text&gt; 
+            { this._renderMessageString() } 
+          &lt;/Text&gt; 
+        &lt;/View&gt; 
+        &lt;View&gt; 
+          { this.state.loading ? this._renderActivityIndicator() : 
+          this._renderDetails() } 
+        &lt;/View&gt; 
+        &lt;View style={ styles.separator } /&gt; 
+      &lt;/View&gt; 
+    ) 
+  } 
+</pre>
+<p>Call the <kbd>getPostDetails</kbd> method we just created in <kbd>graphMethods</kbd> and pass it a callback that uses the results object from <kbd>getPostDetails</kbd> to save its contents to state; then save it to <kbd>AsyncStorage</kbd> under a key equal to this post's ID:</p>
+<pre>
+  async _getPostDetails () { 
+    await getPostDetails(this.props.postID, (result) =&gt; { 
+      this._savePostDetailsToState(result); 
+      setAsyncStorage(this.props.postID, result); 
+    }); 
+  } 
+</pre>
+<p>Render an <kbd>ActivityIndicator</kbd> component:</p>
+<pre>
+  _renderActivityIndicator () { 
+    return ( 
+      &lt;ActivityIndicator 
+        animating={ this.state.spinning } 
+        size={ 'large' } 
+      /&gt; 
+    ) 
+  } 
+</pre>
+<p>Render the number of <kbd>Likes</kbd> and <kbd>Comments</kbd> this post has, as follows:</p>
+<pre>
+  _renderCreatedString () { 
+    return 'Posted ' + getDateTimeString(this.props.createdTime); 
+  } 
+ 
+  _renderDetails () { 
+    return ( 
+      &lt;View style={ styles.detailsContainer }&gt; 
+        &lt;Text style={ styles.detailsRow }&gt; 
+          { this.state.likes.length } Likes, {  
+          this.state.comments.length } Comments 
+        &lt;/Text&gt; 
+      &lt;/View&gt; 
+    ) 
+  } 
+</pre>
+<p>The <kbd>_renderCreatedString</kbd>, <kbd>_renderMessageString</kbd>, and <kbd>_renderStoryString</kbd> methods are unchanged from <kbd>FeedListRow</kbd>:</p>
+<pre>
+  _renderMessageString () { 
+    return this.props.message 
+  } 
+ 
+  _renderStoryString () { 
+    if (this.props.story) { 
+      return ( 
+        &lt;Text style={ styles.story }&gt; 
+          { this.props.story } 
+        &lt;/Text&gt; 
+      ) 
+    } 
+  } 
+</pre>
+<p>Save data from this post's <kbd>attachments</kbd>, <kbd>comments</kbd>, and <kbd>likes</kbd> edges into state and turn off the spinning <kbd>ActivityIndicator</kbd>:</p>
+<pre>
+  _savePostDetailsToState (data) { 
+    this.setState({ 
+      attachments: data.attachments, 
+      comments: data.comments, 
+      likes: data.likes, 
+      loading: false 
+    }); 
+  } 
+} 
+</pre>
+<p>Here is the styling for <kbd>PostView</kbd>:</p>
+<pre>
+// Friends/app/components/PostView/index.js 
+
+import { StyleSheet } from 'react-native'; 
+ 
+const styles = StyleSheet.create({ 
+  container: { 
+    flex: 1, 
+    margin: 10, 
+    marginTop: 75, 
+  }, 
+  created: { 
+    color: '#365899', 
+    fontWeight: 'bold', 
+    marginBottom: 5 
+  }, 
+  detailsContainer: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between' 
+  }, 
+  detailsRow: { 
+    color: '#365899', 
+    marginBottom: 15, 
+    marginTop: 15, 
+    textAlign: 'left' 
+  }, 
+  separator: { 
+    height: 2, 
+    marginLeft: 15, 
+    marginRight: 15, 
+    backgroundColor: '#365899' 
+  }, 
+  story: { 
+    marginBottom: 5, 
+    textDecorationLine: 'underline' 
+  } 
+}); 
+ 
+export default styles; 
+</pre>
+<p>Finally, change the <kbd>_navigateToPostView</kbd> function in <kbd>FeedListRow</kbd>:</p>
+<pre>
+// Friends/app/components/FeedListRow/index.js 
+
+... 
+export default class FeedListRow extends Component { 
+  ... 
+  _navigateToPostView () { 
+    this.props.navigator.push({ 
+      component: PostView, 
+      passProps: { 
+        createdTime: this.props.createdTime, 
+        message: this.props.message, 
+        postID: this.props.postID, 
+        story: this.props.story 
+      } 
+    }); 
+  } 
+  ... 
+} 
+</pre>
+<p>Next, we will add a <kbd>ListView</kbd> to populate the comments of that post and render it below the separator line in <kbd>PostView</kbd>.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Adding comments to PostView</h1>
+            </header>
+
+            <article>
+                
+<p>In this next step, we will edit <kbd>PostView</kbd> so that it includes a <kbd>ListView</kbd> to render all its comments. Since <kbd>PostView</kbd> will have the comments data saved into its state once the information has been loaded by the <kbd>componentWillMount</kbd> life cycle, we can use that data to render the comments.</p>
+<p>Start by creating a component to house this <kbd>ListView</kbd>; let's call it <kbd>CommentList</kbd>. It should do the following:</p>
+<ul>
+<li>Contain a list of comments, passed to it by <kbd>PostView</kbd> as a prop</li>
+<li>Render a <kbd>ListView</kbd> using those comments</li>
+<li>The rows should be rendered by a child component, <kbd>CommentListRow</kbd></li>
+</ul>
+<p>Your <kbd>CommentListRow</kbd> component should do the following:</p>
+<ul>
+<li>Each row should contain its poster's name and the message they wrote</li>
+<li>Separate each comment with a <kbd>ListView</kbd> component</li>
+</ul>
+<p>Finally, update <kbd>PostView</kbd> so that it renders <kbd>CommentList</kbd> directly beneath the separator in the <kbd>render</kbd> method of <kbd>PostView</kbd>. Instantiate a new <kbd>ListView.DataSource</kbd> instance:</p>
+<pre>
+// Friends/app/components/CommentList/index.js 
+
+import React, { Component } from 'react'; 
+import { 
+  ListView, 
+  Text, 
+  View 
+} from 'react-native'; 
+ 
+import CommentListRow from '../CommentListRow'; 
+import styles from './styles'; 
+ 
+export default class CommentList extends Component { 
+  constructor (props) { 
+    super (props); 
+    this.state = { 
+      ds: new ListView.DataSource({ 
+        rowHasChanged: (r1, r2) =&gt; r1 !== r2 
+      }) 
+    } 
+  } 
+</pre>
+<p>Set the <kbd>dataSource</kbd> constant, passing in the <kbd>comments</kbd> prop or an empty array:</p>
+<pre>
+  render () { 
+    const dataSource = this.state.ds.cloneWithRows(this.props.comments || []); 
+</pre>
+<p>Each row should be a new <kbd>CommentListRow</kbd> component:</p>
+<pre>
+    return ( 
+      &lt;View style={ styles.container }&gt; 
+        &lt;ListView 
+          automaticallyAdjustContentInsets={ false } 
+          dataSource={ dataSource } 
+          renderRow={ (rowData, sectionID, rowID) =&gt; 
+            &lt;CommentListRow 
+              message={ rowData.message } 
+              name={ rowData.from.name } /&gt; 
+          } 
+</pre>
+<p>Render a separator for each comment:</p>
+<pre>
+          renderSeparator={ (sectionID, rowID) =&gt; 
+            &lt;View 
+              key={ rowID } 
+              style={ styles.separator } /&gt; 
+          } /&gt; 
+      &lt;/View&gt; 
+    ) 
+  } 
+}
+</pre>
+<p>This is the styling for the <kbd>CommmentList</kbd> styles block:</p>
+<pre>
+// Friends/app/components/CommentList/styles.js 
+
+import { StyleSheet } from 'react-native'; 
+ 
+const styles = StyleSheet.create({ 
+  container: { 
+    flex: 1 
+  }, 
+  separator: { 
+    flex: 1, 
+    height: StyleSheet.hairlineWidth, 
+    marginLeft: 15, 
+    marginRight: 15, 
+    backgroundColor: '#1d2129' 
+  } 
+}); 
+ 
+export default styles; 
+</pre>
+<p>Next, let's look at <kbd>CommentListRow</kbd>:</p>
+<pre>
+// Friends/app/components/CommentListRow/index.js 
+
+import React, { Component } from 'react'; 
+import { 
+  Text, 
+  View 
+} from 'react-native'; 
+ 
+import styles from './styles'; 
+ 
+export default (props) =&gt; { 
+  return ( 
+    &lt;View style={ styles.container }&gt; 
+      &lt;View style={ styles.header }&gt; 
+        &lt;Text style={ styles.name }&gt; 
+          { props.name } 
+        &lt;/Text&gt; 
+      &lt;/View&gt; 
+      &lt;View style={ styles.body }&gt; 
+        &lt;Text style={ styles.comment }&gt; 
+          { props.message } 
+        &lt;/Text&gt; 
+      &lt;/View&gt; 
+    &lt;/View&gt; 
+  ) 
+} 
+</pre>
+<p>A simple stateless functional component returns the comment row with the poster's name and their comment. The following block contains styling for <kbd>CommentListRow</kbd>:</p>
+<pre>
+// Friends/app/components/CommentListRow/styles.js 
+
+import { StyleSheet } from 'react-native'; 
+ 
+const styles = StyleSheet.create({ 
+  body: { 
+    marginBottom: 20, 
+    marginLeft: 30, 
+    marginRight: 30, 
+    marginTop: 10, 
+  }, 
+  comment: { 
+    color: '#1d2129' 
+  }, 
+  container: { 
+    flex: 1 
+  }, 
+  header: { 
+    marginTop: 5, 
+    marginLeft: 10, 
+    marginRight: 10 
+  }, 
+  name: { 
+    color: '#1d2129', 
+    fontWeight: 'bold' 
+  } 
+}); 
+ 
+export default styles; 
+</pre>
+<p>Finally, let's take a look at the change made to <kbd>PostView</kbd>:</p>
+<pre>
+// Friends/app/components/PostView/index.js 
+
+... 
+import CommentList from '../CommentList'; 
+ 
+export default class PostView extends Component { 
+  ... 
+  render () { 
+    return ( 
+      &lt;View style={ styles.container }&gt; 
+        ... 
+        &lt;View style={ styles.separator } /&gt; 
+        &lt;View style={ styles.commentListContainer }&gt; 
+          &lt;CommentList comments={ this.state.comments } /&gt; 
+        &lt;/View&gt; 
+      &lt;/View&gt; 
+    ) 
+  } 
+  ... 
+} 
+</pre>
+<p>The preceding code imports and renders <kbd>CommentList</kbd> right below the separator.</p>
+<p>The <kbd>commentListContainer</kbd> style looks like this:</p>
+<pre>
+// Friends/app/components/PostView/styles.js 
+
+   commentListContainer: { 
+    flex: 1,                               
+    marginTop: 20 
+  } 
+</pre>
+<p>At this point, we should continue to flesh out <kbd>PostView</kbd> with the other features we described at the beginning of this chapter. In the next section, we will look at how to refresh the existing data we already have in the event that more data is added to the user's feed or single post.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Reloading data with RefreshControl</h1>
+            </header>
+
+            <article>
+                
+<p>The pull-to-refresh interaction was conceived with <strong>Tweetie</strong>, a popular Twitter iOS application created in 2008. This interaction involves the user pulling down their screen until it reaches a certain threshold, then releasing it to signify their intent to refresh the contents of the screen.</p>
+<p>With the React Native SDK, we can use <kbd>RefreshControl</kbd> to gain that same pull-to-refresh interaction and let our users reload data in the app at their will.</p>
+<p>Here are the <kbd>RefreshControl</kbd> props that we will use in this chapter:</p>
+<ul>
+<li><kbd>onRefresh</kbd>: This is a function that is called when the refresh action is executed</li>
+<li><kbd>refreshing</kbd>: This is a Boolean that indicates whether the view should be animated</li>
+</ul>
+<ul>
+<li><kbd>tintColor</kbd>: This is the color of the refreshing indicator</li>
+<li><kbd>title</kbd>: This is a string that is displayed underneath the refresh indicator</li>
+<li><kbd>titleColor</kbd>: This is the color of the title</li>
+</ul>
+<p>To use a <kbd>RefreshControl</kbd>, render it into a <kbd>ListView</kbd> or <kbd>ScrollView</kbd> component under its <kbd>refreshControl</kbd> prop.</p>
+<p>For our implementation, we want to start by modifying <kbd>App.js</kbd> so that it does the following:</p>
+<ul>
+<li>Contains a <kbd>refreshControlSpinning</kbd> Boolean in its state</li>
+<li>Modifies the current <kbd>_checkLoginStatus</kbd> function to move the logic for getting feed data from storage into its own function, <kbd>_getFeedData</kbd>; the new <kbd>_getFeedData</kbd> function should also switch the <kbd>refreshControlSpinning</kbd> Boolean to <kbd>false</kbd> once complete</li>
+<li>Includes a function, <kbd>_refreshFeedList</kbd>, to refresh the feed that sets <kbd>refreshControlSpinning</kbd> to <kbd>true</kbd>, then calls the new <kbd>_getFeedData</kbd> function</li>
+<li>Passes the <kbd>refreshControlSpinning</kbd> Boolean and the <kbd>_refreshFeedList</kbd> function to the <kbd>FeedList</kbd> component that it renders</li>
+</ul>
+<p>Then, modify <kbd>FeedList</kbd> so that it does the following:</p>
+<ul>
+<li>Renders a <kbd>RefreshControl</kbd> component into the <kbd>refreshControl</kbd> prop of its <kbd>ListView</kbd></li>
+<li>Points its spinning prop to the <kbd>refreshControlSpinning</kbd> Boolean of <kbd>App.js</kbd></li>
+<li>Points its <kbd>onRefresh</kbd> prop to the <kbd>_refreshFeedList</kbd> function of <kbd>App.js</kbd>.</li>
+</ul>
+<p>Here are my modifications to the <kbd>App</kbd> component:</p>
+<pre>
+// Friends/app/App.js 
+
+... 
+export default class App extends Component { 
+  constructor (props) { 
+    ... 
+    this.state = { 
+      ... 
+      refreshControlSpinning: false 
+    } 
+  } 
+</pre>
+<p>We added a new <kbd>refreshControlSpinning</kbd> Boolean to state. The old <kbd>spinner</kbd> Boolean for the <kbd>ActivityIndicator</kbd> component is renamed as <kbd>activityIndicatorSpinning</kbd>. The last line in <kbd>_checkLoginStatus</kbd> is broken down to its own method for reusing it later in the following snippet. Also, update the <kbd>getFeed</kbd> prop being pushed to <kbd>LoginPage</kbd> to reflect the new, broken out method:</p>
+<pre>
+  async _checkLoginStatus () { 
+    ... 
+    if (result === null) { 
+      this.props.navigator.push({ 
+        ... 
+        passProps: { 
+          getFeed: () =&gt; _getFeed() 
+        } 
+      }); 
+      ... 
+    } 
+ 
+    this._getFeed(); 
+  } 
+ 
+  _getFeed () { 
+    getFeed((error, result) =&gt; this._responseInfoCallback
+    (error, result)); 
+  } 
+</pre>
+<p>Let's pass <kbd>refreshControlSpinning</kbd> and <kbd>_refreshFeedList</kbd> to <kbd>FeedList</kbd>:</p>
+<pre>
+  _renderView () { 
+    ... 
+    return ( 
+      &lt;FeedList 
+        ... 
+        refreshControlSpinning={ this.state.refreshControlSpinning } 
+        refreshFeedList={ () =&gt; this._refreshFeedList() } 
+      /&gt; 
+    ); 
+  } 
+</pre>
+<p>Set the <kbd>refreshControlSpinning</kbd> Boolean to <kbd>true</kbd> and call <kbd>_getFeed</kbd>:</p>
+<pre>
+  _refreshFeedList () { 
+    this.setState({ 
+      refreshControlSpinning: true 
+    }); 
+ 
+    this._getFeed(); 
+  } 
+</pre>
+<p>Set <kbd>refreshControlSpinning</kbd> to <kbd>false</kbd> once data has been loaded into state and <kbd>AsyncStorage</kbd>:</p>
+<pre>
+  _responseInfoCallback (error, result) { 
+    ... 
+    this.setState({ 
+      refreshControlSpinning: false 
+      ... 
+    }); 
+  } 
+} 
+</pre>
+<p> </p>
+<p>Add a <kbd>refreshControl</kbd> prop to <kbd>ListView</kbd>, which points to <kbd>_renderRefreshControl</kbd>:</p>
+<pre>
+// Friends/app/components/FeedList/index.js 
+
+import { 
+  ... 
+  RefreshControl, 
+} from 'react-native'; 
+... 
+export default class FeedList extends Component { 
+  ... 
+  render () { 
+    ... 
+    return ( 
+      &lt;View style={ styles.container }&gt; 
+        &lt;ListView 
+          refreshControl={ this._renderRefreshControl() } 
+          ... 
+        /&gt; 
+      &lt;/View&gt; 
+    ) 
+  } 
+</pre>
+<p>Return the <kbd>RefreshControl</kbd> component. Its <kbd>onRefresh</kbd> prop points to the <kbd>_refreshFeedList</kbd> method in <kbd>App.js</kbd>, and it refreshes Boolean points to the <kbd>refreshControlSpinning</kbd> property from <kbd>App.js</kbd> as well:</p>
+<pre>
+  _renderRefreshControl () { 
+    return ( 
+      &lt;RefreshControl 
+        onRefresh={ () =&gt; this.props.refreshFeedList() } 
+        refreshing={ this.props.refreshControlSpinning } 
+        tintColor={ '#365899' } 
+        title={ 'Refresh Feed' } 
+        titleColor={ '#365899' } 
+      /&gt; 
+    ) 
+  } 
+} 
+</pre>
+<p>The next step is to render any image attachments into <kbd>PostView</kbd>.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Rendering images</h1>
+            </header>
+
+            <article>
+                
+<p>To show an image with React Native, we use the <kbd>Image</kbd> component. It lets us display images from both local and remote sources. Styles can also be added to an image, the same way you would stylize any other React component.</p>
+<p>We will use the following props for our <kbd>Image</kbd> components in this chapter:</p>
+<ul>
+<li><kbd>resizeMode</kbd>: We will use one of the following strings:
+<ul>
+<li><kbd>cover</kbd>: This scales the image uniformly and maintains its aspect ratio so that both the width and height of the image will be equal to or larger than the view that encapsulates the <kbd>Image</kbd> component.</li>
+<li><kbd>contain</kbd>: This string also scales the image uniformly and maintains its aspect ratio so that both the width and height of the image will be equal to or less than the view that encapsulates the <kbd>Image</kbd> component.</li>
+<li><kbd>stretch</kbd>: This scales the width and height independently and can change the aspect ratio of the source image.</li>
+<li><kbd>repeat</kbd>: This repeats the image to cover the entire frame of the encapsulating view. This option also keeps the original size and aspect ratio on iOS, but not on Android.</li>
+<li><kbd>center</kbd>: This centers the image.</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li><kbd>source</kbd>: This will be either a remote URL or local path to the image being rendered.</li>
+<li><kbd>style</kbd>: This is a styles object.</li>
+</ul>
+<p>On a basic level, you can load static image resources like this:</p>
+<pre>
+&lt;Image source={ require('../images/my-icon.png') } /&gt; 
+</pre>
+<p>Also, you can do the same for remote ones:</p>
+<pre>
+&lt;Image 
+  source={{ uri: 'https://www.link-to-my-image.com/image.png' }} 
+  style={{ 
+    width: 400, 
+    height: 400 
+  }} /&gt; 
+</pre>
+<p> </p>
+<p>Every post on the user's feed that has an image attached to it can have that very image rendered using the <kbd>Image</kbd> component.</p>
+<p>The way images are structured from the Facebook Graph API is like this:</p>
+<pre>
+attachments: [{ 
+  media: { 
+    image: { 
+      height: 400, 
+      src: 'https://www.link-to-my-image.com/image.png', 
+      width: 400 
+    } 
+  } 
+}] 
+</pre>
+<p>With this in mind, let's start by creating a new utilities file called <kbd>imageMethods</kbd>. This file should do the following:</p>
+<ul>
+<li>Import the <kbd>Dimensions</kbd> API from React Native.</li>
+<li>Export the <kbd>getHeightRatio</kbd> function that takes in the height and width of an image and returns the height that the image should have. We can calculate this by performing the following:
+<ul>
+<li>Grabbing the dimensions of the width of the user's device and subtracting an amount from it to accommodate a left and right margin.</li>
+<li>Using this margin offset and dividing it by the image's original width to get a desired ratio.</li>
+<li>Returning the result of multiplying the height by the ratio for the correct image height.
+<ul>
+<li>Export another function, <kbd>getWidthOffset</kbd>, which takes the width of the user's device and returns it, subtracting an amount to accommodate a left and right margin. For code reusability, we should use this as part of the first bullet point for <kbd>getHeightRatio</kbd>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>Modify <kbd>PostView</kbd> so that it does the following:</p>
+<ul>
+<li>The top-level <kbd>View</kbd> should be replaced by a <kbd>ScrollView</kbd> component in consideration of longer images.</li>
+<li>It renders the first image in a post's <kbd>attachments</kbd> array if the post has finished loading and if the <kbd>attachments</kbd> array has any images.</li>
+<li>The <kbd>Image</kbd> component should set its <kbd>resizeMode</kbd> prop to <kbd>contain</kbd> so that the image does not go off the screen. It should have some sort of left and right margin so that it does not meet the edge of the screen, and the width and height should be calculated by the <kbd>imageMethods</kbd> file.</li>
+<li>This rendering should be placed below the details of the post (time, message, and story), but above the number of likes and comments it has.</li>
+</ul>
+<p>Grab the <kbd>gridWidthOffset</kbd>, divide it by the image's <kbd>width</kbd>, and then divide the image's <kbd>height</kbd> by this result, as follows:</p>
+<pre>
+// Friends/app/utils/imageMethods.js 
+
+import { Dimensions } from 'react-native'; 
+ 
+export const getHeightRatio = (height, width) =&gt; { 
+  return height * (getWidthOffset()/width); 
+} 
+</pre>
+<p>Grab the <kbd>width</kbd> of the user's device and then subtract <kbd>20</kbd> pixels from it:</p>
+<pre>
+export const getWidthOffset = () =&gt; { 
+  return Dimensions.get('window').width - 20; 
+} 
+</pre>
+<p>Import the <kbd>Image</kbd>, <kbd>ScrollView</kbd>, and <kbd>imageMethods</kbd> into the <kbd>PostView</kbd> component:</p>
+<pre>
+// Friends/app/components/PostView/index.js 
+
+import { 
+  ... 
+  Image, 
+  ScrollView, 
+} from 'react-native'; 
+ 
+import { getHeightRatio, getWidthOffset } from '../../utils/imageMethods'; 
+</pre>
+<p>Replace the top-level view with a <kbd>ScrollView</kbd> in anticipation of longer posts. Add conditional logic to fire <kbd>_renderAttachments</kbd>, placing it before the call to <kbd>_renderDetails</kbd>:</p>
+<pre>
+... 
+export default class PostView extends Component { 
+  ... 
+  render () { 
+    return ( 
+      &lt;ScrollView style={ styles.container }&gt; 
+        ... 
+        &lt;View&gt; 
+          { !this.state.loading &amp;&amp; this._renderAttachments() } 
+        &lt;/View&gt; 
+        ... 
+      &lt;/ScrollView&gt; 
+    ) 
+  } 
+</pre>
+<p>Assign <kbd>subattachments</kbd> for a very specific fringe case involving certain photos/albums:</p>
+<pre>
+  ... 
+  _renderAttachments () { 
+    let attachment = this.state.attachments[0] 
+    let media; 
+ 
+    if (attachment &amp;&amp; attachment.hasOwnProperty('subattachments')) { 
+      attachment = attachment.subattachments.data[0]; 
+    } 
+</pre>
+<p>Check for the existence of the <kbd>media</kbd> property, as follows:</p>
+<pre>
+    if (attachment &amp;&amp; attachment.hasOwnProperty('media')) { 
+      media = attachment.media; 
+    } 
+</pre>
+<p>If the <kbd>media</kbd> property exists and it contains an <kbd>image</kbd> property, then render the <kbd>Image</kbd>:</p>
+<pre>
+    if (media &amp;&amp; media.image) { 
+</pre>
+<p>Return an <kbd>Image</kbd> component with determined props:</p>
+<pre>
+      const imageObject = media.image; 
+ 
+      return ( 
+        &lt;Image 
+          resizeMode={ 'contain' } 
+          source={{ uri: imageObject.src }} 
+          style={{ 
+            marginRight: 10, 
+            marginTop: 30, 
+            width: getWidthOffset(), 
+            height: getHeightRatio(imageObject.height, 
+            imageObject.width) 
+          }} 
+        /&gt; 
+      ) 
+    } 
+  } 
+  ... 
+} 
+</pre>
+<p>The <kbd>container</kbd> style for <kbd>PostView</kbd> has been changed to omit the <kbd>marginTop</kbd> property:</p>
+<pre>
+// Friends/app/components/PostView/styles.js 
+
+   commentListContainer: { 
+    flex: 1, 
+    marginTop: 20 
+  } 
+</pre>
+<p>The <kbd>commentListContainer</kbd> style accompanies the new <kbd>ScrollView</kbd> component.</p>
+<p>Now that the images have been rendered, we should deal with the other type of attachment--links.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Rendering links with WebView</h1>
+            </header>
+
+            <article>
+                
+<p>When your users select a link, it's beneficial to render that link within your application so that your user doesn't get thrown out of the app and into their browser. To accomplish this task with React Native, we will use the <kbd>WebView</kbd> component.</p>
+<p>The <kbd>WebView</kbd> component renders Web content within a native, app-contained view. For this app, we will use just one of its many props:</p>
+<ul>
+<li><kbd>source</kbd>: This loads either a URI with optional headers or static HTML into the <kbd>WebView</kbd>.</li>
+</ul>
+<p>Rendering a <kbd>WebView</kbd> component is simple:</p>
+<pre>
+import { 
+  WebView 
+} from 'react-native'; 
+ 
+class WebViewSample extends Component { 
+  render () { 
+    return ( 
+      &lt;WebView 
+        source={{uri: 'https://www.google.com'}} /&gt; 
+    ) 
+  } 
+} 
+</pre>
+<p>Not all posts contain links in their attachments. When they do, the hierarchy looks like this:</p>
+<pre>
+attachments: [{ 
+title: 'Link to Google' 
+  url: 'https://www.google.com' 
+}] 
+</pre>
+<p>Let's make some changes to accommodate a <kbd>WebView</kbd>. First, create a new component titled <kbd>WebViewComponent</kbd>; it should be a stateless function that returns a <kbd>WebView</kbd> along with its <kbd>source</kbd> set to whatever link it receives as a prop.</p>
+<p>Then, modify <kbd>PostView</kbd> so that it does the following functions:</p>
+<ul>
+<li>Renders a button directly below where an image would be rendered if one was included in the post.</li>
+<li>That button should only be rendered if the first attachment of the post has a link associated with it. The button should contain the title of the link and, when clicked on, navigate to your <kbd>WebViewComponent</kbd> to open the link.</li>
+</ul>
+<div class="packt_infobox">Unsecured HTTP links are automatically blocked by iOS' App Transport Security as of iOS 9. You can whitelist these on a case-by-case basis within the <kbd>Info.plist</kbd> file of your project in Xcode. Apple does not recommend this and will require that all apps submitted adhere to this new policy in the near future.</div>
+<p>The following is a stateless functional component that just returns a <kbd>WebView</kbd> with a <kbd>source</kbd> URI:</p>
+<pre>
+// Friends/app/components/WebViewComponent/index.js 
+
+import React, { Component } from 'react'; 
+ 
+import { 
+  WebView 
+} from 'react-native'; 
+ 
+export default (props) =&gt; { 
+  return ( 
+    &lt;WebView 
+      source={{ uri: props.url }} 
+    /&gt; 
+  ) 
+} 
+</pre>
+<p> </p>
+<p>Import the <kbd>Button</kbd> and <kbd>WebViewComponent</kbd> dependencies:</p>
+<pre>
+// Friends/app/components/PostView/index.js 
+
+import { 
+  Button, 
+  ... 
+} from 'react-native'; 
+ 
+import WebViewComponent from '../WebViewComponent'; 
+</pre>
+<p>Conditionally call <kbd>_renderLink</kbd> if <kbd>PostView</kbd> has finished loading:</p>
+<pre>
+... 
+export default class PostView extends Component { 
+  ... 
+  render () { 
+    return ( 
+      &lt;ScrollView style={ styles.container }&gt; 
+        ... 
+        &lt;View&gt; 
+          { !this.state.loading &amp;&amp; this._renderLink() } 
+        &lt;/View&gt; 
+        ... 
+      &lt;/ScrollView&gt; 
+    ) 
+  } 
+</pre>
+<p>Grab the first attached object:</p>
+<pre>
+  ... 
+  _renderLink () { 
+    let attachment = this.state.attachments[0]; 
+    let link; 
+    let title; 
+</pre>
+<p>Check for <kbd>subattachments</kbd> again:</p>
+<pre>
+    if (attachment &amp;&amp; attachment.hasOwnProperty('subattachments')) { 
+      attachment = attachment.subattachments.data[0]; 
+    } 
+</pre>
+<p>If the <kbd>title</kbd> is an empty string or not defined, generically name it <kbd>Link</kbd>:</p>
+<pre>
+    if (attachment &amp;&amp; attachment.hasOwnProperty('url')) { 
+      link = attachment.url; 
+      title = attachment.title || 'Link'; 
+</pre>
+<p>Render a <kbd>Button</kbd> that calls <kbd>_renderWebView</kbd> when pressed:</p>
+<pre>
+      return ( 
+        &lt;Button 
+          color={ '#365899' } 
+          onPress={ () =&gt; this._renderWebView(link) } 
+          title={ title } 
+        /&gt; 
+      ) 
+    } 
+  } 
+</pre>
+<p>Navigate the user to the <kbd>WebViewComponent</kbd>, sending it the URL provided.</p>
+<pre>
+  _renderWebView (url) { 
+    this.props.navigator.push({ 
+      component: WebViewComponent, 
+      passProps: { 
+        url 
+      } 
+    }); 
+  } 
+  ... 
+} 
+</pre>
+<p>We have one last finishing touch to make on this app, and it involves letting the user sign out of the application.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Signing out with TabBarIOS</h1>
+            </header>
+
+            <article>
+                
+<p>Our final step involves adding a sign out page for the user. Using the <kbd>TabBarIOS</kbd> component and the <kbd>react-native-vector-icons</kbd>, we will create a tabbed view that allows the user to sign out.</p>
+<p>Let's make some modifications for this to happen. We need to first modify <kbd>App.js</kbd> so that it does the following functions:</p>
+<ul>
+<li>Imports the <kbd>TabBarIOS</kbd> and <kbd>react-native-vector-icons</kbd> dependencies</li>
+<li>Returns a <kbd>TabBarIOS</kbd> component in its <kbd>_renderView</kbd> method if the activity indicator is not spinning</li>
+<li>Add a <kbd>selectedTab</kbd> string in the <kbd>App</kbd> component's state to track which tab is currently chosen, defaulting to the <kbd>FeedList</kbd> component</li>
+<li>Has separate functions to render the <kbd>FeedList</kbd> and <kbd>LoginPage</kbd> components without navigation</li>
+<li>Passes the <kbd>LoginPage</kbd> a callback that executes the <kbd>_checkLoginStatus</kbd> method</li>
+<li>Modifies its <kbd>container</kbd> style to no longer justify nor align any items to the center</li>
+</ul>
+<p>Then, modify the <kbd>LoginPage</kbd> component so that its <kbd>onLogoutFinished</kbd> callback will execute <kbd>_checkLoginStatus</kbd>. Import new dependencies to the project:</p>
+<pre>
+// Friends/app/App.js 
+
+import { 
+  TabBarIOS, 
+  ... 
+} from 'react-native'; 
+... 
+import Icon from 'react-native-vector-icons/FontAwesome'; 
+</pre>
+<p>Store the <kbd>selectedTab</kbd> string in state, defaulting it to <kbd>feed</kbd>:</p>
+<pre>
+... 
+export default class App extends Component { 
+  constructor (props) { 
+    ... 
+    this.state = { 
+      ... 
+      selectedTab: 'feed' 
+    } 
+  } 
+</pre>
+<p>Render the <kbd>FeedList</kbd> component using the same logic from earlier:</p>
+<pre>
+  ... 
+  _renderFeedList () { 
+    return ( 
+      &lt;FeedList 
+        feed={ this.state.feed } 
+        navigator={ this.props.navigator } 
+        refreshControlSpinning={ this.state.refreshControlSpinning } 
+        refreshFeedList={ () =&gt; this._refreshFeedList() } 
+      /&gt; 
+    ) 
+  } 
+</pre>
+<p> </p>
+<p>Render the <kbd>LoginPrompt</kbd> component, passing it the <kbd>_checkLoginStatus</kbd> method:</p>
+<pre>
+  _renderLoginPrompt () { 
+    return ( 
+      &lt;LoginPage checkLoginStatus={ () =&gt; this._checkLoginStatus() } /&gt; 
+    ) 
+  } 
+</pre>
+<p>This will cause the app to navigate back to the <kbd>LoginPage</kbd> when the user is signed out using the following code:</p>
+<pre>
+  _renderView () { 
+    ... 
+    return ( 
+      &lt;View style={ styles.container }&gt; 
+        &lt;TabBarIOS&gt; 
+          &lt;Icon.TabBarItemIOS 
+            title={ 'Feed' } 
+            selected={ this.state.selectedTab === 'feed' } 
+            iconName={ 'newspaper-o' } 
+            iconSize={ 20 } 
+            onPress={ () =&gt; this._setSelectedTab('feed') } 
+          &gt; 
+            { this._renderFeedList() } 
+          &lt;/Icon.TabBarItemIOS&gt; 
+          &lt;Icon.TabBarItemIOS 
+            title={ 'Sign Out' } 
+            selected={ this.state.selectedTab === 'signOut' } 
+            iconName={ 'sign-out' } 
+            iconSize={ 20 } 
+            onPress={ () =&gt; this._setSelectedTab('signOut') } 
+          &gt; 
+            { this._renderLoginPrompt() } 
+          &lt;/Icon.TabBarItemIOS&gt; 
+        &lt;/TabBarIOS&gt; 
+      &lt;/View&gt; 
+    ) 
+  } 
+</pre>
+<p> </p>
+<p>Rendering of the <kbd>TabBarIOS</kbd> component is where the contents of <kbd>_renderFeedList</kbd> existed earlier within <kbd>_renderView</kbd>.</p>
+<pre>
+  ... 
+  _setSelectedTab (selectedTab) { 
+    this.setState({ 
+      selectedTab 
+    }); 
+  } 
+} 
+</pre>
+<p>The preceding code sets the <kbd>selectedTab</kbd> property in state to whichever tab is tapped on by the user:</p>
+<pre>
+// Friends/app/styles.js 
+
+container: { 
+  flex: 1, 
+  backgroundColor: '#F5FCFF', 
+} 
+</pre>
+<p>The preceding code removed all other stylings from the <kbd>container</kbd> property so that the tab bar's icons aren't forced to the center of the screen:</p>
+<pre>
+// Friends/app/components/LoginPage/index.js 
+
+... 
+export default class LoginPage extends Component { 
+  render() { 
+    return ( 
+      &lt;View style={ styles.container }&gt; 
+        &lt;LoginButton 
+          ... 
+          onLogoutFinished={() =&gt; this.props.checkLoginStatus() } 
+        /&gt; 
+      &lt;/View&gt; 
+    ); 
+  } 
+} 
+</pre>
+<p>The previous alert call in the <kbd>onLogoutFinished</kbd> prop of <kbd>LoginButton</kbd> has been replaced to fire <kbd>checkLoginStatus</kbd> instead.</p>
+<p>Great job on all your progress in this app! The next step is to make modifications for Android development.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Porting to Android</h1>
+            </header>
+
+            <article>
+                
+<p>The Android modifications we will make for this app are similar to the changes made for <kbd>Expenses</kbd>, which will be discussed later in <a href="c9cb084b-5c75-4683-94c3-9b2124e8ecb0.xhtml">Chapter 9,</a> <em>Additional React Native Components</em>. The modifications we are making for <kbd>Friends</kbd> is as follows:</p>
+<ul>
+<li>Swapping out <kbd>TabBarIOS</kbd> for <kbd>DrawerLayoutAndroid</kbd> and <kbd>ToolbarAndroid</kbd></li>
+<li>Creating <kbd>Drawer</kbd> and <kbd>DrawerRow</kbd> components to support <kbd>DrawerLayoutAndroid</kbd></li>
+<li>Using <kbd>Navigator</kbd> in the root-level <kbd>index.android.js</kbd> file</li>
+<li>Creating an Android-specific version of the <kbd>App</kbd> component</li>
+<li>Updating <kbd>FeedList</kbd> for Android-specific styling</li>
+<li>Modifying <kbd>FeedListRow</kbd> to support Android navigation</li>
+<li>Adding <kbd>BackAndroid</kbd> and <kbd>Navigator</kbd> support to <kbd>PostView</kbd></li>
+</ul>
+<div class="packt_infobox">In-depth explanations for <kbd>DrawerLayoutAndroid</kbd> and <kbd>ToolbarAndroid</kbd> can be found in <a href="c9cb084b-5c75-4683-94c3-9b2124e8ecb0.xhtml">Chapter 9</a>, <em>Additional React Native Components</em>.</div>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Adding DrawerLayoutAndroid and ToolbarAndroid</h1>
+            </header>
+
+            <article>
+                
+<p>Let's begin by adding Toolbar/Drawer-based navigation for the Android version of Friends. We will need to start by creating a component called <kbd>Drawer</kbd>, which performs the following functions:</p>
+<ul>
+<li>This accepts an array of routes as a prop.</li>
+<li>This returns a <kbd>ListView</kbd> containing each route as a row to render. Each row should contain a <kbd>TouchableHighlight</kbd> component that, when clicked on, will call a prop called <kbd>navigateTo</kbd>, which we will eventually pass into <kbd>Drawer</kbd>.</li>
+</ul>
+<p>We should also break the row that is rendered by <kbd>Drawer</kbd> into its own component titled <kbd>DrawerRow</kbd>. This component should do the following things:</p>
+<ul>
+<li>Accept the name of the row as a prop and render that name in a <kbd>Text</kbd> element</li>
+<li>Call <kbd>setNativeProps</kbd> so that its parent <kbd>TouchableHighlight</kbd> component will render this custom component</li>
+</ul>
+<p>Instantiate a new <kbd>ListView.DataSource</kbd>:</p>
+<pre>
+// Friends/app/components/Drawer/index.js 
+
+import React, { Component } from 'react'; 
+ 
+import { 
+  ListView, 
+  Text, 
+  TouchableHighlight, 
+  View 
+} from 'react-native'; 
+ 
+import DrawerRow from '../DrawerRow'; 
+import styles from './styles'; 
+ 
+export default class Drawer extends Component { 
+  constructor (props) { 
+    super (props); 
+    this.state = { 
+      ds: new ListView.DataSource({ 
+        rowHasChanged: (r1, r2) =&gt; r1 !== r2 
+      }) 
+    } 
+  } 
+</pre>
+<p>Render a <kbd>ListView</kbd> component, complete with a separator. Delegate the rendering of our rows to the <kbd>_renderDrawerRow</kbd> method:</p>
+<pre>
+  render () { 
+    const dataSource = this.state.ds.cloneWithRows
+    (this.props.routes || []); 
+    return ( 
+      &lt;View style={ styles.container }&gt; 
+        &lt;ListView 
+          automaticallyAdjustContentInsets={ false } 
+          dataSource={ dataSource } 
+          enableEmptySections={ true } 
+          renderRow={ (rowData, sectionID, rowID) =&gt; 
+          this._renderDrawerRow(rowData, sectionID, rowID) } 
+          renderSeparator={ (sectionID, rowID) =&gt; 
+            &lt;View 
+              key={ rowID } 
+              style={ styles.separator } /&gt; 
+          } /&gt; 
+      &lt;/View&gt; 
+    ) 
+  } 
+</pre>
+<p>Wrap a <kbd>TouchableHighlight</kbd> around the custom <kbd>DrawerRow</kbd> component, passing it the name of the route. Call the <kbd>navigateTo</kbd> method from props in the <kbd>onPress</kbd> method of <kbd>TouchableHighlight</kbd>, passing it the <kbd>index</kbd> of the <kbd>row</kbd>:</p>
+<pre>
+  _renderDrawerRow (rowData, sectionID, rowID) { 
+    return ( 
+      &lt;View&gt; 
+        &lt;TouchableHighlight 
+          style={ styles.row } 
+          onPress={ () =&gt; this.props.navigateTo(rowData.index) }&gt; 
+          &lt;DrawerRow 
+            routeName={ rowData.title } /&gt; 
+          &lt;/TouchableHighlight&gt; 
+      &lt;/View&gt; 
+    ) 
+  } 
+} 
+</pre>
+<p>Next, the <kbd>DrawerRow</kbd> component was created:</p>
+<pre>
+// Friends/app/components/Drawer/styles.js 
+
+import { StyleSheet } from 'react-native'; 
+ 
+const styles = StyleSheet.create({ 
+  container: { 
+    flex: 1 
+  }, 
+  separator: { 
+    height: StyleSheet.hairlineWidth, 
+    marginLeft: 10, 
+    marginRight: 10, 
+    backgroundColor: '#000000' 
+  } 
+}) 
+ 
+export default styles; 
+</pre>
+<p>The following code calls <kbd>setNativeProps</kbd> since <kbd>DrawerRow</kbd> is wrapped around <kbd>TouchableHighlight</kbd>:</p>
+<pre>
+// Friends/app/components/DrawerRow/index.js 
+
+import React, { Component } from 'react'; 
+ 
+import { 
+  Text, 
+  View 
+} from 'react-native'; 
+ 
+import styles from './styles'; 
+ 
+export default class DrawerRow extends Component { 
+  setNativeProps (props) { 
+    this._root.setNativeProps(props) 
+  } 
+</pre>
+<p>Render the name of the route:</p>
+<pre>
+  render () { 
+    return ( 
+      &lt;View 
+        style={ styles.container } 
+        ref={ component =&gt; this._root = component } 
+        { ...this.props }&gt; 
+        &lt;Text style={ styles.rowTitle }&gt; 
+          { this.props.routeName } 
+        &lt;/Text&gt; 
+      &lt;/View&gt; 
+    ) 
+  } 
+} 
+</pre>
+<p>Here is the styling I created for <kbd>DrawerRow</kbd>:</p>
+<pre>
+// Friends/app/components/DrawerRow/styles.js 
+
+import { StyleSheet } from 'react-native'; 
+ 
+const styles = StyleSheet.create({ 
+  container: { 
+    flex: 1, 
+    height: 40, 
+    padding: 10 
+  }, 
+  rowTitle: { 
+    fontSize: 20, 
+    textAlign: 'left' 
+  } 
+}) 
+ 
+export default styles; 
+</pre>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Integrating Drawer with Friends</h1>
+            </header>
+
+            <article>
+                
+<p>Next, we will modify the root <kbd>index.android.js</kbd> file so that it does the following:</p>
+<ul>
+<li>Renders a <kbd>DrawerLayoutAndroid</kbd> component wrapped around <kbd>Icon.ToolbarAndroid</kbd> and <kbd>Navigator</kbd>.</li>
+<li>Imports and sets the <kbd>renderNavigationView</kbd> of <kbd>DrawerLayoutAndroid</kbd> to the <kbd>Drawer</kbd> component we created.</li>
+<li>Creates a callback to open <kbd>DrawerLayoutAndroid</kbd>.</li>
+<li>Writes a callback named <kbd>_navigateTo</kbd> that navigates to a given index. Pass this to <kbd>LoginPage</kbd> as a prop.</li>
+<li>Imports and renders the <kbd>App</kbd>, <kbd>LoginPage</kbd>, <kbd>PostView</kbd>, and <kbd>WebViewComponent</kbd> components using the <kbd>renderScene</kbd> callback in <kbd>Navigator</kbd>:</li>
+</ul>
+<pre>
+// Friends/index.android.js 
+
+import React, { Component } from 'react'; 
+ import { 
+  AppRegistry, 
+  DrawerLayoutAndroid, 
+  Navigator, 
+  StyleSheet, 
+  View 
+} from 'react-native'; 
+ 
+import App from './app/App'; 
+import Drawer from './app/components/Drawer'; 
+import LoginPage from './app/components/LoginPage'; 
+import PostView from './app/components/PostView'; 
+import WebViewComponent from './app/components/WebViewComponent'; 
+ 
+import Icon from 'react-native-vector-icons/MaterialIcons'; 
+</pre>
+<p>Let's import all necessary dependencies, including React Native SDK components/APIs, each custom component being rendered by the <kbd>Navigator</kbd>, and the Material Icons pack from <kbd>react-native-vector-icons</kbd>.</p>
+<pre>
+export default class Friends extends Component { 
+  constructor (props) { 
+    super (props); 
+ 
+    this.state = { 
+      visibleRoutes: [ 
+        { title: 'My Feed', index: 0 }, 
+        { title: 'Log Out ', index: 1 } 
+      ] 
+    } 
+  } 
+</pre>
+<p>Establish the array of visible routes to be passed into the <kbd>Drawer</kbd> component.</p>
+<pre>
+  render() { 
+    const routes = [ 
+      { title: 'My Feed', index: 0 }, 
+      { title: 'Sign In/Log Out', index: 1 }, 
+      { title: 'Post Details', index: 2 }, 
+      { title: 'Web View', index: 3 } 
+    ]; 
+ 
+    return ( 
+      &lt;View style={styles.container}&gt; 
+        &lt;DrawerLayoutAndroid 
+          drawerLockMode={ 'unlocked' } 
+          ref={ 'drawer' } 
+          renderNavigationView={ () =&gt; this._renderDrawerLayout() } 
+        &gt; 
+</pre>
+<p>Render a <kbd>DrawerLayoutAndroid</kbd> component, with its <kbd>renderNavigationView</kbd> prop being delegated to <kbd>_renderDrawerLayout</kbd>; set a <kbd>ref</kbd> of <kbd>drawer</kbd> to the component so we can refer to it in <kbd>_openDrawer</kbd>.</p>
+<pre>
+          &lt;Icon.ToolbarAndroid 
+             
+            titleColor="#fafafa" 
+            navIconName="menu" 
+            height={ 56 } 
+            backgroundColor="#365899" 
+            onIconClicked={ () =&gt; this._openDrawer() } 
+          /&gt; 
+</pre>
+<p>Render the <kbd>Icon.ToolbarAndroid</kbd> component to contain the hamburger menu. Its <kbd>onIconClicked</kbd> callback executes <kbd>_openDrawer</kbd>.</p>
+<pre>
+          &lt;Navigator 
+            initialRoute={{ index: 0 }} 
+            ref={ 'navigator' } 
+            renderScene={ (routes, navigator) =&gt; 
+            this._renderScene(routes, navigator) } 
+          /&gt; 
+        &lt;/DrawerLayoutAndroid&gt; 
+      &lt;/View&gt; 
+    ); 
+  } 
+</pre>
+<p>Render the <kbd>Navigator</kbd>, setting its initial route to the <kbd>index</kbd> for the <kbd>App</kbd> component. Delegate <kbd>renderScene</kbd> to the <kbd>_renderScene</kbd> method. Give a <kbd>ref</kbd> of <kbd>navigator</kbd> so we can reference it in <kbd>_navigateTo</kbd>.</p>
+<pre>
+  _checkLoginStatus () { 
+    this._navigateTo(0); 
+  } 
+</pre>
+<p>The preceding code navigates to the <kbd>App</kbd> component, which triggers its checking of the user's login status.</p>
+<pre>
+  _openDrawer () { 
+    this.refs['drawer'].openDrawer(); 
+  } 
+</pre>
+<p>The <kbd>_openDrawer</kbd> method calls <kbd>openDrawer</kbd> on our <kbd>DrawerLayoutAndroid</kbd> component.</p>
+<pre>
+  _navigateTo (index) { 
+    this.refs['navigator'].push({ 
+      index, 
+      passProps: { 
+        checkLoginStatus: () =&gt; this._checkLoginStatus() 
+      } 
+    }); 
+    this.refs['drawer'].closeDrawer(); 
+  } 
+</pre>
+<p>The <kbd>_navigateTo</kbd> method pushes the given <kbd>index</kbd> to the <kbd>navigator</kbd>. Given a prop of <kbd>checkLoginStatus</kbd>, which will be used for the <kbd>LoginPage</kbd> component. It closes the <kbd>drawer</kbd> at the end.</p>
+<pre>
+  _renderDrawerLayout () { 
+    return ( 
+      &lt;Drawer 
+        navigateTo={ (index) =&gt; this._navigateTo(index) } 
+        routes={ this.state.visibleRoutes } 
+      /&gt; 
+    ); 
+  } 
+</pre>
+<p>The <kbd>_renderDrawerLayout</kbd> method renders the <kbd>Drawer</kbd> component, passing it the <kbd>_navigateTo</kbd> method as a prop along with the array of routes.</p>
+<pre>
+  _renderScene (route, navigator) { 
+    if (route.index === 0) { 
+      return ( 
+        &lt;App 
+          title={ route.title } 
+          navigator={ navigator } 
+        /&gt; 
+      ); 
+    } 
+</pre>
+<p>The <kbd>_renderScene</kbd> method is responsible for rendering all four available routes.</p>
+<pre>
+    if (route.index === 1) { 
+      return ( 
+        &lt;LoginPage 
+          title={ route.title } 
+          navigator={ navigator } 
+          { ...route.passProps } 
+        /&gt; 
+      ); 
+    } 
+ 
+    if (route.index === 2) { 
+      return ( 
+        &lt;PostView 
+          title={ route.title } 
+          navigator={ navigator } 
+          { ...route.passProps } 
+        /&gt; 
+      ); 
+    } 
+ 
+    if (route.index === 3) { 
+      return ( 
+        &lt;WebViewComponent 
+          title={ route.title } 
+          navigator={ route.navigator } 
+          { ...route.passProps } 
+        /&gt; 
+      ); 
+    } 
+  } 
+ 
+} 
+ 
+const styles = StyleSheet.create({ 
+  container: { 
+    flex: 1, 
+    backgroundColor: '#F5FCFF', 
+  } 
+}); 
+ 
+AppRegistry.registerComponent('Friends', () =&gt; Friends); 
+</pre>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Creating an Android version of App.js</h1>
+            </header>
+
+            <article>
+                
+<p>Now, we should create an Android-specific <kbd>App</kbd> component for <kbd>Friends</kbd>. Start by renaming the existing <kbd>App.js</kbd> file found at <kbd>Friends/app/App.js</kbd> as <kbd>App.ios.js</kbd> and create a new file titled <kbd>App.android.js</kbd>.</p>
+<p>This file should contain similar logic to <kbd>App.ios.js</kbd>, but any references to iOS-specific components, such as <kbd>TabBarIOS</kbd>, should be removed. Additionally, any navigation events should be updated to support <kbd>Navigator</kbd> logic.</p>
+<p>Here's how I did it:</p>
+<pre>
+// Friends/app/App.android.js 
+
+... 
+</pre>
+<p>The following three items were removed from the import statements: <kbd>NavigatorIOS</kbd>, <kbd>TabBarIOS</kbd>, and <kbd>LoginPage</kbd>:</p>
+<pre>
+export default class App extends Component { 
+  constructor (props) { 
+    ... 
+  } 
+</pre>
+<p>The <kbd>selectedTab</kbd> property in state was removed from the <kbd>constructor</kbd>:</p>
+<pre>
+  ... 
+  async _checkLoginStatus () { 
+    ... 
+    if (result === null) { 
+      this.props.navigator.push({ 
+        index: 1, 
+        passProps: { 
+          getFeed: () =&gt; this._getFeed() 
+        } 
+      }); 
+ 
+      return; 
+    } 
+    ... 
+  } 
+</pre>
+<p>The <kbd>componentWillMount</kbd> and <kbd>render</kbd> methods stayed the same as in the iOS version. The navigation method in <kbd>_checkLoginStatus</kbd> was modified to pass an <kbd>index</kbd> instead of the <kbd>LoginPage</kbd> component:</p>
+<pre>
+... 
+_renderView () { 
+    ... 
+    return this._renderFeedList(); 
+  } 
+</pre>
+<p>The <kbd>_getFeed</kbd>, <kbd>_renderFeedList</kbd>, and <kbd>_renderLoginPrompt</kbd> methods were not modified either. Instead of returning <kbd>TabBarIOS</kbd> in <kbd>_renderView</kbd>, I return a call to <kbd>_renderFeedList</kbd> instead.</p>
+<pre>
+  ... 
+} 
+</pre>
+<p>Finally, <kbd>_refreshFeedList</kbd> and <kbd>_responseInfoCallback</kbd> methods were also left unchanged. However, <kbd>_setSelectedTab</kbd> was removed from <kbd>App.android.js</kbd> since it was a <kbd>TabBarIOS</kbd>-specific method.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Modifying FeedList</h1>
+            </header>
+
+            <article>
+                
+<p>The styling for <kbd>FeedList</kbd> needs to change conditionally on Android so that its <kbd>container</kbd> style does not contain the <kbd>marginTop</kbd> property. Modify <kbd>FeedList</kbd> so that it does the following functions:</p>
+<ul>
+<li>Imports the <kbd>Platform</kbd> API from React Native.</li>
+<li>Conditionally checks for the user's platform and serves them either the container style on iOS devices or a new Android-specific style that does not include the <kbd>marginTop</kbd> property.</li>
+</ul>
+<p>Here are my <kbd>FeedList</kbd> modifications for Android:</p>
+<pre>
+// Friends/app/components/FeedList/index.js 
+
+... 
+import { 
+  Platform, 
+  ... 
+} from 'react-native'; 
+... 
+export default class FeedList extends Component { 
+  ... 
+  render () { 
+    ... 
+    return ( 
+      &lt;View style={ Platform.OS === 'ios' ? styles.container : 
+      styles.androidContainer }&gt; 
+        ... 
+      &lt;/View&gt; 
+    ) 
+  } 
+  ... 
+} 
+</pre>
+<p>I imported the <kbd>Platform</kbd> API and used a ternary operator to run a check for the user's operating system, assigning the top-level <kbd>View</kbd> component in the <kbd>render</kbd> method of <kbd>FeedList</kbd> an applicable style depending on that check's results:</p>
+<pre>
+// Friends/app/components/FeedList/styles.js 
+
+   androidContainer: { 
+    flex: 1 
+  }, 
+</pre>
+<p>I added the <kbd>androidContainer</kbd> style to the <kbd>StyleSheet</kbd> of <kbd>FeedList</kbd>.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Supporting Navigator in FeedListRow</h1>
+            </header>
+
+            <article>
+                
+<p>Next, we have to update FeedListRow to do the following:</p>
+<ul>
+<li>Import the <kbd>Platform</kbd> API</li>
+<li>Modify the <kbd>navigateToPostView</kbd> to check for the user's operating system and use the appropriate syntax to push the <kbd>PostView</kbd> for each one</li>
+</ul>
+<p>I created the <kbd>propsObject</kbd> to store the object assigned to <kbd>passProps</kbd> so that I did not have to rewrite it for a second time:</p>
+<pre>
+// Friends/app/components/FeedListRow/index.js 
+
+... 
+import { 
+  Platform, 
+  ... 
+} from 'react-native'; 
+... 
+export default class FeedListRow extends Component { 
+  ... 
+  _navigateToPostView () { 
+    const propsObject = { 
+      createdTime: this.props.createdTime, 
+      message: this.props.message, 
+      postID: this.props.postID, 
+      story: this.props.story 
+    }; 
+</pre>
+<p>Here we look at conditional logic for iOS:</p>
+<pre>
+    if (Platform.OS === 'ios') { 
+      this.props.navigator.push({ 
+        component: PostView, 
+        passProps: propsObject 
+      }); 
+      return; 
+    } 
+</pre>
+<p>Since the iOS logic ends the function with the <kbd>return</kbd> statement, <kbd>push</kbd> with the <kbd>Navigator</kbd> if on Android.</p>
+<pre>
+    this.props.navigator.push({ 
+      index: 2, 
+      passProps: propsObject 
+    }); 
+  } 
+  ... 
+} 
+</pre>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Adding PostView navigator and BackAndroid support</h1>
+            </header>
+
+            <article>
+                
+<p>Now, let's modify the <kbd>PostView</kbd> component with the following changes:</p>
+<ul>
+<li>Import the <kbd>Platform</kbd> and <kbd>BackAndroid</kbd> APIs</li>
+<li>Add and remove listeners for <kbd>BackAndroid</kbd> during <kbd>componentWillMount</kbd> and <kbd>componentWillUnmount</kbd></li>
+</ul>
+<ul>
+<li>Write a callback in the component to handle back button presses on Android, calling <kbd>pop</kbd> on the navigator as a result</li>
+<li>Create conditional logic similar to <kbd>FeedListRow</kbd> to push the <kbd>WebViewComponent</kbd></li>
+</ul>
+<p>I created an event listener for <kbd>BackAndroid</kbd> in the <kbd>componentWillMount</kbd> lifecycle:</p>
+<pre>
+// Friends/app/components/PostView/index.js 
+
+... 
+import { 
+  BackAndroid, 
+  Platform, 
+  ... 
+} from 'react-native'; 
+... 
+export default class PostView extends Component { 
+  ... 
+  async componentWillMount () { 
+    BackAndroid.addEventListener('hardwareButtonPress', () =&gt;
+    this._backButtonPress()); 
+    ... 
+  } 
+</pre>
+<p>Likewise, I remove that event listener during <kbd>componentWillUnmount</kbd>:</p>
+<pre>
+  componentWillUnmount () { 
+    BackAndroid.removeEventListener('hardwareButtonPress', () =&gt;
+    this._backButtonPress()) 
+  } 
+</pre>
+<p>This method calls <kbd>pop</kbd> on the <kbd>navigator</kbd> and is fired when the back button is pressed:</p>
+<pre>
+  ... 
+  _backButtonPress () { 
+    this.props.navigator.pop(); 
+    return true; 
+  } 
+</pre>
+<p>The conditional logic for pushing <kbd>WebViewComponent</kbd> on an iOS is as follows:</p>
+<pre>
+  ... 
+  _renderWebView (url) { 
+    if (Platform.OS === 'ios') { 
+      this.props.navigator.push({ 
+        component: WebViewComponent, 
+        passProps: { 
+          url 
+        } 
+      }); 
+      return; 
+    } 
+</pre>
+<p>The conditional logic for the same thing, but on Android is as follows:</p>
+<pre>
+    this.props.navigator.push({ 
+      index: 3, 
+      passProps: { 
+        url 
+      } 
+    }); 
+  } 
+} 
+</pre>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Summary</h1>
+            </header>
+
+            <article>
+                
+<p>Congratulations! You have successfully built three React Native applications throughout the course of this book. In this chapter, you learned to add a pull-to-refresh interaction into the application, letting users of your apps quickly refresh their data using a well-known gesture. Then, you utilized the <kbd>Image</kbd> component, rendering remote images into your application. Next, you created a <kbd>WebView</kbd> component for the application, allowing users to view Web-related content without shuffling them out of the app and into the system browser. Finally, you made the required modifications to create an Android version of the application.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    </body></html>

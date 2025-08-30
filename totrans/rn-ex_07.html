@@ -1,0 +1,2292 @@
+<html><head></head><body>
+        <section>
+
+            <header>
+                <h1 class="header-title">Redux</h1>
+            </header>
+
+            <article>
+                
+<p>Now that we have had a chance to get our feet wet with React Native, it's time to dive into some serious architecture. One of the things that you might have encountered with our previous apps is that our components ended up encapsulating a large amount of logic in them and that some files ran several hundred lines. In this chapter, we're going to introduce a new architecture for our apps to reduce bloat in our components. In this chapter, we will do the following:</p>
+<ul>
+<li>Learn about Redux, the architecture that will help manage our React Native apps' state and data flow</li>
+<li>Install the dependencies for Redux in our application</li>
+<li>Refactor <kbd>Tasks</kbd>, our to-do list app, to use Redux</li>
+</ul>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Introducing Redux</h1>
+            </header>
+
+            <article>
+                
+<p>Redux is a very popular library that many developers use to help write their React applications. On its GitHub repo, Redux bills itself as <em>a predictable state container for JavaScript apps</em>. Rather than having each component manage its own independent state, Redux proposes that your entire React application is governed by one single state. This single state is then proliferated through each component and allows the majority of your app's logic to live in reusable functions.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">The three principles of Redux</h1>
+            </header>
+
+            <article>
+                
+<p>You can describe Redux by referring to three key principles regarding the state: it needs to be the single source of truth for your application, be read-only, and be modifiable only by pure functions.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Single state tree</h1>
+            </header>
+
+            <article>
+                
+<p>In Redux, rather than having each component manage its own state, we deal with one single-state tree that contains all the logic in our application. For example, for the <kbd>Tasks</kbd> app we built in the first two chapters, you can visualize it as follows:</p>
+<pre>
+{ 
+  cellExpanded: false, 
+  tasks: [ 
+    { 
+      title: 'Buy Milk', 
+      completed: false, 
+      dueDate: undefined 
+    }, 
+    { 
+      title: 'Walk Dog', 
+      completed: true, 
+      dueDate: undefined 
+    } 
+  ], 
+} 
+</pre>
+<p>This helps make our app a lot easier to debug, since we're only dealing with one object tree when looking at the information it contains.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">State is read-only</h1>
+            </header>
+
+            <article>
+                
+<p>The application state should never be modified directly. Instead, it should only be modified as the result of actions being dispatched and reducers interacting with it.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Changes are made with pure functions</h1>
+            </header>
+
+            <article>
+                
+<p>The idea of a pure function comes from functional programming, and can be summarized as follows:</p>
+<ul>
+<li>Given the same arguments, a pure function always returns the same result</li>
+<li>Regardless of our application state, a pure function is able to execute</li>
+<li>Variables outside of a pure function's scope cannot be modified by it</li>
+</ul>
+<p>These three principles correlate with three major parts of the Redux ecosystem: actions, reducers, and store.</p>
+<p>Actions are how we can indirectly modify our read-only state. Reducers are the pure functions that perform that modification. The single store in Redux is where our state exists.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Actions</h1>
+            </header>
+
+            <article>
+                
+<p>Actions are simple objects containing information that sends data from your app over to the app's store. All the logic that your app handles will pass through the action - your store never receives any data from sources that aren't actions.</p>
+<p>An action requires a <kbd>type</kbd> property, which defines the type of user action that has occurred. Types of actions are represented in a stringified form. They can be hardcoded into the object itself or passed in as a constant. For example:</p>
+<pre>
+export function addTask(taskName) { 
+  return { 
+    type: 'ADD_TASK', 
+    taskName: taskName 
+  } 
+} 
+ 
+// With constants 
+ 
+const ADD_TASK = 'ADD_TASK'; 
+ 
+export function addTask(taskName) { 
+  return { 
+    type: ADD_TASK, 
+    taskName: taskName 
+  } 
+} 
+</pre>
+<p>These functions will be made available as props to all the components in your application and can be called at any time. When an action is called, the store then dispatches the action to every reducer in your application. Only the right reducer, chosen with conditional logic, will fire at this time, and will execute code that changes your application's state.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Reducers</h1>
+            </header>
+
+            <article>
+                
+<p>In Vanilla JavaScript, there's an array prototype method called <kbd>reduce</kbd>. The purpose of this native reduce function is to return one single reduced value after running a callback and initial value through an entire array's contents.</p>
+<p>In Redux, a reducer is a function that takes in your application's state and relevant information passed to it from an action, and then returns one single reduced value for your application's state after executing the code.</p>
+<p>Reducers should, as a good practice, be restricted to one reducer per file, for clarity.</p>
+<p>There are two really important things we need to know about reducers with Redux:</p>
+<ul>
+<li>Your application state is never mutated. Instead, a copy is returned with any changed values.</li>
+<li>Since each reducer will fire when an action happens in order to decide if that action is relevant to it, we have to return the previous application state in the event that any unknown (to that specific reducer) actions are fired.</li>
+</ul>
+<p>Working from the preceding example, this is how a reducer would look for an <kbd>ADD_TASK</kbd> action:</p>
+<pre>
+const task = (state = [], action) =&gt; { 
+</pre>
+<p>Using ES6's default arguments syntax to give us an empty array if a state does not exist, the <kbd>action</kbd> object is passed in from the action creator:</p>
+<pre>
+switch(action.type) { 
+    case 'ADD_TASK': 
+      return [ 
+        ...state, 
+        { 
+          taskName: action.taskName 
+        } 
+      ] 
+    default: 
+      return state; 
+  } 
+} 
+</pre>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Stores</h1>
+            </header>
+
+            <article>
+                
+<p>A store is an object that brings actions and reducers together. It does the following things for us:</p>
+<ul>
+<li>Contains the application state</li>
+<li>Gives access to that state, via a method called <kbd>getState</kbd></li>
+<li>Dispatches actions, which reducers then use to modify that state</li>
+</ul>
+<p>One thing to be aware of with Redux is that, in a given application, you will only ever have one store. In the event that we want to split our logic into multiple handlers, we'll actually split the reducers instead, through a method called <strong>reducer composition</strong> this is something we'll take a look at once we need it.</p>
+<p>Here's how a sample store in Redux looks. Let's assume we have the task reducer from before, and another one as follows:</p>
+<pre>
+import { combineReducers, createStore, compose } from 'redux'; 
+ 
+const defaultState = { 
+  task, 
+  dueDate 
+} 
+</pre>
+<p>These are examples of actions:</p>
+<pre>
+const addTask = function(taskName) { 
+  return { 
+    type: 'ADD_TASK', 
+    taskName: taskName 
+  } 
+} 
+ 
+const changeDueDate = function(dueDate) { 
+  return { 
+    type: 'CHANGE_DUE_DATE', 
+    dueDate: dueDate 
+  } 
+}
+</pre>
+<p>These are where we would have our reducers:</p>
+<pre>
+const task = // Reducer to add a new task to the list 
+const dueDate = // Reducer to modify a task's due date 
+ 
+const rootReducer = combineReducers(task, dueDate); 
+ 
+const store = createStore(rootReducer, defaultState); 
+</pre>
+<p>Within a component, we can simply call an action within a component as follows:</p>
+<pre>
+this.props.addTask('Buy Milk') 
+</pre>
+<p>But wait, how do our components know that this action is available? Just where do we expose our props? We do it using a library called <kbd>React-Redux</kbd>, which contains two things we want to utilize.</p>
+<p>The first is the <kbd>connect</kbd> method, which connects our React Native application to the Redux store. The two arguments we're interested in passing to connect are <kbd>mapStateToProps</kbd> and <kbd>mapDispatchToProps</kbd>.</p>
+<p><kbd>mapStateToProps</kbd>, if specified, is a function that subscribes to updates to the state tree. Any time the state tree updates, <kbd>mapStateToProps</kbd> will be called and merges its return value into your component's props. The return value needs to be an object. Here's a quick example:</p>
+<pre>
+const mapStateToProps = (state) =&gt; { 
+  return { 
+    tasks: state.tasks 
+  } 
+} 
+</pre>
+<p><kbd>mapDispatchToProps</kbd> will map our dispatch methods to our components' props. As a function, we can call <kbd>bindActionCreators</kbd> to it and pass in our action creators, as well as a dispatch call, so they can be invoked directly. Here's how it looks:</p>
+<pre>
+import { bindActionCreators } from 'redux'; 
+import { connect } from 'react-redux'; 
+import * as actionCreators from '../actions'; 
+ 
+const mapDispatchToProps = (dispatch) =&gt; { 
+  return bindActionCreators(actionCreators, dispatch); 
+} 
+</pre>
+<p>Then, assuming <kbd>Main</kbd> as the entry point for our app, we'll use <kbd>connect</kbd> to bring them together:</p>
+<pre>
+import Main from './Main'; 
+ 
+const App = connect(mapStateToProps, mapDispatchToProps)(Main) 
+</pre>
+<p>In order to propagate our store (and all of the actions and reducers associated with it), we'll use the <kbd>Provider</kbd> from <kbd>React-Redux</kbd> to wrap our application and pass it our store as a prop. This allows the components in our React app to inherit these props naturally. It happens at the root level, as follows:</p>
+<pre>
+return ( 
+  &lt;Provider store={ store }&gt; 
+    &lt;App /&gt; 
+  &lt;/Provider&gt; 
+) 
+</pre>
+<p>This is a good amount of setup, and, if you're having some doubts about its effectiveness, I would urge you to power through the rest of this chapter: Redux is incredibly useful, because it's going to let us write cleaner components that are a lot easier to maintain, and will help future contributors understand our code base better.</p>
+<p>Our next step is to install Redux, so let's get started.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Installing Redux</h1>
+            </header>
+
+            <article>
+                
+<p>We'll use <kbd>npm</kbd> to install Redux. There are also a couple of dependencies it needs, and we're going to install all of them at once. Make sure you're at the root directory of your project folder, and do the following:</p>
+<pre>
+<strong>npm install --save redux react-redux redux-thunk</strong> 
+</pre>
+<p>Here's a brief overview of the three packages we're installing into our project:</p>
+<ul>
+<li><kbd>Redux</kbd>: This is the library itself.</li>
+<li><kbd>React-Redux</kbd>: This is a library that provides bindings for React. Redux isn't specifically tied to React, and this library will let us access the <kbd>Provider</kbd> component to pass down our props at the parent level with ease.</li>
+<li><kbd>Redux-Thunk</kbd>: This is middleware that will help us make asynchronous calls with our actions, and is useful because we will be making calls to <kbd>AsyncStorage</kbd>.</li>
+</ul>
+<p>Now that we have the three packages installed, it's time to start setting up our architecture.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Redux architecture</h1>
+            </header>
+
+            <article>
+                
+<p>The architecture of our application when using Redux will be slightly modified from what we had before. At present, this is how the <kbd>app</kbd> directory in our project looks:</p>
+<pre>
+|app 
+|__components 
+|____DatePickerDialogue 
+|____EditTask 
+|____ExpandableCell 
+|____TasksList 
+|____TasksListCell 
+</pre>
+<p> </p>
+<p>Redux requires us to think differently about how we approach our app's architecture, and we'll be adding some new folders into the <kbd>app</kbd> directory:</p>
+<pre>
+|app 
+|__containers 
+|__components 
+|__reducers 
+|__index.js 
+</pre>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Containers in Redux</h1>
+            </header>
+
+            <article>
+                
+<p>Containers are where we're going to map the dispatch methods and application state that connect to both the component and Redux. The <kbd>components</kbd> folder will still exist, but we are going to refactor what's inside to not rely on a component-based state.</p>
+<p>From now on, every time we would usually render a component, we instead render its container.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Remaining folder structure</h1>
+            </header>
+
+            <article>
+                
+<p>The <kbd>reducers</kbd> folder is going to contain a single reducer file, which handles all the logic that modifies our application state.</p>
+<p>The <kbd>index.js</kbd> file found within the app folder will handle our Redux setup and be rendered by the root index files for both iOS and Android.</p>
+<p>What you'll have at our root <kbd>index.ios.js</kbd> and <kbd>index.android.js</kbd> files are the following:</p>
+<pre>
+// TasksRedux/index.js 
+
+import Tasks from './app'; 
+import { AppRegistry } from 'react-native'; 
+ 
+AppRegistry.registerComponent('Tasks', () =&gt; Tasks); 
+</pre>
+<p> </p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Planning the Redux conversion</h1>
+            </header>
+
+            <article>
+                
+<p>The approach we will take in converting our app to Redux will involve multiple steps:</p>
+<ol>
+<li>First, we should begin by scaffolding a Redux project by creating a store, wrapping the <kbd>AppContainer</kbd> around a <kbd>Provider</kbd>, and creating some basic actions and reducers to handle very basic functionality--we can worry about persistent storage later.</li>
+<li>Then, we will begin converting the <kbd>TasksList</kbd> component to Redux by creating a <kbd>TasksListContainer</kbd> and mapping our actions and state tree to the <kbd>TasksList</kbd> component. Any other components from when we built <kbd>Tasks</kbd> in <a href="d99b3309-3285-4c98-accc-0a3785a8d3be.xhtml">Chapter 1</a>, <em>First Project - Creating a Basic To-Do List App</em>, and <a href="ca59eac5-a24f-4ac1-8b42-f1c28d149d74.xhtml">Chapter 2</a>, <em>Advanced Functionality and Styling the To-Do List App</em>, will remain untouched for the time being.</li>
+<li>Afterwards, we will modify the <kbd>TasksList</kbd> component to take advantage of its container by removing all component-unspecific logic from it.</li>
+<li>We will repeat this series of steps for the <kbd>EditTask</kbd> component.</li>
+<li>Finally, we should address the asynchronous calls to the <kbd>AsyncStorage</kbd> API.</li>
+<li>Along the way, we should take every opportunity to make changes to the Android version of <kbd>Tasks</kbd> to convert it to a Redux architecture.</li>
+</ol>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Creating the entry point</h1>
+            </header>
+
+            <article>
+                
+<p>The <kbd>index</kbd> file found at <kbd>app/index.js</kbd> will serve as the entry point into our application. Both the iOS and Android versions of <kbd>Tasks</kbd> will call upon it, and it's going to set up our Redux architecture. First, we'll import all the necessary dependencies. Don't worry if we haven't created any applicable files or folders for these items yet; we'll do so very shortly:</p>
+<pre>
+// TasksRedux/app/index.js 
+
+import React from 'react'; 
+import AppContainer from './containers/AppContainer'; 
+import { createStore, applyMiddleware } from 'redux'; 
+import { Provider } from 'react-redux'; 
+import thunk from 'redux-thunk'; 
+import listOfTasks from './reducers';  
+</pre>
+<p>Next, let's set up our store.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Setting up our store</h1>
+            </header>
+
+            <article>
+                
+<p>To set up our store, we will need to use Redux's <kbd>createStore</kbd> method and then pass it a reducer. Here's how it looks on a high level:</p>
+<pre>
+let store = createStore(task) 
+</pre>
+<p>Additionally, since we know we'll be dealing with asynchronous calls in our application, we should also set up <kbd>Redux-Thunk</kbd> to support it.</p>
+<p>To do so, pass the <kbd>applyMiddleware</kbd> function as the second argument to <kbd>createStore</kbd>. Pass <kbd>thunk</kbd> as an argument for <kbd>applyMiddleware</kbd>:</p>
+<pre>
+let store = createStore(listOfTasks, applyMiddleware(thunk)); 
+</pre>
+<p>Finally, we'll export a stateless function that returns our app container wrapped around the <kbd>Provider</kbd>:</p>
+<pre>
+export default function Tasks (props) { 
+  return ( 
+    &lt;Provider store={ store }&gt; 
+      &lt;AppContainer /&gt; 
+    &lt;/Provider&gt; 
+  ) 
+} 
+</pre>
+<p>In total, here's how our <kbd>index.js</kbd> file will look at the end of the setup:</p>
+<pre>
+// TasksRedux/app/index.js 
+
+import React from 'react'; 
+import AppContainer from './containers/AppContainer'; 
+import { createStore, applyMiddleware } from 'redux'; 
+import { Provider } from 'react-redux'; 
+import thunk from 'redux-thunk'; 
+import listOfTasks from './reducers'; 
+ 
+let store = createStore(listOfTasks, applyMiddleware(thunk)); 
+ 
+export default function Tasks (props) { 
+  return ( 
+    &lt;Provider store={ store }&gt; 
+      &lt;AppContainer /&gt; 
+    &lt;/Provider&gt; 
+  ) 
+} 
+</pre>
+<p>Now that we have created this file, let's build the app container. If you haven't already, create a <kbd>containers</kbd> folder within the <kbd>app</kbd> folder and then create separate <kbd>AppContainer</kbd> files for Android and iOS.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Building the app container</h1>
+            </header>
+
+            <article>
+                
+<p>The app container is going to provide a base <kbd>NavigatorIOS</kbd> route that renders our <kbd>TasksList</kbd> container. It looks similar to what we previously had in our root index files:</p>
+<pre>
+// TasksRedux/app/containers/AppContainer.ios.js 
+
+import React, { Component } from 'react'; 
+ 
+import { 
+  NavigatorIOS, 
+  StyleSheet 
+} from 'react-native'; 
+ 
+import TasksListContainer from '../containers/TasksListContainer'; 
+ 
+export default class App extends Component { 
+  render () { 
+    return ( 
+      &lt;NavigatorIOS 
+        initialRoute={{ 
+          component: TasksListContainer, 
+          title: 'Tasks' 
+        }} 
+        style={ styles.container } 
+      /&gt; 
+    ) 
+  } 
+} 
+ 
+const styles = StyleSheet.create({ 
+  container: { 
+    flex: 1, 
+    backgroundColor: '#F5FCFF' 
+  } 
+}); 
+</pre>
+<p>The major difference between the <kbd>AppContainer</kbd> and the root index file is that it does not call <kbd>AppRegistry.registerComponent</kbd>. That part is still handled by the root index file.</p>
+<p> </p>
+<p>Import the two routes we will use for <kbd>Navigator</kbd>:</p>
+<pre>
+// TasksRedux/app/containers/AppContainer.android.js 
+
+import React, { Component } from 'react'; 
+import { 
+  Navigator, 
+} from 'react-native'; 
+ 
+import TasksListContainer from './TasksListContainer'; 
+import EditTaskContainer from './EditTaskContainer'; 
+</pre>
+<p>Set the <kbd>routes</kbd> array:</p>
+<pre>
+class Tasks extends Component { 
+ 
+  render () { 
+    const routes = [ 
+      { title: 'Tasks', index: 0 }, 
+      { title: 'Edit Task', index: 1 } 
+    ]; 
+</pre>
+<p>This function handles the logic for rendering different routes:</p>
+<pre>
+    return ( 
+      &lt;Navigator 
+        initialRoute={{ index: 0}} 
+        renderScene={ (routes, navigator) =&gt;
+        this._renderScene(routes, navigator) }/&gt; 
+    ); 
+  } 
+ 
+  _renderScene (route, navigator) { 
+    if (route.index === 0) { 
+      return ( 
+        &lt;TasksListContainer 
+          title={ route.title } 
+          navigator={ navigator } 
+        /&gt; 
+      ) 
+    } 
+ 
+    if (route.index === 1) { 
+      return ( 
+        &lt;EditTaskContainer 
+          title={ route.title } 
+          navigator={ navigator } 
+        /&gt; 
+      ) 
+    } 
+  } 
+} 
+ 
+AppRegistry.registerComponent('Tasks', () =&gt; Tasks); 
+ 
+</pre>
+<p>Next we will move onto creating actions and reducers in anticipation of building the <kbd>TasksList</kbd> container.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Creating actions</h1>
+            </header>
+
+            <article>
+                
+<p>Let's create some actions that will help us with our application. In the <kbd>Tasks</kbd> app, we had functionality for the following actions:</p>
+<ul>
+<li>Fetching tasks from <kbd>AsyncStorage</kbd></li>
+<li>Creating a new task</li>
+<li>Editing a task's name</li>
+<li>Marking/unmarking a task as complete</li>
+<li>Showing/hiding the expandable component</li>
+<li>Saving changes to a task</li>
+<li>Clearing changes to a task</li>
+<li>Adding a due date</li>
+<li>Removing a due date</li>
+</ul>
+<p>Here's an example of how an action for editing a task's name can look:</p>
+<pre>
+export function editTaskName (title, index) { 
+  return { 
+    type: 'EDIT_TASK_NAME', 
+    title: title, 
+    index: index 
+  } 
+}; 
+</pre>
+<p>When naming an action, we want to correlate the type of action with exactly what has happened as a result of a user interaction. In this case, the user edited the task name. This action will also pass our reducer a <kbd>title</kbd> and <kbd>index</kbd>, so the reducer can then search the state for the task with the provided <kbd>index</kbd>, and edit its <kbd>title</kbd>.</p>
+<p>Initially, we have three actions we want to make sure work in <kbd>TasksList</kbd>: adding a task, changing its completion status, and modifying the value of <kbd>TextInput</kbd>:</p>
+<pre>
+// TasksRedux/app/actions/index.js  
+
+let currentIndex = 0; 
+ 
+const ADD_TASK = 'ADD_TASK'; 
+const CHANGE_COMPLETION_STATUS = 'CHANGE_COMPLETION_STATUS'; 
+const CHANGE_INPUT_TEXT = 'CHANGE_INPUT_TEXT'; 
+ 
+export function addTask (text) { 
+  return { 
+    type: ADD_TASK, 
+    index: currentIndex++, 
+    text, 
+. } 
+} 
+</pre>
+<p>Each action is an exported function that returns an object with the action type as well as any other key-value pairs that contain data for our reducers to interact with:</p>
+<pre>
+export function changeCompletionStatus (index) { 
+  return { 
+    type: CHANGE_COMPLETION_STATUS, 
+    index 
+  } 
+} 
+ 
+export function changeInputText (text) { 
+  return { 
+    type: CHANGE_INPUT_TEXT, 
+    text 
+  } 
+} 
+</pre>
+<p>These will do for now - we'll slowly build in the other actions as we convert more and more of our application to support Redux. Next up, let's build the reducers for these three actions.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Building reducers</h1>
+            </header>
+
+            <article>
+                
+<p>Let's look at how we would build reducers to handle creating a new task and saving it into our list of tasks.</p>
+<p>Assuming we're working with the following state tree:</p>
+<pre>
+{ 
+  tasks: [ 
+    { 
+      title: 'Buy Milk', 
+      completed: false, 
+      dueDate: undefined 
+    }, 
+    { 
+      title: 'Walk Dog', 
+      completed: true, 
+      dueDate: undefined 
+    } 
+  ], 
+} 
+</pre>
+<p>In the interest of writing a pure function, we want to make sure that we're not mutating the state and instead re-assigning our state to contain the updated changes.</p>
+<p>In an impure function, we would simply do something like this:</p>
+<div class="packt_tip">Don't do this!</div>
+<pre>
+function addTask (state, action) { 
+  switch(action.type) { 
+    case 'ADD_TASK': 
+      state.tasks.push({ 
+        title: action.title, 
+        completed: false 
+      }); 
+      return state; 
+    default: 
+      return state; 
+  } 
+}; 
+</pre>
+<p>What we're doing here is mutating our state tree's tasks array to push a new task into it. This can lead to problems when debugging later. Instead, what we want to do can be broken into a series of actionable steps:</p>
+<ol>
+<li>Create a copy of the current state.</li>
+<li>Create a copy of the task's property of our copied state.</li>
+<li>Add our new task to the end of this copy.</li>
+<li>Assign this copied array as the new task's value of our copied state.</li>
+<li>Assign the copied state as our new current state.</li>
+</ol>
+<p>The <kbd>singleTask</kbd> reducer handles logic that affects just one single task in the list. The results of this reducer are immediately accessed by the main <kbd>listOfTasks</kbd> reducer:</p>
+<pre>
+// TasksRedux/app/reducers/index.js 
+
+const singleTask = (state = {}, action) =&gt; { 
+</pre>
+<p>In this event, we return an object containing a new task's details.</p>
+<pre>
+  switch(action.type) { 
+    case 'ADD_TASK': 
+      return { 
+        completed: false, 
+        due: undefined, 
+        index: action.index, 
+        text: action.text 
+      } 
+</pre>
+<p>The <kbd>singleTask</kbd> reducer is called during iteration in the <kbd>listOfTasks</kbd> reducer. Here, if the index of the individual task matches up with the index we want to interact with, we return the existing object using a spread operator and switch its completed status:</p>
+<pre>
+    case 'CHANGE_COMPLETION_STATUS': 
+      if (state.index !== action.index) { 
+        return state; 
+      } 
+      return { 
+        ...state, 
+        completed: !state.completed 
+      } 
+</pre>
+<p>This sets a default state to pass over to <kbd>listOfTasks</kbd>:</p>
+<pre>
+    default: 
+      return state; 
+  } 
+} 
+ 
+let defaultState = { 
+  listOfTasks: [], 
+  text: '' 
+} 
+</pre>
+<p>The <kbd>listOfTasks</kbd> reducer is where all actions first end up firing through. It then uses a switch statement to figure out which action type is being called and returns a new state object based on that action type:</p>
+<pre>
+const listOfTasks = (state = defaultState, action) =&gt; { 
+</pre>
+<p>If we want to add a task, return the state object through a spread operator containing an updated <kbd>listOfTasks</kbd> array that is built using the spread operator, calling the <kbd>singleTask</kbd> reducer with an empty object and the action object that is initially passed there:</p>
+<pre>
+  switch(action.type) { 
+    case 'ADD_TASK': 
+      return { 
+        ...state, 
+        listOfTasks: [...state.listOfTasks, singleTask({}, action)], 
+        text: '' 
+      } 
+</pre>
+<p>If we change a task's completion status, we call map on the <kbd>listOfTasks</kbd> array in the state and then call <kbd>singleTask</kbd> on each element in the task, passing the current task object and the action object to it:</p>
+<pre>
+    case 'CHANGE_COMPLETION_STATUS': 
+      return { 
+        ...state, 
+        listOfTasks: state.listOfTasks.map((element) =&gt; { 
+          return singleTask(element, action); 
+        }) 
+      } 
+</pre>
+<p>Update the <kbd>text</kbd> property of our state tree for <kbd>TextInput</kbd> components:</p>
+<pre>
+    case 'CHANGE_INPUT_TEXT': 
+      return { 
+        ...state, 
+        text: action.text 
+      } 
+
+    default: 
+      return state; 
+  } 
+} 
+ 
+export default listOfTasks; 
+</pre>
+<p>To summarize, <kbd>listOfTasks</kbd> is our parent reducer and handles the overall logic of our app, while <kbd>singleTask</kbd> handles the pertinent information for one single item in our list.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Creating the TasksList container</h1>
+            </header>
+
+            <article>
+                
+<p>Now that we've got our actions and reducers, we'll create the container that connects our dispatch methods and state to the <kbd>TasksList</kbd> component.</p>
+<p>First, we'll import the <kbd>connect</kbd> module from <kbd>react-redux</kbd>, alongside any actions we intend to dispatch in <kbd>TasksList</kbd>, as well as the <kbd>TasksList</kbd> component itself:</p>
+<pre>
+// TasksRedux/app/containers/TasksListContainer/index.js 
+
+import { connect } from 'react-redux'; 
+ 
+import { 
+  addTask, 
+  changeCompletionStatus, 
+  changeInputText, 
+} from '../../actions'; 
+ 
+import TasksList from '../../components/TasksList'; 
+ 
+</pre>
+<p>Then we'll create three methods that will result in dispatching functions to our state tree using <kbd>mapDispatchToProps</kbd>:</p>
+<pre>
+const mapDispatchToProps = (dispatch) =&gt; { 
+  return { 
+    addTask: (text) =&gt; { 
+      dispatch(addTask(text)); 
+    }, 
+    changeCompletionStatus: (rowID) =&gt; { 
+      dispatch(changeCompletionStatus(rowID)) 
+    }, 
+    onChangeText: (text) =&gt; { 
+      dispatch(changeInputText(text)); 
+    }, 
+  } 
+} 
+</pre>
+<p> </p>
+<p>Afterwards, we'll map the state we intend to pass into TasksList's prop, including the <kbd>Navigator</kbd> that we already have from the top level:</p>
+<pre>
+const mapStateToProps = (state, { navigator }) =&gt; { 
+  return { 
+    listOfTasks: state.listOfTasks || [], 
+    navigator: navigator, 
+    text: state.text || '' 
+  } 
+} 
+ 
+</pre>
+<p>Finally, we will <kbd>connect</kbd> the <kbd>mapStateToProps</kbd> and <kbd>mapDispatchToProps</kbd> functions to the <kbd>TasksList</kbd> component and export it:</p>
+<pre>
+export default connect(mapStateToProps, mapDispatchToProps)(TasksList); 
+</pre>
+<p>Now, let's look at how we refactor the <kbd>TasksList</kbd> component.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Redux-connected TasksList component</h1>
+            </header>
+
+            <article>
+                
+<p>Components in Redux will retain their JSX markup, but any logic that isn't specific to that exact component is kept by our state tree and modified through actions and reducers:</p>
+<pre>
+// TasksRedux/app/components/TasksList/index.js 
+
+import React, { Component } from 'react'; 
+import { 
+  ListView, 
+  Platform, 
+  TextInput, 
+  View 
+} from 'react-native'; 
+</pre>
+<p>React Native APIs and components such as <kbd>AsyncStorage</kbd> have been removed from this component, since any calls to any storage methods will be handled by our actions and reducers in the future.</p>
+<p>Create a new <kbd>ListView.DataSource</kbd> instance, since it is specific to this component:</p>
+<pre>
+import TasksListCell from '../TasksListCell'; 
+import styles from './styles'; 
+ 
+export default class TasksList extends Component { 
+  constructor (props) { 
+    super (props); 
+ 
+    this.state = { 
+      ds: new ListView.DataSource({ 
+        rowHasChanged: (r1, r2) =&gt; r1 !== r2 
+      }), 
+    }; 
+  } 
+</pre>
+<p>Create the <kbd>dataSource</kbd> constant for our <kbd>ListView</kbd> with the <kbd>listOfTasks</kbd> array in our state tree:</p>
+<pre>
+  render () { 
+    const dataSource = 
+    this.state.ds.cloneWithRows(this.props.listOfTasks); 
+</pre>
+<p>Callbacks such as <kbd>onChangeText</kbd> and <kbd>onSubmitEditing</kbd> now call actions that have been mapped to the <kbd>TasksListContainer</kbd>:</p>
+<pre>
+    return ( 
+      &lt;View style={ styles.container }&gt; 
+        &lt;TextInput 
+          autoCorrect={ false } 
+          onChangeText={ (text) =&gt; this.props.onChangeText(text) } 
+          onSubmitEditing={ () =&gt; this.props.addTask(this.props.text) } 
+          returnKeyType={ 'done' } 
+          style={ Platform.OS === 'ios' ? styles.textInput : 
+          styles.androidTextInput } 
+          value={ this.props.text } 
+        /&gt; 
+</pre>
+<p>This passes <kbd>TasksListCell's</kbd> required <kbd>onLongPress</kbd> callback a placeholder:</p>
+<pre>
+        &lt;ListView 
+          automaticallyAdjustContentInsets={ false } 
+          dataSource={ dataSource } 
+          enableEmptySections={ true } 
+          renderRow={ (rowData, sectionID, rowID) =&gt; 
+          this._renderRowData(rowData, rowID) } 
+          style={ styles.listView } 
+        /&gt; 
+      &lt;/View&gt; 
+    ); 
+  } 
+ 
+  _renderRowData (rowData, rowID) { 
+    return ( 
+      &lt;TasksListCell 
+        completed={ rowData.completed } 
+        formattedDate={ rowData.formattedDate } 
+        id={ rowID } 
+        onLongPress={ () =&gt; alert('placeholder') } 
+        onPress={ () =&gt; 
+        this.props.changeCompletionStatus(rowData.index) } 
+        text={ rowData.text } 
+      /&gt; 
+    ) 
+  } 
+}} 
+</pre>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Converting EditTasks to Redux</h1>
+            </header>
+
+            <article>
+                
+<p>With <kbd>EditTasks</kbd>, we are introducing some new actions and reducers into the mix. These include:</p>
+<ul>
+<li>Setting the currently selected task to one that was pressed on in <kbd>TasksList</kbd></li>
+<li>Handling a change when the Cancel or Save buttons are pressed in the <kbd>EditTask</kbd> screen</li>
+<li>Toggling the selected task as completed</li>
+<li>Changing the name of the selected task</li>
+<li>Adding, modifying, and removing the due date</li>
+<li>Expanding the expandable cell that shows and hides the <kbd>DatePicker</kbd> component</li>
+</ul>
+<p>For the first two bullet points, those modifications will come in the form of three new actions placed in the <kbd>TasksList</kbd> container, since that's the component where these events will either happen or be defined and passed to EditTask's navigator.</p>
+<p>Our state tree will also need to hold the following new properties:</p>
+<ul>
+<li>The formatted and unformatted dates from the DatePicker component that point to the selected task</li>
+<li>An object pertaining to the currently selected task in the <kbd>EditTask</kbd> screen</li>
+<li>An indication whether the <kbd>ExpandableCell</kbd> is visible or not</li>
+<li>An indication whether a date has been selected in the EditScreen view</li>
+</ul>
+<p>With this in mind, let's start the conversion with our actions!</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Adding actions for EditTask</h1>
+            </header>
+
+            <article>
+                
+<p>Here are the additions to the actions file to accommodate <kbd>EditTask</kbd>:</p>
+<pre>
+// TasksRedux/app/actions/index.js  
+
+... 
+const CHANGE_CURRENTLY_EDITED_TASK = 'CHANGE_CURRENTLY_EDITED_TASK'; 
+const CHANGE_SELECTED_TASK_COMPLETED = 'CHANGE_SELECTED_TASK_COMPLETED'; 
+const CHANGE_SELECTED_TASK_DUE_DATE = 'CHANGE_SELECTED_TASK_DUE_DATE'; 
+const SAVE_SELECTED_TASK_DETAILS = 'SAVE_SELECTED_TASK_DETAILS'; 
+const EDIT_SELECTED_TASK_NAME = 'EDIT_SELECTED_TASK_NAME'; 
+const EXPAND_CELL = 'EXPAND_CELL'; 
+const REMOVE_SELECTED_TASK_DUE_DATE = 'REMOVE_SELECTED_TASK_DUE_DATE'; 
+const RESET_SELECTED_TASK = 'RESET_SELECTED_TASK'; 
+</pre>
+<p>These are new constants that describe the different actions that the <kbd>EditTask</kbd> component will bring to the app.</p>
+<p>These functions are straightforward, since they pass the desired action type between zero and two values for our reducers to handle:</p>
+<pre>
+... 
+export function changeCurrentlyEditedTask (selectedTaskObject) { 
+  return { 
+    type: CHANGE_CURRENTLY_EDITED_TASK, 
+    selectedTaskObject: selectedTaskObject 
+  } 
+} 
+ 
+export function changeSelectedTaskCompleted (value) { 
+  return { 
+    type: CHANGE_SELECTED_TASK_COMPLETED, 
+    value 
+  } 
+} 
+ 
+export function changeSelectedTaskDueDate (date) { 
+  return { 
+    type: CHANGE_SELECTED_TASK_DUE_DATE, 
+    date 
+  } 
+} 
+</pre>
+<p>The <kbd>saveSelectedTaskDetails</kbd> action is more complex than the rest. It takes an object from the <kbd>EditTask</kbd> component and then breaks it into different properties for our reducer to work with.</p>
+<pre>
+export function editSelectedTaskName (text) { 
+  return { 
+    type: EDIT_SELECTED_TASK_NAME, 
+    text 
+  } 
+} 
+ 
+export function expandCell (currentlyExpanded) { 
+  return { 
+    type: EXPAND_CELL, 
+    expanded: currentlyExpanded 
+  } 
+} 
+ 
+export function resetSelectedTask () { 
+  return { 
+    type: RESET_SELECTED_TASK 
+  } 
+} 
+ 
+export function removeSelectedTaskDueDate () { 
+  return { 
+    type: REMOVE_SELECTED_TASK_DUE_DATE 
+  } 
+} 
+ 
+export function saveSelectedTaskDetails (object) { 
+  return { 
+    type: SAVE_SELECTED_TASK_DETAILS, 
+    completed: object.completed, 
+    date: object.due || undefined, 
+    formattedDate: object.formattedDate || undefined, 
+    index: object.index, 
+    text: object.text 
+  } 
+} 
+</pre>
+<p> </p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Reducers for EditTask</h1>
+            </header>
+
+            <article>
+                
+<p>We should also update our reducers to handle these newly introduced actions. We should do the following:</p>
+<ul>
+<li>Expand the <kbd>defaultState</kbd> object, including the <kbd>date</kbd>, <kbd>dateSelected</kbd>, <kbd>expanded</kbd>, <kbd>formattedDate</kbd>, and <kbd>selectedTaskObject</kbd> properties</li>
+<li>Add a helper function to format a date with MomentJS</li>
+<li>Create a new switch case for the <kbd>singleTask</kbd> reducer to handle the <kbd>SAVE_SELECTED_TASK_DETAILS</kbd> action</li>
+<li>Build a new <kbd>selectedTask</kbd> reducer for temporarily storing and modifying the <kbd>selectedTaskObject</kbd> being edited by the user</li>
+<li>Extend the <kbd>listOfTasks</kbd> reducer to handle each of the new actions, delegating them to either the <kbd>singleTask</kbd> or <kbd>selectedTask</kbd> reducers when necessary</li>
+</ul>
+<p> </p>
+<p>The <kbd>defaultState</kbd> object has gotten larger to accommodate new information that <kbd>EditTask</kbd> will be using, such as the <kbd>expanded</kbd> status of <kbd>ExpandableCell</kbd>:</p>
+<pre>
+// TasksRedux/app/reducers/index.js 
+
+import moment from 'moment'; 
+ 
+const defaultState = { 
+  ... 
+  date: undefined, 
+  dateSelected: false, 
+  expanded: false, 
+  formattedDate: undefined, 
+  selectedTaskObject: undefined, 
+} 
+</pre>
+<p>Format the date with MomentJS:</p>
+<pre>
+const _formatDate = (date) =&gt; { 
+  if (date) { 
+    return moment(date).format('lll'); 
+  } 
+} 
+</pre>
+<p> </p>
+<p>No changes were made to these two methods:</p>
+<pre>
+const singleTask = (state = {}, action) =&gt; { 
+  switch(action.type) { 
+    case 'ADD_TASK': 
+      ... 
+    case 'CHANGE_COMPLETION_STATUS': 
+      ... 
+</pre>
+<p>This is specifically to save details for a task that has been selected for editing by the user:</p>
+<pre>
+    case 'SAVE_SELECTED_TASK_DETAILS': 
+      if (state.index !== action.index) { 
+        return state; 
+      } 
+      return { 
+        ...state, 
+        completed: action.completed, 
+        due: action.date, 
+        formattedDate: action.formattedDate, 
+        text: action.text 
+      } 
+</pre>
+<p>This is a new reducer created to address the task object currently being edited by the user:</p>
+<pre>
+    default: 
+      return state; 
+  } 
+} 
+ 
+const selectedTask = (state = {}, action) =&gt; { 
+</pre>
+<p>Our Redux state stores the object being edited by the user because at any given point, the user can simply decide to cancel any changes. Keeping changes in a temporary object and only saving them to the state once the user has pressed on the Save button saves us the hassle of undoing any changes the user has made:</p>
+<pre>
+  switch(action.type) { 
+    case 'CHANGE_SELECTED_TASK_COMPLETED': 
+      return { 
+        ...state, 
+        completed: action.value 
+      } 
+    case 'CHANGE_SELECTED_TASK_DUE_DATE': 
+      return { 
+        ...state, 
+        due: action.date || undefined, 
+        formattedDate: action.date ?
+        _formatDate(action.date) : undefined 
+      } 
+</pre>
+<p>Similar to the <kbd>singleTask</kbd> reducer, <kbd>selectedTask</kbd> is accessed by the main <kbd>listOfTasks</kbd> reducer:</p>
+<pre>
+    case 'EDIT_SELECTED_TASK_NAME': 
+      return { 
+        ...state, 
+        text: action.text 
+      } 
+    case 'REMOVE_SELECTED_TASK_DUE_DATE': 
+      return { 
+      ...state, 
+      due: undefined, 
+      formattedDate: undefined 
+      } 
+    default: 
+      return state; 
+  } 
+} 
+ 
+const listOfTasks = (state = defaultState, action) =&gt; { 
+  switch(action.type) { 
+    case 'ADD_TASK': 
+      ... 
+    case 'CHANGE_COMPLETION_STATUS': 
+      ... 
+</pre>
+<p>No changes were made to the following two cases.</p>
+<pre>
+    case 'CHANGE_CURRENTLY_EDITED_TASK': 
+      const date = action.selectedTaskObject.due || new Date(); 
+      const formattedDate = _formatDate(date); 
+ 
+      const hasDueDate = action.selectedTaskObject.due ? true : false 
+      return { 
+        ...state, 
+        date: date, 
+        dateSelected: hasDueDate, 
+        formattedDate: formattedDate, 
+        selectedTaskObject: action.selectedTaskObject 
+      } 
+</pre>
+<p>This is the code for setting the <kbd>selectedTaskObject</kbd> property in our Redux state. It also sets the date, <kbd>dateSelected</kbd>, and <kbd>formattedDate</kbd> properties for the <kbd>DatePicker</kbd> component.</p>
+<p>No changes to this case either:</p>
+<pre>
+    case 'CHANGE_INPUT_TEXT': 
+      ... 
+</pre>
+<p>This is the first time we call the <kbd>selectedTask</kbd> reducer from <kbd>listOfTasks</kbd>. It changes the completion status of the task currently being edited:</p>
+<pre>
+    case 'CHANGE_SELECTED_TASK_COMPLETED': 
+      return { 
+        ...state, 
+        selectedTaskObject: selectedTask
+        (state.selectedTaskObject, action) 
+      } 
+</pre>
+<p>This case changes the due date of the selected task, as well as the <kbd>date</kbd>, <kbd>dateSelected</kbd>, and <kbd>formattedDate</kbd> properties:</p>
+<pre>
+    case 'CHANGE_SELECTED_TASK_DUE_DATE': 
+      return { 
+        ...state, 
+        date: action.date, 
+        dateSelected: action.date ? true : false, 
+        formattedDate: action.date ? _formatDate(action.date) : 
+        undefined, 
+        selectedTaskObject: selectedTask
+        (state.selectedTaskObject, action) 
+      } 
+</pre>
+<p>Change the name of the selected task:</p>
+<pre>
+    case 'EDIT_SELECTED_TASK_NAME': 
+      return { 
+        ...state, 
+        selectedTaskObject: selectedTask(state.selectedTaskObject,
+        action) 
+      } 
+</pre>
+<p>Handle the <kbd>expanded</kbd> property of <kbd>ExpandableCell</kbd>:</p>
+<pre>
+    case 'EXPAND_CELL': 
+      return { 
+        ...state, 
+        expanded: !action.expanded 
+      } 
+</pre>
+<p>This is what gets executed if the user presses <kbd>Cancel</kbd> in the <kbd>EditTask</kbd> screen:</p>
+<pre>
+    case 'RESET_SELECTED_TASK': 
+      return { 
+        ...state, 
+        expanded: false, 
+        selectedTask: undefined, 
+      } 
+</pre>
+<p>Remove the due date from the selected task:</p>
+<pre>
+    case 'REMOVE_SELECTED_TASK_DUE_DATE': 
+      return { 
+        ...state, 
+        dateSelected: false, 
+        selectedTaskObject: selectedTask(state.selectedTaskObject, 
+        action) 
+      } 
+</pre>
+<p>Finally, this saves the selected task permanently into the <kbd>listOfTasks</kbd> array:</p>
+<pre>
+    case 'SAVE_SELECTED_TASK_DETAILS': 
+      return { 
+        ...state, 
+        expanded: false, 
+        listOfTasks: state.listOfTasks.map((element) =&gt; { 
+            return singleTask(element, action) 
+          }) 
+      } 
+</pre>
+<pre>
+    default: 
+      ... 
+  } 
+} 
+ 
+export default listOfTasks;export default listOfTasks; 
+</pre>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Updating TasksListContainer to accommodate EditTask</h1>
+            </header>
+
+            <article>
+                
+<p>Now we should update the <kbd>TasksListContainer</kbd> and <kbd>TasksList</kbd> component. First, <kbd>TasksListContainer</kbd> should do the following:</p>
+<ul>
+<li>Import the <kbd>changeCurrentlyEditedTask</kbd>, <kbd>resetSelectedTask</kbd>, and <kbd>saveSelectedTaskDetails</kbd> actions and add them to the <kbd>mapDispatchToProps</kbd> method</li>
+<li>Import the <kbd>date</kbd>, <kbd>formattedDate</kbd>, and <kbd>selectedTaskObject</kbd> properties of our Redux state and add them to the <kbd>mapStateToProps</kbd> method</li>
+</ul>
+<p>Take a look at the following code:</p>
+<pre>
+// TasksRedux/app/containers/TasksListContainer 
+
+... 
+import { 
+  ... 
+  changeCurrentlyEditedTask, 
+  resetSelectedTask, 
+  saveSelectedTaskDetails 
+} from '../../actions'; 
+</pre>
+<p>Above, I imported three new actions.</p>
+<pre>
+... 
+const mapDispatchToProps = (dispatch) =&gt; { 
+  return { 
+    ... 
+    changeCompletionStatus: (index) =&gt; { 
+      dispatch(changeCompletionStatus(index)); 
+    }, 
+    resetSelectedTask: () =&gt; { 
+      dispatch(resetSelectedTask()); 
+    }, 
+    saveSelectedTaskDetails: (selectedTaskObject) =&gt; { 
+      dispatch(saveSelectedTaskDetails(selectedTaskObject)); 
+    } 
+  } 
+} 
+</pre>
+<p>Mapping the three new actions to the dispatch methods of <kbd>TasksList</kbd>.</p>
+<pre>
+const mapStateToProps = (state, { navigator }) =&gt; { 
+  return { 
+    ... 
+    date: state.date, 
+    formattedDate: state.formattedDate, 
+    selectedTaskObject: state.selectedTaskObject, 
+  } 
+} 
+... 
+</pre>
+<p>Mapping three new values in the Redux state to the props of <kbd>TasksList</kbd>.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Updating the TasksList component</h1>
+            </header>
+
+            <article>
+                
+<p>Next, let's make changes to <kbd>TasksList</kbd> so that it supports <kbd>EditTask</kbd>. It should do the following:</p>
+<ol>
+<li>Import the <kbd>EditTaskContainer</kbd> for us to push to the navigator.</li>
+<li>Add the <kbd>Platform</kbd> API to support Android devices.</li>
+<li>Modify the <kbd>onLongPress</kbd> callback for <kbd>TasksListCell</kbd> to call a function that first adds the currently selected task to the Redux state and then navigate the user to the <kbd>EditTaskContainer</kbd>. It should contain a <kbd>Cancel</kbd> and <kbd>Save</kbd> button.</li>
+<li>The <kbd>Cancel</kbd> button should fire a function that <kbd>pops</kbd> the navigator and resets the <kbd>selectedTaskObject</kbd> value in your Redux state.</li>
+<li>The <kbd>Save</kbd> button should fire a function that <kbd>pops</kbd> the navigator and saves the <kbd>selectedTaskObject</kbd> into the <kbd>listOfTasks</kbd> array in your Redux state.</li>
+</ol>
+<p> </p>
+<p>Here are my changes to the <kbd>TasksList</kbd> component:</p>
+<pre>
+// TasksRedux/app/components/TasksList/index.js 
+
+... 
+import { 
+  ... 
+  Platform, 
+} from 'react-native'; 
+ 
+import EditTaskContainer from '../../containers/EditTaskContainer'; 
+... 
+export default class TasksList extends Component { 
+  ...
+</pre>
+<p>The following code adds the <kbd>_cancelEditingTask</kbd> function to call <kbd>pop</kbd> on the navigator and then the <kbd>resetSelectedTask</kbd> action:</p>
+<pre>
+  _cancelEditingTask () { 
+    this.props.navigator.pop(); 
+    this.props.resetSelectedTask(); 
+  } 
+</pre>
+<p> </p>
+<p>Change the <kbd>onLongPress</kbd> callback for <kbd>TasksListCell</kbd> to call the following <kbd>_onLongPress</kbd> function:</p>
+<pre>
+  _renderRowData (rowData, rowID) { 
+    return ( 
+      &lt;TasksListCell 
+        ... 
+        onLongPress={ () =&gt; this._onLongPress(rowData) } 
+      /&gt; 
+    ) 
+  } 
+</pre>
+<p>If the user is on an iOS device, <kbd>push</kbd> the <kbd>EditTaskContainer</kbd> to the navigator and pass it a string for the left and right buttons, and give them callbacks that fire when they are pressed:</p>
+<pre>
+  _onLongPress (rowData) { 
+    this.props.changeCurrentlyEditedTask(rowData); 
+ 
+    if (Platform.OS === 'ios') { 
+      this.props.navigator.push({ 
+        component: EditTaskContainer, 
+        title: this.props.selectedTaskText, 
+        leftButtonTitle: 'Cancel', 
+        rightButtonTitle: 'Save', 
+        onLeftButtonPress: () =&gt; this._cancelEditingTask(), 
+        onRightButtonPress: () =&gt; this._saveEditedTask() 
+      }); 
+      return; 
+    } 
+</pre>
+<p>On an Android device, just <kbd>push</kbd> the index of the route specified in <kbd>AppContainer.android.js</kbd>:</p>
+<pre>
+    this.props.navigator.push({ 
+      index: 1 
+    }); 
+  }
+</pre>
+<p>When saving the edited task, first <kbd>pop</kbd> the navigator and then dispatch the <kbd>saveSelectedTaskDetails</kbd> action:</p>
+<pre>
+  _saveEditedTask () { 
+    this.props.navigator.pop(); 
+    this.props.saveSelectedTaskDetails(this.props.selectedTaskObject); 
+  } 
+} 
+</pre>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Creating the EditTask container</h1>
+            </header>
+
+            <article>
+                
+<p>The <kbd>EditTaskContainer</kbd> will be composed the same way as TasksListContainer. It will do the following:</p>
+<ol>
+<li>Import actions relevant to the <kbd>EditTask</kbd> component from your actions file.</li>
+<li>Import the <kbd>EditTask</kbd> and <kbd>connect</kbd> module.</li>
+<li>Contain a <kbd>mapDispatchToProps</kbd> method to map the actions you imported.</li>
+<li>Call <kbd>mapStateToProps</kbd> on any parts of the Redux state you wish <kbd>EditTask</kbd> to have access to.</li>
+<li>Call <kbd>connect</kbd> on <kbd>mapDispatchToProps</kbd>, <kbd>mapStateToProps</kbd>, and the <kbd>EditTask</kbd> component.</li>
+</ol>
+<p>These are the actions that <kbd>EditTask</kbd> will be utilizing:</p>
+<pre>
+// TasksRedux/app/containers/EditTaskContainer 
+
+import { connect } from 'react-redux'; 
+ 
+import { 
+  changeSelectedTaskCompleted, 
+  changeSelectedTaskDueDate, 
+  editSelectedTaskName, 
+  expandCell, 
+  removeSelectedTaskDueDate, 
+  resetSelectedTask, 
+  saveSelectedTaskDetails 
+} from '../../actions'; 
+</pre>
+<p>The <kbd>resetSelectedTask</kbd> and <kbd>saveSelectedTaskDetails</kbd> actions are mapped to <kbd>EditTaskContainer</kbd> specifically for the Android version of this app:</p>
+<pre>
+import EditTask from '../../components/EditTask'; 
+ 
+const mapDispatchToProps = (dispatch) =&gt; { 
+  return { 
+    changeCompletedStatus: (value) =&gt; { 
+      dispatch(changeSelectedTaskCompleted(value)); 
+    }, 
+    changeTextInputValue: (text) =&gt; { 
+      dispatch(editSelectedTaskName(text)) 
+    }, 
+    clearDate: () =&gt; { 
+      dispatch(removeSelectedTaskDueDate()); 
+    }, 
+    onDateChange: (date) =&gt; { 
+      dispatch(changeSelectedTaskDueDate(date)); 
+    }, 
+    onExpand: (currentlyExpanded) =&gt; { 
+      dispatch(expandCell(currentlyExpanded)) 
+    }, 
+    resetSelectedTask: () =&gt; { 
+      dispatch(resetSelectedTask()); 
+    }, 
+    saveSelectedTaskDetails: (selectedTaskObject) =&gt; { 
+      dispatch(saveSelectedTaskDetails(selectedTaskObject)); 
+    } 
+  } 
+} 
+</pre>
+<p><kbd>EditTask</kbd> should have access to the following data from the state tree:</p>
+<pre>
+const mapStateToProps = (state) =&gt; { 
+  return { 
+    date: state.date, 
+    dateSelected: state.dateSelected, 
+    expanded: state.expanded, 
+    formattedDate: state.formattedDate, 
+    selectedTaskObject: state.selectedTaskObject, 
+  } 
+}
+</pre>
+<p>Finally, <kbd>connect</kbd> everything together:</p>
+<pre>
+export default connect(mapStateToProps, mapDispatchToProps)(EditTask);  
+</pre>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Modifying the EditTask component for iOS</h1>
+            </header>
+
+            <article>
+                
+<p>Next, we will modify the <kbd>EditTask</kbd> component. It should:</p>
+<ul>
+<li>Be nearly identical to the <kbd>EditTask</kbd> component we had at the end of <a href="ca59eac5-a24f-4ac1-8b42-f1c28d149d74.xhtml">Chapter 2</a>, <em>Advanced Functionality and Styling the To-Do List App</em>, with both an Android- and iOS-specific version</li>
+<li>Replace any methods that manipulate data with the actions that we can dispatch to the state tree</li>
+</ul>
+<p>Since <kbd>datePickerHeight</kbd> is set during the <kbd>onLayout</kbd> event of <kbd>DatePickerIOS</kbd>, we will keep it in the local state:</p>
+<pre>
+// TasksRedux/app/components/EditTask/index.ios.js  
+
+import React, { Component } from 'react'; 
+ 
+import { 
+  Button, 
+  DatePickerIOS, 
+  Switch, 
+  Text, 
+  TextInput, 
+  View 
+} from 'react-native'; 
+ 
+import ExpandableCell from '../ExpandableCell'; 
+import styles from './styles'; 
+ 
+export default class EditTask extends Component { 
+  constructor (props) { 
+    super (props); 
+ 
+    this.state = { 
+      datePickerHeight: undefined 
+    } 
+  } 
+</pre>
+<p>The <kbd>TextInput</kbd> dispatches the <kbd>changeTextInputValue</kbd> action when text is changed, and gets its value from the <kbd>selectedTaskObject</kbd> of our state tree:</p>
+<pre>
+  render () { 
+    const noDueDateTitle = 'Set Reminder'; 
+    const dueDateSetTitle = 'Due On ' + 
+    this.props.selectedTaskObject.formattedDate; 
+ 
+    return ( 
+      &lt;View style={ styles.editTaskContainer }&gt; 
+        &lt;View&gt; 
+          &lt;TextInput 
+            autoCorrect={ false } 
+            onChangeText={ (text) =&gt; 
+            this.props.changeTextInputValue(text) } 
+            returnKeyType={ 'done' } 
+            style={ styles.textInput } 
+            value={ this.props.selectedTaskObject.text } 
+          /&gt; 
+</pre>
+<p>The <kbd>ExpandableCell</kbd> component remains the same here, but delegates its <kbd>expanded</kbd> Boolean and <kbd>title</kbd> determination logic to our Redux state and dispatches the <kbd>onExpand</kbd>  action when pressed:</p>
+<pre>
+        &lt;/View&gt; 
+        &lt;View style={ [styles.expandableCellContainer, 
+        { maxHeight: this.props.expanded ? 
+        this.state.datePickerHeight : 40 }]}&gt; 
+          &lt;ExpandableCell 
+            childrenHeight={ this.state.datePickerHeight } 
+            expanded={ this.props.expanded } 
+            onPress={ () =&gt; this.props.onExpand(this.props.expanded) } 
+            title={ this.props.due ? dueDateSetTitle : noDueDateTitle }&gt; 
+</pre>
+<p>As you can see, the only remaining component-based logic is with <kbd>_getDatePickerHeight</kbd>. All other functions are dispatched for the state tree to handle:</p>
+<pre>
+            &lt;DatePickerIOS 
+              date={ this.props.date } 
+              onDateChange={ (date) =&gt; this.props.onDateChange(date) } 
+              onLayout={ (event) =&gt; this._getDatePickerHeight(event) } 
+            /&gt; 
+          &lt;/ExpandableCell&gt; 
+        &lt;/View&gt; 
+        &lt;View style={ styles.switchContainer } &gt; 
+          &lt;Text style={ styles.switchText } &gt; 
+            Completed 
+          &lt;/Text&gt; 
+          &lt;Switch 
+            onValueChange={ (value) =&gt; 
+            this.props.changeCompletedStatus(value) } 
+            value={ this.props.selectedTaskObject.completed } 
+          /&gt; 
+        &lt;/View&gt; 
+        &lt;View style={ styles.clearDateButtonContainer }&gt; 
+          &lt;Button 
+            color={ '#B44743' } 
+            disabled={ this.props.dateSelected ? false : true } 
+            onPress={ () =&gt; this.props.clearDate() } 
+            title={ 'Clear Date' } 
+          /&gt; 
+        &lt;/View&gt; 
+      &lt;/View&gt; 
+    ); 
+  } 
+
+  _getDatePickerHeight (event) { 
+    this.setState({ 
+      datePickerHeight: event.nativeEvent.layout.width 
+    }); 
+  } 
+} 
+</pre>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Modifying the EditTask component for Android</h1>
+            </header>
+
+            <article>
+                
+<p>It's easiest for us to take the Android <kbd>EditTask</kbd> component from <a href="ca59eac5-a24f-4ac1-8b42-f1c28d149d74.xhtml">Chapter 2</a>, <em>Advanced Functionality and Styling the To-Do List App</em>, and make changes to it. Additionally, referencing the updated iOS version of this component during these changes can also help.</p>
+<p>Specifically, for the Android version of <kbd>EditTask</kbd>, we want to do the following:</p>
+<ul>
+<li>Swap out any references to the local state with the state tree made available via <kbd>props</kbd></li>
+<li>Replace any unnecessary calls to the local methods, dispatching actions instead</li>
+<li>Keep the local methods for saving a task and opening both the date and time pickers</li>
+<li>Update the callback that pressing the back button triggers, resetting the <kbd>selectedTaskObject</kbd> in addition to calling <kbd>pop</kbd> on the navigator</li>
+</ul>
+<p>The modifications that I made show the differences between <kbd>EditTask/index.android.js</kbd> and <kbd>EditTask/index.ios.js</kbd>.</p>
+<p>I removed <kbd>ExpandableCell</kbd> from my import statements:</p>
+<pre>
+// TasksRedux/app/components/EditTask/index.android.js 
+
+... 
+import { 
+  ... 
+  BackAndroid, 
+  DatePickerAndroid, 
+  TimePickerAndroid, 
+} from 'react-native'; 
+</pre>
+<p>I removed the <kbd>datePickerHeight</kbd> value in the state, since the Android component does not deal with <kbd>ExpandableCell</kbd>:</p>
+<pre>
+... 
+export default class EditTask extends Component { 
+  constructor (props) { 
+    super (props); 
+  } 
+</pre>
+<p>Adding and removing event listeners for the Android back button is unchanged from <a href="ca59eac5-a24f-4ac1-8b42-f1c28d149d74.xhtml">Chapter 2</a>, <em>Advanced Functionality and Styling the To-Do List App</em>:</p>
+<pre>
+  componentWillMount () { 
+    BackAndroid.addEventListener('hardwareButtonPress', () =&gt; 
+    this._backButtonPress()); 
+  } 
+ 
+  componentWillUnmount () { 
+    BackAndroid.removeEventListener('hardwareButtonPress', () =&gt; 
+    this._backButtonPress()) 
+  } 
+</pre>
+<p>No changes were made to the <kbd>TextInput</kbd> component.</p>
+<pre>
+  render () { 
+    ... 
+    return ( 
+      &lt;View style={ styles.editTaskContainer }&gt; 
+        &lt;View&gt; 
+          ... 
+        &lt;/View&gt; 
+</pre>
+<p>The <kbd>Button</kbd> to open <kbd>DatePickerAndroid</kbd> is modified to reference the <kbd>selectedTaskObject</kbd> due property to determine the text to render:</p>
+<pre>
+        &lt;View style={ styles.androidButtonContainer }&gt; 
+          &lt;Button 
+            color={ '#80B546' } 
+            title={ this.props.selectedTaskObject.due ? 
+            dueDateSetTitle : noDueDateTitle } 
+            onPress={ () =&gt; this._showAndroidDatePicker() } 
+          /&gt; 
+        &lt;/View&gt; 
+</pre>
+<p>No changes were made to the <kbd>Switch</kbd> component, Clear Date <kbd>Button</kbd>, or Save <kbd>Button</kbd>. The Save <kbd>Button</kbd> is exclusive to the Android version of this app, since the logic to save the edited task is handled in the navigation bar on iOS:</p>
+<pre>
+        &lt;View style={ styles.switchContainer } &gt; 
+          ... 
+        &lt;/View&gt; 
+        &lt;View style={ styles.androidButtonContainer }&gt; 
+          ... 
+        &lt;/View&gt; 
+        &lt;View style={ styles.saveButton }&gt; 
+          &lt;Button 
+            color={ '#4E92B5' } 
+            onPress={ () =&gt; this._saveSelectedTaskDetails() } 
+            title={ 'Save Task' } 
+          /&gt; 
+        &lt;/View&gt; 
+      &lt;/View&gt; 
+    ); 
+  } 
+</pre>
+<p>Modify the <kbd>_backButtonPress</kbd> to also dispatch the <kbd>resetSelectedTask</kbd> action:</p>
+<pre>
+  _backButtonPress () { 
+    this.props.navigator.pop(); 
+    this.props.resetSelectedTask(); 
+    return true; 
+  } 
+</pre>
+<p>I also modified <kbd>_saveSelectedTaskDetails</kbd> to dispatch the <kbd>saveSelectedTasks</kbd> action:</p>
+<pre>
+  _saveSelectedTaskDetails () { 
+    this.props.navigator.pop(); 
+    this.props.saveSelectedTaskDetails(this.props.selectedTaskObject); 
+  } 
+</pre>
+<p>Change <kbd>_showAndroidDatePicker</kbd> to not keep the <kbd>day</kbd>, <kbd>month</kbd>, and <kbd>year</kbd> values in the state. Instead, it passes the data directly to <kbd>_showAndroidTimePicker</kbd> for immediate use:</p>
+<pre>
+  ... 
+  async _showAndroidDatePicker () { 
+    const options = { 
+      date: this.props.date 
+    }; 
+ 
+    const { action, year, month, day } = await 
+    DatePickerAndroid.open(options); 
+ 
+    this._showAndroidTimePicker (day, month, year); 
+  } 
+</pre>
+<p> </p>
+<p>Likewise, <kbd>_showAndroidTimePicker</kbd> is changed to accept those <kbd>day</kbd>, <kbd>month</kbd>, and <kbd>year</kbd> values. Then it creates a new <kbd>Date</kbd> object immediately with those three values, along with the <kbd>hour</kbd> and <kbd>minute</kbd> that <kbd>TimePickerAndroid</kbd> returns, and dispatches the <kbd>onDateChange</kbd> action with the new <kbd>Date</kbd> object:</p>
+<pre>
+  async _showAndroidTimePicker (day, month, year) { 
+    const { action, minute, hour } = await TimePickerAndroid.open(); 
+ 
+    if (action === TimePickerAndroid.dismissedAction) { 
+      return; 
+    } 
+ 
+    const date = new Date(year, month, day, hour, minute); 
+ 
+    this.props.onDateChange(date); 
+  } 
+} 
+</pre>
+<p>At this point, we have almost completed our port to Redux! The only thing that remains is persisting our list of tasks as before.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Creating a StorageMethods file for asynchronous saving</h1>
+            </header>
+
+            <article>
+                
+<p>Right now, any refresh or exiting of the application will wipe our list of tasks clean. That doesn't make for a very useful app, so we're now going to modify our actions to store and retrieve our list of tasks from <kbd>AsyncStorage</kbd>.</p>
+<p>Let's create a <kbd>utils</kbd> folder within <kbd>app</kbd>, and then create a file titled <kbd>storageMethods.js</kbd> within <kbd>utils</kbd>:</p>
+<div class="CDPAlignCenter CDPAlign"><img class=" image-border" height="302" src="assets/image_07_001.png" width="182"/></div>
+<p>This file will contain two functions:</p>
+<ul>
+<li><kbd>getAsyncStorage</kbd>: This gets the <kbd>listOfTasks</kbd> item in <kbd>AsyncStorage</kbd> and returns it</li>
+<li><kbd>saveAsyncStorage</kbd>: This accepts an array and saves it into <kbd>AsyncStorage</kbd> under the <kbd>listOfTasks</kbd> key</li>
+</ul>
+<p>If you worked on the previous projects in this book, this part will be very familiar to you:</p>
+<pre>
+// TasksRedux/app/utils/storageMethods.js 
+
+import { AsyncStorage } from 'react-native'; 
+ 
+export const getAsyncStorage = async () =&gt; { 
+  let response = await AsyncStorage.getItem('listOfTasks'); 
+  let parsedData = JSON.parse(response) || []; 
+ 
+  return parsedData; 
+} 
+</pre>
+<p> </p>
+<p>This uses asynchronous functions for readability, grabbing the <kbd>listOfTasks</kbd> value in <kbd>AsyncStorage</kbd>, parsing it to transform it back to an array, and then returning it.</p>
+<pre>
+export const saveAsyncStorage = async (listOfTasks) =&gt; { 
+  return AsyncStorage.setItem('listOfTasks', 
+  JSON.stringify(listOfTasks)); 
+} 
+</pre>
+<p>Likewise, accept an array and then set the <kbd>listOfTasks</kbd> key in <kbd>AsyncStorage</kbd> to the stringified version of the array.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Subscribing the store to changes</h1>
+            </header>
+
+            <article>
+                
+<p>To update the <kbd>listOfTasks</kbd> key in <kbd>AsyncStorage</kbd> whenever a change is made to the state tree, we will call the <kbd>subscribe</kbd> method of our store. This creates a change listener to be called whenever an action has been dispatched and the state tree may have been changed.</p>
+<p>It accepts a callback as its argument, and within that argument we can call the <kbd>getState</kbd> method of the store to access the state tree and retrieve any values we want from it.</p>
+<p>Let's modify the index file found in the app folder so that it subscribes to changes to the store, firing a callback that calls <kbd>saveAsyncStorage</kbd> and passes it the most recent version of the <kbd>listOfTasks</kbd> array in our state tree:</p>
+<pre>
+// TasksRedux/app/index.js 
+
+... 
+import { saveAsyncStorage } from './utils/storageMethods'; 
+... 
+store.subscribe(() =&gt; { 
+  saveAsyncStorage(store.getState().listOfTasks); 
+}); 
+... 
+</pre>
+<p>Since the rest of our application state does not have a need for persistence, <kbd>listOfTasks</kbd> is the only item being saved into <kbd>AsyncStorage</kbd>.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Creating a thunk</h1>
+            </header>
+
+            <article>
+                
+<p>The <kbd>Redux-Thunk</kbd> library is a wrapper around your action creators, allowing them to perform asynchronous tasks before dispatching their intended action to the Redux store for a reducer to handle.</p>
+<p>Here's how we will create a thunk: in the file where we create actions, we will export a function that returns a custom, asynchronous function within it, passing it the existing <kbd>dispatch</kbd> method. In this custom function, we will grab the results of a call to our <kbd>getAsyncStorage</kbd> method.</p>
+<p>Then, within the same method, we will dispatch a private function, which we also create in the same file. That private function will return the action type, along with any parameters we wish to pass:</p>
+<pre>
+// TasksRedux/app/actions/index.js 
+
+import { getAsyncStorage } from '../utils/storageMethods'; 
+</pre>
+<p>I removed the <kbd>currentIndex</kbd> variable from this file, since we will no longer rely on a hardcoded number to set the index of our tasks.</p>
+<p>First, create a constant for the action to set the list of tasks and index:</p>
+<pre>
+const SET_LIST_OF_TASKS_AND_INDEX = 'SET_LIST_OF_TASKS_AND_INDEX'; 
+</pre>
+<p>Create the <kbd>getListOfTasksAndIndex</kbd> action.</p>
+<pre>
+export function getListOfTasksAndIndex () { 
+  return async (dispatch) =&gt; { 
+    let response = await getAsyncStorage(); 
+ 
+    dispatch(setListOfTasksAndIndex(response, response.length)); 
+  } 
+} 
+</pre>
+<p>This <kbd>setListOfTasksAndIndex</kbd> function is not exported, since it is only being called by <kbd>getListOfTasksAndIndex</kbd>. We are using the length of the array to set the index for a newly added task:</p>
+<pre>
+function setListOfTasksAndIndex (listOfTasks, index) { 
+  return { 
+    type: SET_LIST_OF_TASKS_AND_INDEX, 
+    index, 
+    listOfTasks, 
+  } 
+} 
+</pre>
+<p> </p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Modifying our reducers</h1>
+            </header>
+
+            <article>
+                
+<p>We need to modify our reducers file so that it does the following:</p>
+<ul>
+<li>Adds the <kbd>currentIndex</kbd> property to its <kbd>defaultState</kbd> object</li>
+<li>Sets the <kbd>index</kbd> of a task when it is added to our state tree</li>
+<li>Increases the <kbd>currentIndex</kbd> property of our state tree by one when adding a new task</li>
+<li>Contains a switch case for the <kbd>SET_LIST_OF_TASKS_AND_INDEX</kbd> action, setting the <kbd>currentIndex</kbd> and <kbd>listOfTasks</kbd> properties of our state tree to the results of our <kbd>getListOfTasksAndIndex</kbd> thunk</li>
+</ul>
+<pre>
+// TasksRedux/app/reducers/index.js 
+
+const defaultState = { 
+  currentIndex: undefined, 
+  ... 
+} 
+... 
+const singleTask = (state = {}, action) =&gt; { 
+  switch(action.type) { 
+    case 'ADD_TASK': 
+      return { 
+        ... 
+        index: action.index, 
+      } 
+    ... 
+  } 
+} 
+</pre>
+<p>The <kbd>ADD_TASK</kbd> case in the <kbd>singleTask</kbd> sub-reducer sets the index of the added task.</p>
+<p>No changes are made to the <kbd>selectedTask</kbd> sub-reducer.</p>
+<pre>
+... 
+const listOfTasks = (state = defaultState, action) =&gt; { 
+  switch(action.type) { 
+    case 'ADD_TASK': 
+      ... 
+      return { 
+        currentIndex: ++state.currentIndex, 
+        ... 
+      } 
+</pre>
+<p> </p>
+<p>In the preceding code, the <kbd>ADD_TASK</kbd> case in the <kbd>listOfTasks</kbd> reducer increments the <kbd>currentIndex</kbd> of the state tree by one and sets it as the new <kbd>currentIndex</kbd>.</p>
+<pre>
+    ... 
+    case 'SET_LIST_OF_TASKS_AND_INDEX': 
+      return { 
+        ...state, 
+        currentIndex: action.index, 
+        listOfTasks: action.listOfTasks 
+      } 
+  } 
+} 
+ 
+export default listOfTasks; 
+</pre>
+<p>In the preceding code, the <kbd>SET_LIST_OF_TASKS_AND_INDEX</kbd> case sets the <kbd>currentIndex</kbd> and <kbd>listOfTasks</kbd> properties in our state tree with the results of calling <kbd>getAsyncStorage</kbd> back in our <kbd>getListOfTasksAndIndex</kbd> thunk.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Updating the TasksListContainer</h1>
+            </header>
+
+            <article>
+                
+<p>Next, we need to update the <kbd>TasksListContainer</kbd> so that it does the following:</p>
+<ul>
+<li>Maps the <kbd>getListOfTasksAndIndex</kbd> action and <kbd>currentIndex</kbd> value to its props</li>
+<li>Modifies the <kbd>addTask</kbd> action to expect and send an <kbd>index</kbd> argument</li>
+</ul>
+<p>These are the changes I ended up with:</p>
+<pre>
+// TasksRedux/containers/TasksListContainer/index.js 
+
+... 
+import { 
+  ... 
+  getListOfTasksAndIndex, 
+} from '../../actions'; 
+ 
+import TasksList from '../../components/TasksList'; 
+ 
+const mapDispatchToProps = (dispatch) =&gt; { 
+  return { 
+    addTask: (text, index) =&gt; { 
+      dispatch(addTask(text, index)); 
+    }, 
+    ... 
+    getListOfTasksAndIndex: () =&gt; { 
+      dispatch(getListOfTasksAndIndex()); 
+    }, 
+    ... 
+  } 
+} 
+ 
+const mapStateToProps = (state, { navigator }) =&gt; { 
+  return { 
+    currentIndex: state.currentIndex, 
+    ... 
+  } 
+} 
+... 
+</pre>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Modifying the TasksList component</h1>
+            </header>
+
+            <article>
+                
+<p>Finally, we will edit <kbd>TasksList</kbd> so that it does the following:</p>
+<ul>
+<li>Dispatches the <kbd>getListOfTasksAndIndex</kbd> action during the <kbd>componentWillMount</kbd> life cycle event</li>
+<li>Passes in the <kbd>currentIndex</kbd> of the state tree to the <kbd>TextInput's</kbd><kbd>onSubmitEditing</kbd> callback as a second argument</li>
+</ul>
+<p>Call <kbd>getListOfTasksAndIndex</kbd> during <kbd>componentWillMount</kbd>, making sure that <kbd>TasksList</kbd> has the most up-to-date version of the <kbd>listOftasks</kbd> array as the user opens the app:</p>
+<pre>
+// TasksRedux/app/components/TasksList/index.js 
+
+... 
+export default class TasksList extends Component { 
+  ... 
+  componentWillMount () { 
+    this.props.getListOfTasksAndIndex(); 
+  } 
+</pre>
+<p>Add <kbd>this.props.currentIndex</kbd> as the second argument to calling the <kbd>addTask</kbd> method, so that we explicitly give each task a unique index:</p>
+<pre>
+  render () { 
+    ... 
+    return ( 
+      &lt;View style={ styles.container }&gt; 
+        &lt;TextInput 
+          onSubmitEditing={ () =&gt; this.props.addTask
+          (this.props.text, this.props.currentIndex) } 
+          ... 
+        /&gt; 
+        ... 
+      &lt;/View&gt; 
+    ); 
+  } 
+  ... 
+} 
+</pre>
+<p>And there you have it! We've successfully converted <kbd>Tasks</kbd>, our to-do list app, to support Redux.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                <h1 class="header-title">Summary</h1>
+            </header>
+
+            <article>
+                
+<p>In this chapter, we learned the fundamentals of React development with Redux! We started by creating actions, which dispatch intent to our Redux store. Then, we wrote reducers to handle that intent and update our state tree. We also built a store that consolidated our reducers and middleware.</p>
+<p>Afterwards, we used the Connect method to wrap a container around a React component, giving it access to any actions and parts of the state tree of our choosing.</p>
+<p>We also converted the existing <kbd>EditTask</kbd> and <kbd>TasksList</kbd> components to be less reliant on the local state and use its logic from the state tree.</p>
+<p>Later in the chapter, we discovered how to temporarily delay the dispatching of actions to perform necessary asynchronous calls first by using <kbd>Redux-Thunk</kbd>. This, in conjunction with subscribing our store to any updates, allowed us to have a fully persistent app that used <kbd>AsyncStorage</kbd> to keep its data.</p>
+<p>Finally, we made sure that every step along the way kept the Android support we started the chapter with.</p>
+<p>In the next chapter, we are going to change things a bit. We have spent all this time building applications, but no time on how to share them with the world. In the next chapter, we will learn just how to get these apps you have made onto the Apple App Store and Google Play Store.</p>
+
+
+            </article>
+
+            <footer style="margin-top: 5em;">
+                
+            </footer>
+
+        </section>
+    </body></html>

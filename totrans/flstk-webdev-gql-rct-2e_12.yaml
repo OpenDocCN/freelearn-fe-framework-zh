@@ -1,46 +1,68 @@
 - en: '*Chapter 10*: Real-Time Subscriptions'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '*第10章*: 实时订阅'
 - en: The GraphQL `pollInterval` property to Apollo Hooks to keep the display up to
     date. A better solution is to implement Apollo subscriptions through WebSockets.
     This allows us to refresh the **user interface** (**UI**) of the user with the
     newest user information in real time without manual user interaction or polling.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用GraphQL `pollInterval`属性到Apollo Hooks以保持显示更新。更好的解决方案是通过WebSockets实现Apollo订阅。这允许我们实时刷新用户的**用户界面**（**UI**），而不需要手动用户交互或轮询。
 - en: 'This chapter covers the following topics:'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章涵盖以下主题：
 - en: Using GraphQL with WebSockets
+  id: totrans-3
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用GraphQL和WebSockets
 - en: Implementing Apollo subscriptions
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 实现Apollo订阅
 - en: JWT authentication with subscriptions
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 带订阅的JWT身份验证
 - en: Notifications with Apollo subscriptions
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用Apollo订阅进行通知
 - en: Technical requirements
+  id: totrans-7
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: 'The source code for this chapter is available in the following GitHub repository:'
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章的源代码可在以下GitHub仓库中找到：
 - en: '[https://github.com/PacktPublishing/Full-Stack-Web-Development-with-GraphQL-and-React-Second-Edition/tree/main/Chapter10](https://github.com/PacktPublishing/Full-Stack-Web-Development-with-GraphQL-and-React-Second-Edition/tree/main/Chapter10)'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: '[https://github.com/PacktPublishing/Full-Stack-Web-Development-with-GraphQL-and-React-Second-Edition/tree/main/Chapter10](https://github.com/PacktPublishing/Full-Stack-Web-Development-with-GraphQL-and-React-Second-Edition/tree/main/Chapter10)'
 - en: Using GraphQL with WebSockets
+  id: totrans-10
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用GraphQL和WebSockets
 - en: In [*Chapter 1*](B17337_01_Final_ASB_ePub.xhtml#_idTextAnchor017), *Preparing
     Your Development Environment*, I explained all the main features that make GraphQL
     so useful. We mentioned that **HyperText Transfer Protocol** (**HTTP**) is the
@@ -49,14 +71,18 @@
     that exists at the time of the request. If the database receives a change concerning
     the posts or the chats, the user won't know about this until they execute another
     request. The UI shows outdated data in this case.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 在[*第1章*](B17337_01_Final_ASB_ePub.xhtml#_idTextAnchor017)《准备你的开发环境》中，我解释了使GraphQL如此有用的所有主要功能。我们提到，**超文本传输协议**（**HTTP**）是使用GraphQL时的标准网络协议。然而，常规HTTP连接的问题在于它们是一次性请求。它们只能响应请求时存在的数据。如果数据库收到有关帖子或聊天的更改，用户将不知道这一点，直到他们执行另一个请求。在这种情况下，UI会显示过时的数据。
 - en: To solve this issue, you can refetch all requests in a specific interval, but
     this is a bad solution because there's no time range that makes polling efficient.
     Every user would make unnecessary HTTP requests, which neither you nor the user
     wants.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了解决这个问题，你可以在特定的时间间隔内重新获取所有请求，但这不是一个好的解决方案，因为没有时间范围可以使轮询变得高效。每个用户都会发出不必要的HTTP请求，这既不是你所希望的，也不是用户所希望的。
 - en: The best solution relies on WebSockets instead of HTTP requests. As with HTTP,
     WebSockets are also based on the **Transmission Control Protocol** (**TCP**).
     One of the main features of WebSockets is that they allow bidirectional communication
@@ -71,16 +97,22 @@
     are also called messages or frames. There are no further requests needed by the
     client to let the server speak with the browser, unlike HTTP, where you always
     need a request first so that the server can respond to it.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 最佳解决方案依赖于WebSockets而不是HTTP请求。与HTTP一样，WebSockets也是基于**传输控制协议**（**TCP**）。WebSockets的一个主要特性是它们允许客户端和服务器之间的双向通信。可以说，你可以认为HTTP也做到了这一点，因为你可以发送一个请求并得到一个响应，但WebSockets的工作方式非常不同。一个要求是，Web服务器通常支持WebSockets。如果是这样，客户端可以打开到服务器的WebSocket连接。建立WebSocket连接的初始请求是一个标准的HTTP请求。然后服务器应该以101状态码响应。这告诉浏览器它同意将协议从HTTP更改为WebSockets。如果连接成功，服务器可以通过这个连接向客户端发送更新。这些更新也被称为消息或帧。与HTTP不同，客户端不需要进一步请求来让服务器与浏览器通信，在HTTP中，你总是需要先发送一个请求，以便服务器可以响应它。
 - en: Using WebSockets or Apollo subscriptions would fix the issue we encounter when
     using polling. We have one connection that stays open all the time. The server
     can send messages to the client whenever data is added or updated. WebSocket `ws`
     or `wss` instead of the ordinary `http` or `https`. With WebSockets, you can also
     save valuable bandwidth for the users, but these are not included for WebSocket
     messages.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用 WebSocket 或 Apollo 订阅将解决我们在使用轮询时遇到的问题。我们有一个始终保持开启的连接。服务器可以在数据添加或更新时向客户端发送消息。使用
+    WebSocket `ws` 或 `wss` 而不是普通的 `http` 或 `https`。使用 WebSocket，你还可以为用户节省宝贵的带宽，但这些带宽不包括在
+    WebSocket 消息中。
 - en: One disadvantage is that WebSockets are not a standard approach for implementing
     APIs. If you make your API public to third parties at some point, a standard HTTP
     API would likely fit better. Also, HTTP is much more optimized. HTTP requests
@@ -91,58 +123,85 @@
     scaling this to more people is likely to present you with some problems. However,
     it's still a very efficient solution to real-time web communication in contrast
     to polling, for example.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个缺点是，WebSocket 并不是实现 API 的标准方法。如果你在某个时刻将你的 API 公开给第三方，一个标准的 HTTP API 可能更适合。此外，HTTP
+    的优化程度更高。HTTP 请求可以很容易地通过常见的网络服务器，如 nginx 或 Apache，以及浏览器本身进行缓存和代理，但 WebSocket 则难以做到。对性能影响最大的是，WebSocket
+    连接会一直保持开启状态，直到用户离开你的网站。对于一两个用户来说这不是问题，但扩展到更多人可能会给你带来一些问题。然而，与轮询相比，它仍然是实时网络通信的一个非常有效的解决方案。
 - en: Most GraphQL client libraries are specialized and optimized for the standard
     HTTP protocol. It's the most common approach, so that's understandable. The people
     behind Apollo have got you covered; they've built-in support for WebSockets and
     for the implementation of GraphQL subscriptions. You can use those packages not
     only with Apollo but also with many other libraries. Let's get started with implementing
     Apollo subscriptions.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 大多数 GraphQL 客户端库都是针对标准 HTTP 协议进行专业化和优化的。这是最常见的方法，所以这是可以理解的。Apollo 背后的团队已经为你考虑到了；他们内置了对
+    WebSocket 和 GraphQL 订阅实现的支持。你可以使用这些包不仅限于 Apollo，还可以用于许多其他库。让我们开始实现 Apollo 订阅。
 - en: Digging deeper into Apollo subscriptions
+  id: totrans-17
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 深入了解 Apollo 订阅
 - en: With the earlier versions of Apollo Client, it was required that you install
     further packages to support WebSockets. Now, the only requirement is one further
     package that implements the WebSocket support on the server side.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 Apollo 客户端早期版本中，你需要安装额外的包来支持 WebSocket。现在，唯一的要求是安装一个额外的包，该包在服务器端实现 WebSocket
+    支持。
 - en: Note
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: You can find an excellent overview and more details about Apollo subscriptions
     in the official documentation at [https://www.apollographql.com/docs/react/data/subscriptions/](https://www.apollographql.com/docs/react/data/subscriptions/).
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可以在官方文档中找到关于 Apollo 订阅的出色概述和更多详细信息，请访问[https://www.apollographql.com/docs/react/data/subscriptions/](https://www.apollographql.com/docs/react/data/subscriptions/).
 - en: 'The first step is to install all the required packages to get GraphQL subscriptions
     working. Install them using `npm`, as follows:'
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 第一步是安装所有必要的包以使 GraphQL 订阅工作。使用以下命令通过 `npm` 安装它们：
 - en: '[PRE0]'
+  id: totrans-22
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'The following two packages provide the necessary modules for a subscription
     system:'
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下两个包提供了订阅系统所需的模块：
 - en: The `graphql-subscriptions` package provides the ability to connect our GraphQL
     backend with a **publish-subscribe** (**PubSub**) system. It gives the client
     the option to subscribe to specific channels and lets the backend publish new
     data to the client. It is an in-memory implementation that only works with one
     instance of our backend. It is discouraged for production use but it will help
     us to get it working locally.
+  id: totrans-24
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`graphql-subscriptions` 包提供了将我们的 GraphQL 后端与发布-订阅（**PubSub**）系统连接的能力。它允许客户端订阅特定的频道，并让后端将新数据发布给客户端。这是一个内存实现，仅适用于我们后端的一个实例。它不推荐在生产环境中使用，但可以帮助我们在本地环境中使其工作。'
 - en: The `subscriptions-transport-ws` package gives our Apollo Server or other GraphQL
     libraries the option to accept WebSocket connections and accept queries, mutations,
     and subscriptions over WebSockets. Let's take a look at how we can implement subscriptions.
+  id: totrans-25
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`subscriptions-transport-ws` 包为我们的 Apollo 服务器或其他 GraphQL 库提供了接受 WebSocket 连接并接受通过
+    WebSocket 的查询、突变和订阅的选项。让我们看看我们如何实现订阅。'
 - en: First, we are going to create a new subscription type next to the `RootQuery`
     and `RootMutation` types inside the GraphQL schema. You can set up events or entities
     that a client can subscribe to and receive updates inside the new subscription
@@ -151,8 +210,10 @@
     that allows the client to subscribe to events for the specific entity. These entities
     can be things such as notifications, new chat messages, or comments on a post.
     Each of them has got its own subscription channel.
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们将在 GraphQL 模式中 `RootQuery` 和 `RootMutation` 类型旁边创建一个新的订阅类型。您可以设置客户端可以订阅的事件或实体，并在新的订阅类型中接收更新。它只能通过添加匹配的解析函数来实现。对于这个新的订阅类型，您不返回真实数据，而是返回一个特殊对象，允许客户端订阅特定实体的事件。这些实体可以是通知、新的聊天消息或帖子的评论。每个都有其自己的订阅频道。
 - en: The client can subscribe to these channels. It receives updates any time the
     backend sends a new WebSocket message—because data has been updated, for example.
     The backend calls a `publish` method that sends the new data through the subscription
@@ -160,73 +221,103 @@
     messages since the content may include private data such as chat messages. There
     should be a filter before the update is sent to target only specific users. We'll
     see this feature later in the *Authentication with Apollo subscriptions* section.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 客户端可以订阅这些频道。每当后端发送新的 WebSocket 消息时——例如，数据已更新时——它都会收到更新。后端调用一个 `publish` 方法，通过订阅将新数据发送给所有客户端。您应该意识到并非每个用户都应该接收所有
+    WebSocket 消息，因为内容可能包括如聊天消息之类的私人数据。在更新发送到目标特定用户之前应该有一个过滤器。我们将在 *使用 Apollo 订阅进行身份验证*
+    部分中看到这个功能。
 - en: Subscriptions on Apollo Server
+  id: totrans-28
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: Apollo 服务器上的订阅
 - en: 'We have now installed all the essential packages. Let''s start with the implementation
     for the backend, as follows:'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们现在已经安装了所有必要的包。让我们从后端实现开始，如下所示：
 - en: As mentioned previously, we are going to rely on WebSockets as they allow real-time
     communication between the frontend and the backend. We are first going to set
     up a new transport protocol for the backend.
+  id: totrans-30
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 如前所述，我们将依赖 WebSocket，因为它们允许前端和后端之间的实时通信。我们首先将为后端设置一个新的传输协议。
 - en: 'Open the `index.js` file of the server. Import a new Node.js interface at the
     top of the file, like this:'
+  id: totrans-31
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 打开服务器的 `index.js` 文件。在文件顶部导入一个新的 Node.js 接口，如下所示：
 - en: '[PRE1]'
+  id: totrans-32
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: The `http` interface is included in Node.js by default. It handles the traditional
     HTTP protocol, making the use of many HTTP features easy for the developer.
+  id: totrans-33
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '`http` 接口是 Node.js 默认包含的。它处理传统的 HTTP 协议，使开发者能够轻松使用许多 HTTP 功能。'
 - en: 'We are going to use the interface to create a standardized Node.js HTTP `server`
     object because the Apollo `SubscriptionServer` module expects such an object.
     We''ll cover the Apollo `SubscriptionServer` module soon in this section. Add
     the following line of code beneath the initialization of Express.js, inside the
     `app` variable:'
+  id: totrans-34
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将使用该接口创建一个标准化的 Node.js HTTP `server` 对象，因为 Apollo `SubscriptionServer` 模块期望这样的对象。我们将在本节中很快介绍
+    Apollo `SubscriptionServer` 模块。在 Express.js 初始化之后，在 `app` 变量内添加以下代码行：
 - en: '[PRE2]'
+  id: totrans-35
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: The `createServer` function creates a new HTTP `server` object, based on the
     original `Express.js` instance. We pass the Express instance, which we saved inside
     the `app` variable. As you can see in the preceding code snippet, you only pass
     the `app` object as a parameter to the `createServer` function.
+  id: totrans-36
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '`createServer` 函数创建了一个新的 HTTP `server` 对象，基于原始的 `Express.js` 实例。我们传递 Express
+    实例，我们将其保存在 `app` 变量中。正如您在前面的代码片段中所见，您只需将 `app` 对象作为参数传递给 `createServer` 函数。'
 - en: 'We''re going to use the new `server` object instead of the `app` variable to
     let our backend start listening for incoming requests. Remove the old `app.listen`
     function call from the bottom of the file because we''ll be replacing it in a
     second. To get our server listening again, edit the initialization routine of
     the services. The `for` loop should now look like this:'
+  id: totrans-37
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将使用新的`server`对象而不是`app`变量，以便我们的后端开始监听传入的请求。从文件的底部移除旧的`app.listen`函数调用，因为我们将在下一秒替换它。为了使服务器再次开始监听，编辑服务的初始化例程。`for`循环现在应该看起来像这样：
 - en: '[PRE3]'
+  id: totrans-38
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: Here, we have changed the old `if` statement to a `switch` statement. Furthermore,
     we have added a second service beyond `graphql`, called `subscriptions`. We are
     going to create a new `subscriptions` service next to the `graphql` services folder.
+  id: totrans-39
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 在这里，我们将旧的`if`语句更改为`switch`语句。此外，我们添加了一个名为`subscriptions`的第二个服务，除了`graphql`之外。我们将在`graphql`服务文件夹旁边创建一个新的`subscriptions`服务。
 - en: The `subscriptions` service requires the `server` object as a parameter to start
     listening for WebSocket connections. Before initializing `SubscriptionServer`,
     we need to have started listening for incoming requests. That is why we use the
@@ -234,40 +325,55 @@
     `subscriptions` service that creates an Apollo `SubscriptionServer` instance.
     We pass the `server` object to the service after it has started listening. The
     service has to accept this parameter, of course, so keep this in mind.
+  id: totrans-40
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '`subscriptions`服务需要一个`server`对象作为参数来开始监听WebSocket连接。在初始化`SubscriptionServer`之前，我们需要开始监听传入的请求。这就是为什么我们在初始化创建Apollo
+    `SubscriptionServer`实例的新`subscriptions`服务之前，在先前的代码片段中使用`server.listen`方法。在服务开始监听后，我们将`server`对象传递给服务。当然，服务必须接受这个参数，所以请记住这一点。'
 - en: 'To add the new service into the preceding `serviceNames` object, edit the `index.js`
     services file with the following content:'
+  id: totrans-41
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 要将新服务添加到先前的`serviceNames`对象中，使用以下内容编辑`index.js`服务文件：
 - en: '[PRE4]'
+  id: totrans-42
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: The `subscriptions` service also receives the `utils` object, as with the `graphql`
     service.
+  id: totrans-43
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '`subscriptions`服务也接收`utils`对象，就像`graphql`服务一样。'
 - en: Now, create a `subscriptions` folder next to the `graphql` folder. To fulfill
     the import of the preceding `subscriptions` service, insert the service's `index.js`
     file into this folder. There, we can implement the `subscriptions` service. As
     a reminder, we pass the `utils` object and also the `server` object from before.
     The `subscriptions` service must accept two parameters in separate function calls.
+  id: totrans-44
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，在`graphql`文件夹旁边创建一个`subscriptions`文件夹。为了完成前面`subscriptions`服务的导入，将服务的`index.js`文件插入到这个文件夹中。在那里，我们可以实现`subscriptions`服务。作为提醒，我们传递了之前的`utils`对象和`server`对象。`subscriptions`服务必须在单独的函数调用中接受两个参数。
 - en: 'If you have created a new subscription `index.js` file, import all the dependencies
     at the top of the file, as follows:'
+  id: totrans-45
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 如果你创建了一个新的订阅`index.js`文件，请在文件顶部导入所有依赖项，如下所示：
 - en: '[PRE5]'
+  id: totrans-46
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: The preceding dependencies are almost the same as those that we are using for
     the `graphql` service, but we've added the `subscriptions-transport-ws` and `@graphql-tools/schema`
     packages. Furthermore, we've removed the `apollo-server-express` package. `SubscriptionServer`
@@ -279,310 +385,435 @@
     that are new in the preceding code snippet are the `execute` and `subscribe` functions
     that we import from the `graphql` package. You will see why we need these in the
     next section.
+  id: totrans-47
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 前面的依赖项几乎与我们在`graphql`服务中使用的相同，但我们添加了`subscriptions-transport-ws`和`@graphql-tools/schema`包。此外，我们移除了`apollo-server-express`包。`SubscriptionServer`是`ApolloServer`的等价物，但用于WebSocket连接而不是HTTP。通常，在同一个文件中为HTTP设置Apollo
+    Server和为WebSocket设置`SubscriptionServer`是有意义的，因为这可以避免我们两次处理`Schema`和`Resolvers`。不过，没有`ApolloServer`代码在同一文件中解释订阅的实现会更容易。先前的代码片段中新出现的最后两件事是从`graphql`包中导入的`execute`和`subscribe`函数。你将在下一节中看到为什么我们需要这些。
 - en: 'We begin the implementation of the new service by exporting a function with
     the `export default` statement and creating an `executableSchema` object (as you
     saw in [*Chapter 2*](B17337_02_Final_ASB_ePub.xhtml#_idTextAnchor032), *Setting
     up GraphQL with Express.js*), as follows:'
+  id: totrans-48
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们通过使用 `export default` 语句导出一个函数并创建一个 `executableSchema` 对象（如您在 [*第 2 章*](B17337_02_Final_ASB_ePub.xhtml#_idTextAnchor032)，*使用
+    Express.js 设置 GraphQL*）开始实现新的服务，如下所示：
 - en: '[PRE6]'
+  id: totrans-49
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: As you can see, we use the `utils` object and the second one accepts the `server`
     object that we create with the `createServer` function inside the `index.js` file
     of the server. This approach fixes the problem of passing two parameters in separate
     function calls. The schema is only created when both functions are called.
+  id: totrans-50
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 如您所见，我们使用 `utils` 对象，第二个接受我们使用 `createServer` 函数在服务器 `index.js` 文件中创建的 `server`
+    对象。这种方法解决了在单独的函数调用中传递两个参数的问题。只有在两个函数都调用时，才会创建模式。
 - en: 'The second step is to start `SubscriptionServer` to accept WebSocket connections
     and, as a result, be able to use the GraphQL subscriptions. Insert the following
     code under `executableSchema`:'
+  id: totrans-51
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 第二步是启动 `SubscriptionServer` 以接受 WebSocket 连接，从而能够使用 GraphQL 订阅。在 `executableSchema`
+    下插入以下代码：
 - en: '[PRE7]'
+  id: totrans-52
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'We initialized a new `SubscriptionServer` instance in the preceding code. The
     first parameter we pass is a general `options` object for GraphQL and corresponds
     to the options of the `ApolloServer` class. The options are detailed as follows:'
+  id: totrans-53
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 在前面的代码中，我们初始化了一个新的 `SubscriptionServer` 实例。我们传递的第一个参数是一个通用的 `options` 对象，用于
+    GraphQL，并对应于 `ApolloServer` 类的选项。选项的详细说明如下：
 - en: a. The `execute` property should receive a function that handles all the processing
     and execution of incoming GraphQL requests. The standard is to pass the `execute`
     function that we imported from the `graphql` package previously.
+  id: totrans-54
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: a. `execute` 属性应该接收一个处理和执行传入 GraphQL 请求的所有处理的函数。标准是传递我们从 `graphql` 包中导入的 `execute`
+    函数。
 - en: b. The `subscribe` property also accepts a function. This function has to take
     care of resolving a subscription to `asyncIterator`, which is no more than an
     asynchronous `for` loop. It allows the client to listen for execution results
     and reflect them to the user.
+  id: totrans-55
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: b. `subscribe` 属性也接受一个函数。这个函数必须负责将订阅解析为 `asyncIterator`，这不过是一个异步的 `for` 循环。它允许客户端监听执行结果并将其反映给用户。
 - en: c. The last option we pass is the GraphQL schema. We do this in the same way
     as for `ApolloServer`.
+  id: totrans-56
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: c. 我们传递的最后一个选项是 GraphQL 模式。我们以与 `ApolloServer` 相同的方式执行此操作。
 - en: 'The second parameter our new instance accepts is the `socketOptions` object.
     This holds settings to describe the way in which the WebSockets work, as outlined
     here:'
+  id: totrans-57
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我们的新实例接受的第二个参数是 `socketOptions` 对象。这个对象包含描述 WebSocket 工作方式的设置，如下所述：
 - en: d. The `server` field receives our `server` object, which we pass from the `index.js`
     file of the server as a result of the `createServer` function. `SubscriptionServer`
     then relies on the existing server.
+  id: totrans-58
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: d. `server` 字段接收我们的 `server` 对象，这是我们通过 `index.js` 文件中的 `createServer` 函数从服务器传递的。`SubscriptionServer`
+    然后依赖于现有的服务器。
 - en: e. The `path` field represents the endpoint under which the subscriptions are
     accessible. All subscriptions use the `/subscriptions` path.
+  id: totrans-59
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: e. `path` 字段表示订阅可访问的端点。所有订阅都使用 `/subscriptions` 路径。
 - en: Note
+  id: totrans-60
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 注意
 - en: 'The official documentation for the `subscriptions-transport-ws` package offers
     a more advanced explanation of `SubscriptionServer`. Take a look to get an overview
     of all its functionalities: [https://github.com/apollographql/subscriptions-transport-ws#subscriptionserver](https://github.com/apollographql/subscriptions-transport-ws#subscriptionserver).'
+  id: totrans-61
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '`subscriptions-transport-ws` 包的官方文档提供了对 `SubscriptionServer` 的更高级解释。查看以了解其所有功能的概述：[https://github.com/apollographql/subscriptions-transport-ws#subscriptionserver](https://github.com/apollographql/subscriptions-transport-ws#subscriptionserver)。'
 - en: The client would be able to connect to the WebSocket endpoint at this point.
     There are currently no subscriptions, and the corresponding resolvers are set
     up in our GraphQL API.
+  id: totrans-62
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 到目前为止，客户端可以连接到 WebSocket 端点。目前还没有订阅，并且相应的解析器已在我们的 GraphQL API 中设置。
 - en: 'Open the `schema.js` file to define our first subscription. Add a new type
     called `RootSubscription` next to the `RootQuery` and `RootMutation` types, including
     the new subscription called `messageAdded`, as follows:'
+  id: totrans-63
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 打开 `schema.js` 文件来定义我们的第一个订阅。在 `RootQuery` 和 `RootMutation` 类型旁边添加一个名为 `RootSubscription`
+    的新类型，包括名为 `messageAdded` 的新订阅，如下所示：
 - en: '[PRE8]'
+  id: totrans-64
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: Currently, if a user sends a new message to another user, this isn't shown to
     the recipient right away.
+  id: totrans-65
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 目前，如果用户向另一个用户发送一条新消息，这条消息并不会立即显示给接收者。
 - en: The first option I showed you was to set an interval to request new messages.
     Our backend is now able to cover this scenario with subscriptions. The event or
     channel that the client can subscribe to is called `messageAdded`. We can also
     add further parameters, such as a chat **identifier** (**ID**), to filter the
     WebSocket messages if necessary. When creating a new chat message, it is publicized
     through this channel.
+  id: totrans-66
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我向您展示的第一个选项是设置一个间隔来请求新的消息。我们的后端现在能够通过订阅来覆盖这种场景。客户端可以订阅的事件或通道被称为`messageAdded`。我们还可以添加更多参数，例如聊天**标识符**（**ID**），以便在必要时过滤WebSocket消息。当创建新的聊天消息时，它将通过这个通道进行公开。
 - en: 'We have added `RootSubscription`, but we need to extend the schema root tag
     too. Otherwise, the new `RootSubscription` type won''t be used. Change the schema,
     as follows:'
+  id: totrans-67
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们已经添加了`RootSubscription`，但我们也需要扩展模式根标签。否则，新的`RootSubscription`类型将不会被使用。按照以下方式更改模式：
 - en: '[PRE9]'
+  id: totrans-68
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'We have successfully configured the tree GraphQL main types. Next, we have
     to implement the corresponding resolver functions. Open the `resolvers.js` file
     and perform the following steps:'
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经成功配置了树形GraphQL主类型。接下来，我们必须实现相应的解析函数。打开`resolvers.js`文件并执行以下步骤：
 - en: 'Import all dependencies that allow us to set up our GraphQL API with a `PubSub`
     system, as follows:'
+  id: totrans-70
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 导入所有允许我们使用`PubSub`系统设置GraphQL API的依赖项，如下所示：
 - en: '[PRE10]'
+  id: totrans-71
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: The `PubSub` system offered by the `graphql-subscriptions` package is a simple
     implementation based on the standard Node.js `EventEmitter` class. When going
     to production, it's recommended to use an external store, such as Redis, with
     this package.
+  id: totrans-72
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '`graphql-subscriptions`包提供的`PubSub`系统是基于标准Node.js `EventEmitter`类的一个简单实现。当进入生产环境时，建议使用外部存储，如Redis，与这个包一起使用。'
 - en: 'We''ve already added the third `RootSubscription` type to the schema, but not
     the matching property on the `resolvers` object. The following code snippet includes
     the `messageAdded` subscription. Add it to the resolvers:'
+  id: totrans-73
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们已经将第三个`RootSubscription`类型添加到模式中，但还没有在`resolvers`对象上添加匹配的属性。以下代码片段包括`messageAdded`订阅。将其添加到解析器中：
 - en: '[PRE11]'
+  id: totrans-74
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: The `messageAdded` property isn't a function but just a simple object. It contains
     a `subscribe` function that returns `AsyncIterable`. It allows our application
     to subscribe to the `messageAdded` channel by returning a promise that's only
     resolved when a new message is added. The next item that's returned is a promise,
     which is also only resolved when a message has been added. This method makes `asyncIterator`
     great for implementing subscriptions.
+  id: totrans-75
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '`messageAdded`属性不是一个函数，而只是一个简单的对象。它包含一个`subscribe`函数，该函数返回`AsyncIterable`。它允许我们的应用程序通过返回一个仅在添加新消息时解决的承诺来订阅`messageAdded`通道。返回的下一个项目也是一个承诺，它也仅在添加了消息时解决。这种方法使`asyncIterator`非常适合实现订阅。'
 - en: Note
+  id: totrans-76
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 注意
 - en: You can learn more about how `asyncIterator` works by reading through the proposal
     at [https://github.com/tc39/proposal-async-iteration](https://github.com/tc39/proposal-async-iteration).
+  id: totrans-77
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 您可以通过阅读[https://github.com/tc39/proposal-async-iteration](https://github.com/tc39/proposal-async-iteration)上的提案来了解更多关于`asyncIterator`如何工作的信息。
 - en: 'When subscribing to the `messageAdded` subscription, there needs to be another
     method that publicizes the newly created message to all clients. The best location
     is the `addMessage` mutation where the new message is created. Replace the `addMessage`
     resolver function with the following code:'
+  id: totrans-78
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 当订阅`messageAdded`订阅时，需要另一个方法将新创建的消息公开给所有客户端。最佳位置是创建新消息的`addMessage`突变处。用以下代码替换`addMessage`解析器函数：
 - en: '[PRE12]'
+  id: totrans-79
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: I have edited the `addMessage` mutation so that the correct user from the context
     is chosen. All of the new messages that you send are now saved with the correct
     user ID. This allows us to filter WebSocket messages for the correct users later
     in the *Authentication with Apollo subscriptions* section.
+  id: totrans-80
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我已经编辑了`addMessage`突变，以便从上下文中选择正确用户。现在，您发送的所有新消息现在都保存了正确的用户ID。这允许我们在*使用Apollo订阅的认证*部分稍后过滤正确的用户WebSocket消息。
 - en: We use the `pubsub.publish` function to send a new WebSocket frame to all clients
     that are connected and that have subscribed to the `messageAdded` channel. The
     first parameter of the `pubsub.publish` function is the subscription, which in
     this case is `messageAdded`. The second parameter is the new message that we save
     to the database. All clients that have subscribed to the `messageAdded` subscription
     through `asyncIterator` now receive this message.
+  id: totrans-81
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我们使用 `pubsub.publish` 函数向所有已连接并已订阅 `messageAdded` 通道的客户发送一个新的 WebSocket 帧。`pubsub.publish`
+    函数的第一个参数是订阅，在这种情况下是 `messageAdded`。第二个参数是我们保存到数据库的新消息。现在通过 `asyncIterator` 订阅了
+    `messageAdded` 订阅的所有客户端都接收到了这条消息。
 - en: We've finished preparing the backend. The part that required the most work was
     to get the Express.js and WebSocket transport working together. The GraphQL implementation
     only involves the new schema entities, correctly implementing the resolver functions
     for the subscription, and then publishing the data to the client via the `PubSub`
     system.
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经完成了后端的准备工作。需要最多工作的是让 Express.js 和 WebSocket 传输协同工作。GraphQL 实现仅涉及新的模式实体，正确实现订阅的解析函数，然后通过
+    `PubSub` 系统将数据发布到客户端。
 - en: We have to implement the subscription feature in the frontend to connect to
     our WebSocket endpoint.
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们必须在前端实现订阅功能以连接到我们的 WebSocket 端点。
 - en: Subscriptions on Apollo Client
+  id: totrans-84
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: Apollo 客户端的订阅
 - en: As with the backend code, we also need to make adjustments to the Apollo Client
     configuration before using subscriptions. In [*Chapter 4*](B17337_04_Final_ASB_ePub.xhtml#_idTextAnchor085),
     *Hooking Apollo into React*, we set up Apollo Client with the normal `HttpLink`
     link. Later, we exchanged it with the `createUploadLink` function, which enables
     the user to upload files through GraphQL.
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 与后端代码一样，在使用订阅之前，我们还需要调整 Apollo 客户端配置。在 [*第 4 章*](B17337_04_Final_ASB_ePub.xhtml#_idTextAnchor085)
+    *将 Apollo 集成到 React 中*，我们使用正常的 `HttpLink` 链路设置了 Apollo 客户端。后来，我们将其替换为 `createUploadLink`
+    函数，这使用户能够通过 GraphQL 上传文件。
 - en: We are going to extend Apollo Client by using `WebSocketLink` as well. This
     allows us to use subscriptions through GraphQL. Both links work side by side.
     We use the standard HTTP protocol to query data, such as the chat list or the
     news feed; all of these real-time updates to keep the UI up to date rely on WebSockets.
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将通过使用 `WebSocketLink` 来扩展 Apollo 客户端。这允许我们通过 GraphQL 使用订阅。这两个链接可以并行工作。我们使用标准的
+    HTTP 协议查询数据，例如聊天列表或新闻源；所有这些实时更新以保持 UI 的更新都依赖于 WebSocket。
 - en: 'To configure Apollo Client correctly, follow these steps:'
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 要正确配置 Apollo 客户端，请按照以下步骤操作：
 - en: 'Open the `index.js` file from the `apollo` folder. Import the following dependencies:'
+  id: totrans-88
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 打开 `apollo` 文件夹中的 `index.js` 文件。导入以下依赖项：
 - en: '[PRE13]'
+  id: totrans-89
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: To get the subscriptions working, we need `SubscriptionClient`, which uses `WebSocketLink`
     to subscribe to our GraphQL API using WebSockets.
+  id: totrans-90
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 要使订阅工作，我们需要 `SubscriptionClient`，它使用 `WebSocketLink` 通过 WebSocket 订阅我们的 GraphQL
+    API。
 - en: We import the `getMainDefinition` function from the `@apollo/client/utilities`
     package. It's installed by default when using Apollo Client. The purpose of this
     function is to give you the operation type, which can be `query`, `mutation`,
     or `subscription`.
+  id: totrans-91
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我们从 `@apollo/client/utilities` 包中导入 `getMainDefinition` 函数。当使用 Apollo 客户端时，它默认安装。此函数的目的是为您提供操作类型，可以是
+    `query`、`mutation` 或 `subscription`。
 - en: The `split` function from the `@apollo/client` package allows us to conditionally
     control the flow of requests through different Apollo links based on the operation
     type or other information. It accepts one condition and one link (or a pair of
     links) from which it composes a single valid link that Apollo Client can use.
+  id: totrans-92
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 来自 `@apollo/client` 包的 `split` 函数允许我们根据操作类型或其他信息有条件地控制通过不同的 Apollo 链路请求的流程。它接受一个条件和一条链路（或一对链路），从中它组合出一个单个有效的链路，Apollo
+    客户端可以使用。
 - en: 'We are going to create both links for the `split` function. Detect the protocol
     and port where we send all GraphQL subscriptions and requests. Add the following
     code beneath the imports:'
+  id: totrans-93
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将为 `split` 函数创建两个链路。检测我们发送所有 GraphQL 订阅和请求的协议和端口。在导入下面添加以下代码：
 - en: '[PRE14]'
+  id: totrans-94
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: The `protocol` variable saves the WebSocket protocol by detecting whether the
     client uses `http` or `https`. The `port` variable is either an empty string if
     we use port `80` to serve our frontend or any other port, such as `8000`, which
     we currently use. Previously, we had to statically save `http://localhost:8000`
     in this file. With the new variables, we can dynamically build the URL where all
     requests should be sent.
+  id: totrans-95
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '`protocol`变量通过检测客户端是否使用`http`或`https`来保存WebSocket协议。`port`变量要么是空字符串（如果我们使用端口`80`来提供我们的前端），要么是任何其他端口，例如我们目前使用的`8000`。以前，我们必须在这个文件中静态保存`http://localhost:8000`。有了新的变量，我们可以动态构建所有请求应该发送的URL。'
 - en: 'The `split` function expects two links to combine them into one. The first
     link is the normal `httpLink` link, which we must set up before passing the resulting
     link to the initialization of Apollo Client. Remove the `createUploadLink` function
     call from the `ApolloLink.from` function and add it before the `ApolloClient`
     class, as follows:'
+  id: totrans-96
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '`split`函数期望两个链接来合并它们成为一个。第一个链接是正常的`httpLink`链接，我们必须在将结果链接传递给Apollo Client的初始化之前设置它。从`ApolloLink.from`函数中移除`createUploadLink`函数调用，并在`ApolloClient`类之前添加它，如下所示：'
 - en: '[PRE15]'
+  id: totrans-97
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: We concatenate the `protocol` variable of the server, which is either `http:`
     or `https:`, with two slashes. The `hostname` variable is, for example, the domain
     of your application or, if in development, `localhost`. The result of the concatenation
     is [http://localhost:8000/graphql](http://localhost:8000/graphql).
+  id: totrans-98
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我们将服务器的`protocol`变量（无论是`http:`还是`https:`）与两个斜杠连接起来。`hostname`变量，例如，是您应用程序的域名，或者在开发中是`localhost`。连接的结果是[http://localhost:8000/graphql](http://localhost:8000/graphql)。
 - en: 'Add the WebSocket link that''s used for the subscriptions next to `httpLink`.
     It''s the second one we pass to the `split` function. The code is illustrated
     in the following snippet:'
+  id: totrans-99
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在`httpLink`旁边添加用于订阅的WebSocket链接。它是传递给`split`函数的第二个链接。代码在下面的代码片段中展示：
 - en: '[PRE16]'
+  id: totrans-100
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: We define the `SUBSCRIPTIONS_ENDPOINT` variable. It's built with the `protocol`
     and `port` variables, which we detected earlier, and the application's `hostname`
     variable. The URI ends with the specified endpoint of the backend with the same
@@ -591,29 +822,40 @@
     It tells the client to automatically reconnect to the backend's WebSocket endpoint
     when it has lost the connection. This usually happens if the client has temporarily
     lost their internet connection or the server has gone down.
+  id: totrans-101
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我们定义了`SUBSCRIPTIONS_ENDPOINT`变量。它是通过`protocol`和`port`变量构建的，这些变量我们之前已经检测到了，以及应用程序的`hostname`变量。URI以与GraphQL
+    API相同端口的后端指定的端点结束。URI是`SubscriptionsClient`的第一个参数。第二个参数允许我们传递选项，例如`reconnect`属性。它告诉客户端在失去连接时自动重新连接到后端的WebSocket端点。这通常发生在客户端暂时失去了互联网连接或服务器已经宕机的情况下。
 - en: Furthermore, we use the `connectionParams` field to specify the `localStorage`
     whenever the user logs in. It's sent when the WebSocket is created.
+  id: totrans-102
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 此外，我们使用`connectionParams`字段在用户登录时指定`localStorage`。它在WebSocket创建时发送。
 - en: We initialize `SubscriptionClient` to the `subClient` variable. We pass it to
     the `WebSocketLink` constructor under the `wsLink` variable with the given settings.
+  id: totrans-103
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我们将`SubscriptionClient`初始化为`subClient`变量。我们将其传递给`WebSocketLink`构造函数下的`wsLink`变量，并使用给定的设置。
 - en: 'Combine both links into one. This allows us to insert the composed result into
     our `ApolloClient` class at the bottom. To do this, we have imported the `split`
     function. The syntax to combine the two links should look like this:'
+  id: totrans-104
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将两个链接合并为一个。这允许我们将组合的结果插入到我们`ApolloClient`类的底部。为此，我们导入了`split`函数。合并两个链接的语法应该如下所示：
 - en: '[PRE17]'
+  id: totrans-105
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: The `split` function accepts three parameters. The first parameter must be a
     function with a Boolean return value. If the return value is `true`, the request
     is sent over the first link, which is the second required parameter. If the return
@@ -623,236 +865,333 @@
     function returns `true` and sends the operation over the WebSocket link. All other
     requests are sent via the HTTP Apollo link. We save the result of the `split`
     function in the `link` variable.
+  id: totrans-106
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '`split` 函数接受三个参数。第一个参数必须是一个返回布尔值的函数。如果返回值为 `true`，则请求通过第一个链接发送，即第二个必需参数。如果返回值为
+    `false`，则操作通过第二个链接发送，我们通过可选的第三个参数传递。在我们的情况下，作为第一个参数传递的函数决定了操作类型。如果操作是订阅，则函数返回
+    `true` 并通过 WebSocket 链接发送操作。所有其他请求都通过 HTTP Apollo 链接发送。我们将 `split` 函数的结果保存在 `link`
+    变量中。'
 - en: Insert the preceding `link` variable directly before the `onError` link. The
     `createUploadLink` function shouldn't be inside the `Apollo.from` function.
+  id: totrans-107
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将前面的 `link` 变量直接插入到 `onError` 链接之前。`createUploadLink` 函数不应位于 `Apollo.from` 函数内部。
 - en: We've now got the basic Apollo Client set up to support subscriptions via WebSockets.
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们现在已经设置了基本的 Apollo 客户端，以支持通过 WebSocket 进行订阅。
 - en: In [*Chapter 5*](B17337_05_Final_ASB_ePub.xhtml#_idTextAnchor123), *Reusable
     React Components and React Hooks*, I gave you some homework to split the complete
     chat feature into multiple subcomponents. This way, the chat feature would follow
     the same pattern as we used for the post feed. We split it into multiple components
     so that it's a clean code base. We're going to use this and have a look at how
     to implement subscriptions for the chats.
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 [*第 5 章*](B17337_05_Final_ASB_ePub.xhtml#_idTextAnchor123) *可重用 React 组件和
+    React Hooks* 中，我给了你一些作业，将完整的聊天功能拆分成多个子组件。这样，聊天功能就会遵循我们用于帖子源的模式。我们将它拆分成多个组件，以便代码库更干净。我们将使用这个，并查看如何实现聊天的订阅。
 - en: If you haven't implemented the chat functionality in multiple subcomponents,
     you can get the working code from the official GitHub repository. I personally
     recommend you use the code from the repository if it's unclear what the following
     examples refer to.
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果您没有在多个子组件中实现聊天功能，您可以从官方 GitHub 仓库获取可工作的代码。如果以下示例不明确，我建议您使用仓库中的代码。
 - en: 'Using chats as an example makes sense because they are, by nature, real time:
     they require the application to handle new messages and display them to the recipient.
     We take care of this in the following steps.'
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
+  zh: 以聊天为例是有意义的，因为它们本质上就是实时的：它们需要应用程序处理新消息并将它们显示给接收者。我们将在以下步骤中处理这一点。
 - en: 'We begin with the main file of our chats feature, which is the `Chats.js` file
     in the client folder. I''ve reworked the `return` statement so that all the markup
     that initially came directly from this file is now entirely rendered by other
     child components. You can see all the changes in the following code snippet:'
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们从聊天功能的主体文件开始，即客户端文件夹中的 `Chats.js` 文件。我已经重构了 `return` 语句，使得最初直接来自此文件的全部标记现在完全由其他子组件渲染。您可以在以下代码片段中看到所有更改：
 - en: '[PRE18]'
+  id: totrans-113
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: 'All the changes are listed here:'
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
+  zh: 所有更改都列在这里：
 - en: We have introduced a new `ChatItem` component that handles the logic of the
     `for` loop. Extracting the logic into a separate file makes it more readable.
+  id: totrans-115
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们引入了一个新的 `ChatItem` 组件，它处理 `for` 循环的逻辑。将逻辑提取到单独的文件中使其更易于阅读。
 - en: The `ChatItem` component expects `user`, `chat`, and `openChat` properties.
     Furthermore, we have edited the functions that this component uses to also leverage
     the `user` object.
+  id: totrans-116
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`ChatItem` 组件期望 `user`、`chat` 和 `openChat` 属性。此外，我们还编辑了该组件使用的函数，以便也能利用 `user`
+    对象。'
 - en: We extract the `user` property from the properties of the `Chats` component.
     Consequently, we have to wrap the `Chats` component with the `UserConsumer` component
     to let it pass the user. You can apply this change from within the `Chats.js`
     file by wrapping the exported component into it.
+  id: totrans-117
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们从 `Chats` 组件的属性中提取 `user` 属性。因此，我们必须将 `Chats` 组件包裹在 `UserConsumer` 组件中，以便它能够传递用户信息。您可以通过在
+    `Chats.js` 文件中包裹导出的组件来应用此更改。
 - en: 'The `openChat` and `closeChat` functions are executed either by `ChatItem`
     or the `Chats` component. All other functions from the `Chats` component have
     been moved to one or both components: `ChatItem` and `Chat`.'
+  id: totrans-118
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`openChat`和`closeChat`函数由`ChatItem`或`Chats`组件执行。`Chats`组件的所有其他函数都已移动到以下一个或两个组件：`ChatItem`和`Chat`。'
 - en: The changes I have made here had nothing to do with the subscriptions directly,
     but it's much easier to understand what I'm trying to explain when the code is
     readable. If you need help implementing these changes by yourself, I recommend
     you check out the official GitHub repository. All the following examples are based
     on these changes, but they should be understandable without having the full source
     code.
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: 我在这里所做的更改与订阅没有直接关系，但代码可读性更高时，理解我想解释的内容会更容易。如果您需要自己实现这些更改的帮助，我建议您查看官方GitHub仓库。所有以下示例都是基于这些更改的，但即使没有完整的源代码，也应该能够理解。
 - en: More important, however, is `useGetChatsQuery`, which has a special feature.
     We want to subscribe to the `messageAdded` subscription to listen for new messages.
     That's possible by using a new function of the Apollo `useQuery` Hook.
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，更重要的是`useGetChatsQuery`，它有一个特殊功能。我们想要订阅`messageAdded`订阅以监听新消息。这可以通过使用Apollo
+    `useQuery` Hook的新函数来实现。
 - en: We need to extract a `subscribeToMore` function from the `useGetChatsQuery`
     Hook.
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们需要从`useGetChatsQuery` Hook中提取一个`subscribeToMore`函数。
 - en: The `subscribeToMore` function is provided by default with every result of an
     Apollo `useQuery` Hook. It lets you run an `update` function whenever a message
     is created. It works in the same way as the `fetchMore` function. We can use this
     function in the `Chats` component to listen for the new messages.
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: '`subscribeToMore`函数默认与Apollo `useQuery` Hook的每个结果一起提供。它允许您在创建消息时运行一个`update`函数。它的工作方式与`fetchMore`函数相同。我们可以在`Chats`组件中使用此函数来监听新消息。'
 - en: 'Let''s have a look at how we can use this function to implement subscriptions
     on the frontend, as follows:'
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们看看如何使用此函数在前端实现订阅，如下所示：
 - en: Create a new `subscriptions` folder inside the `apollo` folder.
+  id: totrans-124
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在`apollo`文件夹内创建一个新的`subscriptions`文件夹。
 - en: 'Create a new `messageAdded.js` file inside this `subscriptions` folder. We
     need to parse the GraphQL subscription string. The new `messageAdded` subscription
     has to look like this:'
+  id: totrans-125
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在此`subscriptions`文件夹内创建一个新的`messageAdded.js`文件。我们需要解析GraphQL订阅字符串。新的`messageAdded`订阅必须如下所示：
 - en: '[PRE19]'
+  id: totrans-126
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: The subscription looks exactly like all the other queries or mutations we are
     using. The only difference is that we request the `__typename` field, as it isn't
     included in the response of our GraphQL API when using subscriptions. From my
     point of view, this seems like a bug in the current version of `SubscriptionServer`.
     You should check whether you still need to do this at the time of reading this
     book.
+  id: totrans-127
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 订阅看起来与我们所使用的所有其他查询或突变完全相同。唯一的区别是我们请求了`__typename`字段，因为在使用订阅时，我们的GraphQL API的响应中不包括此字段。从我的观点来看，这似乎是当前版本`SubscriptionServer`中的一个错误。您应该在阅读此书时检查是否还需要这样做。
 - en: We specify the operation type of the request, which is `subscription`, as you
     can see in the preceding code snippet. Otherwise, it attempts to execute the default
     query operation, which leads to an error because there's no `messageAdded` query,
     only a subscription. The subscription events the client receives when a new message
     is added hold all fields, as shown in the preceding code snippet.
+  id: totrans-128
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我们指定了请求的操作类型，即`subscription`，正如您在前面的代码片段中看到的那样。否则，它将尝试执行默认的查询操作，这会导致错误，因为没有`messageAdded`查询，只有一个订阅。当新消息添加时，客户端收到的订阅事件包含所有字段，如前述代码片段所示。
 - en: 'In the `addMessage` mutation file, we need to rewrite one part of the code.
     We extract the fragment that we pass to `writeFragment` to be an exported variable
     itself so that we can reuse that. The code should look like this:'
+  id: totrans-129
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在`addMessage`突变文件中，我们需要重写代码的一部分。我们将传递给`writeFragment`的片段提取为一个可导出的变量本身，这样我们就可以重用它。代码应该如下所示：
 - en: '[PRE20]'
+  id: totrans-130
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: 'Import the new GraphQL query in the `Chats.js` file together with some other
     dependencies, as follows:'
+  id: totrans-131
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在`Chats.js`文件中导入新的GraphQL查询以及其他一些依赖项，如下所示：
 - en: '[PRE21]'
+  id: totrans-132
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: 'The following properties should be extracted from the `useGetChatsQuery` Hook:'
+  id: totrans-133
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 应从`useGetChatsQuery` Hook中提取以下属性：
 - en: '[PRE22]'
+  id: totrans-134
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'Import the `withApollo` HOC and `UserConsumer`, as follows:'
+  id: totrans-135
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 按如下方式导入`withApollo` HOC和`UserConsumer`：
 - en: '[PRE23]'
+  id: totrans-136
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: 'We are going to use direct Apollo Client interaction. This is why we need to
     export the `Chats` component to be wrapped into the `withApollo` HOC to pass the
     client into a property. To export your component correctly, use the `withApollo`
     HOC. The code is illustrated here:'
+  id: totrans-137
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将使用直接的Apollo客户端交互。这就是为什么我们需要导出`Chats`组件，以便在`withApollo`高阶组件中包装，并将客户端传递给一个属性。为了正确导出组件，请使用`withApollo`高阶组件。代码如下所示：
 - en: '[PRE24]'
+  id: totrans-138
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: We wrap the `Chats` component into the `UserConsumer` component to get access
     to the client. Furthermore, we wrap it into the `withApollo` HOC to get access
     to the client.
+  id: totrans-139
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我们将`Chats`组件包裹在`UserConsumer`组件中，以便访问客户端。此外，我们将其包裹在`withApollo`高阶组件中，以便访问客户端。
 - en: 'Here''s the crucial part. When the component is mounted, we need to subscribe
     to the `messageAdded` channel. Only then is the `messageAdded` subscription used
     to receive new data or, to be exact, new chat messages. To start subscribing to
     the GraphQL subscription, we have to add a new `useEffect` Hook, as follows:'
+  id: totrans-140
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 这里是关键部分。当组件挂载时，我们需要订阅`messageAdded`通道。只有在这种情况下，`messageAdded`订阅才会用来接收新数据，或者更确切地说，接收新的聊天消息。为了开始订阅GraphQL订阅，我们必须添加一个新的`useEffect`钩子，如下所示：
 - en: '[PRE25]'
+  id: totrans-141
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: In the preceding code snippet, we execute a new `subscribeToNewMessages` method
     inside the `useEffect` Hook of our React component.
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前面的代码片段中，我们在React组件的`useEffect`钩子中执行了一个新的`subscribeToNewMessages`方法。
 - en: The `useEffect` method only executes on the client-side code as the SSR implementation
     doesn't throw this event.
+  id: totrans-143
   prefs: []
   type: TYPE_NORMAL
+  zh: '`useEffect`方法仅在客户端代码上执行，因为SSR实现不会抛出此事件。'
 - en: 'We have to add the corresponding `subscribeToNewMessages` method as well. We''re
     going to explain every bit of this function in a moment. Insert the following
     code into the `Chats` component:'
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还必须添加相应的`subscribeToNewMessages`方法。我们将在稍后解释这个函数的每一个细节。将以下代码插入到`Chats`组件中：
 - en: '[PRE26]'
+  id: totrans-145
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: The preceding `subscribeToNewMessages` method looks very complex, but once we
     understand its purpose, it's straightforward. We primarily rely on the `subscribeToMore`
     function here, which we get from `useGetChatsQuery`. The purpose of this function
     is to start subscribing to our `messageAdded` channel and to accept the new data
     from the subscription and merge it with the current state and cache so that it's
     reflected directly to the user.
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 前面的`subscribeToNewMessages`方法看起来非常复杂，但一旦我们理解了它的目的，它就非常直接。我们主要依赖于从`useGetChatsQuery`获取的`subscribeToMore`函数。这个函数的目的是开始订阅我们的`messageAdded`通道，并接受订阅的新数据，将其与当前状态和缓存合并，以便直接反映给用户。
 - en: The `document` parameter accepts the parsed GraphQL subscription.
+  id: totrans-147
   prefs: []
   type: TYPE_NORMAL
+  zh: '`document`参数接受解析后的GraphQL订阅。'
 - en: The second parameter is called `updateQuery`. It allows us to insert a function
     that implements the logic to update the Apollo Client cache with the new data.
     This function needs to accept a new parameter, which is the previous data from
     where the `subscribeToMore` function has been passed. In our case, this object
     contains an array of chats that already exist in the client's cache.
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 第二个参数称为`updateQuery`。它允许我们插入一个函数，该函数实现了更新Apollo客户端缓存的逻辑。这个函数需要接受一个新参数，即`subscribeToMore`函数传递的先前数据。在我们的例子中，这个对象包含客户端缓存中已经存在的聊天数组。
 - en: The second parameter holds the new message inside the `subscriptionData` index.
     The `subscriptionData` object has a `data` property that has a further `messageAdded`
     field under which the real message that's been created is saved.
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 第二个参数在`subscriptionData`索引中保存新的消息。`subscriptionData`对象有一个`data`属性，该属性下有一个`messageAdded`字段，其中保存了实际创建的消息。
 - en: We'll quickly go through the logic of the `updateQuery` function so that you
     can understand how we merge data from a subscription to the application state.
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将快速浏览`updateQuery`函数的逻辑，以便您了解我们如何将订阅的数据合并到应用程序状态中。
 - en: If `subscriptionData.data` is empty or there are no previous chats in the `prev`
     object, there's nothing to update. In this case, we return the previous data because
     a message was sent in a chat that the client doesn't have in their cache. Otherwise,
@@ -866,8 +1205,11 @@
     `Object.assign` function, where the chat and the new message are merged. We save
     the result in the `newValue` variable. It's important that we also set the returned
     `__typename` property because otherwise, Apollo Client throws an error.
+  id: totrans-151
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果`subscriptionData.data`为空或者`prev`对象中没有之前的聊天，则没有需要更新的内容。在这种情况下，我们返回之前的数据，因为客户端缓存中没有的聊天中发送了消息。否则，我们遍历`prev`对象中的所有之前的聊天，通过比较聊天ID找到订阅返回了新消息的聊天索引。找到的聊天在`prev.chats`数组中的索引被保存在`index`变量中。如果找不到聊天，我们可以通过检查`index`变量来返回之前的数据。如果我们找到了聊天，我们需要用新消息更新它。为此，我们使用之前的数据组合聊天，并将`lastMessage`设置为新消息的文本。我们通过使用`Object.assign`函数来实现这一点，其中聊天和新消息被合并。我们将结果保存在`newValue`变量中。重要的是我们还要设置返回的`__typename`属性，否则Apollo
+    Client会抛出错误。
 - en: Now that we have an object that contains the updated chat in the `newValue`
     variable, we write it to the client's cache. To write the updated chat to the
     cache, we return an array of all chats at the end of the `updateQuery` function.
@@ -878,21 +1220,28 @@
     to us inside the `prev` object with the new array. Importantly, the new cache
     has to have the same fields as before. The schema of the return value of the `updateQuery`
     function must match the initial `chats` query schema.
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们有了包含更新后的聊天对象的`newValue`变量，我们将它写入客户端的缓存。为了将更新的聊天写入缓存，我们在`updateQuery`函数的末尾返回所有聊天的数组。因为`prev`变量是只读的，所以我们不能在它里面保存更新的聊天。我们必须创建一个新的数组来写入缓存。我们将`newValue`聊天对象设置在`newList`数组中找到原始聊天的索引位置。最后，我们返回`newList`变量。我们使用`prev`对象中给出的新数组更新缓存。重要的是，新的缓存必须具有与之前相同的字段。`updateQuery`函数返回值的模式必须与初始`chats`查询模式匹配。
 - en: You can now test the subscription directly in your browser by starting the application
     with `npm run server`. If you send a new chat message, it's shown directly in
     the chat panel on the right-hand side.
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，你可以通过使用`npm run server`启动应用程序来直接在浏览器中测试订阅。如果你发送一条新的聊天消息，它将直接显示在右侧的聊天面板中。
 - en: We have, however, got one major problem. If you test this with a second user,
     you'll notice that the `lastMessage` field is updated for both users. That is
     correct, but the new message isn't visible inside the chat window for the recipient.
     We've updated the client store for the `chats` GraphQL request, but we haven't
     added the message to the single `chat` query that's executed when we open a chat
     window.
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，我们遇到了一个主要问题。如果你用第二个用户测试这个功能，你会注意到`lastMessage`字段对两个用户都进行了更新。这是正确的，但新消息在收件人的聊天窗口中是不可见的。我们已经更新了`chats`
+    GraphQL请求的客户存储，但我们还没有在打开聊天窗口时执行的单一`chat`查询中添加消息。
 - en: 'We''re going to solve this problem by making use of the `withApollo` HOC. The
     `Chats` component has no access to the `chat` query cache directly. The `withApollo`
     HOC gives the exported component a `client` property, which allows us to interact
@@ -901,11 +1250,16 @@
     the updated `chats` array from the `updateQuery` function, we have to read the
     state of `chat` and insert the new data if possible. Insert the following code
     right before the final `return` statement inside the `updateQuery` function:'
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将通过使用`withApollo`高阶组件（HOC）来解决这个问题。`Chats`组件无法直接访问`chat`查询缓存。`withApollo` HOC给导出的组件提供了一个`client`属性，这使我们能够直接与Apollo
+    Client交互。我们可以使用它来读取和写入整个Apollo Client缓存，并且它不仅限于单个GraphQL请求。在从`updateQuery`函数返回更新后的`chats`数组之前，我们必须读取`chat`的状态，并在可能的情况下插入新数据。在`updateQuery`函数中的最终`return`语句之前插入以下代码：
 - en: '[PRE27]'
+  id: totrans-156
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: In the preceding code snippet, we use the `client.readQuery` method to read
     the cache. This accepts the `GET_CHAT` query as one parameter and the chat ID
     of the newly sent message to get a single chat in return. The `GET_CHAT` query
@@ -918,18 +1272,24 @@
     is from another user and not from ourselves because if we send a message on our
     own, we do not need to add it into the cache as we already do that on submission
     of a new message from our side.
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前面的代码片段中，我们使用`client.readQuery`方法读取缓存。它接受`GET_CHAT`查询作为参数，以及新发送消息的聊天ID，以返回单个聊天。`GET_CHAT`查询是我们打开聊天窗口时在`Chat.js`文件中发送的相同请求。我们将在`try`-`catch`块中包装`readQuery`函数，因为它在找不到指定的`query`和`variables`时抛出未处理的错误。这可能发生在用户尚未打开聊天窗口的情况下，因此没有使用`GET_CHAT`查询请求此特定聊天的数据。此外，整个块被包裹在一个`if`条件中，以检查新消息是否来自另一个用户而不是我们自己，因为如果我们自己发送消息，我们不需要将其添加到缓存中，因为我们已经在提交我们这边的新消息时那样做了。
 - en: If the message is from another user, we use the `client.cache.modify` function,
     as we already know to add the new message to the array of messages in the cache
     for this specific chat.
+  id: totrans-158
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果消息来自另一个用户，我们使用`client.cache.modify`函数，因为我们已经知道要将新消息添加到特定聊天中缓存的消息数组。
 - en: You can test these new changes by viewing the chat window and sending a message
     from another user account. The new message should appear almost directly for you
     without the need to refresh the browser.
+  id: totrans-159
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以通过查看聊天窗口并从另一个用户账户发送消息来测试这些新更改。对于您来说，新消息应该几乎立即出现，无需刷新浏览器。
 - en: 'In this section, we learned how to subscribe to events sent from a backend
     through Apollo subscriptions. Currently, we use this feature to update the UI
     on the fly with the new data. Later, in the *Notifications with Apollo subscriptions*
@@ -938,12 +1298,17 @@
     subscription through a JWT, such as our GraphQL API, and still, the user received
     the new message without verifying its identity. We''re going to change this in
     the next section.'
+  id: totrans-160
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们学习了如何通过Apollo订阅订阅来自后端发送的事件。目前，我们使用此功能在动态中更新UI以显示新数据。稍后，在“使用Apollo订阅的通知”部分，我们将看到另一个订阅可能很有用的场景。尽管如此，还有一件事要做：我们尚未通过JWT（如我们的GraphQL
+    API）授权用户进行`messageAdded`订阅，而且用户在未验证其身份的情况下仍然收到了新消息。我们将在下一节中改变这一点。
 - en: Authentication with Apollo subscriptions
+  id: totrans-161
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用Apollo订阅进行身份验证
 - en: In [*Chapter 6*](B17337_06_Final_ASB_ePub.xhtml#_idTextAnchor141), *Authentication
     with Apollo and React*, we implemented authentication through the local storage
     of your browser. The backend generates a signed JWT that the client sends with
@@ -951,45 +1316,64 @@
     *Implementing Server-Side Rendering*, we extended this logic to support cookies
     to allow SSR. Now that we've introduced WebSockets, we need to take care of them
     separately, as we did with the SRR and our GraphQL API.
+  id: totrans-162
   prefs: []
   type: TYPE_NORMAL
+  zh: 在[*第6章*](B17337_06_Final_ASB_ePub.xhtml#_idTextAnchor141)，*使用Apollo和React进行身份验证*中，我们通过浏览器本地存储实现了身份验证。后端生成一个签名JWT，客户端将其与每个请求一起发送在HTTP头中。在[*第9章*](B17337_09_Final_ASB_ePub.xhtml#_idTextAnchor176)，*实现服务器端渲染*中，我们扩展了这种逻辑以支持cookie，允许SSR。现在我们引入了WebSockets，我们需要单独处理它们，就像我们处理SRR和我们的GraphQL
+    API一样。
 - en: How is it possible for the user to receive new messages when they aren't authenticated
     on the backend for the WebSocket transport protocol?
+  id: totrans-163
   prefs: []
   type: TYPE_NORMAL
+  zh: 当用户在WebSocket传输协议的后端未进行身份验证时，他们是如何接收新消息的？
 - en: The best way to figure this out is to have a look at your browser's developer
     tools. Let's assume that we have one browser window where we log in with user
     A. This user chats with another user, B. Both send messages to each other and
     receive the new updates directly in their chat window. Another user, C, shouldn't
     be able to receive any of the WebSocket updates. We should play through this scenario
     in reality.
+  id: totrans-164
   prefs: []
   type: TYPE_NORMAL
+  zh: 了解这一点的最佳方式是查看你的浏览器开发者工具。假设我们有一个浏览器窗口，我们用用户A登录。这个用户与另一个用户B聊天。他们互相发送消息，并在各自的聊天窗口中直接接收新的更新。另一个用户C不应该能够接收任何WebSocket更新。我们应该在现实中模拟这个场景。
 - en: If you use Chrome as your default browser, go to the `subscriptions` endpoint
     of our backend.
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你使用Chrome作为默认浏览器，请访问我们后端的`subscriptions`端点。
 - en: 'Try this scenario with the Developer Tools open. You should see the same WebSocket
     frames for all browsers. It should look like this:'
+  id: totrans-166
   prefs: []
   type: TYPE_NORMAL
+  zh: 在开发者工具打开的情况下尝试这个场景。你应该看到所有浏览器的相同WebSocket帧。它应该看起来像这样：
 - en: '![Figure 10.1 – WebSocket messages'
+  id: totrans-167
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图10.1 – WebSocket消息'
 - en: '](img/Figure_10.01_B17337.jpg)'
+  id: totrans-168
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图片](img/Figure_10.01_B17337.jpg)'
 - en: Figure 10.1 – WebSocket messages
+  id: totrans-169
   prefs: []
   type: TYPE_NORMAL
+  zh: 图10.1 – WebSocket消息
 - en: In the left panel, you can see all WebSocket connections. In our case, this
     is only the `subscriptions` connection. If you click on the connection, you will
     find all the frames that are sent over this connection. The first frame in the
     preceding list is the initial connection frame. The second frame is the subscription
     request to the `messageAdded` channel, which is initiated by the client. Both
     frames are marked green because the client sends them.
+  id: totrans-170
   prefs: []
   type: TYPE_NORMAL
+  zh: 在左侧面板中，你可以看到所有的WebSocket连接。在我们的例子中，这只是一个`subscriptions`连接。如果你点击连接，你将找到通过此连接发送的所有帧。前面列表中的第一帧是初始连接帧。第二帧是订阅`messageAdded`通道的请求，这是由客户端发起的。这两个帧都被标记为绿色，因为客户端发送了它们。
 - en: The last two are marked in red as the server sent them. The first of the red-marked
     frames is the server's acknowledgment of the established connection. The last
     frame was sent by our backend to publish a new message to the client. While the
@@ -999,8 +1383,10 @@
     since our `cache.modify` function only updates the UI if the chat was found in
     the client store. Still, an experienced user or developer is able to spy on all
     users of our social network as it's readable in the **Network** tab.
+  id: totrans-171
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后两个被标记为红色，因为服务器发送了它们。红色标记的第一帧是服务器对建立的连接的确认。最后一个帧是由我们的后端发送的，以向客户端发布一条新消息。虽然这个帧乍一看可能看起来没问题，但它代表了一个重要的问题。最后一个帧被发送给了所有客户端，而不仅仅是那些属于发送消息的特定聊天室的成员。普通用户不太可能注意到这一点，因为我们的`cache.modify`函数只有在聊天被找到在客户端存储中时才会更新UI。然而，一个经验丰富的用户或开发者能够监视我们社交网络的所有用户，因为这在**网络**标签中是可读的。
 - en: We need to take a look at the backend code that we have written and compare
     the initialization of `ApolloServer` and `SubscriptionServer`. We have a `context`
     function for `ApolloServer` that extracts the user from the JWT. It can then be
@@ -1009,32 +1395,42 @@
     We have to know the currently logged-in user to filter the subscription messages
     for the correct users. We can use standard WebSockets events, such as `onConnect`
     or `onOperation`, to implement the authorization of the user.
+  id: totrans-172
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们需要查看我们编写的后端代码，并比较`ApolloServer`和`SubscriptionServer`的初始化。我们为`ApolloServer`有一个`context`函数，它可以从JWT中提取用户。然后它可以在解析函数内部使用，以根据当前登录用户过滤结果。对于`SubscriptionServer`，目前还没有这样的`context`函数。我们必须知道当前登录用户，以便为正确的用户过滤订阅消息。我们可以使用标准的WebSockets事件，例如`onConnect`或`onOperation`，来实现用户的授权。
 - en: The `onOperation` function is executed for every WebSocket frame that is sent.
     The best approach is to implement the authorization in the `onConnect` event in
     the same way as the `context` function that's taken from `ApolloServer` so that
     the WebSocket connection is authenticated only once when it's established and
     not for every frame that's sent.
+  id: totrans-173
   prefs: []
   type: TYPE_NORMAL
+  zh: '`onOperation`函数会在发送每个WebSocket帧时执行。最佳做法是在`onConnect`事件中实现授权，就像从`ApolloServer`中获取的`context`函数一样，这样WebSocket连接在建立时只认证一次，而不是在发送每个帧时都认证。'
 - en: 'In `index.js`, from the `subscriptions` folder of the server, add the following
     code to the first parameter of the `SubscriptionServer` initialization. It accepts
     an `onConnect` parameter as a function, which is executed whenever a client tries
     to connect to the `subscriptions` endpoint. Add the code just before the `schema`
     parameter:'
+  id: totrans-174
   prefs: []
   type: TYPE_NORMAL
+  zh: 在`index.js`中，从服务器的`subscriptions`文件夹中，将以下代码添加到`SubscriptionServer`初始化的第一个参数。它接受一个作为函数的`onConnect`参数，每当客户端尝试连接到`subscriptions`端点时，都会执行这个函数。在`schema`参数之前添加代码：
 - en: '[PRE28]'
+  id: totrans-175
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: This code is very similar to the `context` function. We rely on the normal JWT
     authentication but via the connection parameters of the WebSocket. We implement
     the WebSocket authentication inside the `onConnect` event. In the original `context`
     function of `ApolloServer`, we extract the JWT from the HTTP headers of the request,
     but here, we are using the `params` variable, which is passed as the first parameter.
+  id: totrans-176
   prefs: []
   type: TYPE_NORMAL
+  zh: 这段代码与`context`函数非常相似。我们依赖于正常的JWT认证，但通过WebSocket的连接参数。我们在`onConnect`事件中实现WebSocket认证。在`ApolloServer`的原始`context`函数中，我们从请求的HTTP头中提取JWT，但在这里，我们使用作为第一个参数传递的`params`变量。
 - en: Before the client finally connects to the WebSocket endpoint, an `onConnect`
     event is triggered where you can implement special logic for the initial connection.
     With the first request, we send the JWT because we have configured Apollo Client
@@ -1045,8 +1441,11 @@
     function; there, you can access the initial upgrade request inside the `socket`
     object. After extracting the JWT from the connection parameters, we can verify
     it and authenticate the user with that.
+  id: totrans-177
   prefs: []
   type: TYPE_NORMAL
+  zh: 在客户端最终连接到WebSocket端点之前，会触发一个`onConnect`事件，在那里你可以实现针对初始连接的特殊逻辑。在第一次请求中，我们发送JWT，因为我们已经配置Apollo
+    Client在初始化`SubscriptionClient`时读取JWT到`connectionParams`对象的`authToken`参数。这就是为什么我们不是直接从`request`对象中访问JWT，而是在前面的代码片段中从`params.authToken`访问。`socket`参数也由`onConnect`函数提供；在那里，你可以访问`socket`对象中的初始升级请求。从连接参数中提取JWT后，我们可以验证它并使用它来认证用户。
 - en: At the end of this `onConnect` function, we return the `upgradeReq` variable
     and the user, just as we do with a normal `context` function for Apollo Server.
     Instead of returning the `req` object to `context` if the user isn't logged in,
@@ -1056,207 +1455,294 @@
     to match your needs and let the user connect to the WebSocket. Don't forget, however,
     that every open connection costs you performance and a user who isn't logged in
     doesn't need an open connection, at least for the use case of **Graphbook**.
+  id: totrans-178
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个`onConnect`函数的末尾，我们返回`upgradeReq`变量和用户，就像我们在Apollo Server的正常`context`函数中所做的那样。如果用户未登录，我们不再将`req`对象返回给`context`，而是抛出一个错误。这是因为我们只为需要您登录的实体实现订阅，例如聊天或帖子。这允许客户端尝试重新连接，直到它被认证。但是，请不要忘记，每个开放的连接都会消耗您的性能，而且未登录的用户不需要开放的连接，至少对于**Graphbook**的使用场景来说是这样。
 - en: 'We have now identified the user that has connected to our backend with the
     preceding code, but we''re still sending every frame to all users. This is a problem
     with the resolver functions because they don''t use the context yet. Replace the
     `messageAdded` subscription with the following code in the `resolvers.js` file:'
+  id: totrans-179
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们现在已经通过前面的代码识别了连接到我们后端的用户，但我们仍然将每个帧发送给所有用户。这是解析函数的问题，因为它们还没有使用上下文。请在`resolvers.js`文件中将`messageAdded`订阅替换为以下代码：
 - en: '[PRE29]'
+  id: totrans-180
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: Earlier in this chapter, we imported the `withFilter` function from the `graphql-subscriptions`
     package. This allows us to wrap `asyncIterator` with a filter. The purpose of
     this filter is to conditionally send publications through connections to users
     who should see the new information. If one user shouldn't receive a publication,
     the return value of the condition for the `withFilter` function should be `false`.
     For all users who should receive a new message, the return value should be `true`.
+  id: totrans-181
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章的早期，我们从`graphql-subscriptions`包中导入了`withFilter`函数。这允许我们将`asyncIterator`包装在过滤器中。这个过滤器的目的是有条件地向应该看到新信息的用户通过连接发送发布。如果一个用户不应该接收发布，`withFilter`函数的条件返回值应该是`false`。对于所有应该接收新消息的用户，返回值应该是`true`。
 - en: 'The `withFilter` function accepts `asyncIterator` as its first parameter. The
     second parameter is the function that decides whether a user receives a subscription
     update. We extract the following properties from the function call:'
+  id: totrans-182
   prefs: []
   type: TYPE_NORMAL
+  zh: '`withFilter`函数接受`asyncIterator`作为其第一个参数。第二个参数是决定用户是否接收订阅更新的函数。我们从函数调用中提取以下属性：'
 - en: The `payload` parameter, which is the new message that has been sent in the
     `addMessage` mutation.
+  id: totrans-183
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`payload`参数，它是通过`addMessage`突变发送的新消息。'
 - en: The `variables` field, which holds all GraphQL parameters that could be sent
     with the `messageAdded` subscription, not with the mutation. For our scenario,
     we are not sending any variables with the subscription.
+  id: totrans-184
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`variables`字段，它包含所有可以与`messageAdded`订阅一起发送的GraphQL参数，而不是与突变一起发送。在我们的场景中，我们不会在订阅中发送任何变量。'
 - en: The `context` variable, which holds all the information that we implemented
     in the `onConnect` Hook. It includes the regular `context` object with the user
     as a separate property.
+  id: totrans-185
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`context`变量，它包含我们在`onConnect`钩子中实现的所有信息。它包括带有用户作为单独属性的常规`context`对象。'
 - en: The `filter` function is executed for every user that has subscribed to the
     `messageAdded` channel. First, we check whether the user for which the function
     is executed is the author of the new message by comparing the user IDs. In this
     case, they don't need to get a subscription notification because they already
     have the data.
+  id: totrans-186
   prefs: []
   type: TYPE_NORMAL
+  zh: '`filter`函数为订阅`messageAdded`通道的每个用户执行。首先，我们通过比较用户ID来检查函数执行的用户是否是新消息的作者。在这种情况下，他们不需要收到订阅通知，因为他们已经拥有了数据。'
 - en: If this isn't the case, we query the database for the chat where the new message
     was added. To find out whether a user needs to receive the new message, we select
     only chats where the logged-in user's ID and the chat ID are included. If a chat
     is found in the database, the user should see the new message. Otherwise, they
     aren't allowed to get the new message, and we return `false`.
+  id: totrans-187
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果情况不是这样，我们将查询数据库以找到新消息被添加的聊天。为了确定用户是否需要接收新消息，我们只选择包含登录用户ID和聊天ID的聊天。如果在数据库中找到聊天，用户应该看到新消息。否则，他们不允许获取新消息，我们返回`false`。
 - en: Remember that the `withFilter` function is run for each connection. If there
     are thousands of users, we would have to run the database query very frequently.
     It's better to keep such filter functions as small and efficient as possible.
     For example, we could query the chat once to get the attached users and loop through
     them manually for all the connections. This solution would save us expensive database
     operations.
+  id: totrans-188
   prefs: []
   type: TYPE_NORMAL
+  zh: 请记住，`withFilter` 函数为每个连接运行。如果有成千上万的用户，我们可能需要非常频繁地运行数据库查询。最好将这样的过滤器函数保持得尽可能小和高效。例如，我们可以查询一次聊天以获取附加的用户，然后手动遍历所有连接。这个解决方案将节省我们昂贵的数据库操作。
 - en: This is all you need to know about authentication with subscriptions. We now
     have a working setup that includes SSR with cookies and real-time subscriptions
     with JWT authentication. The SSR doesn't implement subscriptions because it doesn't
     make sense to offer real-time updates for the initial rendering of our application.
     Next, you will see another scenario where Apollo subscriptions can be useful.
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 关于使用订阅进行身份验证的所有这些就是您需要了解的。我们现在有一个包含 SSR（服务器端渲染）和带有 JWT 认证的实时订阅的工作设置。SSR 不实现订阅，因为对我们应用程序的初始渲染提供实时更新没有意义。接下来，您将看到另一个
+    Apollo 订阅可能很有用的场景。
 - en: Notifications with Apollo subscriptions
+  id: totrans-190
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用 Apollo 订阅的通知
 - en: In this section, I'll quickly guide you through the second use case for subscriptions.
     Showing notifications to a user is perfectly traditional and commonplace, as you
     know from Facebook. Instead of relying on the `subscribeToMore` function, we use
     the `Subscription` component that's provided by Apollo. This component works like
     the `Query` and `Mutation` components, but for subscriptions.
+  id: totrans-191
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我将快速引导您了解订阅的第二个用例。向用户显示通知是完美的传统和常见做法，正如您从 Facebook 知道的。我们不是依赖于 `subscribeToMore`
+    函数，而是使用 Apollo 提供的 `Subscription` 组件。这个组件的工作方式与 `Query` 和 `Mutation` 组件类似，但用于订阅。
 - en: 'Follow these steps to get your first `Subscription` component running:'
+  id: totrans-192
   prefs: []
   type: TYPE_NORMAL
+  zh: 按照以下步骤运行您的第一个 `Subscription` 组件：
 - en: Create a `subscriptions` folder inside the client's `apollo` folder. You can
     save all subscriptions that you implement using Apollo's `useSubscription` Hook
     inside this folder.
+  id: totrans-193
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在客户端的 `apollo` 文件夹内创建一个 `subscriptions` 文件夹。您可以将使用 Apollo 的 `useSubscription`
+    钩子实现的全部订阅保存在这个文件夹中。
 - en: 'Insert a `messageAdded.js` file into the folder and paste in the following
     code:'
+  id: totrans-194
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在文件夹中插入一个 `messageAdded.js` 文件，并粘贴以下代码：
 - en: '[PRE30]'
+  id: totrans-195
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: The general workflow for the `useSubscription` component is the same as for
     the `useMutation` and `useQuery` Hooks. First, we parse the subscription with
     the `gql` function. Then, we just return the `useSubscription` Hook with the parsed
     GraphQL query.
+  id: totrans-196
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '`useSubscription` 组件的一般工作流程与 `useMutation` 和 `useQuery` 钩子相同。首先，我们使用 `gql`
+    函数解析订阅。然后，我们只需返回解析后的 GraphQL 查询的 `useSubscription` 钩子。'
 - en: 'Because we want to show notifications to the user when a new message is received,
     we install a package that takes care of showing pop-up notifications. Install
     it using `npm`, as follows:'
+  id: totrans-197
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 因为我们希望在收到新消息时向用户显示通知，所以我们安装了一个负责显示弹出通知的包。使用 `npm` 安装它，如下所示：
 - en: '[PRE31]'
+  id: totrans-198
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: 'To set up `react-toastify`, add a `ToastContainer` component to a global point
     of the application where all notifications are rendered. This container isn''t
     only used for notifications of new messages but for all notifications, so choose
     wisely. I decided to attach `ToastContainer` to the `Chats.js` file. Import the
     dependency at the top of it, as follows:'
+  id: totrans-199
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 要设置 `react-toastify`，将一个 `ToastContainer` 组件添加到应用程序的全局点，所有通知都在这里渲染。这个容器不仅用于新消息的通知，还用于所有通知，所以请明智选择。我决定将
+    `ToastContainer` 附接到 `Chats.js` 文件上。在顶部导入依赖项，如下所示：
 - en: '[PRE32]'
+  id: totrans-200
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: 'Inside the `return` statement, the first thing to render should be `ToastContainer`.
     Add it, like this:'
+  id: totrans-201
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在 `return` 语句中，首先应该渲染的是 `ToastContainer`。添加它，如下所示：
 - en: '[PRE33]'
+  id: totrans-202
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: 'In the `Chats.js` file, add one `import` statement to load the subscription
     Hook, as follows:'
+  id: totrans-203
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在 `Chats.js` 文件中，添加一个 `import` 语句来加载订阅钩子，如下所示：
 - en: '[PRE34]'
+  id: totrans-204
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: 'Then, just call this subscription Hook inside the `Chats` component after the
     other Hook statements, like this:'
+  id: totrans-205
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，只需在 `Chats` 组件中其他钩子语句之后调用此订阅钩子，如下所示：
 - en: '[PRE35]'
+  id: totrans-206
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: 'Add a small `react-toastify` package. Import the `CSS` file in the `App.js`
     file, like this:'
+  id: totrans-207
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 添加一个小的 `react-toastify` 包。在 `App.js` 文件中导入 `CSS` 文件，如下所示：
 - en: '[PRE36]'
+  id: totrans-208
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: 'Then, add these few lines to the custom `style.css` file:'
+  id: totrans-209
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 然后，将这些几行代码添加到自定义的 `style.css` 文件中：
 - en: '[PRE37]'
+  id: totrans-210
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: 'You can see an example of a notification in the following screenshot:'
+  id: totrans-211
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在下面的屏幕截图中看到一个通知的示例：
 - en: '![Figure 10.2 – Notification'
+  id: totrans-212
   prefs: []
   type: TYPE_NORMAL
+  zh: '![图 10.2 – 通知'
 - en: '](img/Figure_10.02_B17337.jpg)'
+  id: totrans-213
   prefs: []
   type: TYPE_NORMAL
+  zh: '](img/Figure_10.02_B17337.jpg)'
 - en: Figure 10.2 – Notification
+  id: totrans-214
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 10.2 – 通知
 - en: The entire subscriptions topic is complex, but we managed to implement it for
     two use cases and thus provided the user with significant improvements to our
     application.
+  id: totrans-215
   prefs: []
   type: TYPE_NORMAL
+  zh: 整个订阅主题相当复杂，但我们成功地为两个用例实现了它，从而为用户提供了对我们应用程序的重大改进。
 - en: Summary
+  id: totrans-216
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 摘要
 - en: This chapter aimed to offer the user a real-time UI that allows them to chat
     comfortably with other users. We also looked at how to make this UI extendable.
     You learned how to set up subscriptions with any Apollo or GraphQL backend for
     all entities. We also implemented WebSocket-specific authentication to filter
     publications so that they are only received by the correct user.
+  id: totrans-217
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章旨在为用户提供一个实时用户界面，使他们能够舒适地与其他用户聊天。我们还探讨了如何使这个界面具有可扩展性。你学习了如何为所有实体设置与任何Apollo或GraphQL后端的订阅。我们还实现了针对WebSocket的特定认证，以过滤发布内容，确保它们只被正确用户接收。
 - en: In the next chapter, you'll learn how to verify and test the correct functionality
     of your application by implementing automated testing for your code.
+  id: totrans-218
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一章中，你将学习如何通过为你的代码实现自动化测试来验证和测试应用程序的正确功能。

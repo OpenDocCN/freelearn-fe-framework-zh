@@ -1,0 +1,277 @@
+<html><head></head><body>
+        <section>
+
+            <header>
+                </header><h1 class="header-title" id="calibre_pb_0">Server-Side Rendering</h1>
+            
+
+            <article>
+                
+<p class="calibre2">Universal JavaScript, or isomorphic JavaScript, are different names for a feature that we are going to implement in this chapter. To be more exact, we will develop our app and render the app's pages on both the server and client side. It will be different to <strong class="calibre1">Angular1</strong> or Backbone single-page apps which are mainly rendered on the client side. Our approach is more complicated in technological terms as you need to deploy your full-stack skills which work on server-side rendering, but having this experience will make you a more desirable programmer so you can advance your career to the next level--you will be able to charge more for your skills on the market.</p>
+
+
+            </article>
+
+            <footer class="calibre4">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                </header><h1 class="header-title" id="calibre_pb_0">When the server side is worth implementing</h1>
+            
+
+            <article>
+                
+<p class="calibre2">Server-side rendering is a very useful feature in text content (like news portals) start-ups/companies, because it helps achieve better indexing by different search engines. It's an essential feature for any news and content-heavy website, because it helps grow organic traffic. In this chapter, we will also run our app with server-side rendering. Other companies where server-side rendering may be useful are entertainment businesses where users have less patience and they might close the browser if a webpage is loading slowly. In general, all <strong class="calibre1">B2C</strong> (consumer facing) apps should use server-side rendering to improve the experience for the people who visit their websites.</p>
+<p class="calibre2">Our focus in this chapter will include the following:</p>
+<ul class="calibre14">
+<li class="calibre15">Making the whole server-side code rearrangements to prepare for the server-side rendering</li>
+<li class="calibre15">Starting to use react-dom/server and its <kbd class="calibre11">renderToString</kbd> method</li>
+<li class="calibre15"><kbd class="calibre11">RoutingContext</kbd> and match for the react-router working on the server side</li>
+<li class="calibre15">Improving the client-side application so it will be optimized for an isomorphic JavaScript application</li>
+</ul>
+<p class="calibre2">Are you ready? Our first step is to mock the database's response on the backend (we will create a real DB query after whole server-side rendering works correctly on the mocked data).</p>
+
+
+            </article>
+
+            <footer class="calibre4">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                </header><h1 class="header-title" id="calibre_pb_0">Mocking the database response</h1>
+            
+
+            <article>
+                
+<p class="calibre2">First of all, we will mock our database response on the backend in order to prepare to go into server-side rendering directly; we will change it later in this chapter:</p>
+<pre class="calibre22">
+<strong class="calibre1">$ [[you are in the server directory of your project]]</strong><br class="title-page-name"/><strong class="calibre1">$ touch fetchServerSide.js</strong>  
+</pre>
+<p class="calibre2">The <kbd class="calibre11">fetchServerSide.js</kbd> file will consist of all functions that will fetch data from our database in order to make the server side work.</p>
+<p class="calibre2">As mentioned earlier, we will mock it for now, with the following code in <kbd class="calibre11">fetchServerSide.js</kbd>:</p>
+<pre class="calibre22">
+export default () =&gt; { <br class="title-page-name"/>    return { <br class="title-page-name"/>'article':{ <br class="title-page-name"/>      '0': { <br class="title-page-name"/>        'articleTitle': 'SERVER-SIDE Lorem ipsum - article one', <br class="title-page-name"/>        'articleContent':'SERVER-SIDE Here goes the content of the <br class="title-page-name"/>         article' <br class="title-page-name"/>      }, <br class="title-page-name"/><br class="title-page-name"/>      '1': { <br class="title-page-name"/>        'articleTitle':'SERVER-SIDE Lorem ipsum - article two', <br class="title-page-name"/>        'articleContent':'SERVER-SIDE Sky is the limit, the <br class="title-page-name"/>         content goes here.' <br class="title-page-name"/>      } <br class="title-page-name"/>    } <br class="title-page-name"/>  } <br class="title-page-name"/>} 
+</pre>
+<p class="calibre2">The goal of making this mocked object is that we will be able to see if our server-side rendering works correctly after implementation because, as you have probably already spotted, we have added <kbd class="calibre11">SERVER-SIDE</kbd> at the beginning of each title and content--so it will help us to learn if our app is getting the data from server-side rendering. Later, this function will be replaced with a query to MongoDB.</p>
+<p class="calibre2">The next thing that will help us implement the server-side rendering is to make a <kbd class="calibre11">handleServerSideRender</kbd> function that will be triggered each time a request hits the server.</p>
+<p class="calibre2">In order to make the <kbd class="calibre11">handleServerSideRender</kbd> trigger every time the frontend calls our backend, we need to use Express middleware using <kbd class="calibre11">app.use</kbd>. So far, we have used some external libraries such as:</p>
+<pre class="calibre22">
+app.use(cors()); <br class="title-page-name"/>app.use(bodyParser.json({extended: false})) 
+</pre>
+<p class="calibre2">For the first time in this book, we will write our own, small, middleware function that behaves in a similar way to <kbd class="calibre11">cors</kbd> or <kbd class="calibre11">bodyParser</kbd> (the external <kbd class="calibre11">libs</kbd> that are also middleware).</p>
+<p class="calibre2">Before doing so, let's import the dependencies that are required in React's server-side rendering (<kbd class="calibre11">server/server.js</kbd>):</p>
+<pre class="calibre22">
+import React from 'react'; <br class="title-page-name"/>import {createStore} from 'redux'; <br class="title-page-name"/>import {Provider} from 'react-redux'; <br class="title-page-name"/>import {renderToStaticMarkup} from 'react-dom/server'; <br class="title-page-name"/>import ReactRouter from 'react-router'; <br class="title-page-name"/>import {RoutingContext, match} from 'react-router'; <br class="title-page-name"/>import * as hist  from 'history'; <br class="title-page-name"/>import rootReducer from '../src/reducers'; <br class="title-page-name"/>import reactRoutes from '../src/routes'; <br class="title-page-name"/>import fetchServerSide from './fetchServerSide'; 
+</pre>
+<p class="calibre2">So, after adding all those imports of <kbd class="calibre11">server/server.js</kbd>, the file will look as follows:</p>
+<pre class="calibre22">
+import http from 'http'; <br class="title-page-name"/>import express from 'express'; <br class="title-page-name"/>import cors from 'cors'; <br class="title-page-name"/>import bodyParser from 'body-parser'; <br class="title-page-name"/>import falcor from 'falcor'; <br class="title-page-name"/>import falcorExpress from 'falcor-express'; <br class="title-page-name"/>import falcorRouter from 'falcor-router'; <br class="title-page-name"/>import routes from './routes.js'; <br class="title-page-name"/>import React from 'react' <br class="title-page-name"/>import { createStore } from 'redux' <br class="title-page-name"/>import { Provider } from 'react-redux' <br class="title-page-name"/>import { renderToStaticMarkup } from 'react-dom/server' <br class="title-page-name"/>import ReactRouter from 'react-router'; <br class="title-page-name"/>import { RoutingContext, match } from 'react-router'; <br class="title-page-name"/>import * as hist  from 'history'; <br class="title-page-name"/>import rootReducer from '../src/reducers'; <br class="title-page-name"/>import reactRoutes from '../src/routes'; <br class="title-page-name"/>import fetchServerSide from './fetchServerSide'; 
+</pre>
+<p class="calibre2">Most of that stuff explained here is similar to client-side development in previous chapters. What is important is to import history in the given way, as in the example: <kbd class="calibre11">import * as hist from 'history'</kbd>. The <kbd class="calibre11">RoutingContext</kbd>, match is a way of using <kbd class="calibre11">React-Router</kbd> on the server side. The <kbd class="calibre11">renderToStaticMarkup</kbd> function is going to generate an HTML markup for us on the server side.</p>
+<p class="calibre2">After we have added the new imports, then under Falcor's middleware setup:</p>
+<pre class="calibre22">
+// this already exists in your codebase <br class="title-page-name"/>app.use('/model.json', falcorExpress.dataSourceRoute((req, res) =&gt; { <br class="title-page-name"/>  return new falcorRouter(routes); // this already exists in your <br class="title-page-name"/>   codebase <br class="title-page-name"/>})); 
+</pre>
+<p class="calibre2">Under that <kbd class="calibre11">model.json</kbd> code, add the following:</p>
+<pre class="calibre22">
+let handleServerSideRender = (req, res) =&gt; <br class="title-page-name"/>{ <br class="title-page-name"/>  return; <br class="title-page-name"/>}; <br class="title-page-name"/><br class="title-page-name"/>let renderFullHtml = (html, initialState) =&gt; <br class="title-page-name"/>{ <br class="title-page-name"/>  return; <br class="title-page-name"/>}; <br class="title-page-name"/>app.use(handleServerSideRender); 
+</pre>
+<p class="calibre2">The <kbd class="calibre11">app.use(handleServerSideRender)</kbd> event is fired each time the server side receives a request from a client's application. Then we will prepare the empty functions that we will use:</p>
+<ul class="calibre14">
+<li class="calibre15"><kbd class="calibre11">handleServerSideRender</kbd>: It will use <kbd class="calibre11">renderToString</kbd> in order to create a valid server-side HTML markup</li>
+<li class="calibre15"><kbd class="calibre11">renderFullHtml</kbd>: It is a helper function that will embed our new React's HTML markup into a whole HTML document as we will see later</li>
+</ul>
+
+
+            </article>
+
+            <footer class="calibre4">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                </header><h1 class="header-title" id="calibre_pb_0">The handleServerSideRender function</h1>
+            
+
+            <article>
+                
+<p class="calibre2">First, we are going to create a new Redux store instance that will be created on every call to the backend. The main goal of this is to give the initial state information to our application so it can create a valid markup based on the current request.</p>
+<p class="calibre2">We will use the <kbd class="calibre11">Provider</kbd> component that we have already used in our client-side's app that will be wrapping the <kbd class="calibre11">Root</kbd> component. That will make the store available to all our components.</p>
+<p class="calibre2">The most important part here is <kbd class="calibre11">ReactDOMServer.renderToString()</kbd> to render the initial HTML markup of our application, before we send the markup to the client side.</p>
+<p class="calibre2">The next step is to get the initial state from the Redux store by using the <kbd class="calibre11">store.getState()</kbd> function. The initial state will be passed along in our <kbd class="calibre11">renderFullHtml</kbd> function, as you will learn in a moment.</p>
+<p class="calibre2">Before we work on the two new functions (<kbd class="calibre11">handleServerSideRender</kbd> and <kbd class="calibre11">renderFullHtml</kbd>), replace this in <kbd class="calibre11">server.js</kbd>:</p>
+<pre class="calibre22">
+app.use(express.static('dist')); 
+</pre>
+<p class="calibre2">Replace with the following:</p>
+<pre class="calibre22">
+app.use('/static', express.static('dist')); 
+</pre>
+<p class="calibre2">That's everything in our <kbd class="calibre11">dist</kbd> project. It will be available as a static file under the localhost address (<kbd class="calibre11">http://localhost:3000/static/app.js*</kbd>). This will help us make a single-page app after initial server-side rendering.</p>
+<p class="calibre2">Also make sure that <kbd class="calibre11">app.use('/static', express.static('dist'));</kbd> is placed directly under <kbd class="calibre11">app.use(bodyParser.urlencoded({extended: false }));</kbd>. Otherwise it may not work if you misplace this in the <kbd class="calibre11">server/server.js</kbd> file.</p>
+<p class="calibre2">After you are done with the preceding work of <kbd class="calibre11">express.static</kbd>, let's make this function more complete:</p>
+<pre class="calibre22">
+let renderFullHtml = (html, initialState) =&gt; <br class="title-page-name"/>{ <br class="title-page-name"/>  return; // this is already in your codebase <br class="title-page-name"/>}; 
+</pre>
+<p class="calibre2">Replace the preceding empty function with the following improved version:</p>
+<pre class="calibre22">
+let renderFullPage = (html, initialState) =&gt; <br class="title-page-name"/>{ <br class="title-page-name"/>  return &amp;grave; <br class="title-page-name"/>&lt;!doctype html&gt; <br class="title-page-name"/>&lt;html&gt; <br class="title-page-name"/>&lt;head&gt; <br class="title-page-name"/>&lt;title&gt;Publishing App Server Side Rendering&lt;/title&gt; <br class="title-page-name"/>&lt;/head&gt; <br class="title-page-name"/>&lt;body&gt; <br class="title-page-name"/>&lt;h1&gt;Server side publishing app&lt;/h1&gt; <br class="title-page-name"/>&lt;div id="publishingAppRoot"&gt;${html}&lt;/div&gt; <br class="title-page-name"/>&lt;script&gt; <br class="title-page-name"/>window.__INITIAL_STATE__ = ${JSON.stringify(initialState)} <br class="title-page-name"/>&lt;/script&gt; <br class="title-page-name"/>&lt;script src="/static/app.js"&gt;&lt;/script&gt; <br class="title-page-name"/>&lt;/body&gt; <br class="title-page-name"/>&lt;/html&gt; <br class="title-page-name"/>    &amp;grave; <br class="title-page-name"/>}; 
+</pre>
+<p class="calibre2">In short, this HTML code will be sent by our server when a user hits the website for the first time so we need to create the HTML markup with a body and head in order to make it work. The server-side publishing app's header is here just temporarily, to check if we are fetching the server-side HTML template correctly. Later you can find <kbd class="calibre11">$html</kbd> with the following command:</p>
+<pre class="calibre22">
+<strong class="calibre1">${html}</strong>  
+</pre>
+<div class="packt_infobox">Notice that we are using ES6 templates (Google ES6 template literals) syntax with <kbd class="calibre23">&amp;grave;</kbd>.</div>
+<p class="calibre2">In this, we will later put the value that is generated by the <kbd class="calibre11">renderToStaticMarkup</kbd> function. The last step in the <kbd class="calibre11">renderFullPage</kbd> function is to give the initial, server-side rendering state in the window with <kbd class="calibre11">window.INITIAL_STATE = ${JSON.stringify(initialState)}</kbd> so the app can work correctly on the client-side with data fetched on the backend when the first request to the server has been made.</p>
+<p class="calibre2">Okay, next let's focus on the <kbd class="calibre11">handleServerSideRender</kbd> function by replacing the following:</p>
+<pre class="calibre22">
+let handleServerSideRender = (req, res) =&gt; <br class="title-page-name"/>{ <br class="title-page-name"/>  return; <br class="title-page-name"/>}; 
+</pre>
+<p class="calibre2">Replace with the more complete version of the function as follows:</p>
+<pre class="calibre22">
+let handleServerSideRender = (req, res, next) =&gt; { <br class="title-page-name"/>  try { <br class="title-page-name"/>    let initMOCKstore = fetchServerSide(); // mocked for now <br class="title-page-name"/><br class="title-page-name"/>    // Create a new Redux store instance <br class="title-page-name"/>    const store = createStore(rootReducer, initMOCKstore); <br class="title-page-name"/>    const location = hist.createLocation(req.path); <br class="title-page-name"/><br class="title-page-name"/>    match({ <br class="title-page-name"/>      routes: reactRoutes, <br class="title-page-name"/>      location: location, <br class="title-page-name"/>    }, (err, redirectLocation, renderProps) =&gt; { <br class="title-page-name"/>      if (redirectLocation) { <br class="title-page-name"/>        res.redirect(301, redirectLocation.pathname + <br class="title-page-name"/>        redirectLocation.search); <br class="title-page-name"/>      } else if (err) { <br class="title-page-name"/>        console.log(err); <br class="title-page-name"/>        next(err); <br class="title-page-name"/>        // res.send(500, error.message); <br class="title-page-name"/>      } else if (renderProps === null) { <br class="title-page-name"/>        res.status(404) <br class="title-page-name"/>        .send('Not found'); <br class="title-page-name"/>      } else { <br class="title-page-name"/><br class="title-page-name"/>      if  (typeofrenderProps === 'undefined') { <br class="title-page-name"/>        // using handleServerSideRender middleware not required; <br class="title-page-name"/>        // we are not requesting HTML (probably an app.js or other <br class="title-page-name"/>        file) <br class="title-page-name"/>        return; <br class="title-page-name"/>      } <br class="title-page-name"/><br class="title-page-name"/><br class="title-page-name"/>        let html = renderToStaticMarkup( <br class="title-page-name"/>          &lt;Provider store={store}&gt; <br class="title-page-name"/>          &lt;RoutingContext {...renderProps}/&gt; <br class="title-page-name"/>          &lt;/Provider&gt; <br class="title-page-name"/>        ); <br class="title-page-name"/><br class="title-page-name"/>        const initialState = store.getState() <br class="title-page-name"/><br class="title-page-name"/>        let fullHTML = renderFullPage(html, initialState); <br class="title-page-name"/>        res.send(fullHTML); <br class="title-page-name"/>      } <br class="title-page-name"/>    }); <br class="title-page-name"/>  } catch (err) { <br class="title-page-name"/>      next(err) <br class="title-page-name"/>  } <br class="title-page-name"/>} 
+</pre>
+<p class="calibre2">The <kbd class="calibre11">let initMOCKstore = fetchServerSide();</kbd> expression is fetching data from MongoDB (mocked for now, to be improved later). Next, we create a server-side's Redux story with <kbd class="calibre11">store = createStore(rootReducer, initMOCKstore)</kbd>. We also need to prepare a correct location for our app's user consumable by the react-router with <kbd class="calibre11">location = hist.createLocation(req.path)</kbd> (in <kbd class="calibre11">req.path</kbd> there is a simple path which is in the browser; <kbd class="calibre11">/register</kbd> or <kbd class="calibre11">/login</kbd> or simply <kbd class="calibre11">main page /</kbd>). The function <kbd class="calibre11">match</kbd> is provided by the react-router in order to match the correct route on the server side.</p>
+<p class="calibre2">When we have matched the route on the server side, we will see the following:</p>
+<pre class="calibre22">
+// this is already added to your codebase: <br class="title-page-name"/>let html = renderToStaticMarkup( <br class="title-page-name"/>&lt;Provider store={store}&gt; <br class="title-page-name"/>&lt;RoutingContext {...renderProps}/&gt; <br class="title-page-name"/>&lt;/Provider&gt; <br class="title-page-name"/>); <br class="title-page-name"/><br class="title-page-name"/>const initialState = store.getState(); <br class="title-page-name"/><br class="title-page-name"/>let fullHTML = renderFullPage(html, initialState); <br class="title-page-name"/>res.send(fullHTML); 
+</pre>
+<p class="calibre2">As you can see here, we are creating the server-side HTML markup with <kbd class="calibre11">renderToStaticMarkup</kbd>. Inside this function, there is a Provider with the store that has previously been fetched with the <kbd class="calibre11">let initMOCKstore = fetchServerSide()</kbd>. Inside the Redux Provider we have <kbd class="calibre11">RoutingContext</kbd> which simply passes all required props down into our app so we can have a correctly-created markup server side.</p>
+<p class="calibre2">After all that, we only need to prepare <kbd class="calibre11">initialState</kbd> of our Redux Store with <kbd class="calibre11">const initialState = store.getState();</kbd> and later <kbd class="calibre11">let fullHTML = renderFullPage(html, initialState);</kbd> to have everything we need to send it to the client with <kbd class="calibre11">res.send(fullHTML)</kbd>.</p>
+<p class="calibre2">We are done with server-side preparations.</p>
+
+
+            </article>
+
+            <footer class="calibre4">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                </header><h1 class="header-title" id="calibre_pb_0">Double-check server/server.js</h1>
+            
+
+            <article>
+                
+<p class="calibre2">Before we go forward with the client-side development, we will double-check <kbd class="calibre11">server/server.js</kbd> as the order of our code is important and this is one of the error-prone files:</p>
+<pre class="calibre22">
+<a class="calibre25">import http from 'http';</a> <br class="title-page-name"/>import express from 'express'; <br class="title-page-name"/>import cors from 'cors'; <br class="title-page-name"/>import bodyParser from 'body-parser'; <br class="title-page-name"/>import falcor from 'falcor'; <br class="title-page-name"/>import falcorExpress from 'falcor-express'; <br class="title-page-name"/>import falcorRouter from 'falcor-router'; <br class="title-page-name"/>import routes from './routes.js'; <br class="title-page-name"/>import React from 'react' <br class="title-page-name"/>import { createStore } from 'redux' <br class="title-page-name"/>import { Provider } from 'react-redux' <br class="title-page-name"/>import { renderToStaticMarkup } from 'react-dom/server' <br class="title-page-name"/>import ReactRouter from 'react-router'; <br class="title-page-name"/>import { RoutingContext, match } from 'react-router'; <br class="title-page-name"/>import * as hist from 'history'; <br class="title-page-name"/>import rootReducer from '../src/reducers'; <br class="title-page-name"/>import reactRoutes from '../src/routes'; <br class="title-page-name"/>import fetchServerSide from './fetchServerSide'; <br class="title-page-name"/><br class="title-page-name"/>const app = express(); <br class="title-page-name"/><br class="title-page-name"/>app.server = http.createServer(app); <br class="title-page-name"/>// CORS - 3rd party middleware <br class="title-page-name"/>app.use(cors()); <br class="title-page-name"/>// This is required by falcor-express middleware to work correctly <br class="title-page-name"/> with falcor-browser <br class="title-page-name"/>app.use(bodyParser.json({extended: false})); <br class="title-page-name"/><br class="title-page-name"/>app.use(bodyParser.urlencoded({extended: false})); <br class="title-page-name"/><br class="title-page-name"/>app.use('/static', express.static('dist')); <br class="title-page-name"/><br class="title-page-name"/>app.use('/model.json', falcorExpress.dataSourceRoute(function(req, res) { <br class="title-page-name"/>  return new falcorRouter(routes); <br class="title-page-name"/>})); <br class="title-page-name"/><br class="title-page-name"/><br class="title-page-name"/>let handleServerSideRender = (req, res, next) =&gt; { <br class="title-page-name"/>  try { <br class="title-page-name"/>    let initMOCKstore = fetchServerSide(); // mocked for now <br class="title-page-name"/>    // Create a new Redux store instance <br class="title-page-name"/>    const store = createStore(rootReducer, initMOCKstore); <br class="title-page-name"/>    const location = hist.createLocation(req.path); <br class="title-page-name"/>    match({ <br class="title-page-name"/>      routes: reactRoutes, <br class="title-page-name"/>      location: location, <br class="title-page-name"/>      }, (err, redirectLocation, renderProps) =&gt; { <br class="title-page-name"/>        if (redirectLocation) { <br class="title-page-name"/><br class="title-page-name"/>          res.redirect(301, redirectLocation.pathname +  <br class="title-page-name"/>          redirectLocation.search); <br class="title-page-name"/>        } else if (err) { <br class="title-page-name"/><br class="title-page-name"/>          next(err); <br class="title-page-name"/>        // res.send(500, error.message); <br class="title-page-name"/>        } else if (renderProps === null) { <br class="title-page-name"/><br class="title-page-name"/>          res.status(404) <br class="title-page-name"/>          .send('Not found'); <br class="title-page-name"/>        } else { <br class="title-page-name"/>            if (typeofrenderProps === 'undefined') { <br class="title-page-name"/>            // using handleServerSideRender middleware not <br class="title-page-name"/>             required; <br class="title-page-name"/>            // we are not requesting HTML (probably an app.js or <br class="title-page-name"/>             other file) <br class="title-page-name"/><br class="title-page-name"/>            return; <br class="title-page-name"/>          } <br class="title-page-name"/>          let html = renderToStaticMarkup( <br class="title-page-name"/>            &lt;Provider store={store}&gt; <br class="title-page-name"/>            &lt;RoutingContext {...renderProps}/&gt; <br class="title-page-name"/>            &lt;/Provider&gt; <br class="title-page-name"/>          ); <br class="title-page-name"/><br class="title-page-name"/>          const initialState = store.getState() <br class="title-page-name"/>          let fullHTML = renderFullPage(html, initialState); <br class="title-page-name"/>          res.send(fullHTML); <br class="title-page-name"/>        } <br class="title-page-name"/>       }); <br class="title-page-name"/>    } catch (err) { <br class="title-page-name"/>    next(err) <br class="title-page-name"/>  } <br class="title-page-name"/>} <br class="title-page-name"/><br class="title-page-name"/>let renderFullPage = (html, initialState) =&gt; <br class="title-page-name"/>{ <br class="title-page-name"/>return &amp;grave; <br class="title-page-name"/>&lt;!doctype html&gt; <br class="title-page-name"/>&lt;html&gt; <br class="title-page-name"/>&lt;head&gt; <br class="title-page-name"/>&lt;title&gt;Publishing App Server Side Rendering&lt;/title&gt; <br class="title-page-name"/>&lt;/head&gt; <br class="title-page-name"/>&lt;body&gt; <br class="title-page-name"/>&lt;h1&gt;Server side publishing app&lt;/h1&gt; <br class="title-page-name"/>&lt;div id="publishingAppRoot"&gt;${html}&lt;/div&gt; <br class="title-page-name"/>&lt;script&gt; <br class="title-page-name"/>window.__INITIAL_STATE__ = ${JSON.stringify(initialState)} <br class="title-page-name"/>&lt;/script&gt; <br class="title-page-name"/>&lt;script src="/static/app.js"&gt;&lt;/script&gt; <br class="title-page-name"/>&lt;/body&gt; <br class="title-page-name"/>&lt;/html&gt; <br class="title-page-name"/>&amp;grave; <br class="title-page-name"/>}; <br class="title-page-name"/><br class="title-page-name"/>app.use(handleServerSideRender); <br class="title-page-name"/><br class="title-page-name"/>app.server.listen(process.env.PORT || 3000); <br class="title-page-name"/>console.log(&amp;grave;Started on port ${app.server.address().port}&amp;grave;); <br class="title-page-name"/><br class="title-page-name"/>export default app; 
+</pre>
+<p class="calibre2">Here you have everything you need for the server-side rendering on the backend. Let's move on to the frontend side improvements.</p>
+
+
+            </article>
+
+            <footer class="calibre4">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                </header><h1 class="header-title" id="calibre_pb_0">Frontend tweaks to make the server-side rendering work</h1>
+            
+
+            <article>
+                
+<p class="calibre2">We need some tweaks to the frontend. First of all, go to the file in <kbd class="calibre11">src/layouts/CoreLayout.js</kbd> and add the following:</p>
+<pre class="calibre22">
+import React from 'react'; <br class="title-page-name"/>import { Link } from 'react-router'; <br class="title-page-name"/><br class="title-page-name"/>import themeDecorator from 'material-ui/lib/styles/theme- <br class="title-page-name"/> decorator'; <br class="title-page-name"/>import getMuiTheme from 'material-ui/lib/styles/getMuiTheme'; <br class="title-page-name"/><br class="title-page-name"/>class CoreLayout extends React.Component { <br class="title-page-name"/>  static propTypes = { <br class="title-page-name"/>    children :React.PropTypes.element <br class="title-page-name"/>  } 
+</pre>
+<p class="calibre2">From the preceding code, the new thing to add is:</p>
+<pre class="calibre22">
+import themeDecorator from 'material-ui/lib/styles/theme-decorator'; <br class="title-page-name"/>import getMuiTheme from 'material-ui/lib/styles/getMuiTheme'; 
+</pre>
+<p class="calibre2">Besides this, improve the <kbd class="calibre11">render</kbd> function and export <kbd class="calibre11">default</kbd> to:</p>
+<pre class="calibre22">
+  render () { <br class="title-page-name"/>    return ( <br class="title-page-name"/>&lt;div&gt; <br class="title-page-name"/>&lt;span&gt; <br class="title-page-name"/>    Links:   &lt;Link to='/register'&gt;Register&lt;/Link&gt; |  <br class="title-page-name"/>      &lt;Link to='/login'&gt;Login&lt;/Link&gt; |  <br class="title-page-name"/>      &lt;Link to='/'&gt;Home Page&lt;/Link&gt; <br class="title-page-name"/>&lt;/span&gt; <br class="title-page-name"/>&lt;br/&gt; <br class="title-page-name"/>   {this.props.children} <br class="title-page-name"/>&lt;/div&gt; <br class="title-page-name"/>    ); <br class="title-page-name"/>  } <br class="title-page-name"/><br class="title-page-name"/>export default themeDecorator(getMuiTheme(null, { userAgent: 'all' }))(CoreLayout); 
+</pre>
+<p class="calibre2">We need the changes in the <kbd class="calibre11">CoreLayout</kbd> component because the Material UI design by default is checking on what browser you run it in and as you can predict, there is no browser on the server side so we need to provide the information in our app on whether <kbd class="calibre11">{ userAgent: 'all' }</kbd> is set to <kbd class="calibre11">all</kbd>. It will help avoid warnings in the console about the server-side HTML markup being different from the one generated by the client-side browser.</p>
+<p class="calibre2">We also need to improve our component <kbd class="calibre11">WillMount/_fetch</kbd> function in the publishing app's component, so it will be fired only on the frontend. Go to the <kbd class="calibre11">src/layouts/PublishingApp.js</kbd> file then replace this old code:</p>
+<pre class="calibre22">
+componentWillMount() { <br class="title-page-name"/>  this._fetch(); <br class="title-page-name"/>} 
+</pre>
+<p class="calibre2">Replace it with the new improved code:</p>
+<pre class="calibre22">
+componentWillMount() { <br class="title-page-name"/>  if(typeof window !== 'undefined') { <br class="title-page-name"/>    this._fetch(); // we are server side rendering, no fetching <br class="title-page-name"/>  } <br class="title-page-name"/>} 
+</pre>
+<p class="calibre2">That <kbd class="calibre11">if(typeof window !== 'undefined')</kbd> statement checks if there is a window (on the server-side, the window will be undefined). If yes then it starts fetching data via Falcor (when on the client side).</p>
+<p class="calibre2">Next, go to the <kbd class="calibre11">containers/Root.js</kbd> file and change it to the following:</p>
+<pre class="calibre22">
+import React  from 'react'; <br class="title-page-name"/>import {Provider}  from 'react-redux'; <br class="title-page-name"/>import {Router}  from 'react-router'; <br class="title-page-name"/>import routes  from '../routes'; <br class="title-page-name"/>import createHashHistory  from 'history/lib/createHashHistory'; <br class="title-page-name"/><br class="title-page-name"/>export default class Root extends React.Component { <br class="title-page-name"/>  static propTypes = { <br class="title-page-name"/>    history : React.PropTypes.object.isRequired, <br class="title-page-name"/>    store   : React.PropTypes.object.isRequired <br class="title-page-name"/>  } <br class="title-page-name"/><br class="title-page-name"/>render () { <br class="title-page-name"/>    return ( <br class="title-page-name"/>&lt;Provider store={this.props.store}&gt; <br class="title-page-name"/>&lt;div&gt; <br class="title-page-name"/>&lt;Router history={this.props.history}&gt; <br class="title-page-name"/>{routes} <br class="title-page-name"/>&lt;/Router&gt; <br class="title-page-name"/>&lt;/div&gt; <br class="title-page-name"/>&lt;/Provider&gt; <br class="title-page-name"/>    ); <br class="title-page-name"/>  } <br class="title-page-name"/>} 
+</pre>
+<p class="calibre2">As you can see, we have deleted this part of the code:</p>
+<pre class="calibre22">
+// deleted code from Root.js <br class="title-page-name"/>const noQueryKeyHistory = createHashHistory({ <br class="title-page-name"/>  queryKey: false <br class="title-page-name"/>}); 
+</pre>
+<p class="calibre2">And we have changed this:</p>
+<pre class="calibre22">
+&lt;Router history={noQueryKeyHistory}&gt; 
+</pre>
+<p class="calibre2">To this:</p>
+<pre class="calibre22">
+&lt;Router history={this.props.history}&gt; 
+</pre>
+<p class="calibre2">Why do we need to do all this? It helps us to get rid of the <kbd class="calibre11">/#/</kbd> sign from our client-side browser's URL so next time when we hit, for example, <kbd class="calibre11">http://localhost:3000/register</kbd> then our <kbd class="calibre11">server.js</kbd> can see the user's current URL with the <kbd class="calibre11">req.path</kbd> (in our case when hitting the <kbd class="calibre11">http://localhost:3000/register</kbd> the <kbd class="calibre11">req.path</kbd> is then equal to <kbd class="calibre11">/register</kbd>) that we use in the <kbd class="calibre11">handleServerSideRender</kbd> function.</p>
+<p class="calibre2">After all that, you will then be able to see the following in your client browser:</p>
+<div class="packt_figure"><img class="image-border22" src="../images/00027.jpeg"/></div>
+<p class="calibre2">After 1-2 seconds it will change to the following because of firing the real <kbd class="calibre11">this._fetch()</kbd> function in the <kbd class="calibre11">PublishingApp.js</kbd>:</p>
+<div class="packt_figure"><img class="image-border23" src="../images/00028.jpeg"/></div>
+<p class="calibre2">Of course, you can see the server-rendered markup when you go to the page's HTML source:</p>
+<div class="packt_figure"><img class="image-border24" src="../images/00029.jpeg"/></div>
+
+
+            </article>
+
+            <footer class="calibre4">
+                
+            </footer>
+
+        </section>
+    
+
+        <section>
+
+            <header>
+                </header><h1 class="header-title" id="calibre_pb_0">Summary</h1>
+            
+
+            <article>
+                
+<p class="calibre2">We have done the basic server-side rendering, as you can see in the screenshots. The only missing piece in the server-side rendering is to fetch real data from our MongoDB--that will be implemented in the next chapter (we will unlock this fetching in <kbd class="calibre11">server/fetchServerSide.js</kbd>).</p>
+<p class="calibre2">After unmocking the server side's database query, we will start working on improving the whole look of our app and implement some key features that are important for us such as adding/editing/deleting an article.</p>
+
+
+            </article>
+
+            <footer class="calibre4">
+                
+            </footer>
+
+        </section>
+    </body></html>

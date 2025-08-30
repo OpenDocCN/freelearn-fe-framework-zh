@@ -1,421 +1,613 @@
 - en: '3'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '3'
 - en: Refactoring the Test Suite
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 重构测试套件
 - en: At this point, you’ve written a handful of tests. Although they may seem simple
     enough already, they can be simpler.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，你已经编写了一些测试。尽管它们可能已经足够简单，但它们可以更简单。
 - en: 'It’s extremely important to build a maintainable test suite: one that is quick
     and painless to build and adapt. One way to roughly gauge maintainability is to
     look at the number of lines of code in each test. To give some comparison to what
     you’ve seen so far, in the Ruby language, a test with more than *three* lines
     is considered a long test!'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 构建一个可维护的测试套件非常重要：一个快速且痛苦程度低的构建和适应的测试套件。一种大致衡量可维护性的方法是通过查看每个测试中的代码行数。为了与之前看到的进行比较，在Ruby语言中，超过*三行*的测试被认为是一个长测试！
 - en: This chapter will take a look at some of the ways you can make your test suite
     more concise. We’ll do that by extracting common code into a module that can be
     reused across all your test suites. We’ll also create a custom Jest matcher.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将探讨一些你可以使你的测试套件更简洁的方法。我们将通过将常用代码提取到一个模块中，该模块可以在所有测试套件中重用来实现这一点。我们还将创建一个自定义的Jest匹配器。
 - en: When is the right time to pull out reusable code?
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 何时是提取可重用代码的正确时机？
 - en: So far, you’ve written one module with two test suites within it. It’s arguably
     too early to be looking for opportunities to extract duplicated code. Outside
     of an educational setting, you may wish to wait until the third or fourth test
     suite before you pounce on any duplication.
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，你已经在其中编写了一个模块，该模块包含两个测试套件。可以说，现在寻找提取重复代码的机会还为时过早。在非教育环境中，你可能希望在第三个或第四个测试套件之前才开始寻找任何重复代码。
 - en: 'The following topics will be covered in this chapter:'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将涵盖以下主题：
 - en: Pulling out reusable rendering logic
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 提取可重用的渲染逻辑
 - en: Creating a Jest matcher using TDD
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用TDD创建Jest匹配器
 - en: Extracting DOM helpers
+  id: totrans-10
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 提取DOM辅助函数
 - en: By the end of the chapter, you’ll have learned how to approach your test suite
     with a critical eye for maintainability.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 到本章结束时，你将学会如何以批判性的眼光对待你的测试套件，以确保其可维护性。
 - en: Technical requirements
+  id: totrans-12
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: 'The code files for this chapter can be found here: [https://github.com/PacktPublishing/Mastering-React-Test-Driven-Development-Second-Edition/tree/main/Chapter03](https://github.com/PacktPublishing/Mastering-React-Test-Driven-Development-Second-Edition/tree/main/Chapter03).'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章的代码文件可以在以下位置找到：[https://github.com/PacktPublishing/Mastering-React-Test-Driven-Development-Second-Edition/tree/main/Chapter03](https://github.com/PacktPublishing/Mastering-React-Test-Driven-Development-Second-Edition/tree/main/Chapter03)。
 - en: Pulling out reusable rendering logic
+  id: totrans-14
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 提取可重用的渲染逻辑
 - en: In this section, we will extract a module that initializes a unique DOM container
     element for each test. Then, we’ll build a render function that uses this container
     element.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将提取一个模块，为每个测试初始化一个唯一的DOM容器元素。然后，我们将构建一个使用此容器元素的渲染函数。
 - en: 'The two test suites we’ve built both have the same `beforeEach` block that
     runs before each test:'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们构建的两个测试套件都包含相同的`beforeEach`块，该块在每个测试之前运行：
 - en: '[PRE0]'
+  id: totrans-17
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: Wouldn’t it be great if we could somehow tell Jest that any test suite that
     is testing a React component should *always* use this `beforeEach` block and make
     the `container` variable available to our tests?
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们能够以某种方式告诉Jest，任何测试React组件的测试套件都应该*始终*使用这个`beforeEach`块并使`container`变量可用于我们的测试，那岂不是很好？
 - en: 'Here, we will extract a new module that exports two things: the `container`
     variable and the `initializeReactContainer` function. This won’t save us any typing,
     but it will hide the pesky `let` declaration and give a descriptive name to the
     call to `createElement`.'
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们将提取一个新的模块，导出两个东西：`container`变量和`initializeReactContainer`函数。这不会节省我们任何打字时间，但它将隐藏讨厌的`let`声明，并为`createElement`的调用提供一个描述性的名称。
 - en: The importance of small functions with descriptive names
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 描述性命名的小函数的重要性
 - en: Often, it’s helpful to pull out functions that contain just a single line of
     code. The benefit is that you can then give it a descriptive name that serves
     as a comment as to what that line of code does. This is preferable to using an
     actual comment because the name travels with you wherever you use the code.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 通常，提取只包含一行代码的函数是有帮助的。好处是你可以给它一个描述性的名称，这个名称可以作为注释说明这一行代码的作用。这比使用实际的注释更好，因为名称会随着你使用代码而移动。
 - en: In this case, the call to `document.createElement` could be confusing to a future
     maintainer of your software. Imagine that it is someone who has never done any
     unit testing of React code. They would be asking, “Why do the tests create a new
     DOM element for each and every test?” You can go some way to answer that by giving
     it a name, such as `initializeReactContainer`. It doesn’t offer a complete answer
     as to why it’s necessary, but it does allude to some notion of “initialization.”
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这种情况下，对 `document.createElement` 的调用可能会让未来的软件维护者感到困惑。想象一下，这是一个从未对 React 代码进行过单元测试的人。他们可能会问，“为什么测试为每个测试创建一个新的
+    DOM 元素？”你可以通过给它一个名字，比如 `initializeReactContainer`，来部分回答这个问题。它并不提供完整的答案来说明为什么它是必要的，但它确实暗示了一些关于“初始化”的概念。
 - en: 'Let’s go ahead and pull out this code:'
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们继续提取这段代码：
 - en: Create a new file called `test/reactTestExtensions.js`. This file will ultimately
     contain a whole bunch of helper methods that we’ll use in our React component
     tests.
+  id: totrans-24
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个名为 `test/reactTestExtensions.js` 的新文件。这个文件最终将包含我们将在 React 组件测试中使用的所有辅助方法。
 - en: 'Add the following content to the file. The function is implicitly updating
     the `container` variable within the module. That variable is then exported – our
     test suites can access this variable as if it were a “read-only” constant:'
+  id: totrans-25
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将以下内容添加到文件中。该函数在模块内部隐式地更新 `container` 变量。然后该变量被导出——我们的测试套件可以像访问“只读”常量一样访问这个变量：
 - en: '[PRE1]'
+  id: totrans-26
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'Move to `test/AppointmentsDayView.test.js`. Add the following import just below
     the existing imports:'
+  id: totrans-27
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 移动到 `test/AppointmentsDayView.test.js` 文件。在现有的导入下面添加以下导入：
 - en: '[PRE2]'
+  id: totrans-28
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'Now, replace the two `beforeEach` blocks – remember that there is one in each
     `describe` block – with the following code:'
+  id: totrans-29
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，将两个 `beforeEach` 块——记住每个 `describe` 块中都有一个——替换为以下代码：
 - en: '[PRE3]'
+  id: totrans-30
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: Delete the `let container` definition from the top of both `describe` blocks.
+  id: totrans-31
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从两个 `describe` 块的顶部删除 `let container` 定义。
 - en: Run `npm test` and verify that your tests are still passing.
+  id: totrans-32
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 运行 `npm test` 并验证你的测试是否仍然通过。
 - en: 'Now, how about continuing with the `render` function? Let’s move that into
     our new module. This time, it’s a straight lift and replace job:'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们继续处理 `render` 函数？让我们将其移动到我们的新模块中。这次，它是一个直接的复制和替换工作：
 - en: Copy the definition of `render` from one of the `describe` blocks.
+  id: totrans-34
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从一个 `describe` 块中复制 `render` 的定义。
 - en: 'Paste it into `reactTestExtensions.js`. For reference, here it is again:'
+  id: totrans-35
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将其粘贴到 `reactTestExtensions.js` 文件中。为了参考，这里再次列出：
 - en: '[PRE4]'
+  id: totrans-36
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'You’ll also need to add these imports at the top of the file:'
+  id: totrans-37
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 你还需要在文件顶部添加以下导入：
 - en: '[PRE5]'
+  id: totrans-38
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'Back in your test file, you can now change the test extensions import so that
     it includes the new `render` function, and then remove the `container` import:'
+  id: totrans-39
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在你的测试文件中，你现在可以更改测试扩展的导入，使其包括新的 `render` 函数，然后删除 `container` 导入：
 - en: '[PRE6]'
+  id: totrans-40
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: Delete the two `render` definitions from the two test suites.
+  id: totrans-41
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从两个测试套件中删除两个 `render` 定义。
 - en: Run `npm test` and verify that your tests are still passing.
+  id: totrans-42
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 运行 `npm test` 并验证你的测试是否仍然通过。
 - en: 'So far, we''ve extracted two functions. We have one more to do: the `click`
     function. However, we have one more “action” function that we can create: `click`.
     Let’s do that now:'
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经提取了两个函数。我们还有一个函数要做：`click` 函数。然而，我们还可以创建一个额外的“动作”函数：`click`。现在就让我们来做这件事：
 - en: 'Create the `click` function in your test extensions file, as shown here:'
+  id: totrans-44
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在你的测试扩展文件中创建 `click` 函数，如下所示：
 - en: '[PRE7]'
+  id: totrans-45
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'Back in your test file, adjust your import:'
+  id: totrans-46
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在你的测试文件中，调整你的导入：
 - en: '[PRE8]'
+  id: totrans-47
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'In your test suite, replace each invocation of the `click` function with the
     following line:'
+  id: totrans-48
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在你的测试套件中，将每个 `click` 函数的调用替换为以下行：
 - en: '[PRE9]'
+  id: totrans-49
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: The `act` import is no longer needed in your test suite. Go ahead and delete
     that import from your test file.
+  id: totrans-50
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '`act` 导入在测试套件中不再需要。请从你的测试文件中删除该导入。'
 - en: Run `npm test` and verify that your tests are still passing.
+  id: totrans-51
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 运行 `npm test` 并验证你的测试是否仍然通过。
 - en: Avoiding the act function in your test code
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 在测试代码中避免使用 act 函数
 - en: The `act` function causes a fair amount of clutter in tests, which doesn’t help
     in our quest for conciseness. Thankfully, we can push it out into our extensions
     module and be done with it.
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: '`act` 函数在测试中引起了很多杂乱，这并不有助于我们追求简洁。幸运的是，我们可以将其推入我们的扩展模块，然后就可以结束了。'
 - en: Remember the **Arrange-Act-Assert** pattern that our tests should always follow?
     Well, we’ve now extracted everything we can from the **Arrange** and **Act** sections.
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 记得我们的测试应该始终遵循的 **安排-执行-断言** 模式吗？好吧，我们现在已经从 **安排** 和 **执行** 部分提取了一切。
 - en: The approach we’ve taken here, of using an exported `container` variable, isn’t
     the only approach worth exploring. You could, for example, build a wrapper function
     for `describe` that automatically includes a `beforeEach` block and builds a `container`
     variable that’s accessible within the scope of that `describe` block. You could
     name it something like `describeReactComponent`.
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在这里采取的方法，即使用导出的`container`变量，并不是唯一值得探索的方法。例如，您可以创建一个`describe`的包装函数，该函数自动包含一个`beforeEach`块并构建一个在`describe`块作用域内可访问的`container`变量。您可以将其命名为类似`describeReactComponent`的名称。
 - en: An advantage of this approach is that it involves a lot less code – you won’t
     be dealing with all those imports, and you could get rid of your `beforeEach`
     block in the test suites. The downside is that it’s very *clever*, which is not
     always a good thing when it comes to maintainability. There’s something a bit
     magical about it that requires a certain level of prior knowledge.
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种方法的优点是它涉及的代码要少得多——您将不会处理所有那些导入，并且可以在测试套件中删除您的`beforeEach`块。缺点是它非常*巧妙*，这并不总是维护性的好事情。它有点神奇，需要一定的先验知识。
 - en: That being said, if this approach appeals to you, I encourage you to try it
     out.
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 话虽如此，如果您觉得这种方法吸引您，我鼓励您尝试一下。
 - en: In the next section, we’ll start to tackle the **Assert** section of our tests.
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一节中，我们将开始处理测试的**断言**部分。
 - en: Creating a Jest matcher using TDD
+  id: totrans-59
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用TDD创建Jest匹配器
 - en: 'In our tests so far, we’ve used a variety of `expect` function call:'
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们之前的测试中，我们使用了各种`expect`函数调用：
 - en: '[PRE10]'
+  id: totrans-61
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: In this section, you’ll build a matcher using a test-driven approach to make
     sure it’s doing the right thing. You’ll learn about the Jest matcher API as you
     build your test suite.
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，您将使用测试驱动的方法构建一个匹配器，以确保它正在做正确的事情。在构建测试套件的过程中，您将了解Jest匹配器API。
 - en: 'You’ve seen quite a few matchers so far: `toBeNull`, `toContain`, `toEqual`,
     and `toHaveLength`. You’ve also seen how they can be negated with `not`.'
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 您已经看到了相当多的匹配器：`toBeNull`、`toContain`、`toEqual`和`toHaveLength`。您也看到了它们如何通过`not`来否定。
 - en: Matchers are a powerful way of building expressive yet concise tests. You should
     take some time to learn all the matchers that Jest has to offer.
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 匹配器是构建表达性强且简洁的测试的强大方式。您应该花些时间学习Jest提供的所有匹配器。
 - en: Jest matcher libraries
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: Jest匹配器库
 - en: There are a lot of different matcher libraries available as npm packages. Although
     we won’t use them in this book (since we’re building everything up from first
     principles), you should make use of these libraries. See the *Further reading*
     section at the end of this chapter for a list of libraries that will be useful
     to you when testing React components.
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 有很多不同的匹配器库作为npm包提供。尽管我们在这本书中不会使用它们（因为我们是从第一原理构建一切的），但您应该利用这些库。请参阅本章末尾的*进一步阅读*部分，以获取在测试React组件时对您有用的库列表。
 - en: 'Often, you’ll want to build matchers. There are at least a couple of occasions
     that will prompt you to do this:'
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 通常，您会想构建匹配器。至少有几次情况会促使您这样做：
 - en: An expectation you’re writing is quite wordy, lengthy, or just doesn’t read
     well in plain language.
+  id: totrans-68
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 您所编写的期望语句可能相当冗长、篇幅较长，或者用普通语言读起来并不顺畅。
 - en: Some of the tests are repeating the same group of expectations again and again.
     This is a sign that you have a business concept that you can encode in a single
     matcher that will be specific to your project.
+  id: totrans-69
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 一些测试反复重复相同的期望组。这是您有一个可以编码到单个匹配器中的业务概念，该匹配器将专门针对您的项目的迹象。
 - en: 'The second point is an interesting one. If you’re writing the same expectations
     multiple times across multiple tests, you should treat it just like you would
     if it was repeated code in your production source code. You’d pull that out into
     a function. Here, the matcher serves the same purpose, except using a matcher
     instead of a function helps remind you that this line of code is a special statement
     of fact about your software: a specification.'
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 第二点很有趣。如果您在多个测试中多次编写相同的期望，您应该像对待生产源代码中的重复代码一样对待它。您会将其提取到一个函数中。在这里，匹配器起到了相同的作用，只不过使用匹配器而不是函数可以帮助您记住这一行代码是关于您软件的特殊事实声明：一个规范。
 - en: One expectation per test
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 每个测试一个期望
 - en: You should generally aim for just one expectation per test. "Future you" will
     thank you for keeping things simple! (In [*Chapter 5*](B18423_05.xhtml#_idTextAnchor079),
     *Adding Complex Form Interactions*, we’ll look at a situation where multiple expectations
     are beneficial.)
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 你通常应该只为每个测试设定一个期望。“未来的你”会感谢你保持事情简单！（在[*第五章*](B18423_05.xhtml#_idTextAnchor079)，*添加复杂表单交互*中，我们将探讨一个多个期望有益的情况。）
 - en: You might hear this guideline and be instantly horrified. You might be imagining
     an explosion of tiny tests. But if you’re ready to write matchers, you can aim
     for one expectation per test and still keep the number of tests down.
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可能会听到这个指南，立刻感到惊恐。你可能想象会有无数的小测试爆炸。但如果你准备好编写匹配器，你可以为每个测试设定一个期望，同时仍然保持测试数量在可控范围内。
 - en: 'The matcher we’re going to build in this section is called `toContainText`.
     It will replace the following expectation:'
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在本节将要构建的匹配器被称为 `toContainText`。它将替换以下期望：
 - en: '[PRE11]'
+  id: totrans-75
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'It will replace it with the following form, which is slightly more readable:'
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 它将替换成以下形式，这稍微更容易阅读：
 - en: '[PRE12]'
+  id: totrans-77
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'Here’s what the output looks like on the terminal:'
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面是终端上的输出效果：
 - en: '![Figure 3.1 – The output of the toContainText matcher when it fails ](img/Figure_3.01_B18423.jpg)'
+  id: totrans-79
   prefs: []
   type: TYPE_IMG
+  zh: '![图3.1 – 当 `toContainText` 匹配器失败时的输出](img/Figure_3.01_B18423.jpg)'
 - en: Figure 3.1 – The output of the toContainText matcher when it fails
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 图3.1 – 当 `toContainText` 匹配器失败时的输出
 - en: 'Let’s get started:'
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们开始吧：
 - en: Create a new directory named `test/matchers`. This is where both the source
     code and tests for the matchers will live.
+  id: totrans-82
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个名为 `test/matchers` 的新目录。这是匹配器的源代码和测试将存放的地方。
 - en: Create the new `test/matchers/toContainText.test.js` file.
+  id: totrans-83
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建新的 `test/matchers/toContainText.test.js` 文件。
 - en: 'Write the first test, as shown here. This test introduces a couple of new ideas.
     First, it shows that `matcher` is a function that takes two parameters: the actual
     element and the data to match on. Second, it shows that the function returns an
     object with a `pass` property. This property is true if the matcher successfully
     “matched” – in other words, it passed:'
+  id: totrans-84
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 按照下面的示例编写第一个测试。这个测试引入了一些新概念。首先，它显示 `matcher` 是一个接受两个参数的函数：实际元素和要匹配的数据。其次，它显示该函数返回一个具有
+    `pass` 属性的对象。如果匹配器成功“匹配”——换句话说，它通过了，那么这个属性就是 `true`：
 - en: '[PRE13]'
+  id: totrans-85
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'Create another new file called `test/matchers/toContainText.js`. This first
     test is trivial to make pass:'
+  id: totrans-86
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建另一个新文件，命名为 `test/matchers/toContainText.js`。这个第一个测试很容易通过：
 - en: '[PRE14]'
+  id: totrans-87
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: 'We need to triangulate to get to the real implementation. Write the next test,
     as shown here:'
+  id: totrans-88
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们需要三管齐下才能到达真正的实现。按照下面的示例编写下一个测试：
 - en: '[PRE15]'
+  id: totrans-89
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: 'Now, continue the implementation for our matcher, as shown here. At this stage,
     you have a functioning matcher – it just needs to be plugged into Jest:'
+  id: totrans-90
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，继续实现我们的匹配器，如下所示。在这个阶段，你有一个正在工作的匹配器——它只需要被连接到 Jest：
 - en: '[PRE16]'
+  id: totrans-91
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'Before we make use of this, it’s good practice to fill in an expected second
     property of your return value: `message`. So, go ahead and do that. The following
     test shows that we expect the message to contain the matcher text itself, as a
     useful reminder to the programmer:'
+  id: totrans-92
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在我们使用这个功能之前，先填充一下预期返回值的第二个属性：`message`。这是一个很好的实践。下面的测试显示，我们期望消息包含匹配文本本身，作为对程序员的实用提醒：
 - en: '[PRE17]'
+  id: totrans-93
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: Understanding the message function
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
+  zh: 理解消息函数
 - en: 'The requirements for the `message` function are complex. At a basic level,
     it is a helpful string that is displayed when the expectation fails. However,
     it’s not just a string – it’s a function that returns a string. This is a performance
@@ -427,127 +619,182 @@
     the `message` function ends up being invoked, then it’s safe to assume that it
     *was* negated. We’ll need another test for this negated case, which comes a little
     later.'
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: '`message` 函数的要求很复杂。在基本层面上，它是一个当期望失败时显示的有用字符串。然而，它不仅仅是一个字符串——它是一个返回字符串的函数。这是一个性能特性：`message`
+    的值不需要在失败之前被评估。但更复杂的是，消息应该根据期望是否被否定而改变。如果 `pass` 是 `false`，那么 `message` 函数应该假设匹配器是在“正面”意义上被调用的——换句话说，没有
+    `.not` 修饰符。但如果 `pass` 是 `true`，并且 `message` 函数最终被调用，那么可以安全地假设它已经被否定。我们需要为这个否定情况编写另一个测试，这个测试稍后会出现。'
 - en: 'This function uses a `stripTerminalColor` function that we should now define,
     above the test suite. Its purpose is to remove any ASCII escape codes that add
     colors:'
+  id: totrans-96
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 此函数使用一个 `stripTerminalColor` 函数，我们现在应该在测试套件上方定义它。它的目的是移除任何添加颜色的 ASCII 转义码：
 - en: '[PRE18]'
+  id: totrans-97
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: Testing ASCII escape codes
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 测试 ASCII 转义码
 - en: As you’ve seen already, when Jest prints out test failures, you’ll see a bunch
     of red and green colorful text. That’s achieved by printing ASCII escape codes
     within the text string.
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如您已经看到的，当 Jest 打印出测试失败时，您会看到一大堆红色和绿色的彩色文本。这是通过在文本字符串中打印 ASCII 转义码来实现的。
 - en: This is a tricky thing to test. Because of that, we’re making a pragmatic choice
     to not bother testing colors. Instead, the `stripTerminalColor` function strips
     out these escape codes from the string so that you can test the text output as
     if it was plain text.
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是一个难以测试的事情。因此，我们做出了实用主义的选择，不去麻烦测试颜色。相反，`stripTerminalColor` 函数从字符串中移除这些转义码，这样您就可以测试文本输出，就像它是纯文本一样。
 - en: 'Make that test pass by making use of Jest’s `matcherHint` and `printExpected`
     functions, as shown here. It isn’t particularly clear how the `matcherHint` function
     works but, hopefully, you can convince yourself that it does what we expect by
     running tests and seeing the last one pass! The `printExpected` functions add
     quotes to our value and colors it green:'
+  id: totrans-101
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过使用 Jest 的 `matcherHint` 和 `printExpected` 函数使该测试通过，如下所示。`matcherHint` 函数的工作方式并不特别清晰，但希望您可以通过运行测试并看到最后一个通过来说服自己它确实做了我们期望的事情！`printExpected`
+    函数给我们的值添加引号并将其颜色改为绿色。
 - en: '[PRE19]'
+  id: totrans-102
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: Learning about Jest’s matcher utilities
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 了解 Jest 的匹配器实用工具
 - en: At the time of writing, I’ve found the best way to learn what the Jest matcher
     utility functions do is to read their source. You could also avoid them entirely
     if you like – there’s no obligation to use them.
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 在撰写本文时，我发现了解 Jest 匹配器实用函数的最佳方式是阅读它们的源代码。如果您愿意，也可以完全避免使用它们 - 没有义务使用它们。
 - en: 'Now comes the complicated part. Add the following test, which specifies the
     scenario of a failed expectation when using the negated matcher. The message should
     reflect that the matcher was negated, as shown here:'
+  id: totrans-105
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在是复杂部分。添加以下测试，它指定了使用否定匹配器时的失败期望场景。消息应该反映匹配器已被否定，如下所示：
 - en: '[PRE20]'
+  id: totrans-106
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: 'To make that pass, pass a new option to `matcherHint`:'
+  id: totrans-107
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 要使其通过，向 `matcherHint` 传递一个新选项：
 - en: '[PRE21]'
+  id: totrans-108
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: 'There’s one final test to add. We can print out the actual `textContent` property
     value of the element, which will help debug test failures when they occur. Add
     the following test:'
+  id: totrans-109
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 需要添加最后一个测试。我们可以打印出元素的 `textContent` 属性的实际值，这有助于在发生测试失败时进行调试。添加以下测试：
 - en: '[PRE22]'
+  id: totrans-110
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'Make it pass by adjusting your matcher code, as shown here. Note the use of
     the new `printReceived` function, which is the same as `printExpected` except
     it colors the text red instead of green:'
+  id: totrans-111
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过调整您的匹配器代码使其通过，如下所示。注意新 `printReceived` 函数的使用，它与 `printExpected` 函数相同，只是它将文本颜色改为红色：
 - en: '[PRE23]'
+  id: totrans-112
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: 'It’s time to plug the test into Jest. To do that, create a new file called
     `test/domMatchers.js` with the following content:'
+  id: totrans-113
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 是时候将测试插入 Jest 中了。为此，创建一个名为 `test/domMatchers.js` 的新文件，内容如下：
 - en: '[PRE24]'
+  id: totrans-114
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: 'Open `package.json` and update your Jest configuration so that it loads this
     file before your tests run:'
+  id: totrans-115
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 打开 `package.json` 并更新您的 Jest 配置，以便在运行测试之前加载此文件：
 - en: '[PRE25]'
+  id: totrans-116
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: Your new matcher is ready to use. Open `test/AppointmentsDayView.test.js` and
     change all your tests that use the `expect(<element>.textContent).toEqual(<text>)`and
     `expect(<element>.textContent).toContain(<text>)` forms. They should be replaced
     with `expect(<element>).toContainText(<text>)`.
+  id: totrans-117
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 您的新匹配器已准备好使用。打开 `test/AppointmentsDayView.test.js` 并更改所有使用 `expect(<element>.textContent).toEqual(<text>)`
+    和 `expect(<element>.textContent).toContain(<text>)` 形式的测试。它们应该替换为 `expect(<element>).toContainText(<text>)`。
 - en: Run your tests; you should see them all still passing. Take a moment to play
     around and see how your matcher works. First, change one of the expected text
     values to something incorrect, and watch the matcher fail. See how the output
     messages look. Then, change the expected value back to the correct one, but negate
     the matcher by changing it to `.not.toContainText`. Finally, revert your code
     to the all-green state.
+  id: totrans-118
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 运行您的测试；您应该看到它们仍然全部通过。花点时间玩一下，看看您的匹配器是如何工作的。首先，将其中一个期望的文本值更改为错误的内容，并观察匹配器失败。看看输出消息的样子。然后，将期望值改回正确的内容，但通过将其更改为
+    `.not.toContainText` 来否定匹配器。最后，将您的代码恢复到全绿色状态。
 - en: Why do we test-drive matchers?
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: 为什么我们要进行匹配器的测试驱动？
 - en: You should write tests for any code that isn’t just simply calling other functions
     or setting variables. At the start of this chapter, you extracted functions such
     as `render` and `click`. These functions didn’t need tests because you were just
@@ -555,245 +802,360 @@
     does something much more complex – it must return an object that conforms to the
     pattern that Jest requires. It also makes use of Jest’s utility functions to build
     up a helpful message. That complexity warrants tests.
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 您应该为任何不仅仅是简单地调用其他函数或设置变量的代码编写测试。在本章的开始，您提取了 `render` 和 `click` 等函数。这些函数不需要测试，因为您只是将同一行代码从一个文件移植到另一个文件。但这个匹配器做了一些更复杂的事情——它必须返回一个符合
+    Jest 所需模式的对象。它还使用了 Jest 的实用函数来构建有用的消息。这种复杂性需要测试。
 - en: If you are building matchers for a library, you should be more careful with
     your matcher’s implementation. For example, we didn’t bother to check that the
     received value is an HTML element. That’s fine because this matcher exists in
     our code base only, and we control how it’s used. When you package matchers for
     use in other projects, you should also verify that the function inputs are values
     you’re expecting to see.
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果您正在为库构建匹配器，您应该对匹配器的实现更加小心。例如，我们没有麻烦去检查接收到的值是否是 HTML 元素。这没关系，因为这个匹配器只存在于我们的代码库中，我们控制了它的使用方式。当您将匹配器打包用于其他项目时，您也应该验证函数输入是否是您期望看到的值。
 - en: 'You’ve now successfully test-driven your first matcher. There will be more
     opportunities for you to practice this skill as this book progresses. For now,
     we’ll move on to the final part of our cleanup: creating some fluent DOM helpers.'
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: 您现在已经成功驱动测试了您的第一个匹配器。随着本书的进展，您将有更多机会练习这项技能。现在，我们将继续进行清理工作的最后一部分：创建一些流畅的 DOM
+    辅助函数。
 - en: Extracting DOM helpers
+  id: totrans-123
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 提取 DOM 辅助函数
 - en: In this section, we’ll pull out a bunch of little functions that will help our
     tests become more readable. This will be straightforward compared to the matcher
     we’ve just built.
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将提取一些小函数，这将帮助我们的测试变得更加易读。与刚刚构建的匹配器相比，这将更加直接。
 - en: 'The `reactTestExtensions.js` module already contains three functions that you’ve
     used: `initializeReactContainer`, `render`, and `click`.'
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: '`reactTestExtensions.js` 模块已经包含了您使用过的三个函数：`initializeReactContainer`、`render`
+    和 `click`。'
 - en: 'Now, we’ll add four more: `element`, `elements`, `typesOf`, and `textOf`. These
     functions are designed to help your tests read much more like plain English. Let’s
     take a look at an example. Here are the expectations for one of our tests:'
+  id: totrans-126
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们将添加四个新的：`element`、`elements`、`typesOf` 和 `textOf`。这些函数旨在帮助您的测试读起来更像普通英语。让我们看一个例子。以下是我们的测试期望之一：
 - en: '[PRE26]'
+  id: totrans-127
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: 'We can introduce a function, `elements`, that is a shorter version of `document.querySelectorAll`.
     The shorter name means we can get rid of the extra variable:'
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以引入一个函数 `elements`，它是 `document.querySelectorAll` 的简短版本。较短的名称意味着我们可以去掉额外的变量：
 - en: '[PRE27]'
+  id: totrans-129
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: 'This code is now calling `querySelectorAll` twice – so it’s doing more work
     than before – but it’s also shorter and more readable. And we can go even further.
     We can boil this down to one `expect` call by matching on the `elements` array
     itself. Since we need `textContent`, we will simply build a mapping function called
     `textOf` that takes that input array and returns the `textContent` property of
     each element within it:'
+  id: totrans-130
   prefs: []
   type: TYPE_NORMAL
+  zh: 这段代码现在调用 `querySelectorAll` 两次——所以它比以前做了更多的工作——但它也更短、更易读。我们可以更进一步。我们可以通过匹配 `elements`
+    数组本身来将这缩减为一个 `expect` 调用。由于我们需要 `textContent`，我们将简单地构建一个名为 `textOf` 的映射函数，它接受输入数组并返回其中每个元素的
+    `textContent` 属性：
 - en: '[PRE28]'
+  id: totrans-131
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: The `toEqual` matcher, when applied to arrays, will check that each array has
     the same number of elements and that each element appears in the same place.
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 当 `toEqual` 匹配器应用于数组时，将检查每个数组具有相同数量的元素，并且每个元素出现在相同的位置。
 - en: We’ve reduced our original three lines of code to just one!
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经将原始的三行代码缩减为仅仅一行！
 - en: 'Let’s go ahead and build these new helpers:'
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们继续构建这些新的辅助函数：
 - en: 'Open `test/reactTestExtensions.js` and add the following definitions at the
     bottom of the file. You’ll notice that the elements are using `Array.from`. This
     is so that the resulting array can be mapped over by both `typesOf` and `textOf`:'
+  id: totrans-135
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '打开 `test/reactTestExtensions.js` 并在文件底部添加以下定义。您会注意到元素使用了 `Array.from`。这样做是为了使结果数组可以被
+    `typesOf` 和 `textOf` 映射。 '
 - en: '[PRE29]'
+  id: totrans-136
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: 'Open `test/AppointmentsDayView.test.js` and change the extensions import to
     include all these new functions:'
+  id: totrans-137
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 打开 `test/AppointmentsDayView.test.js` 并将扩展导入更改为包括所有这些新函数：
 - en: '[PRE30]'
+  id: totrans-138
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: Now, do a search and replace for `document.querySelectorAll`, replacing each
     occurrence with elements. Run `npm test` and verify that your tests still pass.
+  id: totrans-139
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，进行搜索并替换`document.querySelectorAll`，将每个出现的位置替换为`elements`。运行`npm test`并验证测试是否仍然通过。
 - en: Search for and replace `document.querySelector`, replacing each occurrence with
     `element`. Again, run your tests and check that everything is fine.
+  id: totrans-140
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 搜索并替换`document.querySelector`，将每个出现的位置替换为`element`。再次运行你的测试并检查一切是否正常。
 - en: 'You will see that the test renders at the time of the appointment. Replace
     the existing expectations with this one:'
+  id: totrans-141
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 你将看到测试在预约时间渲染。用这个期望替换现有的期望：
 - en: '[PRE31]'
+  id: totrans-142
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: 'Find the `"has a button element in each li"` test and replace the existing
     expectations with the following single expectation. Observe that the expectation
     on the length of the array is no longer necessary if your expectation tests the
     entire array:'
+  id: totrans-143
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 找到`"has a button element in each li"`测试，并用以下单个期望替换现有的期望。注意，如果你的期望测试整个数组，那么对数组长度的期望就不再必要了：
 - en: '[PRE32]'
+  id: totrans-144
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: 'The final three tests pull out the second button on the screen using `elements("button")[1]`.
     Push this definition up, just below the `beforeEach` block, and give it a more
     descriptive name:'
+  id: totrans-145
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后三个测试使用`elements("button")[1]`提取屏幕上的第二个按钮。将这个定义向上推，紧接在`beforeEach`块下方，并给它一个更描述性的名称：
 - en: '[PRE33]'
+  id: totrans-146
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: 'Now, you can use this in the three tests. Go ahead and update them now. For
     example, the middle test can be updated as follows:'
+  id: totrans-147
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，你可以在三个测试中使用这个功能。现在就更新它们。例如，中间的测试可以更新如下：
 - en: '[PRE34]'
+  id: totrans-148
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: 'As a final touch, inline the `listChild` and `listElement` variables that appear
     in some of the tests – in other words, remove the use of variables and call the
     function directly within the expectation. As an example, the `"renders an ol element
     to display appointments"` test can have its expectation rewritten, as follows:'
+  id: totrans-149
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 作为最后的润色，将出现在某些测试中的`listChild`和`listElement`变量内联化——换句话说，移除变量的使用，并在期望中直接调用函数。例如，`"renders
+    an ol element to display appointments"`测试可以按照以下方式重写期望：
 - en: '[PRE35]'
+  id: totrans-150
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: Run `npm test` one final time and verify that everything is still green.
+  id: totrans-151
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 再次运行`npm test`并验证一切是否仍然正常。
 - en: Not all helpers need to be extracted
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 并非所有辅助函数都需要提取
 - en: You’ll notice that the helpers you have extracted are all very generic – they
     make no mention of the specific components under test. It’s good to keep helpers
     as generic as possible. On the other hand, sometimes it helps to have very localized
     helper functions. In your test suite, you already have one called `appointmentsTable`
     and another called `secondButton`. These should remain in the test suite because
     they are local to the test suite.
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 你会注意到你提取的辅助函数都非常通用——它们没有提及正在测试的具体组件。尽可能保持辅助函数的通用性是好的。另一方面，有时拥有非常本地化的辅助函数很有帮助。在你的测试套件中，你已经有一个名为`appointmentsTable`的和一个名为`secondButton`的。这些应该保留在测试套件中，因为它们是本地化的。
 - en: In this section, you’ve seen our final technique for simplifying your test suites,
     which is to pull out fluent helper functions that help keep your expectations
     short and help them read like plain English.
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，你看到了我们简化测试套件的最终技术，即提取流畅的辅助函数，这些函数有助于保持期望简短，并使它们读起来像普通的英语。
 - en: You've also seen the trick of running expectations on an array of items rather
     than having an expectation for individual items. This isn’t always the appropriate
     course of action. You’ll see an example of this in [*Chapter 5*](B18423_05.xhtml#_idTextAnchor079),
     *Adding Complex Form Interactions*.
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
+  zh: 你还看到了在数组上运行期望而不是对单个项目有期望的技巧。这并不总是合适的行动方案。你将在[*第五章*](B18423_05.xhtml#_idTextAnchor079)中看到这个例子，*添加复杂表单交互*。
 - en: Summary
+  id: totrans-156
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 摘要
 - en: This chapter focused on improving our test suites. Readability is crucially
     important. Your tests act as specifications for your software. Each component
     test must clearly state what the expectation of the component is. And when a test
     fails, you want to be able to understand why it’s failed as quickly as possible.
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章重点介绍了改进我们的测试套件。可读性至关重要。你的测试充当了软件的规范。每个组件测试都必须清楚地说明组件的期望。当测试失败时，你希望尽可能快地了解为什么它失败了。
 - en: You’ve seen that these priorities are often in tension with our usual idea of
     what good code is. For example, in our tests, we are willing to sacrifice performance
     if it makes the tests more readable.
+  id: totrans-158
   prefs: []
   type: TYPE_NORMAL
+  zh: 你已经看到，这些优先级通常与我们对良好代码的通常想法相冲突。例如，在我们的测试中，我们愿意牺牲性能，如果这使测试更易读。
 - en: 'If you’ve worked with React tests in the past, think about how long an average
     test was.In this chapter, you''ve seen a couple of mechanisms for keeping your
     test short: building domain-specific matchers and extracting little functions
     for querying the DOM.'
+  id: totrans-159
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果您以前使用过 React 测试，想想平均测试的长度。在本章中，您已经看到了几种保持测试简短的方法：构建特定领域的匹配器和提取用于查询 DOM 的小函数。
 - en: You’ve also learned how to pull out React initialization code to avoid clutter
     in our test suites.
+  id: totrans-160
   prefs: []
   type: TYPE_NORMAL
+  zh: 您还学会了如何提取 React 初始化代码以避免测试套件中的杂乱。
 - en: 'In the next chapter, we’ll move back to building new functionality into our
     app: data entry with forms.'
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一章，我们将回到为我们的应用添加新功能：使用表单进行数据录入。
 - en: Exercises
+  id: totrans-162
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 练习
 - en: 'Using the techniques you’ve just learned, create a new matcher named `toHaveClass`
     that replaces the following expectation:'
+  id: totrans-163
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用您刚刚学到的技术，创建一个名为 `toHaveClass` 的新匹配器，以替换以下期望：
 - en: '[PRE36]'
+  id: totrans-164
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: 'With your new matcher in place, it should read as follows:'
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: 在您的新匹配器设置完成后，它应该如下所示：
 - en: '[PRE37]'
+  id: totrans-166
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: 'There is also the negated form of this matcher:'
+  id: totrans-167
   prefs: []
   type: TYPE_NORMAL
+  zh: 此匹配器也有否定形式：
 - en: '[PRE38]'
+  id: totrans-168
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: Your matcher should work for this form and display an appropriate failure message.
+  id: totrans-169
   prefs: []
   type: TYPE_NORMAL
+  zh: 您的匹配器应该适用于此表单并显示适当的失败信息。
 - en: Further reading
+  id: totrans-170
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 进一步阅读
 - en: 'To learn more about the topics that were covered in this chapter, take a look
     at the following resources:'
+  id: totrans-171
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了了解更多关于本章所涉及的主题，请查看以下资源：
 - en: 'The following GitHub repository contains useful matchers for testing React
     components: [https://github.com/jest-community/jest-extended](https://github.com/jest-community/jest-extended)'
+  id: totrans-172
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 以下 GitHub 仓库包含用于测试 React 组件的有用匹配器：[https://github.com/jest-community/jest-extended](https://github.com/jest-community/jest-extended)
 - en: 'The following link provides the source of Jest’s matcher utilities, which I
     find useful for figuring out how to write simple matchers: [https://github.com/facebook/jest/tree/main/packages/jest-matcher-utils](https://github.com/facebook/jest/tree/main/packages/jest-matcher-utils)'
+  id: totrans-173
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 以下链接提供了 Jest 匹配器工具的来源，我发现这对于了解如何编写简单的匹配器很有用：[https://github.com/facebook/jest/tree/main/packages/jest-matcher-utils](https://github.com/facebook/jest/tree/main/packages/jest-matcher-utils)

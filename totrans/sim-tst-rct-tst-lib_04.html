@@ -1,0 +1,669 @@
+<html><head></head><body><div id="sbo-rt-content"><div id="_idContainer069">
+			<h1 id="_idParaDest-63"><em class="italic"><a id="_idTextAnchor062"/>Chapter 4</em>: Integration Testing and Third-Party Libraries in Your Application</h1>
+			<p>In previous chapters, we learned how to test components in isolation separate from dependencies. We also learned how to test components that manage state. In many applications, teams can increase velocity by incorporating third-party tools to manage state and build components. By the end of this chapter, you will have learned about the benefits of using the integration approach to testing. You will understand how to configure tests to make assertions against components using advanced state management tools. You will learn how to test for errors rendered in applications. You will test components that interact with API servers that structure data differently from traditional <strong class="bold">Representational State Transfer</strong> (<strong class="bold">REST</strong>) APIs by allowing you to describe and receive only the specific data needed by your frontend application. Finally, you will learn how to test components that use a popular React component library.</p>
+			<p>In this chapter, we're going to cover the following main topics: </p>
+			<ul>
+				<li>Gaining value with integration testing</li>
+				<li>Testing components that use the Context API</li>
+				<li>Testing components that use Redux</li>
+				<li>Testing components that use GraphQL</li>
+				<li>Testing components built with Material-UI</li>
+			</ul>
+			<p>The skills gained in this chapter will deepen our understanding of testing React components in various scenarios.</p>
+			<h1 id="_idParaDest-64"><a id="_idTextAnchor063"/>Technical requirements</h1>
+			<p>For the examples in this chapter, you will need to have Node.js installed on your machine. We will be using the <strong class="source-inline">create-react-app</strong> CLI tool for all code examples. Please familiarize yourself with the tool before starting the chapter if needed. Also, you will need to have a basic understanding of Redux and the React Context API. Code snippets will be provided throughout the chapter to help you understand the code under test, but the objective is understanding how to test the code. You can find code examples for this chapter here: <a href="https://github.com/PacktPublishing/Simplify-Testing-with-React-Testing-Library/tree/master/Chapter04">https://github.com/PacktPublishing/Simplify-Testing-with-React-Testing-Library/tree/master/Chapter04</a>.</p>
+			<h1 id="_idParaDest-65"><a id="_idTextAnchor064"/>Testing integrated components</h1>
+			<p>In the previous chapter, we learned how to test components in isolation from dependencies, including <a id="_idIndexMarker146"/>other components. Isolated testing has its advantages but also has drawbacks because real dependencies are replaced with test doubles. In this section, we will learn how to test components that integrate with other components. In many scenarios, integration testing can add more value than isolated testing because we can test the code in ways that are closer to its production use. We can also add test coverage faster for components because one test can cover multiple components at once. We will use integration testing in a few examples in this section. </p>
+			<h2 id="_idParaDest-66"><a id="_idTextAnchor065"/>Using integration testing with the Vote component</h2>
+			<p>In the previous chapter, we tested the <strong class="source-inline">Vote</strong> component, which allowed users to click a button to <a id="_idIndexMarker147"/>increase or decrease the total likes. In this section, we <a id="_idIndexMarker148"/>will break up the implementation into separate components and write integration tests. The component included two <strong class="source-inline">button</strong> elements:</p>
+			<p class="source-code">&lt;button</p>
+			<p class="source-code">        onClick={handleLikeVote}</p>
+			<p class="source-code">        disabled={hasVoted}</p>
+			<p class="source-code">        style={clickedLike ? { background: 'green' } : null}</p>
+			<p class="source-code">      &gt;</p>
+			<p class="source-code">        &lt;img src={thumbsUp} alt="thumbs up" /&gt;</p>
+			<p class="source-code">      &lt;/button&gt;</p>
+			<p class="source-code">      &lt;div&gt;{totalLikes}&lt;/div&gt;</p>
+			<p class="source-code">      &lt;button</p>
+			<p class="source-code">        onClick={handleDislikeVote}</p>
+			<p class="source-code">        disabled={hasVoted}</p>
+			<p class="source-code">        style={clickedDislike ? { background: 'red' } : null}</p>
+			<p class="source-code">      &gt;</p>
+			<p class="source-code">        &lt;img src={thumbsDown} alt="thumbs down" /&gt;</p>
+			<p class="source-code">      &lt;/button&gt;</p>
+			<p>In the previous code, the properties for the <a id="_idIndexMarker149"/>two button elements are <a id="_idIndexMarker150"/>very similar and could be extracted into their own component files to be reusable in other parts of the application:</p>
+			<p class="source-code">const VoteBtn = props =&gt; {</p>
+			<p class="source-code">  return (</p>
+			<p class="source-code">    &lt;button onClick={props.handleVote} disabled={props.       hasVoted}&gt;</p>
+			<p class="source-code">      &lt;img src={props.imgSrc} alt={props.altText} /&gt;</p>
+			<p class="source-code">    &lt;/button&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>In the previous code, we have a <strong class="source-inline">VoteBtn</strong> component created in its own file that can be reused anywhere throughout the application. <strong class="source-inline">VoteBtn</strong> can be used inside the <strong class="source-inline">Vote</strong> component to replace the hardcoded <strong class="source-inline">button</strong> element:</p>
+			<p class="source-code">return (</p>
+			<p class="source-code">    &lt;div className="h1"&gt;</p>
+			<p class="source-code">      &lt;h5&gt;Note: You are not allowed to change your vote once          selected!&lt;/h5&gt;</p>
+			<p class="source-code">      &lt;VoteBtn</p>
+			<p class="source-code">        handleVote={handleVoteLike}</p>
+			<p class="source-code">        hasVoted={hasVoted}</p>
+			<p class="source-code">        imgSrc={thumbsUp}</p>
+			<p class="source-code">        altText="thumbs up"</p>
+			<p class="source-code">      /&gt;</p>
+			<p class="source-code">      &lt;div&gt;{totalLikes}&lt;/div&gt;</p>
+			<p class="source-code">      &lt;VoteBtn</p>
+			<p class="source-code">        handleVote={handleVoteDislike}</p>
+			<p class="source-code">        hasVoted={hasVoted}</p>
+			<p class="source-code">        imgSrc={thumbsDown}</p>
+			<p class="source-code">        altText="thumbs down"</p>
+			<p class="source-code">      /&gt;</p>
+			<p class="source-code">    &lt;/div&gt;</p>
+			<p class="source-code">  )</p>
+			<p>In the previous code, two instances of <strong class="source-inline">VoteBtn</strong> are <a id="_idIndexMarker151"/>integrated into the <strong class="source-inline">Vote</strong> component. We could test <strong class="source-inline">VoteBtn</strong> in isolation from the <strong class="source-inline">Vote</strong> component, but we <a id="_idIndexMarker152"/>can gain more value by testing the integration of the two together. For the first test, we can verify that an <strong class="source-inline">"up"</strong> vote increases the sum of total likes by one:</p>
+			<p class="source-code">  test('given "up" vote, total likes increases by one', () =&gt; {</p>
+			<p class="source-code">    render(&lt;Vote totalGlobalLikes={10} /&gt;)</p>
+			<p class="source-code">    user.click(screen.getByRole('button', { name: /thumbs up/i    }))</p>
+			<p class="source-code">    expect(screen.getByText(/11/i)).toBeInTheDocument()</p>
+			<p class="source-code">  })</p>
+			<p>In the previous code, first, we rendered the <strong class="source-inline">Vote</strong> component into the DOM with a value of <strong class="source-inline">10</strong> passed into the <strong class="source-inline">totalGlobalLikes</strong> property. Next, we click the <strong class="bold">thumbs up</strong> button. Finally, we assert that the <a id="_idIndexMarker153"/>number <strong class="source-inline">11</strong> in is the <a id="_idIndexMarker154"/>DOM. For the next test, we will verify that a <strong class="source-inline">"down"</strong> vote decreases the sum of total likes by one:</p>
+			<p class="source-code">  test('given "down" vote, total likes decreases by one', () =&gt; {</p>
+			<p class="source-code">    render(&lt;Vote totalGlobalLikes={10} /&gt;)</p>
+			<p class="source-code">    user.click(screen.getByRole('button', { name: /thumbs        down/i }))</p>
+			<p class="source-code">    expect(screen.getByText(/9/i)).toBeInTheDocument()</p>
+			<p class="source-code">  })</p>
+			<p>In the previous example, the code is similar to that in the first example. The only difference is instead of clicking the <strong class="bold">thumbs up</strong> button, we click the <strong class="bold">thumbs down</strong> button. Then, after performing the button click, we assert that the number <strong class="source-inline">9</strong> is in the DOM. The last test we will write will verify that a user can only vote once:</p>
+			<p class="source-code">  test('given vote, returns disabled vote buttons', () =&gt; {</p>
+			<p class="source-code">    render(&lt;Vote totalGlobalLikes={10} /&gt;)</p>
+			<p class="source-code">    const thumbsUpBtn = screen.getByRole('button', { name: /       thumbs up/i })</p>
+			<p class="source-code">    const thumbsDownBtn = screen.getByRole('button', { name: /       thumbs down/i })</p>
+			<p class="source-code">    user.click(thumbsUpBtn)</p>
+			<p class="source-code">    user.click(thumbsUpBtn)</p>
+			<p class="source-code">    user.click(thumbsDownBtn)</p>
+			<p class="source-code">    user.click(thumbsDownBtn)</p>
+			<p class="source-code">    expect(screen.getByText(/11/i)).toBeInTheDocument()</p>
+			<p class="source-code">  })</p>
+			<p>In the previous code, first, we rendered the <strong class="source-inline">Vote</strong> component into the DOM with a value of <strong class="source-inline">10</strong> passed into the <strong class="source-inline">totalGlobalLikes</strong> property. Next, we grab the <strong class="bold">thumbs up</strong> and <strong class="bold">thumbs down</strong> buttons and place them in variables. The buttons are placed in variables to <a id="_idIndexMarker155"/>make the test code cleaner since they will be used multiple times in the test. Then, we click both buttons numerous times. Finally, we <a id="_idIndexMarker156"/>assert that the number <strong class="source-inline">11</strong> is in the DOM. The number <strong class="source-inline">11</strong> is expected because the <strong class="bold">thumbs up</strong> button was clicked first, which disables the buttons. By using the integration testing approach, we were able to verify the outcome of the total likes displayed on the screen and the state of buttons after simulating click events all in the same test.</p>
+			<p>When we run all the <strong class="source-inline">Vote</strong> component tests, we get the following output:</p>
+			<div>
+				<div id="_idContainer050" class="IMG---Figure">
+					<img src="Images/Figure_4.1_B16887.jpg" alt="Figure 4.1 – Vote component test results&#13;&#10;" width="1075" height="388"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.1 – Vote component test results</p>
+			<p>The preceding screenshot shows that tests <strong class="bold">given "up" vote, total likes increases by one</strong>, <strong class="bold">given "down" vote, total likes decreases by one</strong>, and <strong class="bold">given vote, returns disabled vote buttons</strong> all passed in the <strong class="source-inline">Vote.test.js</strong> file.</p>
+			<p>Now you <a id="_idIndexMarker157"/>understand the advantages of testing components integrated with dependencies. However, there are scenarios where using the <a id="_idIndexMarker158"/>integrated approach may not be the best strategy. In the next section, we will look at a scenario where testing a component in isolation would provide more value than integration testing.</p>
+			<h2 id="_idParaDest-67"><a id="_idTextAnchor066"/>Planning test scenarios better suited for isolated testing</h2>
+			<p>In the previous section, we learned the advantages of testing components integrated with dependencies. However, there are some scenarios where <a id="_idIndexMarker159"/>using the isolated testing approach is a better fit. In the <em class="italic">Implementing test-driven development</em> section of <a href="B16887_03_Final_PG_ePub.xhtml#_idTextAnchor046"><em class="italic">Chapter 3</em></a>, <em class="italic">Testing Complex Components with React Testing Library</em>, we built a registration form. As a reference, the output of the component was as follows:</p>
+			<div>
+				<div id="_idContainer051" class="IMG---Figure">
+					<img src="Images/Figure_4.2_B16887.jpg" alt="Figure 4.2 – Registration form" width="607" height="448"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.2 – Registration form</p>
+			<p>In the preceding screenshot, we see the registration <a id="_idIndexMarker160"/>component that allows a user to submit an email address and password. The test used the isolated approach and verified the happy path of invoking a <strong class="source-inline">handleRegister</strong> method when the form is submitted. Let's say a new feature is added where a success message is sent to the frontend from the server and replaces the form on the screen when registration is successful:</p>
+			<div>
+				<div id="_idContainer052" class="IMG---Figure">
+					<img src="Images/Figure_4.3_B16887.jpg" alt="Figure 4.3 – Registration success" width="505" height="143"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.3 – Registration success</p>
+			<p>In the preceding screenshot, the message <strong class="bold">Registration Successful!</strong> is displayed after successful form submission. Verifying the message is on the screen after submitting the form could be tested using the integration approach but might be a slow-running test. We could create a faster running isolated test by creating a mock server response. What about scenarios where form validation errors are displayed and prevent users from submitting the form? For example, form validation errors could be displayed when a user enters an invalid email or attempts to submit the form with blank fields. The password field could also present several test scenarios, such as displaying errors when the minimal password length is not met, or special characters are not included in the password. </p>
+			<p>The previous scenarios are all <a id="_idIndexMarker161"/>good use cases for the isolated test approach. The errors displayed on the screen do not depend on any code outside the component. We can test various combinations in the form and edge cases that will run extremely fast and quickly add a lot of value. In general, consider creating an isolated test for scenarios where a test setup using the integrated approach would prove cumbersome or when the integration approach yields slow-running tests. Also, keep in mind how many dependencies have to be mocked when creating an isolated test. Mocking multiple dependencies provides less value than testing with dependencies included. </p>
+			<p>Now you know how to test components integrated with dependencies. You understand the benefits of integration testing compared to testing in isolation. You also know that in some scenarios, testing a component using the isolated approach can yield better outcomes for your testing plan than solely using the integrated approach. The decision to test a component in isolation or integrated with dependencies will depend on your test plans. In the next section, we will visit more examples using the isolated and integrated testing approach and learn how to test components that use the Context API for state management.</p>
+			<h1 id="_idParaDest-68"><a id="_idTextAnchor067"/>Testing components that use the Context API</h1>
+			<p>In this section, we will <a id="_idIndexMarker162"/>learn how to test components that use the React library's <strong class="bold">Context API</strong> to manage state. The Context API helps solve issues related to passing props and methods multiple levels down the component tree, similar to Redux. The Context API allows you to directly send data to consumers without traveling through numerous parent-level components to get to the target consumer. An example application where the state could be more easily managed with the Context API is a website that allows users to change the theme from light to dark because multiple components would need to be aware when the theme changes. Another example would be a complex social networking site such as Twitter. Components that use Context must be used within the <strong class="source-inline">Context Provider</strong> component:</p>
+			<p class="source-code">import { LikesProvider } from './LikesContext'</p>
+			<p class="source-code">import Vote from './Vote'</p>
+			<p class="source-code">const App = () =&gt; (</p>
+			<p class="source-code">  <strong class="bold">&lt;LikesProvider initialLikes={10}&gt;</strong></p>
+			<p class="source-code">    &lt;Vote /&gt;</p>
+			<p class="source-code">  <strong class="bold">&lt;/LikesProvider&gt;</strong></p>
+			<p class="source-code">)</p>
+			<p>In the preceding code, the <strong class="source-inline">LikesProvider</strong> component, responsible for providing the Context state to Context <a id="_idIndexMarker163"/>consumers, is rendered with <strong class="source-inline">Vote</strong> as a child component. <strong class="source-inline">LikesProvider</strong> provides all the consuming components with an <strong class="source-inline">initialLikes</strong> count of <strong class="source-inline">10</strong>. Since <strong class="source-inline">Vote</strong> is rendered within <strong class="source-inline">LikesProvider</strong>, it can view and update state provided by <strong class="source-inline">LikesProvider</strong>. To test the <strong class="source-inline">Context</strong> <strong class="source-inline">Provider</strong> component's consumers, we need a way to access <strong class="source-inline">Context Provider</strong> within our tests. We will use a retail application to demonstrate how to implement the requirements.</p>
+			<h2 id="_idParaDest-69"><a id="_idTextAnchor068"/>Testing a context consuming Retail component</h2>
+			<p>In this section, we will test a <strong class="source-inline">Retail</strong> component <a id="_idIndexMarker164"/>that consumes state provided by a <strong class="source-inline">RetailContext</strong> component. The UI of the <strong class="source-inline">Retail</strong> component looks as follows:</p>
+			<div>
+				<div id="_idContainer053" class="IMG---Figure">
+					<img src="Images/Figure_4.4_B16887.jpg" alt="Figure 4.4 – Retail component UI&#13;&#10;" width="984" height="436"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.4 – Retail component UI</p>
+			<p>The preceding screenshot shows the <a id="_idIndexMarker165"/>initial screen output of the <strong class="source-inline">Retail</strong> component. A list of clothing products and a shopping cart is shown. There is also a section with the text <strong class="bold">Retail Store</strong> that will display product details once clicked:</p>
+			<div>
+				<div id="_idContainer054" class="IMG---Figure">
+					<img src="Images/Figure_4.5_B16887.jpg" alt="Figure 4.5 – Product details&#13;&#10;" width="1038" height="590"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.5 – Product details</p>
+			<p>The preceding <a id="_idIndexMarker166"/>screenshot shows details for <strong class="bold">Mens Casual Premium Slim Fit T-Shirts</strong> after being clicked by the user. A user can click the <strong class="bold">ADD TO FAVORITES</strong> button to <em class="italic">favorite</em> the item:</p>
+			<div>
+				<div id="_idContainer055" class="IMG---Figure">
+					<img src="Images/Figure_4.6_B16887.jpg" alt="Figure 4.6 –Favorited product details" width="1054" height="442"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.6 –Favorited product details</p>
+			<p>The preceding screenshot <a id="_idIndexMarker167"/>shows that the text <strong class="bold">ADD TO FAVORITES</strong> changes to <strong class="bold">ADDED TO FAVORITES</strong> once the button is clicked. Finally, a user can add a quantity and click the <strong class="bold">ADD TO CART</strong> button to add the product to their cart:</p>
+			<div>
+				<div id="_idContainer056" class="IMG---Figure">
+					<img src="Images/Figure_4.7_B16887.jpg" alt="Figure 4.7 – Product added to cart" width="1076" height="324"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.7 – Product added to cart</p>
+			<p>The preceding screenshot shows a quantity of <strong class="bold">3</strong> of the item <strong class="bold">Mens Casual Premium Slim Fit T-Shirts</strong> added to the cart. The cart displays <strong class="bold">1 Items</strong>, representing the total items in the cart. The cart also shows the <strong class="bold">Subtotal</strong> for all items added to the cart. </p>
+			<p>In the code implementation, the <strong class="source-inline">Retail</strong> component is rendered as a child component of <strong class="source-inline">RetailProvider</strong> inside <strong class="source-inline">App</strong>:</p>
+			<p class="source-code"> import retailProducts from './api/retailProducts'</p>
+			<p class="source-code">import Retail from './Retail'</p>
+			<p class="source-code">import { RetailProvider } from './RetailContext'</p>
+			<p class="source-code">const App = () =&gt; (</p>
+			<p class="source-code">  &lt;RetailProvider products={retailProducts}&gt;</p>
+			<p class="source-code">    &lt;Retail /&gt;</p>
+			<p class="source-code">  &lt;/RetailProvider&gt;</p>
+			<p class="source-code">)</p>
+			<p>In the preceding code, <strong class="source-inline">RetailProvider</strong> receives an array of products via <strong class="source-inline">retailProducts</strong>. The <strong class="source-inline">retailProducts</strong> data is a <a id="_idIndexMarker168"/>local subset of data from the <strong class="source-inline">Fake Store API</strong> (<a href="https://fakestoreapi.com">https://fakestoreapi.com</a>) API, a free open source REST API that provides sample products. The <strong class="source-inline">Retail</strong> component includes three <a id="_idIndexMarker169"/>separate child components – <strong class="source-inline">ProductList</strong>, <strong class="source-inline">ProductDetail</strong>, and <strong class="source-inline">Cart</strong> – that integrate together to consume and manage <strong class="source-inline">RetailContext</strong> state:</p>
+			<p class="source-code">const Retail = () =&gt; {</p>
+			<p class="source-code">  return (</p>
+			<p class="source-code">    &lt;div className="container-fluid"&gt;</p>
+			<p class="source-code">      &lt;div className="row mt-3"&gt;</p>
+			<p class="source-code">        <strong class="bold">&lt;ProductDetail /&gt;</strong></p>
+			<p class="source-code"><strong class="bold">        &lt;Cart /&gt;</strong></p>
+			<p class="source-code">      &lt;/div&gt;</p>
+			<p class="source-code">      <strong class="bold">&lt;ProductList /&gt;</strong></p>
+			<p class="source-code">    &lt;/div&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>The <strong class="source-inline">Retail</strong> component renders the <strong class="source-inline">ProductList</strong>, <strong class="source-inline">ProductDetail</strong>, and <strong class="source-inline">Cart</strong> components as child <a id="_idIndexMarker170"/>components inside <strong class="source-inline">div</strong> elements in the preceding code.</p>
+			<p>We will use a combination of isolated unit tests and integration tests to verify that the <strong class="source-inline">Retail</strong> code works as expected.</p>
+			<h2 id="_idParaDest-70"><a id="_idTextAnchor069"/>Testing the Cart component in isolation</h2>
+			<p>In this section, we will <a id="_idIndexMarker171"/>verify the initial state of the <strong class="source-inline">Cart</strong> component. We will use a unit test approach because the initial state depends on <strong class="source-inline">RetailContext</strong> and not other <strong class="source-inline">Retail</strong> components:</p>
+			<p class="source-code">test('Cart, given initial render, returns empty cart', () =&gt; {</p>
+			<p class="source-code">  render(</p>
+			<p class="source-code">    &lt;RetailProvider products={testProducts}&gt;</p>
+			<p class="source-code">      &lt;Cart /&gt;</p>
+			<p class="source-code">    &lt;/RetailProvider&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">  expect(screen.getByText(/0 items/i)).toBeInTheDocument()</p>
+			<p class="source-code">  expect(screen.getByText(/\$0\.00/i)).toBeInTheDocument()</p>
+			<p class="source-code">})</p>
+			<p>In the previous code, we first render the <strong class="source-inline">Cart</strong> component as a child of <strong class="source-inline">RetailProvider</strong>. Next, we make two assertions. First, we assert the text <strong class="source-inline">0 items</strong> is in the DOM. Then, we assert the text <strong class="source-inline">$0.00</strong> is in the DOM. When we run the test for the <strong class="source-inline">Cart</strong> component, we get the following output:</p>
+			<div>
+				<div id="_idContainer057" class="IMG---Figure">
+					<img src="Images/Figure_4.8_B16887.jpg" alt="Figure 4.8 – Cart component test result&#13;&#10;" width="1069" height="296"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.8 – Cart component test result</p>
+			<p>The preceding <a id="_idIndexMarker172"/>screenshot shows the test <strong class="bold">Cart, given initial render, returns empty cart</strong> passes. Now we have a test verifying the initial state of the <strong class="source-inline">Cart</strong> component.</p>
+			<p>In the next section, we will test the <strong class="source-inline">Product</strong> component.</p>
+			<h2 id="_idParaDest-71"><a id="_idTextAnchor070"/>Testing the Product component in isolation</h2>
+			<p>In this section, we will <a id="_idIndexMarker173"/>verify the <strong class="source-inline">Product</strong> component can display passed-in product data to the DOM. We will use <strong class="source-inline">faker</strong>, a popular library, to generate test data. We can write the following test:</p>
+			<p class="source-code">test('Product, given product properties, renders to screen', () =&gt; {</p>
+			<p class="source-code">  const product = {</p>
+			<p class="source-code">    title: faker.commerce.productName(),</p>
+			<p class="source-code">    price: faker.commerce.price(),</p>
+			<p class="source-code">    image: faker.image.fashion()</p>
+			<p class="source-code">  }</p>
+			<p>In the previous code snippet, we use <strong class="source-inline">faker</strong> to generate random <strong class="source-inline">productName</strong>, <strong class="source-inline">price</strong>, and <strong class="source-inline">fashion image</strong> data for our test. Using <strong class="source-inline">faker</strong> to generate our test data automatically, we can eliminate any confusion for new team members looking at our code to learn about the component under test. A new team member may see hardcoded data and think the component must have that specific data to work properly. Random data created by <strong class="source-inline">faker</strong> can make it clearer that the component does not need to be specifically hardcoded to <a id="_idIndexMarker174"/>function as expected. Next, we write the remaining code for the test:</p>
+			<p class="source-code">   render(</p>
+			<p class="source-code">    &lt;RetailProvider products={testProducts}&gt;</p>
+			<p class="source-code">      &lt;Product</p>
+			<p class="source-code">        title={product.title}</p>
+			<p class="source-code">        price={product.price}</p>
+			<p class="source-code">        image={product.image}</p>
+			<p class="source-code">      /&gt;</p>
+			<p class="source-code">    &lt;/RetailProvider&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">  expect(screen.getByText(product.title)).toBeInTheDocument()</p>
+			<p class="source-code">  expect(screen.getByText(`$${product.price}`)).     toBeInTheDocument()</p>
+			<p class="source-code">})</p>
+			<p>In the previous code snippet, we wrap the <strong class="source-inline">Product</strong> component inside <strong class="source-inline">RetailProvider</strong>, pass in test data as props, and render the DOM component. Finally, assert that the product <strong class="source-inline">title</strong> and <strong class="source-inline">price</strong> is in the DOM. Now we have verified that the <strong class="source-inline">Product</strong> component accepts and renders prop data into the DOM as expected. When we run the test for the <strong class="source-inline">Product</strong> component, we get the following output:</p>
+			<div>
+				<div id="_idContainer058" class="IMG---Figure">
+					<img src="Images/Figure_4.9_B16887.jpg" alt="Figure 4.9 – Product component test result&#13;&#10;" width="1055" height="273"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.9 – Product component test result</p>
+			<p>The preceding screenshot <a id="_idIndexMarker175"/>shows the test <strong class="bold">Product, given product properties, renders to screen</strong> passes. Now we have verified the <strong class="source-inline">Product</strong> component correctly displays passed in data to the screen.</p>
+			<p>Next, we will test the <strong class="source-inline">ProductDetail</strong> component.</p>
+			<h2 id="_idParaDest-72"><a id="_idTextAnchor071"/>Testing the ProductDetail component in isolation</h2>
+			<p>This section <a id="_idIndexMarker176"/>will verify that <strong class="source-inline">ProductDetail</strong> initially renders the text <strong class="bold">Retail Store</strong> into the DOM. The <strong class="bold">Retail Store</strong> text serves as a placeholder until a user clicks one of the products. We can test the component as follows:</p>
+			<p class="source-code">test('ProductDetail, given initial render, displays Placeholder   component', () =&gt; {</p>
+			<p class="source-code">  render(</p>
+			<p class="source-code">    &lt;RetailProvider products={testProducts}&gt;</p>
+			<p class="source-code">      &lt;ProductDetail /&gt;</p>
+			<p class="source-code">    &lt;/RetailProvider&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">  expect(</p>
+			<p class="source-code">    screen.getByRole('heading', { name: /retail store/i })</p>
+			<p class="source-code">  ).toBeInTheDocument()</p>
+			<p class="source-code">})</p>
+			<p>In the preceding code, we wrap <strong class="source-inline">ProductDetail</strong> inside <strong class="source-inline">RetailProvider</strong>. Then, we assert that the text <strong class="bold">Retail Store</strong> is in the DOM. Running the test results in the following output:</p>
+			<div>
+				<div id="_idContainer059" class="IMG---Figure">
+					<img src="Images/Figure_4.10_B16887.jpg" alt="Figure 4.10 – ProductDetail component test result" width="1074" height="219"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.10 – ProductDetail component test result</p>
+			<p>The preceding <a id="_idIndexMarker177"/>screenshot shows the test <strong class="bold">ProductDetail, given initial render, displays Placeholder component</strong> passes as expected. Now we know that <strong class="source-inline">ProductDetail</strong> renders the correct text on the initial render.</p>
+			<p>Next, we will verify the error displayed when a consumer is used outside of <strong class="source-inline">Context Provider</strong>.</p>
+			<h2 id="_idParaDest-73"><a id="_idTextAnchor072"/>Testing context errors using error boundaries</h2>
+			<p>In this section, we will <a id="_idIndexMarker178"/>verify that the <strong class="source-inline">Retail</strong> component must be wrapped in <strong class="source-inline">RetailProvider</strong> before using it in the first test. This <a id="_idIndexMarker179"/>test is important because the <strong class="source-inline">Retail</strong> component cannot work as expected without the stateful data provided by <strong class="source-inline">RetailContext</strong>. Inside the <strong class="source-inline">RetailContext</strong> code, we have a check to make sure the methods used to access <strong class="source-inline">RetailContext</strong> are used within <strong class="source-inline">Provider</strong>:</p>
+			<p class="source-code">function useRetail() {</p>
+			<p class="source-code">  const context = React.useContext(RetailContext)</p>
+			<p class="source-code">  <strong class="bold">if (!context) {</strong></p>
+			<p class="source-code"><strong class="bold">    throw new Error('useRetail must be used within the        RetailProvider')</strong></p>
+			<p class="source-code"><strong class="bold">  }</strong></p>
+			<p>In the previous code snippet, if a user attempts to use the <strong class="source-inline">useRetail</strong> method to access <strong class="source-inline">RetailContent</strong>'s stateful <a id="_idIndexMarker180"/>data outside of <strong class="source-inline">RetailProvider</strong>, a <em class="italic">throw error</em> will occur and stop the application from running. We can write the test as follows:</p>
+			<p class="source-code">test('Retail must be rendered within Context Provider', () =&gt; {</p>
+			<p class="source-code">  jest.spyOn(console, 'error').mockImplementation(() =&gt; {})</p>
+			<p class="source-code">  const ErrorFallback = ({ error }) =&gt; error.message</p>
+			<p class="source-code">  render(</p>
+			<p class="source-code">    &lt;ErrorBoundary FallbackComponent={ErrorFallback}&gt;</p>
+			<p class="source-code">      &lt;Retail /&gt;</p>
+			<p class="source-code">    &lt;/ErrorBoundary&gt;</p>
+			<p class="source-code">  )</p>
+			<p>In the preceding code, we <a id="_idIndexMarker181"/>use the <strong class="source-inline">jest.spyOn</strong> method to keep an eye on the <strong class="source-inline">console.log</strong> method throughout the test. We also attach an empty callback method as <strong class="source-inline">mockImplementation</strong>. We use <strong class="source-inline">mockImplementation</strong> to control what happens when <strong class="source-inline">console.error</strong> is called. We don't want anything specific logged to the console in our test results related to the console for this <strong class="source-inline">test.error</strong> execution, so we pass in the empty callback function.</p>
+			<p>Next, we create <strong class="source-inline">ErrorFallback</strong>, a component we will use to receive the message included in the error thrown by <strong class="source-inline">RetailContext</strong>. Next, we wrap <strong class="source-inline">Retail</strong> in <strong class="source-inline">ErrorBoundary</strong>, which gives us control over errors thrown by components. We can manually create an error boundary component but <strong class="source-inline">react-error-boundary</strong> (<a href="https://github.com/bvaughn/react-error-boundary">https://github.com/bvaughn/react-error-boundary</a>) provides an easy-to-use error boundary component. We provide <strong class="source-inline">ErrorFallback</strong> as the value for <strong class="source-inline">FallbackComponent</strong>. When <strong class="source-inline">Retail</strong> is rendered, and the error is thrown, the <strong class="source-inline">ErrorBoundary</strong> component will pass the error on to <strong class="source-inline">ErrorFallback</strong>.</p>
+			<p>Next, we perform assertions:</p>
+			<p class="source-code">const errorMessage = screen.getByText(/must be used within the   RetailProvider/i)</p>
+			<p class="source-code">  expect(errorMessage).toBeInTheDocument()</p>
+			<p class="source-code">  expect(console.error).toHaveBeenCalled()</p>
+			<p class="source-code">  console.error.mockRestore()</p>
+			<p class="source-code">})</p>
+			<p>In the preceding <a id="_idIndexMarker182"/>code, first, we query the <a id="_idIndexMarker183"/>DOM for the error message <strong class="source-inline">must be used within the RetailProvider</strong>. Next, we expect <strong class="source-inline">console.error</strong> to have been called. Finally, as a test clean-up step, we restore <strong class="source-inline">console.error</strong> back to its original state, allowing it to be called wherever necessary for successive tests. Now you know how to verify that a context-consuming component cannot be rendered outside of <strong class="source-inline">Context Provider</strong>.</p>
+			<h2 id="_idParaDest-74"><a id="_idTextAnchor073"/>Using integration testing to test view product details</h2>
+			<p>For our next test, we will verify that a user can click a product and see product details. The steps <a id="_idIndexMarker184"/>involved in viewing a product's details is a user workflow that would be good to test using the integration approach. We can write the test as follows:</p>
+			<p class="source-code">  test('A user can view product details', () =&gt; {</p>
+			<p class="source-code">    render(</p>
+			<p class="source-code">      &lt;RetailProvider products={testProducts}&gt;</p>
+			<p class="source-code">        &lt;Retail /&gt;</p>
+			<p class="source-code">      &lt;/RetailProvider&gt;</p>
+			<p class="source-code">    )</p>
+			<p class="source-code">    const firstProduct = testProducts[0]</p>
+			<p class="source-code">    user.click(</p>
+			<p class="source-code">      screen.getByRole('heading', {</p>
+			<p class="source-code">        name: firstProduct.title</p>
+			<p class="source-code">      })</p>
+			<p class="source-code">    )</p>
+			<p>In the preceding code, we wrap the <strong class="source-inline">Retail</strong> component in <strong class="source-inline">RetailProvider</strong> and render it in the DOM. Next, we grab the <a id="_idIndexMarker185"/>first item in the <strong class="source-inline">testProducts</strong> array and assign it to the variable <strong class="source-inline">firstProduct</strong>. Then, we click the <strong class="source-inline">title</strong> of the first product on the screen. Finally, we assert the output:</p>
+			<p class="source-code">    expect(</p>
+			<p class="source-code">      screen.getAllByRole('heading', { name: firstProduct.title          }).length</p>
+			<p class="source-code">    ).toEqual(2)</p>
+			<p class="source-code">    expect(screen.getByText(firstProduct.description)).       toBeInTheDocument()</p>
+			<p class="source-code">    expect(</p>
+			<p class="source-code">      screen.getByRole('heading', { name: `$${firstProduct.         price}` })</p>
+			<p class="source-code">    ).toBeInTheDocument()</p>
+			<p class="source-code">  })</p>
+			<p>In the preceding code, we assert the first product's title is displayed twice on the screen. Finally, we assert the product's <strong class="source-inline">description</strong> and <strong class="source-inline">price</strong> data is displayed on the screen.</p>
+			<p>For our next test, we will verify that a user can add a product to the cart. We can write the following test code:</p>
+			<p class="source-code">   function addFirstItemToCart() {</p>
+			<p class="source-code">    const firstProduct = testProducts[1]</p>
+			<p class="source-code">    const firstProductTitle = screen.getByRole('heading', {</p>
+			<p class="source-code">      name: firstProduct.title</p>
+			<p class="source-code">    })</p>
+			<p class="source-code">    user.click(firstProductTitle)</p>
+			<p class="source-code">    user.click(screen.getByRole('button', { name: /add to        cart/i }))</p>
+			<p class="source-code">  }</p>
+			<p>In the <a id="_idIndexMarker186"/>previous code snippet, we create an <strong class="source-inline">addFirstItemToCart</strong> function to execute the same test steps in successive tests and avoid code duplication. Next, we write the main test code:</p>
+			<p class="source-code">  test('A user can add a product to the cart', () =&gt; {</p>
+			<p class="source-code">    render(</p>
+			<p class="source-code">      &lt;RetailProvider products={testProducts}&gt;</p>
+			<p class="source-code">        &lt;Retail /&gt;</p>
+			<p class="source-code">      &lt;/RetailProvider&gt;</p>
+			<p class="source-code">    )</p>
+			<p class="source-code">    addFirstItemToCart()</p>
+			<p class="source-code">    expect(screen.getByText(/1 items/i)).toBeInTheDocument()</p>
+			<p class="source-code">  })</p>
+			<p>In the previous code, we render the <strong class="source-inline">Retail</strong> component inside <strong class="source-inline">RetailProvider</strong>. Next, we execute the <strong class="source-inline">addFirstItemToCart</strong> method. Finally, we assert that the text <strong class="source-inline">1 items</strong> is in the DOM. Now we are confident a user can add an item to the cart using <strong class="source-inline">Retail</strong> integrated with the <strong class="source-inline">Product</strong>, <strong class="source-inline">ProductDetail</strong>, and <strong class="source-inline">Cart</strong> components.</p>
+			<p>As a challenge, try to <a id="_idIndexMarker187"/>write the code for the following test scenarios: <strong class="bold">A user can update the quantity for cart items</strong>, <strong class="bold">A user cannot submit a quantity greater than 10</strong>, <strong class="bold">A user cannot submit a quantity less than 1</strong>, and <strong class="bold">A user can add an item to favorites</strong>. The solutions for these test scenarios can be found in the <a href="B16887_04_Final_PG_ePub.xhtml#_idTextAnchor062"><em class="italic">Chapter 4</em></a><em class="italic"> code samples</em> (<a href="https://github.com/PacktPublishing/Simplify-Testing-with-React-Testing-Library/tree/master/Chapter04/ch_04_context">https://github.com/PacktPublishing/Simplify-Testing-with-React-Testing-Library/tree/master/Chapter04/ch_04_context</a>). Now you know how to write integration tests for components that use the Context API. You have a better understanding of unit testing components in isolation through multiple examples. You also know how to test for errors thrown using error boundaries.</p>
+			<p>This section's learnings will be beneficial in the next section when we learn how to test components that manage state using Redux. There will be a few differences, but similar strategies from this section will be used in general. </p>
+			<h1 id="_idParaDest-75"><a id="_idTextAnchor074"/>Testing components that use Redux</h1>
+			<p>This section will teach you how to <a id="_idIndexMarker188"/>test components that use the popular <strong class="bold">Redux</strong> library to manage the application state. The strategies used in this section will be very similar to those used in the previous section, with a few differences. While testing components using the Context API in the last section, we learned that those components must be used within <strong class="source-inline">Context Provider</strong>.</p>
+			<p>To test components using Redux, components must be used within the Redux state providing context:</p>
+			<p class="source-code">ReactDOM.render(</p>
+			<p class="source-code">  <strong class="bold">&lt;Provider store={store}&gt;</strong></p>
+			<p class="source-code">    &lt;App /&gt;</p>
+			<p class="source-code">  <strong class="bold">&lt;/Provider&gt;</strong>,</p>
+			<p class="source-code">  document.getElementById('root')</p>
+			<p class="source-code">)</p>
+			<p>In the preceding code, we have a top-level <strong class="source-inline">App</strong> passed in as a child component of the Redux <strong class="source-inline">Provider</strong> component. Wrapping the top-level <strong class="source-inline">App</strong> component is a common pattern in Redux that allows any child component in the application to access the stateful data provided by Redux. Stateful data and methods to modify state are passed to the Provider's <strong class="source-inline">store</strong> property. Typically, you will create this code in separate files, wire everything together using Redux's API methods, and pass the combined result to the <strong class="source-inline">store</strong> property.</p>
+			<p>When <a id="_idIndexMarker189"/>designing Redux-consuming component tests, we need to pass in test data that we can use as the Redux state. Simply passing in test data to the <strong class="source-inline">store</strong> property of the Redux Provider will not work because we also need to include the Redux methods used to consume and update the stateful data:</p>
+			<p class="source-code">test('Cart, given initial render, displays empty cart', () =&gt; {</p>
+			<p class="source-code">  render(</p>
+			<p class="source-code">    &lt;Provider store={<strong class="bold">'some test data'</strong>}&gt;</p>
+			<p class="source-code">      &lt;Cart /&gt;</p>
+			<p class="source-code">    &lt;/Provider&gt;</p>
+			<p class="source-code">  )</p>
+			<p>In the previous code snippet, we have a <strong class="source-inline">Cart</strong> component test that passes in the string <strong class="bold">some test data</strong> as test data to the Redux store. When we run the test, we receive the following output:</p>
+			<div>
+				<div id="_idContainer060" class="IMG---Figure">
+					<img src="Images/Figure_4.11_B16887.jpg" alt="Figure 4.11 – Failed Cart Redux component test&#13;&#10;" width="1064" height="398"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.11 – Failed Cart Redux component test</p>
+			<p>The preceding screenshot <a id="_idIndexMarker190"/>shows the test <strong class="bold">Cart, given initial render, displays empty cart</strong> failed and displays <strong class="source-inline">TypeError: store.getState is not a function</strong> to the console. The <strong class="bold">^</strong> symbol indicates the error that occurred at the <strong class="source-inline">render</strong> method. The test failed because when the component under test renders, it tries to access a method provided by Redux to access the Redux store's state, but the method is not available. We need a way to pass all associated Redux state methods and controllable test data to the test. We will learn a strategy in the next section.</p>
+			<h2 id="_idParaDest-76"><a id="_idTextAnchor075"/>Creating a custom render method for testing Redux consuming components</h2>
+			<p>In this section, we will learn how to create a custom <strong class="source-inline">render</strong> function for use in our tests. In <a href="B16887_01_Final_PG_ePub.xhtml#_idTextAnchor013"><em class="italic">Chapter 1</em></a>, <em class="italic">Exploring React Testing Library</em>, we learned that React Testing Library's <strong class="source-inline">render</strong> method is used to place <a id="_idIndexMarker191"/>components in the DOM to be tested. The custom <strong class="source-inline">render</strong> method uses <a id="_idIndexMarker192"/>React Testing Library <strong class="source-inline">render</strong> method's <strong class="source-inline">wrapper</strong> option to place components into the DOM wrapped in a Redux Provider component that provides access to Redux API methods. The custom <strong class="source-inline">render</strong> method will also allow us to pass in controllable test data unique to each test. To get started, we will create a file for our method and import a number of modules:</p>
+			<p class="source-code">import { configureStore } from '@reduxjs/toolkit'</p>
+			<p class="source-code">import { render as rtlRender } from '@testing-library/react'</p>
+			<p class="source-code">import faker from 'faker'</p>
+			<p class="source-code">import { Provider } from 'react-redux'</p>
+			<p class="source-code">import retailReducer from '../retailSlice'</p>
+			<p>In the previous code, we import the <strong class="source-inline">configureStore</strong> method from the Redux Toolkit library. The <strong class="source-inline">configureStore</strong> method is an abstraction over the standard Redux <strong class="source-inline">createStore()</strong> used to set up the Redux store. Next, we import the <strong class="source-inline">render</strong> method from <a id="_idIndexMarker193"/>React Testing Library and name it <strong class="source-inline">rtlRender</strong>. The <strong class="source-inline">rtlRender</strong> name is short for <strong class="source-inline">React Testing Library Render</strong>. Later in the file, we will create a custom <strong class="source-inline">render</strong> method to eliminate problems resulting from using identical method names.</p>
+			<p>Next, we <a id="_idIndexMarker194"/>import the <strong class="source-inline">faker</strong> module. We will use <strong class="source-inline">faker</strong> to automatically generate data for the initial state to pass into our component. Then, we import the <strong class="source-inline">Provider</strong> method from <strong class="source-inline">React-redux</strong> to accept and give <strong class="source-inline">store</strong> to components. Finally, we import <strong class="source-inline">retailReducer</strong> that provides methods components can use to access and modify state.</p>
+			<p>Next, we will create an object to serve as the <strong class="source-inline">initialState</strong> values for the Redux store:</p>
+			<p class="source-code">const fakeStore = {</p>
+			<p class="source-code">  retail: {</p>
+			<p class="source-code">    products: [</p>
+			<p class="source-code">      {</p>
+			<p class="source-code">        id: faker.random.uuid(),</p>
+			<p class="source-code">        title: faker.commerce.productName(),</p>
+			<p class="source-code">        price: faker.commerce.price(),</p>
+			<p class="source-code">        description: faker.commerce.productDescription(),</p>
+			<p class="source-code">        category: faker.commerce.department(),</p>
+			<p class="source-code">        image: faker.image.fashion()</p>
+			<p class="source-code">      }, </p>
+			<p class="source-code">    ],</p>
+			<p class="source-code">    cartItems: [],</p>
+			<p class="source-code">    favorites: [],</p>
+			<p class="source-code">    showProductDetails: null</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">}</p>
+			<p>In the <a id="_idIndexMarker195"/>previous code, the variable <strong class="source-inline">fakeStore</strong> holds all initial state values for <strong class="source-inline">products</strong>, <strong class="source-inline">cartItems</strong>, <strong class="source-inline">favorites</strong>, and <strong class="source-inline">showProductDetails</strong>. The products data is an array of objects with <a id="_idIndexMarker196"/>values created by <strong class="source-inline">faker</strong>. Next, we will create a custom <strong class="source-inline">render</strong> method to use in place of React Testing Library's <strong class="source-inline">render</strong> method:</p>
+			<p class="source-code">function render(</p>
+			<p class="source-code">  ui,</p>
+			<p class="source-code">  {</p>
+			<p class="source-code">    initialState,</p>
+			<p class="source-code">    store = configureStore({</p>
+			<p class="source-code">      reducer: { retail: retailReducer },</p>
+			<p class="source-code">      preloadedState: initialState</p>
+			<p class="source-code">    }),</p>
+			<p class="source-code">    ...renderOptions</p>
+			<p class="source-code">  } = {}</p>
+			<p class="source-code">) {</p>
+			<p>In the previous code snippet, the method accepts two arguments as parameters. First, the <strong class="source-inline">ui</strong> parameter accepts the component under test as a child to be wrapped within the custom method. The <a id="_idIndexMarker197"/>following parameter is an object with many properties. First, <strong class="source-inline">initialState</strong> accepts custom test data we can pass into our components within the test file. Next, <strong class="source-inline">store</strong> uses the <strong class="source-inline">configureStore</strong> method to set up the Redux store with <strong class="source-inline">reducer</strong> and <strong class="source-inline">preloadedState</strong>. The <strong class="source-inline">reducer</strong> property is an object that accepts <strong class="source-inline">reducers</strong> we create to manage the application state. The <strong class="source-inline">preloadedState</strong> property accepts <strong class="source-inline">initialState</strong> passed into the component in the test file. Finally, any <a id="_idIndexMarker198"/>other passed-in parameters are handled by <strong class="source-inline">renderOptions</strong>.</p>
+			<p>Next, we will create the <strong class="source-inline">Wrapper</strong> method:</p>
+			<p class="source-code">  function Wrapper({ children }) {</p>
+			<p class="source-code">    return &lt;Provider store={store}&gt;{children}&lt;/Provider&gt;</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  return rtlRender(ui, { wrapper: Wrapper, ...renderOptions })</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, <strong class="source-inline">Wrapper</strong> accepts <strong class="source-inline">children</strong>, which will be the component under test. Next, the method returns <strong class="source-inline">Provider</strong> with <strong class="source-inline">store</strong> and <strong class="source-inline">children</strong> passed in. Finally, <strong class="source-inline">render</strong> method returns a call to <strong class="source-inline">rtlRender</strong> with <strong class="source-inline">ui</strong> and an object including the <strong class="source-inline">Wrapper</strong> method and other <strong class="source-inline">renderOptions</strong> passed in.</p>
+			<p>The last step is to export the custom code to be imported and used in test files:</p>
+			<p class="source-code">export * from '@testing-library/react'</p>
+			<p class="source-code">export { render, fakeStore }</p>
+			<p>In the preceding code, first, we export everything from React Testing Library. Finally, we export an object that includes the custom <strong class="source-inline">render</strong> method that overrides React Testing Library <strong class="source-inline">render</strong> method and <strong class="source-inline">fakeStore</strong> as the custom test data to use in any test. Now you know how to create a custom <strong class="source-inline">render</strong> method to use for testing Redux consuming components.</p>
+			<p>Next, we will use the custom method in a test. </p>
+			<h2 id="_idParaDest-77"><a id="_idTextAnchor076"/>Using the test Redux Provider in tests</h2>
+			<p>In this section, we will use the custom <strong class="source-inline">render</strong> method to test a component. In the <em class="italic">Testing a context consuming Retail component</em> section of this chapter, we tested a <strong class="source-inline">Retail</strong> component and its <a id="_idIndexMarker199"/>child components. The <a id="_idIndexMarker200"/>development team could have decided to build the component state using Redux. The <strong class="source-inline">Retail</strong> component included <strong class="source-inline">Cart</strong> that we can test with the custom <strong class="source-inline">render</strong> method:</p>
+			<p class="source-code">import Cart from './Cart'</p>
+			<p class="source-code">import { render, screen, fakeStore } from './utils/test-utils'</p>
+			<p>In the previous code, first, we import the <strong class="source-inline">Cart</strong> component to test in the test file. Next, we import the <strong class="source-inline">render</strong>, <strong class="source-inline">screen</strong>, and <strong class="source-inline">fakeStore</strong> methods from our custom method file. The <strong class="source-inline">render</strong> method is the custom method created in the file. The <strong class="source-inline">screen</strong> method is the real <strong class="source-inline">screen</strong> method from React Testing Library. The <strong class="source-inline">fakeStore</strong> method is the custom test data we created in the custom method file. Next, we will write the main test code:</p>
+			<p class="source-code">test('Cart, given initial render, displays empty cart', () =&gt; {</p>
+			<p class="source-code">  render(&lt;Cart /&gt;, { initialState: fakeStore })</p>
+			<p class="source-code">  expect(screen.getByText(/0 items/i)).toBeInTheDocument()</p>
+			<p class="source-code">  expect(screen.getByText(/\$0\.00/i)).toBeInTheDocument()</p>
+			<p class="source-code">})</p>
+			<p>In the previous code, first, we use the customer <strong class="source-inline">render</strong> method to render the <strong class="source-inline">Cart</strong> component in the DOM. As a second argument to the <strong class="source-inline">render</strong> method, we pass in an object and <strong class="source-inline">fakeStore</strong> as the value to <strong class="source-inline">initialState</strong>. <strong class="source-inline">fakeStore</strong> is the default test data we can use, but we can create and pass different data specific to the test. The custom <strong class="source-inline">render</strong> method makes our code cleaner because we don't see the test code's <strong class="source-inline">Provider</strong> method. Finally, we assert that the text <strong class="source-inline">0 items</strong> and <strong class="source-inline">$0.00</strong> is in the DOM. When we run the test, we get the following output: </p>
+			<div>
+				<div id="_idContainer061" class="IMG---Figure">
+					<img src="Images/Figure_4.12_B16887.jpg" alt="Figure 4.12 – Passing Cart Redux component test&#13;&#10;" width="1074" height="291"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.12 – Passing Cart Redux component test</p>
+			<p>The preceding screenshot shows the test <strong class="bold">Cart, given initial render, displays empty cart</strong> passes using the custom <strong class="source-inline">render</strong> method as expected. Please see the <a href="B16887_04_Final_PG_ePub.xhtml#_idTextAnchor062"><em class="italic">Chapter 4</em></a><em class="italic"> code samples </em>(<a href="https://github.com/PacktPublishing/Simplify-Testing-with-React-Testing-Library/tree/master/Chapter04/ch_04_redux">https://github.com/PacktPublishing/Simplify-Testing-with-React-Testing-Library/tree/master/Chapter04/ch_04_redux</a>) for more examples testing Redux consuming components. Now <a id="_idIndexMarker201"/>you know how to <a id="_idIndexMarker202"/>create a custom <strong class="source-inline">render</strong> method to test components that consume Redux state. The custom method can be used to test practically any Redux-consuming React component.</p>
+			<p>In the next section, we will learn how to test components that consume API data via GraphQL.</p>
+			<h1 id="_idParaDest-78"><a id="_idTextAnchor077"/>Testing components that use GraphQL</h1>
+			<p>In this section, you <a id="_idIndexMarker203"/>will learn how to test components that use <strong class="bold">GraphQL</strong> to consume API data. In <a href="B16887_03_Final_PG_ePub.xhtml#_idTextAnchor046"><em class="italic">Chapter 3</em></a>, <em class="italic">Testing Complex Components with React Testing Library</em>, we learned how to test components that interacted with REST APIs. The same concept to test REST API consuming components also applies with GraphQL, but with a few differences. We will use the <strong class="source-inline">Table</strong> component we tested in the <em class="italic">Testing integrated components</em> section of this chapter, only now the component will be refactored to receive data via the GraphQL server using <strong class="source-inline">Apollo Client</strong> (<a href="https://www.apollographql.com/docs/react/">https://www.apollographql.com/docs/react/</a>).</p>
+			<p>We can look at the implementation details of the <strong class="source-inline">Table</strong> component to understand how it interacts with GraphQL:</p>
+			<p class="source-code">export const EMPLOYEES = gql`</p>
+			<p class="source-code">  query GetEmployees {</p>
+			<p class="source-code">    employees {</p>
+			<p class="source-code">      id</p>
+			<p class="source-code">      name</p>
+			<p class="source-code">      department</p>
+			<p class="source-code">      title</p>
+			<p class="source-code">    }</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">`</p>
+			<p>In the preceding code, we <a id="_idIndexMarker204"/>create an <strong class="source-inline">employees</strong> GraphQL query to access the <strong class="source-inline">employees</strong> data to render in <strong class="source-inline">table</strong> row elements within the component. The query will automatically communicate with the GraphQL server when the component renders and return <strong class="source-inline">employee</strong> data for the component to use. We will later use this query inside our test file.</p>
+			<p>The <strong class="source-inline">App</strong> component plays an important role in communicating with the GraphQL server:</p>
+			<p class="source-code">client = new ApolloClient({</p>
+			<p class="source-code">  uri: 'http://localhost:4000',</p>
+			<p class="source-code">  cache: new InMemoryCache()</p>
+			<p class="source-code">})</p>
+			<p class="source-code">const App = () =&gt; {</p>
+			<p class="source-code">  return (</p>
+			<p class="source-code">    &lt;ApolloProvider client={client}&gt;</p>
+			<p class="source-code">      &lt;Table /&gt;</p>
+			<p class="source-code">    &lt;/ApolloProvider&gt;</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">}</p>
+			<p>In the preceding code, a <strong class="source-inline">client</strong> variable is created and set to a new instance of <strong class="source-inline">ApolloClient</strong>, imported <a id="_idIndexMarker205"/>from <strong class="bold">Apollo</strong>. This popular library gives React components the ability to <a id="_idIndexMarker206"/>communicate with GraphQL. <strong class="source-inline">ApolloClient</strong> has a <strong class="source-inline">uri</strong> property that we can set to the URL of the running GraphQL server, which is <strong class="source-inline">http://localhost:4000</strong> in the code snippet. <strong class="source-inline">ApolloClient</strong> also sets the <strong class="source-inline">cache</strong> property to the <strong class="source-inline">InMemoryCache</strong> method.</p>
+			<p>The <strong class="source-inline">InMemoryCache</strong> method is an excellent performance-enhancing feature because it will store data received from GraphQL locally and only make additional calls to the GraphQL server when the data needs updating. The <strong class="source-inline">App</strong> component also uses <strong class="source-inline">ApolloProvider</strong> from the Apollo library to render <strong class="source-inline">Table</strong> as a child component. The <strong class="source-inline">Table</strong> component can now make queries to the GraphQL server. <strong class="source-inline">ApolloProvider</strong> behaves similarly to the Redux <strong class="source-inline">Provider</strong> component we learned about in this chapter's <em class="italic">Testing components that use Redux</em> section. Now that we understand the connection between GraphQL and the consuming <strong class="source-inline">Table</strong> component, we can start writing tests. </p>
+			<p>The first test we will write will verify that a loading message appears on the screen when <strong class="source-inline">Table</strong> initially renders:</p>
+			<p class="source-code">import { MockedProvider } from '@apollo/client/testing'</p>
+			<p class="source-code">import { act, render, screen } from '@testing-library/react'</p>
+			<p class="source-code">import faker from 'faker'</p>
+			<p class="source-code">import Table, { EMPLOYEES } from './Table'</p>
+			<p>In the preceding code, we import <strong class="source-inline">MockedProvider</strong>. <strong class="source-inline">MockedProvider</strong> is a particular method from Apollo that we can use for testing. Using <strong class="source-inline">MockedProvider</strong>, we do not need to create any custom <strong class="source-inline">Provider</strong> component as we did in the <em class="italic">Testing components that use Redux</em> section of this chapter.</p>
+			<p>Next, we import <strong class="source-inline">act</strong>, <strong class="source-inline">render</strong>, and <strong class="source-inline">screen</strong> from React Testing Library. The <strong class="source-inline">act</strong> method will let React know we are explicitly performing actions it does not expect. We will cover this in <a id="_idIndexMarker207"/>detail in the associated test. Then, we import <strong class="source-inline">faker</strong> to help generate test data. Finally, we import the <strong class="source-inline">Table</strong> component to test and the <strong class="source-inline">EMPLOYEES</strong> GraphQL query. </p>
+			<p>Next, we can create a mock GraphQL response:</p>
+			<p class="source-code">const mocks = [</p>
+			<p class="source-code">  {</p>
+			<p class="source-code">    request: {</p>
+			<p class="source-code">      query: EMPLOYEES</p>
+			<p class="source-code">    },</p>
+			<p class="source-code">    result: {</p>
+			<p>We create a <strong class="source-inline">mocks</strong> variable set to an array in the preceding code, with a <strong class="source-inline">request</strong> property set to our <strong class="source-inline">EMPLOYEES</strong> query. The <strong class="source-inline">mocks</strong> variable will replace the real GraphQL query with a version we can use for testing. Next, we can create the test data our test will respond with:</p>
+			<p class="source-code">      data: {</p>
+			<p class="source-code">        employees: [</p>
+			<p class="source-code">          {</p>
+			<p class="source-code">            id: faker.random.uuid(),</p>
+			<p class="source-code">            name: faker.fake('{{name.firstName}} {{name.               lastName}}'),</p>
+			<p class="source-code">            department: faker.commerce.department(),</p>
+			<p class="source-code">            title: faker.name.jobTitle()</p>
+			<p class="source-code">          },</p>
+			<p class="source-code">          {</p>
+			<p class="source-code">            id: faker.random.uuid(),</p>
+			<p class="source-code">            name: faker.fake('{{name.firstName}} {{name.               lastName}}'),</p>
+			<p class="source-code">            department: faker.commerce.department(),</p>
+			<p class="source-code">            title: faker.name.jobTitle()</p>
+			<p class="source-code">          }</p>
+			<p class="source-code">        ]</p>
+			<p>In the preceding code, we <a id="_idIndexMarker208"/>create a <strong class="source-inline">data</strong> property set to an array of <strong class="source-inline">employees</strong> for the <strong class="source-inline">Table</strong> component to consume and display on the screen. The <strong class="source-inline">faker</strong> module is used to eliminate the need to create hardcoded values. Now we can write the main test code:</p>
+			<p class="source-code">  test('given initial render, returns loading message', () =&gt; {</p>
+			<p class="source-code">    render(</p>
+			<p class="source-code">      &lt;MockedProvider mocks={mocks}&gt;</p>
+			<p class="source-code">        &lt;Table /&gt;</p>
+			<p class="source-code">      &lt;/MockedProvider&gt;</p>
+			<p class="source-code">    )</p>
+			<p class="source-code">    expect(screen.getByText(/Loading.../)).toBeInTheDocument()</p>
+			<p class="source-code">  })</p>
+			<p>In the previous code, we render the <strong class="source-inline">Table</strong> component inside <strong class="source-inline">MockedProvider</strong> with passed-in <strong class="source-inline">mocks</strong> data. Then, we assert that the text <strong class="bold">Loading…</strong> is in the DOM. The loading text is the first thing to display when the component renders until the frontend React application receives data from the GraphQL server.</p>
+			<p>For the next test, we will verify the <strong class="source-inline">completed</strong> state is achieved, meaning the component has received and rendered employee data:</p>
+			<p class="source-code">  test('given completed state, renders employee data', async ()      =&gt; {</p>
+			<p class="source-code">    render(</p>
+			<p class="source-code">      &lt;MockedProvider mocks={mocks}&gt;</p>
+			<p class="source-code">        &lt;Table /&gt;</p>
+			<p class="source-code">      &lt;/MockedProvider&gt;</p>
+			<p class="source-code">    )</p>
+			<p class="source-code">        await act(() =&gt; new Promise(resolve =&gt;            setTimeout(resolve, 0)))</p>
+			<p class="source-code">    screen.debug()</p>
+			<p class="source-code">    expect(screen.getAllByTestId('row').length).toEqual(2)</p>
+			<p class="source-code">  })</p>
+			<p>In the previous code, we <a id="_idIndexMarker209"/>render the <strong class="source-inline">Table</strong> component inside <strong class="source-inline">MockedProvider</strong> with passed-in <strong class="source-inline">mocks</strong> data. Then, we set <strong class="source-inline">Promise</strong> to the <strong class="source-inline">resolved</strong> state wrapped in the <strong class="source-inline">act</strong> method. Although we are not accessing the real GraphQL server, the Apollo methods we use are asynchronous and take some time to complete. We explicitly complete the asynchronous process after <strong class="source-inline">0</strong> seconds to continue the test steps.</p>
+			<p>The <strong class="source-inline">0</strong> second value may seem odd to force the <strong class="source-inline">resolved</strong> state but is necessary because asynchronous JavaScript actions will wait for some time before completion and continuing with the following action. If we do not use the <strong class="source-inline">act</strong> method, our test will pass but also render an error message to the screen:</p>
+			<div>
+				<div id="_idContainer062" class="IMG---Figure">
+					<img src="Images/Figure_4.13_B16887.jpg" alt="Figure 4.13 – Not wrapped in act error&#13;&#10;" width="1066" height="97"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.13 – Not wrapped in act error</p>
+			<p>The preceding screenshot shows the error message displayed in the console when we do not use the <strong class="source-inline">act</strong> method to handle explicit component updates that React does not know about. Finally, we assert that two <strong class="source-inline">row</strong> elements are found in the DOM.</p>
+			<p>For the last test, we will verify that the error state results in the error message being displayed on the screen:</p>
+			<p class="source-code">  test('given error state, renders error message', async () =&gt;     {</p>
+			<p class="source-code">    const mocks = [{ request: { query: EMPLOYEES }, error: new        Error() }]</p>
+			<p class="source-code">    render(</p>
+			<p class="source-code">      &lt;MockedProvider mocks={mocks}&gt;</p>
+			<p class="source-code">        &lt;Table /&gt;</p>
+			<p class="source-code">      &lt;/MockedProvider&gt;</p>
+			<p class="source-code">    )</p>
+			<p class="source-code">    await act(() =&gt; new Promise(resolve =&gt; setTimeout(resolve,        0)))</p>
+			<p class="source-code">    expect(screen.getByText(/Error/i)).toBeInTheDocument()</p>
+			<p class="source-code">  })</p>
+			<p>In the previous code, we <a id="_idIndexMarker210"/>render the <strong class="source-inline">Table</strong> component inside <strong class="source-inline">MockedProvider</strong> with passed-in <strong class="source-inline">mocks</strong> data. However, unlike previous tests, we set the <strong class="source-inline">error</strong> property to a new instance of the <strong class="source-inline">Error</strong> object. When the <strong class="source-inline">error</strong> property is set, it means that something happened, preventing the process of sending and receiving data from the GraphQL server to the frontend.</p>
+			<p>Next, we set <strong class="source-inline">Promise</strong> to the <strong class="source-inline">resolved</strong> state wrapped in the <strong class="source-inline">act</strong> method as we did in the previous test. Finally, we assert that the text <strong class="source-inline">Error</strong> is in the document. When we run the tests, we get the following output:</p>
+			<div>
+				<div id="_idContainer063" class="IMG---Figure">
+					<img src="Images/Figure_4.14_B16887.jpg" alt="Figure 4.14 – Table component test results&#13;&#10;" width="1074" height="216"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.14 – Table component test results</p>
+			<p>Now you know how to test components that consume GraphQL server data using Apollo Client. As GraphQL <a id="_idIndexMarker211"/>continues to gain popularity, it will be helpful to have the testing strategies we covered in your toolbox to verify expected behavior quickly. </p>
+			<p>In the next section, we will learn how to test components that use the popular Material-UI component library for frontend development.</p>
+			<h1 id="_idParaDest-79"><a id="_idTextAnchor078"/>Testing Components that use Material-UI</h1>
+			<p>In this section, we <a id="_idIndexMarker212"/>will learn how to test components that use the Material-UI component library. You can select DOM elements rendered by Material-UI components out of the box with React Testing Library in most cases. However, sometimes it is helpful to add component properties that render as attributes on resulting DOM elements. We will learn how to add properties to test the <strong class="source-inline">Vote</strong> and <strong class="source-inline">Customer Table</strong> components.</p>
+			<h2 id="_idParaDest-80"><a id="_idTextAnchor079"/>Adding an ARIA label to test a Vote component</h2>
+			<p>In the <em class="italic">Testing a context consuming Vote component</em> section of this chapter, we tested a <strong class="source-inline">Vote</strong> component.</p>
+			<p>We could use components <a id="_idIndexMarker213"/>from Material-UI to <a id="_idIndexMarker214"/>rebuild the component:</p>
+			<p class="source-code">    &lt;div&gt;</p>
+			<p class="source-code">      &lt;Box display="flex" flexDirection="column" css={{ width:         100 }}&gt;</p>
+			<p class="source-code">        &lt;Button</p>
+			<p class="source-code">          onClick={() =&gt; voteLike()}</p>
+			<p class="source-code">          disabled={hasVotedLike}</p>
+			<p class="source-code">          variant="contained"</p>
+			<p class="source-code">          color="primary"</p>
+			<p class="source-code">        &gt;</p>
+			<p class="source-code">          &lt;ThumbUpIcon /&gt;</p>
+			<p class="source-code">        &lt;/Button&gt;</p>
+			<p>In the previous code, we used the <strong class="source-inline">Box</strong>, <strong class="source-inline">Button</strong>, and <strong class="source-inline">ThumbUpIcon</strong> components from Material-UI to quickly build the <strong class="bold">thumbs up</strong> button <a id="_idIndexMarker215"/>complete with <strong class="bold">Cascading Style Sheet</strong> (<strong class="bold">CSS</strong>) styles already <a id="_idIndexMarker216"/>included to make the <a id="_idIndexMarker217"/>button look nice.</p>
+			<p>Next, we will build the remaining parts of the component:</p>
+			<p class="source-code">        &lt;Typography variant="h3" align="center"&gt;</p>
+			<p class="source-code">          {totalLikes}</p>
+			<p class="source-code">        &lt;/Typography&gt;</p>
+			<p class="source-code">        &lt;Button</p>
+			<p class="source-code">          onClick={() =&gt; voteDislike()}</p>
+			<p class="source-code">          disabled={hasVotedDislike}</p>
+			<p class="source-code">          variant="contained"</p>
+			<p class="source-code">          color="primary"</p>
+			<p class="source-code">        &gt;</p>
+			<p class="source-code">          &lt;ThumbDownAltIcon /&gt;</p>
+			<p class="source-code">        &lt;/Button&gt;</p>
+			<p class="source-code">      &lt;/Box&gt;</p>
+			<p class="source-code">    &lt;/div&gt;</p>
+			<p>In the preceding code, we use the <strong class="source-inline">Typography</strong>, <strong class="source-inline">Button</strong>, and <strong class="source-inline">ThumbDownAltIcon</strong> components from Material-UI to build the thumbs down button and display the total likes number on the screen. When we render the component in the browser, we get the following output:</p>
+			<div>
+				<div id="_idContainer064" class="IMG---Figure">
+					<img src="Images/Figure_4.15_B16887.jpg" alt="Figure 4.15 – Material-UI Vote component&#13;&#10;" width="178" height="227"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.15 – Material-UI Vote component</p>
+			<p>The preceding screenshot shows a <strong class="bold">thumbs up</strong> and <strong class="bold">thumbs down</strong> button and the number <strong class="bold">10</strong> representing the current number of likes. Like the <strong class="source-inline">Vote</strong> component we tested in previous <a id="_idIndexMarker218"/>sections of this chapter, a user can vote up or down to change the total likes. However, grabbing and clicking the buttons with <a id="_idIndexMarker219"/>React Testing Library would be difficult with the current component implementation. There are no accessible ways to access the buttons, such as a label. </p>
+			<p>To solve this problem, we can add <strong class="source-inline">aria-label</strong> properties to the <strong class="source-inline">Button</strong> components. <strong class="source-inline">aria-label</strong> will add a visible label to elements allowing users with screen readers to understand the elements' purpose. We can add <strong class="source-inline">aria-label</strong> to the component like so:</p>
+			<p class="source-code">&lt;Button</p>
+			<p class="source-code">  aria-label="thumbs up"</p>
+			<p>We added <strong class="bold">thumbs up</strong> <strong class="source-inline">aria-label</strong> to the first <strong class="source-inline">Button</strong> component in the previous code snippet. Next, we will add <strong class="source-inline">aria-label</strong> to the other <strong class="source-inline">Button</strong> component:</p>
+			<p class="source-code">&lt;Button</p>
+			<p class="source-code">  aria-label="thumbs down"</p>
+			<p>In the previous code, we added <strong class="bold">thumbs down</strong> <strong class="source-inline">aria-label</strong> to the second <strong class="source-inline">Button</strong> component. Material UI will forward the <strong class="source-inline">Button aria-label</strong> properties to the resulting button element that will render in the DOM. Since <strong class="source-inline">aria-label</strong> attributes are accessible by all users, including those using assistive devices to navigate the screen, React Testing Library can grab elements by those attributes. Now that we can select the elements, we can write tests and assert the resulting behavior.</p>
+			<p>For the first test, we will <a id="_idIndexMarker220"/>verify that a user can only decrease the total like count by one:</p>
+			<p class="source-code">  test('given multiple "down" votes, total likes only decrease      by one', () =&gt; {</p>
+			<p class="source-code">    render(&lt;Vote totalGlobalLikes={10} /&gt;)</p>
+			<p class="source-code">    const thumbsUpBtn = screen.getByRole('button', { name: /       thumbs up/i })</p>
+			<p class="source-code">    user.click(thumbsUpBtn)</p>
+			<p class="source-code">    user.click(thumbsUpBtn)</p>
+			<p class="source-code">    user.click(thumbsUpBtn)</p>
+			<p class="source-code">    expect(screen.getByText(/11/i)).toBeInTheDocument()</p>
+			<p class="source-code">  })</p>
+			<p>In the previous code, we <a id="_idIndexMarker221"/>render the <strong class="source-inline">Vote</strong> component with the value of <strong class="source-inline">10</strong> for <strong class="source-inline">totalGlobalLikes</strong>. Next, we grab the <strong class="bold">thumbs up</strong> button by its name provided via the <strong class="source-inline">aria-label</strong> attribute we added and assign it to the <strong class="source-inline">thumbsUpBtn</strong> variable. Next, we click the <strong class="bold">thumbs up</strong> button three times and finally assert that the value <strong class="source-inline">11</strong> is in the DOM.</p>
+			<p>For the next test, we will verify that a user can remove their <strong class="bold">"up"</strong> vote:</p>
+			<p class="source-code">  test('given retracted "up" vote, returns original total       likes', () =&gt; {</p>
+			<p class="source-code">    render(&lt;Vote totalGlobalLikes={10} /&gt;)</p>
+			<p class="source-code">    const thumbsUpBtn = screen.getByRole('button', { name: /       thumbs up/i })</p>
+			<p class="source-code">    const thumbsDownBtn = screen.getByRole('button', { name: /       thumbs down/i })</p>
+			<p class="source-code">    user.click(thumbsUpBtn)</p>
+			<p class="source-code">    user.click(thumbsDownBtn)</p>
+			<p class="source-code">    expect(screen.getByText(/10/i)).toBeInTheDocument()</p>
+			<p class="source-code">  })</p>
+			<p>In the previous code, we <a id="_idIndexMarker222"/>render the <strong class="source-inline">Vote</strong> component with the value of <strong class="source-inline">10</strong> for <strong class="source-inline">totalGlobalLikes</strong>. Next, we grab the <strong class="bold">thumbs up</strong> and <strong class="bold">thumbs down</strong> buttons by their name attribute provided via the <strong class="source-inline">aria-label</strong> properties we <a id="_idIndexMarker223"/>added to both <strong class="source-inline">Buttons</strong> and assign them to variables.</p>
+			<p>Next, we click the <strong class="bold">thumbs up</strong> and <strong class="bold">thumbs down</strong> buttons and finally assert that the value <strong class="source-inline">10</strong> is on the screen. When we run the test, we get the following results:</p>
+			<div>
+				<div id="_idContainer065" class="IMG---Figure">
+					<img src="Images/Figure_4.16_B16887.jpg" alt="Figure 4.16 – Material-UI Vote test results&#13;&#10;" width="1072" height="285"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.16 – Material-UI Vote test results</p>
+			<p>The previous screenshot shows that the tests <strong class="bold">given multiple "down" votes, total likes only decrease by one</strong>, and <strong class="bold">given retracted "up" vote, returns original total likes</strong> pass as expected.</p>
+			<p>As a challenge, try writing tests for the following scenarios: <strong class="bold">given "up" vote, total likes increases by one</strong>; <strong class="bold">given multiple "up" votes, total likes only increase by one</strong>; and <strong class="bold">given retracted "down" vote, returns original total likes</strong>. The solutions for these test scenarios can be found in the <em class="italic">chapter 4 code samples</em>. Now you know how to make <a id="_idIndexMarker224"/>Material-UI components <a id="_idIndexMarker225"/>testable by adding aria-labels.</p>
+			<p>In the next section, we will learn how to add an attribute specific to React Testing Library to make components testable.</p>
+			<h2 id="_idParaDest-81"><a id="_idTextAnchor080"/>Adding a test ID to test a CustomerTable component</h2>
+			<p>In the previous section, we learned <a id="_idIndexMarker226"/>how to make Material-UI components testable by adding <strong class="source-inline">aria-labels</strong>. In this section, we will learn <a id="_idIndexMarker227"/>how to add <strong class="source-inline">data-testid</strong> to make components testable. <strong class="source-inline">data-testid</strong> is another option to query DOM elements with React Testing Library. The <strong class="source-inline">data-testid</strong> query is a last-resort way to grab DOM elements when other preferred methods such as <strong class="source-inline">*byText</strong> or <strong class="source-inline">*byRole</strong> cannot be used, and we want to avoid using <strong class="source-inline">class</strong> or <strong class="source-inline">ID</strong> selectors. We can use <strong class="source-inline">data-testid</strong> by attaching it as an attribute to a DOM element:</p>
+			<p class="source-code">&lt;h5 <strong class="bold">data-testid="product-type"</strong>&gt;Electronics&lt;/h5&gt;</p>
+			<p>We add a <strong class="source-inline">"product-type"</strong> <strong class="source-inline">data-testid</strong> to select the heading element uniquely in the previous code snippet. We will test a <strong class="source-inline">CustomerTable</strong> component in this section that accepts customer data and renders the following to the screen:</p>
+			<div>
+				<div id="_idContainer066" class="IMG---Figure">
+					<img src="Images/Figure_4.17_B16887.jpg" alt="Figure 4.17 – Material-UI table component&#13;&#10;" width="966" height="573"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.17 – Material-UI table component</p>
+			<p>The previous screenshot shows a <a id="_idIndexMarker228"/>table with multiple rows of customer data. A user can use the <strong class="bold">filter results</strong> input to narrow the <a id="_idIndexMarker229"/>output to specific rows. For example, if a customer searches the text <strong class="source-inline">da</strong>, the following results will be displayed:</p>
+			<div>
+				<div id="_idContainer067" class="IMG---Figure">
+					<img src="Images/Figure_4.18_B16887.jpg" alt="Figure 4.18 – Material-UI table filtered results&#13;&#10;" width="1043" height="352"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.18 – Material-UI table filtered results</p>
+			<p>The preceding screenshot <a id="_idIndexMarker230"/>shows two resulting rows. The two rows are displayed as matching results because the text <strong class="bold">da</strong> is visible in the rows' associated columns. We <a id="_idIndexMarker231"/>will write three tests for the component.</p>
+			<p>For the first test, we will verify that the component can receive and render passed-in customer data:</p>
+			<p class="source-code">  const fakeCustomers = [</p>
+			<p class="source-code">    {</p>
+			<p class="source-code">      id: 1,</p>
+			<p class="source-code">      name: 'John Doe',</p>
+			<p class="source-code">      email: 'john@mail.com',</p>
+			<p class="source-code">      address: '123 John Street',</p>
+			<p class="source-code">      phone: '(111) 1111111',</p>
+			<p class="source-code">      avatar: 'http://dummyimage.com/235x233.jpg/ff4444/ffffff'</p>
+			<p class="source-code">    },</p>
+			<p class="source-code">    // two additional objects</p>
+			<p class="source-code">  ]</p>
+			<p>In the preceding code, we create an array of test objects to pass into the component. It should be noted that the code snippet only shows one customer object. The code sample for the <strong class="source-inline">CustomerTable</strong> test file will have three.</p>
+			<p>Next, we can write the main test code:</p>
+			<p class="source-code"> test('given data, renders table rows', () =&gt; {</p>
+			<p class="source-code">    render(&lt;CustomerTable data={fakeCustomers} /&gt;)</p>
+			<p class="source-code">    expect(screen.getAllByTestId('row').length).toEqual(3)</p>
+			<p class="source-code">  })</p>
+			<p>In the previous code, first, we <a id="_idIndexMarker232"/>render <strong class="source-inline">CustomerTable</strong> with <strong class="source-inline">fakeCustomers</strong> passed into the <strong class="source-inline">data</strong> property. Finally, we assert that the number of rows is equal to <strong class="source-inline">3</strong>. We use the <strong class="source-inline">getAllByTestId</strong> query to access all the rows. The <strong class="source-inline">*allBy</strong> queries allow us to grab multiple, similar DOM elements. In the code implementation for <strong class="source-inline">CustomerTable</strong>, <strong class="source-inline">data-testid</strong> is added as a <a id="_idIndexMarker233"/>property to each <strong class="source-inline">TableRow</strong> component created for each customer data object:</p>
+			<p class="source-code">&lt;TableRow data-testid="row" key={customer.id}&gt;</p>
+			<p>In the previous code, a <strong class="source-inline">data-testid</strong> property is added to the <strong class="source-inline">TableRow</strong> component. The <strong class="source-inline">data-testid</strong> is used because the preferred query methods cannot be used to select all the rows in this scenario. For the second test, we verify that queries returning one match return one result:</p>
+			<p class="source-code">  test('given single-matching query, single result returned', () =&gt; {</p>
+			<p class="source-code">    render(&lt;CustomerTable data={testData} /&gt;)</p>
+			<p class="source-code">    const searchBox = screen.getByRole('textbox')</p>
+			<p class="source-code">    user.type(searchBox, 'john')</p>
+			<p class="source-code">    expect(screen.queryAllByTestId('row').length).toEqual(1)</p>
+			<p class="source-code">  })</p>
+			<p>In the previous code, first, we render <strong class="source-inline">CustomerTable</strong> with <strong class="source-inline">testData</strong> passed into the <strong class="source-inline">data</strong> property. Then, we grab the textbox and store it in the <strong class="source-inline">searchBox</strong> variable. Finally, we assert that the number of rows in the DOM is 1.</p>
+			<p>For the final test, we will verify <a id="_idIndexMarker234"/>that non-matching queries return no <strong class="source-inline">row</strong> elements to the screen:</p>
+			<p class="source-code">  test('given non-matching query, no results returned', () =&gt; {</p>
+			<p class="source-code">    render(&lt;CustomerTable data={testData} /&gt;)</p>
+			<p class="source-code">    const searchBox = screen.getByRole('textbox')</p>
+			<p class="source-code">    user.type(searchBox, 'zzz')</p>
+			<p class="source-code">    expect(screen.queryAllByTestId('row').length).toEqual(0)</p>
+			<p class="source-code">  })</p>
+			<p>The preceding code is similar to the <a id="_idIndexMarker235"/>previous test with two differences. First, we type <strong class="source-inline">zzz</strong> into <strong class="source-inline">searchBox</strong>. Then, we assert that <strong class="source-inline">0 row</strong> elements are found in the DOM. When we run the tests, we get the following output:</p>
+			<div>
+				<div id="_idContainer068" class="IMG---Figure">
+					<img src="Images/Figure_4.19_B16887.jpg" alt="Figure 4.19 – Material-UI table test results " width="1080" height="365"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.19 – Material-UI table test results </p>
+			<p>The previous screenshot shows that the tests <strong class="bold">given data, renders table rows</strong>, <strong class="bold">given single-matching query, single result returned</strong>, and <strong class="bold">given non-matching query, no results returned</strong> all pass as expected. As a challenge, try writing a test for the <a id="_idIndexMarker236"/>scenario <strong class="bold">given multi-matching query, multiple results returned</strong>. The previous test scenario solution can be <a id="_idIndexMarker237"/>found in the <a href="B16887_04_Final_PG_ePub.xhtml#_idTextAnchor062"><em class="italic">Chapter 4</em></a><em class="italic"> code samples</em> (<a href="https://github.com/PacktPublishing/Simplify-Testing-with-React-Testing-Library/tree/master/Chapter04/ch_04_mui">https://github.com/PacktPublishing/Simplify-Testing-with-React-Testing-Library/tree/master/Chapter04/ch_04_mui</a>).</p>
+			<p>This section's content has provided you with the skills to test specific Material-UI components by adding <strong class="source-inline">aria-label</strong> and <strong class="source-inline">data-testid</strong> attributes to grab them with React Testing Library when needed.</p>
+			<h1 id="_idParaDest-82"><a id="_idTextAnchor081"/>Summary</h1>
+			<p>In this chapter, you have learned how to test components using the integration test approach compared to the unit test approach with mocked dependencies. You know how to test components that use the Context API to manage application state. You also learned how to create a custom method to test components in projects using the third-party Redux library. Finally, you learned how to add attributes to test components built using the popular Material-UI library. </p>
+			<p>In the next chapter, we will learn how to refactor tests for legacy projects.</p>
+			<h1 id="_idParaDest-83"><a id="_idTextAnchor082"/>Questions</h1>
+			<ol>
+				<li>Explain the benefits of testing integrated components versus in isolation.</li>
+				<li>When should you use the <strong class="source-inline">data-testid</strong> attribute to grab components?</li>
+				<li>When should you use the <strong class="source-inline">act</strong> method from React Testing Library?</li>
+			</ol>
+		</div>
+	</div></body></html>

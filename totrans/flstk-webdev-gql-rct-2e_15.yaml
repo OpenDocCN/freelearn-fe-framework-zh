@@ -1,0 +1,3336 @@
+- en: '*Chapter 12*: Continuous Deployment with CircleCI and AWS'
+  id: totrans-0
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: '*第 12 章*：使用 CircleCI 和 AWS 进行持续部署'
+- en: In the last two chapters, we prepared our application through tests with Mocha.
+    We have built an application that is ready for the production environment.
+  id: totrans-1
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在最后两章中，我们通过 Mocha 测试准备我们的应用程序。我们已经构建了一个适用于生产环境的应用程序。
+- en: We will now generate a production build that's ready for deployment. We've arrived
+    at the point where we can set up **Amazon Elastic Container Service** (**Amazon
+    ECS**) and implement the ability to build and deploy Docker images through a continuous
+    deployment workflow.
+  id: totrans-2
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们现在将生成一个准备就绪的生产构建版本，以便部署。我们已经到达了可以设置 **Amazon Elastic Container Service** （**Amazon
+    ECS**）并实现通过持续部署工作流程构建和部署 Docker 镜像的阶段。
+- en: The process of continuous deployment will help to keep changes small for the
+    production environment. Keeping changes in your application continuous and small
+    will make issues trackable and fixable, whereas releasing a set of multiple features
+    at once will leave the location for bugs open for investigation as multiple things
+    will have changed with just one release.
+  id: totrans-3
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 持续部署的过程将有助于保持生产环境中的更改较小。保持应用程序中的更改持续且小，将使问题可追踪和可修复，而一次性发布一组多个功能将留下错误的位置供调查，因为仅通过一个发布就会有许多事情发生变化。
+- en: 'This chapter covers the following topics:'
+  id: totrans-4
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 本章涵盖了以下主题：
+- en: Production-ready bundling
+  id: totrans-5
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 生产就绪的打包
+- en: What is Docker?
+  id: totrans-6
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 什么是 Docker？
+- en: Configuring Docker
+  id: totrans-7
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 配置 Docker
+- en: Setting up AWS RDS (short for **AWS Relational Database Service**) as a production
+    database
+  id: totrans-8
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 设置 AWS RDS（即 **AWS 关系数据库服务**）作为生产数据库
+- en: What is continuous integration/deployment?
+  id: totrans-9
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 什么是持续集成/持续部署？
+- en: Setting up continuous deployment with CircleCI
+  id: totrans-10
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 设置 CircleCI 的持续部署
+- en: Deploying our application to **Amazon Elastic Container Registry** (**Amazon
+    ELB**) and ECS with AWS **Application Load Balancer** (**ALB**)
+  id: totrans-11
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 将我们的应用程序部署到 **Amazon Elastic Container Registry** （**Amazon ELB**）和 ECS，使用 AWS
+    **应用程序负载均衡器** （**ALB**）
+- en: Technical requirements
+  id: totrans-12
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 技术要求
+- en: 'The source code for this chapter is available in the following GitHub repository:'
+  id: totrans-13
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 本章的源代码可在以下 GitHub 仓库中找到：
+- en: '[https://github.com/PacktPublishing/Full-Stack-Web-Development-with-GraphQL-and-React-2nd-Edition/tree/main/Chapter12](https://github.com/PacktPublishing/Full-Stack-Web-Development-with-GraphQL-and-React-2nd-Edition/tree/main/Chapter12)'
+  id: totrans-14
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '[https://github.com/PacktPublishing/Full-Stack-Web-Development-with-GraphQL-and-React-2nd-Edition/tree/main/Chapter12](https://github.com/PacktPublishing/Full-Stack-Web-Development-with-GraphQL-and-React-2nd-Edition/tree/main/Chapter12)'
+- en: Preparing the final production build
+  id: totrans-15
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 准备最终的生产构建
+- en: We have come a long way to get here. Now is the time when we should look at
+    how we currently run our application and how we should prepare it for a production
+    environment.
+  id: totrans-16
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们已经走了很长的路才到达这里。现在是时候审视我们当前如何运行我们的应用程序以及我们应该如何为生产环境做准备的时候了。
+- en: Currently, we use our application in a development environment while working
+    on it. It is not highly optimized for performance or low-bandwidth usage. We include
+    developer functionalities with the code so that we can debug it properly.
+  id: totrans-17
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 目前，我们在开发环境中使用我们的应用程序，同时对其进行工作。它没有针对性能或低带宽使用进行高度优化。我们在代码中包含开发功能，以便我们可以正确地调试它。
+- en: For use in a real production environment, we should only include what is necessary
+    for the user. When setting the `NODE_ENV` variable to `production`, we remove
+    most of the unnecessary development mechanics.
+  id: totrans-18
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在实际生产环境中使用时，我们应该只包含用户所需的内容。当将 `NODE_ENV` 变量设置为 `production` 时，我们将移除大部分不必要的开发机制。
+- en: 'By bundling our server-side code, we will get rid of unnecessary loading times
+    and will improve the performance. To bundle our backend code, we are going to
+    set up a new webpack configuration file. Follow these instructions:'
+  id: totrans-19
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 通过打包我们的服务器端代码，我们将消除不必要的加载时间并提高性能。为了打包我们的后端代码，我们将设置一个新的 webpack 配置文件。请按照以下说明操作：
+- en: 'Install the following two dependencies:'
+  id: totrans-20
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 安装以下两个依赖项：
+- en: '[PRE0]'
+  id: totrans-21
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE0]'
+- en: 'These packages do the following:'
+  id: totrans-22
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 这些包执行以下操作：
+- en: The `webpack-node-externals` package gives you the option to exclude specific
+    modules while bundling your application with webpack. It reduces the final bundle
+    size.
+  id: totrans-23
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '`webpack-node-externals` 包在您使用 webpack 打包应用程序时提供了排除特定模块的选项。它减少了最终的包大小。'
+- en: The `@babel/plugin-transform-runtime` package is a small plugin that enables
+    us to reuse Babel's helper methods, which usually get inserted into every processed
+    file. It reduces the final bundle size.
+  id: totrans-24
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '`@babel/plugin-transform-runtime` 包是一个小的插件，它使我们能够重用 Babel 的辅助方法，这些方法通常会被插入到每个处理的文件中。它减少了最终的包大小。'
+- en: 'Create a `webpack.server.build.config.js` file next to the other webpack files
+    with the following content:'
+  id: totrans-25
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在其他webpack文件旁边创建一个`webpack.server.build.config.js`文件，内容如下：
+- en: '[PRE1]'
+  id: totrans-26
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE1]'
+- en: 'The preceding configuration file is very simple and not complex. Let''s go
+    through the settings that we use to configure webpack:'
+  id: totrans-27
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 上述配置文件非常简单，并不复杂。让我们看看我们用来配置webpack的设置：
+- en: We load our new `webpack-node-externals` package at the top.
+  id: totrans-28
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 我们在顶部加载了新的`webpack-node-externals`包。
+- en: The `build` directory, where we save the bundle, is in the `dist` folder, inside
+    of a special `server` folder.
+  id: totrans-29
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 我们保存包的`build`目录位于`dist`文件夹内，一个特殊的`server`文件夹中。
+- en: The `mode` field is set to `'production'`.
+  id: totrans-30
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '`mode`字段设置为`''production''`。'
+- en: The `entry` point for webpack is the server's root `index.js` file.
+  id: totrans-31
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: webpack的`entry`点是服务器的根`index.js`文件。
+- en: The `output` property holds the standard fields to bundle our code and saves
+    it inside of the folder specified through the `buildDirectory` variable.
+  id: totrans-32
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '`output`属性包含打包我们的代码的标准字段，并将它保存在通过`buildDirectory`变量指定的文件夹内。'
+- en: We use the previously installed `@babel/plugin-transform-runtime` plugin in
+    the `module` property to reduce the file size for our bundle.
+  id: totrans-33
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 我们在`module`属性中使用之前安装的`@babel/plugin-transform-runtime`插件来减少我们的包文件大小。
+- en: Inside of the `node` property, you can set Node.js-specific configuration options.
+    The `__dirname` field tells webpack that the global `__dirname` variable is used
+    with its default settings and is not customized by webpack. The same goes for
+    the `__filename` property.
+  id: totrans-34
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 在`node`属性内部，你可以设置Node.js特定的配置选项。`__dirname`字段告诉webpack全局的`__dirname`变量使用默认设置，并且没有被webpack自定义。对于`__filename`属性也是如此。
+- en: The `target` field accepts multiple environments in which the generated bundle
+    should work. For our case, we set it to `'node'`, as we want to run our backend
+    in Node.js.
+  id: totrans-35
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '`target`字段接受多个环境，其中生成的包应该在这些环境中工作。在我们的案例中，我们将其设置为`''node''`，因为我们想在Node.js中运行我们的后端。'
+- en: The `externals` property gives us the possibility to exclude specific dependencies
+    from our bundle. By using the `webpack-node-externals` package, we prevent all
+    `node_modules` packages from being included in our bundle.
+  id: totrans-36
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '`externals`属性给我们提供了排除特定依赖项从我们的包中的可能性。通过使用`webpack-node-externals`包，我们防止了所有`node_modules`包被包含在我们的包中。'
+- en: 'To make use of our new build configuration file, we add two new commands to
+    the `scripts` field of our `package.json` file. As we are trying to generate a
+    final production build that we can publicize, we have to build our client-side
+    code in parallel. Add the following two lines to the `scripts` field of the `package.json`
+    file:'
+  id: totrans-37
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 为了使用我们新的构建配置文件，我们在`package.json`文件的`scripts`字段中添加了两个新的命令。因为我们试图生成一个可以公开的最终生产构建，我们必须并行构建我们的客户端代码。将以下两行添加到`package.json`文件的`scripts`字段：
+- en: '[PRE2]'
+  id: totrans-38
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE2]'
+- en: The `build` command uses the `&&` syntax to chain two `npm run` commands. It
+    executes the build process for our client-side code first, and afterward, it bundles
+    the entire server-side code. The result is that we have a filled `dist` folder
+    with a `client` folder and a `server` folder. Both can import components dynamically.
+  id: totrans-39
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '`build`命令使用`&&`语法来链式执行两个`npm run`命令。它首先执行客户端代码的构建过程，然后打包整个服务器端代码。结果是我们在`dist`文件夹中有一个包含`client`文件夹和`server`文件夹的完整文件夹。两者都可以动态导入组件。'
+- en: 'To start our server with the new production code, we are going to add one further
+    command to the `scripts` field. The old `npm run server` command would start the
+    server-side code in the unbundled version, which is not what we want. Insert the
+    following line into the `package.json` file:'
+  id: totrans-40
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 为了使用新的生产代码启动我们的服务器，我们将在`scripts`字段中添加一个额外的命令。旧的`npm run server`命令会启动未打包的服务器端代码，这不是我们想要的。将以下行插入到`package.json`文件中：
+- en: '[PRE3]'
+  id: totrans-41
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE3]'
+- en: The preceding command simply executes the `bundle.js` file from the `dist/server`
+    folder, using the plain `node` command to launch our backend.
+  id: totrans-42
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 上述命令简单地从`dist/server`文件夹执行`bundle.js`文件，使用普通的`node`命令启动我们的后端。
+- en: Now, you should be able to generate your final build by running `npm run build`.
+    Before starting the production server as a test, however, make sure that you have
+    set all environment variables for your database correctly, or your `JWT_SECRET`,
+    for example. Then, you can execute the `npm run server:production` command to
+    launch the backend.
+  id: totrans-43
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 现在，你应该可以通过运行`npm run build`来生成你的最终构建。然而，在开始作为测试启动生产服务器之前，请确保你已经正确设置了所有数据库的环境变量，例如`JWT_SECRET`。然后，你可以执行`npm
+    run server:production`命令来启动后端。
+- en: 'Our tests need to be run in a way to reflect the same production conditions,
+    because only then can we verify that all features that are enabled in the live
+    environment work correctly. To make sure that is true, we need to change how we
+    execute the tests. Edit the `test` command of the `package.json` file to reflect
+    this change, as follows:'
+  id: totrans-44
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 我们需要以反映相同生产条件的方式运行测试，因为只有这样我们才能验证所有在实时环境中启用的功能都能正确工作。为了确保这一点，我们需要改变执行测试的方式。编辑`package.json`文件中的`test`命令以反映此更改，如下所示：
+- en: '[PRE4]'
+  id: totrans-45
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE4]'
+- en: Now, you should be able to test your application with the same generated production
+    bundles.
+  id: totrans-46
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 现在，你应该能够使用生成的生产包测试你的应用程序。
+- en: In the next section, we will cover how to use Docker to bundle your entire application.
+  id: totrans-47
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在下一节中，我们将介绍如何使用Docker捆绑整个应用程序。
+- en: Setting up Docker
+  id: totrans-48
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 设置Docker
+- en: Publishing an application is a critical step that requires a lot of work and
+    care. Many things can go wrong when releasing a new version. We have already made
+    sure that we can test our application before it goes live.
+  id: totrans-49
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 发布应用程序是一个关键步骤，需要大量的工作和细心。在发布新版本时，许多事情可能会出错。我们已经确保在应用程序上线之前可以对其进行测试。
+- en: 'The real act of transforming our local files into a production-ready package,
+    which is then uploaded to a server, is the most onerous task. Regular applications
+    generally rely on a server that is preconfigured with all the packages that the
+    application needs to run. For example, when looking at a standard PHP setup, most
+    people rent a preconfigured server. This means that the PHP runtime, with all
+    the extensions, such as the MySQL PHP library, are installed via the built-in
+    package manager of the operating system. This procedure applies not only to PHP
+    but also to nearly any other programming language. This might be okay for general
+    websites or applications that are not too complex, but for professional software
+    development or deployment, this process can lead to issues, such as the following:'
+  id: totrans-50
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 将我们的本地文件转换成生产就绪包的实际操作，然后将其上传到服务器，这是最繁重的工作。常规应用程序通常依赖于预先配置了应用程序运行所需所有包的服务器。例如，在查看标准的PHP设置时，大多数人会租用一个预先配置的服务器。这意味着PHP运行时，包括所有扩展，如MySQL
+    PHP库，都是通过操作系统的内置包管理器安装的。这个程序不仅适用于PHP，也适用于几乎所有其他编程语言。这可能适用于一般的网站或不太复杂的应用程序，但对于专业软件开发或部署，这个过程可能会导致以下问题：
+- en: The configuration needs to be done by someone that knows the requirements of
+    the application and the server itself.
+  id: totrans-51
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 配置必须由了解应用程序和服务器本身需求的人来完成。
+- en: A second server needs the same configuration in order to allow our application
+    to run. While doing that configuration, we must ensure that all servers are standardized
+    and consistent with one another.
+  id: totrans-52
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 第二个服务器需要相同的配置才能允许我们的应用程序运行。在执行此配置时，我们必须确保所有服务器都是标准化的，并且彼此一致。
+- en: All of the servers have to be reconfigured when the runtime environment gets
+    an update, either because the application requires it, or due to other reasons,
+    such as security updates. In this case, everything must be tested again.
+  id: totrans-53
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 当运行时环境更新时，所有服务器都必须重新配置，无论是由于应用程序需要，还是由于其他原因，如安全更新。在这种情况下，必须再次进行测试。
+- en: Multiple applications running inside of the same server environment may require
+    different package versions or may interfere with each other.
+  id: totrans-54
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 在同一服务器环境中运行的多个应用程序可能需要不同的包版本，或者可能相互干扰。
+- en: The deployment process must be executed by someone with the required knowledge.
+  id: totrans-55
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 部署过程必须由具备所需知识的人执行。
+- en: Starting an application directly on a server exposes it to all the services
+    running on the server. Other processes could take over your complete application
+    since they run within the same environment.
+  id: totrans-56
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 在服务器上直接启动应用程序会使其暴露于服务器上运行的所有服务。由于它们在相同的环境中运行，其他进程可能会接管你的完整应用程序。
+- en: Also, the application is not limited to using a specified maximum of the server's
+    resources.
+  id: totrans-57
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 此外，应用程序的使用并不限于服务器资源的指定最大值。
+- en: Many people have tried to figure out how to avoid these consequences by introducing
+    a new containerization and deployment workflow.
+  id: totrans-58
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 许多人试图通过引入新的容器化和部署工作流程来避免这些后果。
+- en: What is Docker?
+  id: totrans-59
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 什么是Docker？
+- en: One of the most important pieces of software is called Docker. It was released
+    in 2013, and its function is to isolate the application within a container by
+    offering its own runtime environment, without having access to the server itself.
+  id: totrans-60
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 最重要的软件之一被称为 Docker。它于 2013 年发布，其功能是通过提供自己的运行时环境来在容器内隔离应用程序，而不需要访问服务器本身。
+- en: The aim of a container is to isolate the application from the operating system
+    of the server.
+  id: totrans-61
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 容器的目的是将应用程序从服务器的操作系统隔离出来。
+- en: Standard virtual machines can also accomplish this by running a guest operating
+    system for the application. Inside of the virtual machine, all packages and runtimes
+    can be installed to prepare it for your application. This solution comes with
+    significant overhead, of course, because we are running a second operating system
+    that's just for our application. It is not scalable when many services or multiple
+    applications are involved.
+  id: totrans-62
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 标准虚拟机也可以通过为应用程序运行一个客户操作系统来完成这项任务。在虚拟机内部，所有包和运行时都可以安装，以便为您的应用程序做准备。当然，这种解决方案伴随着显著的开销，因为我们正在运行一个仅用于我们应用程序的第二个操作系统。当涉及许多服务或多个应用程序时，这种方案是不可扩展的。
+- en: On the other hand, Docker containers work entirely differently. The application
+    itself, and all of its dependencies, receive a segment of the operating system's
+    resources. All processes are isolated by the host system inside of those resources.
+  id: totrans-63
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 另一方面，Docker 容器的工作方式完全不同。应用程序本身及其所有依赖项都从操作系统的资源中获取一个部分。所有进程都在这些资源内部由主机系统隔离。
+- en: Any server supporting the container runtime environment (which is Docker) can
+    run your dockerized application. The great thing is that the actual operating
+    system is abstracted away. Your operating system will be very slim, as nothing
+    more than the kernel and Docker is required.
+  id: totrans-64
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 任何支持容器运行时环境（即 Docker）的服务器都可以运行您的 docker 化应用程序。好处在于实际的操作系统被抽象化了。您的操作系统将会非常精简，因为除了内核和
+    Docker 之外，不需要其他任何东西。
+- en: With Docker, the developer can specify how the container image is composed.
+    They can directly test and deploy those images on their infrastructure.
+  id: totrans-65
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 使用 Docker，开发者可以指定容器镜像的组成方式。他们可以直接在他们的基础设施上测试和部署这些镜像。
+- en: To see the process and advantages that Docker provides, we are going to build
+    a container image that includes our application and all the dependencies it needs
+    to run.
+  id: totrans-66
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了看到 Docker 提供的过程和优势，我们将构建一个包含我们的应用程序及其运行所需的所有依赖项的容器镜像。
+- en: Installing Docker
+  id: totrans-67
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 安装 Docker
+- en: As with any virtualization software, Docker has to be installed via the regular
+    package manager of your operating system.
+  id: totrans-68
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 与任何虚拟化软件一样，Docker 必须通过操作系统的常规包管理器进行安装。
+- en: I will assume that you are using a Debian-based system. If this is not the case,
+    please get the correct instructions for your system at [https://docs.docker.com/install/overview/](https://docs.docker.com/install/overview/).
+  id: totrans-69
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我将假设您正在使用基于 Debian 的系统。如果不是这种情况，请前往 [https://docs.docker.com/install/overview/](https://docs.docker.com/install/overview/)
+    获取您系统的正确说明。
+- en: 'Continue with the following instructions to get Docker up and running:'
+  id: totrans-70
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 按照以下说明继续操作，以启动并运行 Docker：
+- en: 'Update your system''s package manager, as follows:'
+  id: totrans-71
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 按照以下步骤更新您的系统包管理器：
+- en: '[PRE5]'
+  id: totrans-72
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE5]'
+- en: 'We can install the Docker package to our system, as follows:'
+  id: totrans-73
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 我们可以按照以下步骤在我们的系统上安装 Docker 包：
+- en: '[PRE6]'
+  id: totrans-74
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE6]'
+- en: 'If you are running an Ubuntu version with snap installed, you can also use
+    the following command:'
+  id: totrans-75
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 如果您正在运行已安装 snap 的 Ubuntu 版本，您还可以使用以下命令：
+- en: '[PRE7]'
+  id: totrans-76
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE7]'
+- en: That's everything that is required to get a working copy of Docker on your system.
+  id: totrans-77
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这就是要在您的系统上获取一个可工作的 Docker 复制品所需的所有内容。
+- en: Next, you will learn how to use Docker by building your first Docker container
+    image.
+  id: totrans-78
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 接下来，您将通过构建您的第一个 Docker 容器镜像来学习如何使用 Docker。
+- en: Dockerizing your application
+  id: totrans-79
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: Docker 化您的应用程序
+- en: Many companies have adopted Docker and replaced their old infrastructure setup,
+    thereby largely reducing system administration. Still, there is some work to do
+    before deploying your application straight to production.
+  id: totrans-80
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 许多公司已经采用 Docker 并替换了他们的旧基础设施设置，从而在很大程度上减少了系统管理。然而，在将应用程序直接部署到生产之前，还有一些工作要做。
+- en: One primary task is to dockerize your application. The term **dockerize** means
+    that you take care of wrapping your application inside of a valid Docker container.
+  id: totrans-81
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 一个主要任务是将您的应用程序 docker 化。术语 **dockerize** 意味着您需要负责将应用程序包裹在一个有效的 Docker 容器内。
+- en: There are many service providers that connect Docker with CI or continuous deployment
+    because they work well together. In the last section of this chapter, you will
+    learn what continuous deployment is and how it can be implemented. We are going
+    to rely on such a service provider. It will provide us with an automatic workflow
+    for our continuous deployment process. Let's first start dockerizing our application.
+  id: totrans-82
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 有许多服务提供商将 Docker 与 CI 或持续部署连接起来，因为它们可以很好地协同工作。在本章的最后部分，你将了解什么是持续部署以及如何实现它。我们将依赖这样的服务提供商。它将为我们提供持续部署过程的自动工作流程。让我们首先开始将我们的应用程序
+    docker 化。
+- en: Writing your first Dockerfile
+  id: totrans-83
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: 编写你的第一个 Dockerfile
+- en: The conventional approach to generating a Docker image of your application is
+    to create a `Dockerfile` at the root of your project. But what is a `Dockerfile`
+    for?
+  id: totrans-84
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 生成应用程序 Docker 镜像的传统方法是，在项目的根目录下创建一个 `Dockerfile`。但 `Dockerfile` 是做什么用的？
+- en: 'A `Dockerfile` is a series of commands that are run through the Docker **Command-Line
+    Interface** (**CLI**). The typical workflow in such a file looks as follows:'
+  id: totrans-85
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`Dockerfile` 是一系列通过 Docker **命令行界面**（**CLI**）运行的命令。此类文件中的典型工作流程如下：'
+- en: A `Dockerfile` starts from a base image, which is imported using the `FROM`
+    command. This base image may include a runtime environment, like Node.js, or other
+    things that your project can make use of. The container images are downloaded
+    from Docker Hub, which is a central container registry that you can find at [https://hub.docker.com/](https://hub.docker.com/).
+    There is the option to download the images from custom registries, too.
+  id: totrans-86
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: '`Dockerfile` 从一个基础镜像开始，使用 `FROM` 命令导入。这个基础镜像可能包括运行时环境，如 Node.js，或者你的项目可以利用的其他东西。容器镜像从
+    Docker Hub 下载，Docker Hub 是一个中心容器注册表，你可以在 [https://hub.docker.com/](https://hub.docker.com/)
+    找到它。也有从自定义注册表中下载镜像的选项。'
+- en: Docker offers many commands to interact with the image and your application
+    code. Those commands can be looked up at [https://docs.docker.com/engine/reference/builder/](https://docs.docker.com/engine/reference/builder/).
+  id: totrans-87
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: Docker 提供了许多命令来与镜像和应用程序代码进行交互。这些命令可以在 [https://docs.docker.com/engine/reference/builder/](https://docs.docker.com/engine/reference/builder/)
+    中查找。
+- en: After the configuration of the image has finished and all build steps are complete,
+    you will need to provide a command that will be executed when your application's
+    Docker container starts.
+  id: totrans-88
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在镜像配置完成并且所有构建步骤完成后，你需要提供一个命令，当你的应用程序的 Docker 容器启动时将执行该命令。
+- en: The result of the build steps will be a new Docker image (see *Figure 12.1*).
+    The image is saved on the machine where it was generated.
+  id: totrans-89
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 构建步骤的结果将是一个新的 Docker 镜像（见 *图 12.1*）。该镜像保存在生成它的机器上。
+- en: Optionally, you can now publish your new image to a registry, where other applications
+    or users can pull your image. You can also upload them as private images or private
+    registries.
+  id: totrans-90
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 可选地，你现在可以将你的新镜像发布到注册表中，其他应用程序或用户可以拉取你的镜像。你也可以将它们作为私有镜像或私有注册表上传。
+- en: We will start by generating a simple Docker image. First, create the `Dockerfile`
+    inside of the root of your project. The filename is written without any file extensions.
+  id: totrans-91
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将首先生成一个简单的 Docker 镜像。首先，在你的项目根目录下创建 `Dockerfile`。文件名没有写任何文件扩展名。
+- en: The first task is to find a matching base image that we can use for our project.
+    The criteria by which we choose a base image are the dependencies and runtime
+    environment. As we have mainly used Node.js without relying on any other server-side
+    package that needs to be covered from our Docker container, we only need to find
+    a base image that provides Node.js. For the moment, we will ignore the database,
+    and we'll focus on it again in a later step.
+  id: totrans-92
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 第一项任务是找到一个匹配的基础镜像，我们可以用它来构建我们的项目。我们选择基础镜像的标准是依赖项和运行时环境。由于我们主要使用了 Node.js，没有依赖任何其他需要在
+    Docker 容器中覆盖的服务端包，我们只需要找到一个提供 Node.js 的基础镜像。目前，我们将忽略数据库，稍后我们将在后续步骤中再次关注它。
+- en: 'Docker Hub is the official container image registry, providing many minimalistic
+    images. Just insert the following line inside of our new `Dockerfile`, in the
+    root of our project:'
+  id: totrans-93
+  prefs: []
+  type: TYPE_NORMAL
+  zh: Docker Hub 是官方的容器镜像注册表，提供许多最小化镜像。只需在我们的新 `Dockerfile` 中插入以下行，位于我们项目的根目录下：
+- en: '[PRE8]'
+  id: totrans-94
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE8]'
+- en: As we mentioned before, we use the `FROM` command to download our base image.
+    As the name of the preceding image states, it includes Node.js in version 14\.
+    There are numerous other versions that you can use. Beyond the different versions,
+    you can also find different flavors (for example, a Node.js image based on an
+    Alpine Linux image). Take a look at the image's `README` to get an overview of
+    the available options at [https://hub.docker.com/_/node/](https://hub.docker.com/_/node/).
+  id: totrans-95
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如我们之前提到的，我们使用`FROM`命令下载基础镜像。正如前面镜像的名称所表明的，它包含Node.js版本14。您还可以使用许多其他版本。除了不同的版本之外，您还可以找到不同的风味（例如，基于Alpine
+    Linux的Node.js镜像）。查看镜像的`README`以了解可用的选项，请访问[https://hub.docker.com/_/node/](https://hub.docker.com/_/node/)。
+- en: Important Note
+  id: totrans-96
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 重要提示
+- en: I recommend that you read through the reference documentation of the `Dockerfile`.
+    Many advanced commands and scenarios are explained there, which will help you
+    to customize your Docker workflow. Just go to [https://docs.docker.com/engine/reference/builder/](https://docs.docker.com/engine/reference/builder/).
+  id: totrans-97
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我建议您阅读`Dockerfile`的参考文档。那里解释了许多高级命令和场景，这将帮助您自定义Docker工作流程。只需访问[https://docs.docker.com/engine/reference/builder/](https://docs.docker.com/engine/reference/builder/)即可。
+- en: After Docker has run the `FROM` command, you will be working directly within
+    this base image, and all further commands will then run inside of this environment.
+    You can access all features that the underlying operating system provides. Of
+    course, the features are limited by the image that you have chosen. A `Dockerfile`
+    is only valid if it starts with the `FROM` command.
+  id: totrans-98
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在Docker运行了`FROM`命令之后，您将直接在这个基础镜像中工作，并且所有后续命令都将在这个环境中运行。您可以访问底层操作系统提供的所有功能。当然，这些功能受您选择的镜像限制。只有以`FROM`命令开始的`Dockerfile`才是有效的。
+- en: 'The next step for our `Dockerfile` is to create a new folder, in which the
+    application will be stored and run. Add the following line to the `Dockerfile`:'
+  id: totrans-99
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们`Dockerfile`的下一步是创建一个新的文件夹，应用程序将存储并在此运行。将以下行添加到`Dockerfile`中：
+- en: '[PRE9]'
+  id: totrans-100
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE9]'
+- en: The `WORKDIR` command changes the directory to the specified path. The path
+    that you enter lives inside of the filesystem of the image, which does not affect
+    your computer's filesystem. From then on, the `RUN`, `CMD`, `ENTRYPOINT`, `COPY`,
+    and `ADD` Docker commands will be executed in the new working directory. Furthermore,
+    the `WORKDIR` command will create a new folder if it does not exist yet.
+  id: totrans-101
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`WORKDIR`命令将目录更改为指定的路径。您输入的路径位于镜像的文件系统中，不会影响您的计算机文件系统。从那时起，`RUN`、`CMD`、`ENTRYPOINT`、`COPY`和`ADD`Docker命令将在新的工作目录中执行。此外，如果该文件夹不存在，`WORKDIR`命令将创建一个新的文件夹。'
+- en: Next, we need to get our application's code inside of the new folder. Until
+    now, we have only made sure that the base image was loaded. The image that we
+    are generating does not include our application yet. Docker provides a command
+    to move our code into the final image.
+  id: totrans-102
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 接下来，我们需要将我们的应用程序代码放入新文件夹中。到目前为止，我们只确保加载了基础镜像。我们正在生成的镜像还没有包含我们的应用程序。Docker提供了一个命令将我们的代码移动到最终镜像中。
+- en: 'As the third line of our `Dockerfile`, add the following code:'
+  id: totrans-103
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们的`Dockerfile`的第三行中添加以下代码：
+- en: '[PRE10]'
+  id: totrans-104
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE10]'
+- en: The `COPY` command accepts two parameters. The first one is the source, which
+    can be a file or folder. The second parameter is the destination path inside of
+    the image's filesystem. You can use a subset of regular expressions to filter
+    the files or folders that you copy.
+  id: totrans-105
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`COPY`命令接受两个参数。第一个参数是源，可以是文件或文件夹。第二个参数是镜像文件系统中的目标路径。您可以使用正则表达式的一个子集来过滤复制的文件或文件夹。'
+- en: After Docker has executed the preceding command, all contents living in the
+    current directory will be copied over to the `/usr/src/app` path. The current
+    directory, in this case, is the root of our project folder. All files are now
+    automatically inside of the final Docker image. You can interact with the files
+    through all Docker commands but also with the commands that the shell provides.
+  id: totrans-106
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在Docker执行了前面的命令之后，当前目录中所有存在的文件内容都将被复制到`/usr/src/app`路径。在这个例子中，当前目录是我们的项目文件夹的根目录。现在所有文件都自动包含在最终的Docker镜像中。您可以通过所有Docker命令以及shell提供的命令与这些文件进行交互。
+- en: 'One important task is that we install all `npm` packages that our application
+    relies on. When running the `COPY` command, such as in the preceding code, all
+    files and folders are transferred, including the `node_modules` folder. This could
+    lead to problems when trying to run the application, however. Many `npm` packages
+    are compiled when they are being installed, or they differentiate between operating
+    systems. We must make sure that the packages that we use are clean, and work in
+    the environment that we want them to work in. We must do two things to accomplish
+    this, as follows:'
+  id: totrans-107
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 一个重要的任务是安装我们应用程序所依赖的所有`npm`包。当运行`COPY`命令时，例如在前面代码中，所有文件和文件夹都会被传输，包括`node_modules`文件夹。然而，这可能会在尝试运行应用程序时导致问题。许多`npm`包在安装时会进行编译，或者它们会在不同的操作系统之间进行区分。我们必须确保我们使用的包是干净的，并且在我们希望它们工作的环境中工作。为了实现这一点，我们必须做两件事，如下所示：
+- en: 'Create a `.dockerignore` file in the root of the project folder, next to the
+    `Dockerfile`, and enter the following content:'
+  id: totrans-108
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在项目文件夹的根目录中创建一个`.dockerignore`文件，位于`Dockerfile`旁边，并输入以下内容：
+- en: '[PRE11]'
+  id: totrans-109
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE11]'
+- en: The `.dockerignore` file is comparable to the `.gitignore` file, which excludes
+    special files or folders from being tracked by Git. Docker reads the `.dockerignore`
+    file before all files are sent to the Docker daemon. If it is able to read a valid
+    `.dockerignore` file, all specified files and folders are excluded. The preceding
+    two lines exclude the whole `node_modules` folder.
+  id: totrans-110
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '`.dockerignore`文件类似于`.gitignore`文件，它排除特殊文件或文件夹不被Git跟踪。Docker在将所有文件发送到Docker守护进程之前读取`.dockerignore`文件。如果它能够读取有效的`.dockerignore`文件，则所有指定的文件和文件夹都将被排除。前面的两行排除了整个`node_modules`文件夹。'
+- en: 'Install the `npm` packages inside of Docker. Add the following line of code
+    to the `Dockerfile`:'
+  id: totrans-111
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在Docker内部安装`npm`包。将以下代码行添加到`Dockerfile`中：
+- en: '[PRE12]'
+  id: totrans-112
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE12]'
+- en: 'Graphbook uses port `8000` by default, under which it listens for incoming
+    requests, be it a GraphQL or normal web request. When running a Docker container,
+    it receives its own network, with an IP and ports. We must make port `8000` available
+    to the public, not only inside of the container itself. Insert the following line
+    at the end of the `Dockerfile` to make the port accessible from outside of the
+    container:'
+  id: totrans-113
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: Graphbook默认使用端口`8000`，在此端口下它监听传入的请求，无论是GraphQL还是普通Web请求。当运行Docker容器时，它会获得自己的网络，包括IP和端口。我们必须确保端口`8000`对公众可用，而不仅仅是容器内部。在`Dockerfile`的末尾插入以下行，以便从容器外部访问端口：
+- en: '[PRE13]'
+  id: totrans-114
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE13]'
+- en: It is essential that you understand that the `EXPOSE` command does not map the
+    inner port `8000` from the container to the matching port of our working machine.
+    By writing the `EXPOSE` command, you give the developer using the image the option
+    to publish port `8000` to any port of the real machine running the container.
+    The mapping is done while starting the container, not when building the image.
+    Later in this chapter, we will look at how to map port `8000` to a port of your
+    local machine.
+  id: totrans-115
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 你必须理解`EXPOSE`命令不会将容器内部的端口`8000`映射到我们的工作机的匹配端口。通过编写`EXPOSE`命令，你给使用该镜像的开发者提供了将端口`8000`发布到运行容器的真实机器上的任何端口的选项。映射是在启动容器时完成的，而不是在构建镜像时。在本章的后面部分，我们将探讨如何将端口`8000`映射到你的本地机器上的端口。
+- en: Finally, we have to tell Docker what our container should do once it has booted.
+    In our case, we want to start our backend (including SSR, of course). Since this
+    should be a simple example, we will start the development server.
+  id: totrans-116
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 最后，我们必须告诉Docker容器启动后应该做什么。在我们的例子中，我们希望启动我们的后端（包括SSR）。由于这是一个简单的示例，我们将启动开发服务器。
+- en: 'Add the last line of the `Dockerfile`, as follows:'
+  id: totrans-117
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 添加`Dockerfile`的最后一行，如下所示：
+- en: '[PRE14]'
+  id: totrans-118
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE14]'
+- en: The `CMD` command defines the way that our container is booted, and which command
+    to run. We are using the `exec` option of Docker to pass an array of strings.
+    A `Dockerfile` can only have one `CMD` command. The `exec` format does not run
+    a Bash or shell command when using `CMD`.
+  id: totrans-119
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '`CMD`命令定义了我们的容器启动的方式以及要运行的命令。我们使用Docker的`exec`选项传递字符串数组。`Dockerfile`只能有一个`CMD`命令。使用`CMD`时，`exec`格式不会运行Bash或shell命令。'
+- en: The container executes the `server` script of our `package.json` file, which
+    has been copied into the Docker image.
+  id: totrans-120
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 容器执行`package.json`文件中的`server`脚本，该脚本已被复制到Docker镜像中。
+- en: At this point, everything is finished and prepared to generate a basic Docker
+    image. Next, we will continue with getting a container up and running.
+  id: totrans-121
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 到目前为止，一切都已经完成并准备好生成基本的Docker镜像。接下来，我们将继续进行获取并运行容器。
+- en: Building and running Docker containers
+  id: totrans-122
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 构建和运行Docker容器
+- en: The `Dockerfile` and `.dockerignore` files are ready. Docker provides us with
+    the tools to generate a real image, which we can run or share with others. Having
+    a `Dockerfile` on its own does not make an application dockerized.
+  id: totrans-123
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`Dockerfile` 和 `.dockerignore` 文件已准备就绪。Docker为我们提供了生成真实镜像的工具，我们可以运行或与他人共享这个镜像。仅仅拥有一个`Dockerfile`并不能使应用程序实现Docker化。'
+- en: Make sure that the database credentials specified in the `/server/config/index.js`
+    file for the backend are valid for development because they are statically saved
+    there. Furthermore, the MySQL host must allow for remote connections from inside
+    the container.
+  id: totrans-124
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 确保在`/server/config/index.js`文件中指定的后端数据库凭据对开发有效，因为它们被静态保存在那里。此外，MySQL主机必须允许容器内部的远程连接。
+- en: 'Execute the following command to build the Docker image on your local machine:'
+  id: totrans-125
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在您的本地机器上构建Docker镜像，请执行以下命令：
+- en: '[PRE15]'
+  id: totrans-126
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE15]'
+- en: This command requires you to have the Docker CLI and daemon installed.
+  id: totrans-127
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 此命令要求您已安装Docker CLI和守护进程。
+- en: The first option that we use is `-t`, following a string (in our case, `sgrebe/graphbook`).
+    The finished build will be saved under the username `sgrebe` and the application
+    name `graphbook`. This text is also called a `tag`. The only required parameter
+    of the `docker build` command is the build context or the set of files that Docker
+    will use for the container. We specified the current directory as the build context
+    by adding the dot at the end of the command. Furthermore, the `build` action expects
+    the `Dockerfile` to be located within this folder. If you want the file to be
+    taken from somewhere else, you can specify it with the `--file` option.
+  id: totrans-128
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们使用的第一个选项是`-t`，后面跟着一个字符串（在我们的例子中，是`sgrebe/graphbook`）。构建完成的镜像将被保存在用户名`sgrebe`和应用程序名`graphbook`下。这段文本也被称为`tag`。`docker
+    build`命令的唯一必需参数是构建上下文，即Docker用于容器的文件集。我们通过在命令末尾添加点来指定当前目录作为构建上下文。此外，`build`操作期望`Dockerfile`位于此文件夹内。如果您想从其他地方获取文件，可以使用`--file`选项指定。
+- en: Important Note
+  id: totrans-129
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 重要提示
+- en: If the `docker build` command fails, it may be that some environment variables
+    are missing. They usually include the IP and port of the Docker daemon. To look
+    them up, execute the `docker-machine env` command and set the environment variables
+    as returned by the command.
+  id: totrans-130
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果`docker build`命令失败，可能是因为缺少一些环境变量。它们通常包括Docker守护进程的IP和端口。要查找它们，请执行`docker-machine
+    env`命令，并设置命令返回的环境变量。
+- en: 'When the command has finished generating the image, it should be available
+    locally. To prove this, you can use the Docker CLI by running the following command:'
+  id: totrans-131
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 当命令完成镜像生成后，它应该在本地上可用。为了证明这一点，您可以通过运行以下命令使用Docker CLI：
+- en: '[PRE16]'
+  id: totrans-132
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE16]'
+- en: 'The output from Docker should look as follows:'
+  id: totrans-133
+  prefs: []
+  type: TYPE_NORMAL
+  zh: Docker的输出应该如下所示：
+- en: '![Figure 12.1 – Docker images'
+  id: totrans-134
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图12.1 – Docker镜像'
+- en: '](img/Figure_12.01_B17337.jpg)'
+  id: totrans-135
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.01_B17337.jpg)'
+- en: Figure 12.1 – Docker images
+  id: totrans-136
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图12.1 – Docker镜像
+- en: You should see two containers; the first one is the `sgrebe/graphbook` container
+    image, or whatever you used as a tag name. The second one should be the `node`
+    image, which we used as the base for our custom Docker image. The size of the
+    custom image should be much higher because we installed all `npm` packages.
+  id: totrans-137
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 您应该看到两个容器；第一个是`sgrebe/graphbook`容器镜像，或者您使用的任何标签名称。第二个应该是`node`镜像，这是我们用作自定义Docker镜像的基础。自定义镜像的大小应该大得多，因为我们安装了所有的`npm`包。
+- en: 'Now, we should be able to start our Docker container with this new image. The
+    following command will launch your Docker container:'
+  id: totrans-138
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在，我们应该能够使用这个新镜像启动我们的Docker容器。以下命令将启动您的Docker容器：
+- en: '[PRE17]'
+  id: totrans-139
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE17]'
+- en: 'The `docker run` command also has only one required parameter, which is the
+    image to start the container with. In our case, this is `sgrebe/graphbook`, or
+    whatever you specified as a tag name. Still, we define some optional parameters
+    that we need to get our application working. You can find an explanation of each
+    of them, as follows:'
+  id: totrans-140
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`docker run`命令也只有一个必需参数，即用于启动容器的镜像。在我们的例子中，这是`sgrebe/graphbook`，或者您指定的任何标签名称。尽管如此，我们定义了一些可选参数，我们需要它们来使我们的应用程序正常工作。您可以在以下内容中找到每个参数的解释：'
+- en: We set the `-p` option to `8000:8000`. The parameter is used to map ports from
+    the actual host operating system to a specific port inside of the Docker container.
+    The first port is the port of the host machine, and the second one is the port
+    of the container. This option gives us access to the exposed port `8000`, where
+    the application is running under `http://localhost:8000` of our local machine.
+  id: totrans-141
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 我们将`-p`选项设置为`8000:8000`。该参数用于将实际主机操作系统的端口映射到Docker容器内的特定端口。第一个端口是主机机的端口，第二个端口是容器的端口。此选项使我们能够访问暴露的端口`8000`，应用程序在我们的本地机器的`http://localhost:8000`下运行。
+- en: The `--env-file` parameter is required to pass environment variables to the
+    container. Those can be used to hand over the `NODE_ENV` or `JWT_SECRET` variables,
+    for example, which we require throughout our application. We will create this
+    file in a second.
+  id: totrans-142
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '`--env-file`参数是必需的，用于将环境变量传递到容器中。这些变量可以用来传递`NODE_ENV`或`JWT_SECRET`变量，例如，这些变量是我们整个应用程序所必需的。我们将在下一秒创建此文件。'
+- en: You can also pass the environment variables one by one using the `-e` option.
+    It is much easier to provide a file, however.
+  id: totrans-143
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: 您也可以使用`-e`选项逐个传递环境变量。然而，提供文件要容易得多。
+- en: The `-d` option sets the container to `docker run` command provides many more
+    options. It allows for various advanced setups. The link to the official documentation
+    is [https://docs.docker.com/engine/reference/run/#general-form](https://docs.docker.com/engine/reference/run/#general-form).
+  id: totrans-144
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+  zh: '`-d`选项将容器设置为`docker run`命令提供了许多更多选项。它允许进行各种高级设置。官方文档的链接是[https://docs.docker.com/engine/reference/run/#general-form](https://docs.docker.com/engine/reference/run/#general-form)。'
+- en: 'Let''s create the `.env` file in the root directory of our project. Insert
+    the following content, replacing all placeholders with the correct value for every
+    environment variable:'
+  id: totrans-145
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们在项目的根目录中创建`.env`文件。插入以下内容，将所有占位符替换为每个环境变量的正确值：
+- en: '[PRE18]'
+  id: totrans-146
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE18]'
+- en: The `.env` file is a simple key-value list, where you can specify one variable
+    per line, which our application can access from its environment variables.
+  id: totrans-147
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`.env`文件是一个简单的键值列表，您可以在其中指定每行一个变量，我们的应用程序可以从其环境变量中访问这些变量。'
+- en: It is vital that you do not commit this file to the public at any stage. Please
+    add this file directly to the `.gitignore` file.
+  id: totrans-148
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在任何阶段都绝对不要将此文件提交到公共领域。请直接将此文件添加到`.gitignore`文件中。
+- en: 'If you have filled out this file, you will be able to start the Docker container
+    with the previous command that I showed you. Now that the container is running
+    in detached mode, you will have the problem that you cannot be sure whether Graphbook
+    has started to listen. Consequently, Docker also provides a command to test this,
+    as follows:'
+  id: totrans-149
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果您已填写此文件，您将能够使用我之前向您展示的命令启动Docker容器。现在容器以分离模式运行，您将遇到一个问题，即您无法确定Graphbook是否已经开始监听。因此，Docker还提供了一个命令来测试这一点，如下所示：
+- en: '[PRE19]'
+  id: totrans-150
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE19]'
+- en: 'The `docker ps` command gives you a list of all running containers. You should
+    find the Graphbook container in there, too. The output should appear as follows:'
+  id: totrans-151
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`docker ps`命令为您提供了一个所有正在运行的容器的列表。您应该在那里找到Graphbook容器。输出应如下所示：'
+- en: '![12.2 – Docker running containers'
+  id: totrans-152
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![12.2 – Docker运行容器'
+- en: '](img/Figure_12.02_B17337.jpg)'
+  id: totrans-153
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.02_B17337.jpg)'
+- en: 12.2 – Docker running containers
+  id: totrans-154
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 12.2 – Docker运行容器
+- en: Important Note
+  id: totrans-155
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 重要提示
+- en: Like all commands that Docker provides, the `docker ps` command gives us many
+    options to customize and filter the output. Read up on all of the features that
+    it offers in the official documentation at [https://docs.docker.com/engine/reference/commandline/ps/](https://docs.docker.com/engine/reference/commandline/ps/).
+  id: totrans-156
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 与Docker提供的所有命令一样，`docker ps`命令为我们提供了许多选项来自定义和过滤输出。请在官方文档中了解它提供的所有功能，链接为[https://docs.docker.com/engine/reference/commandline/ps/](https://docs.docker.com/engine/reference/commandline/ps/)。
+- en: Our container is running, and it uses the database that we have specified. You
+    should be able to use Graphbook as you know it by visiting `http://localhost:8000`.
+  id: totrans-157
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们运行的容器正在使用我们指定的数据库。您应该能够通过访问`http://localhost:8000`来像以前一样使用Graphbook。
+- en: If you take a look at the preceding figure, you will see that all running containers
+    receive their own IDs. This ID can be used in various situations to interact with
+    the container.
+  id: totrans-158
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果您查看前面的图示，您将看到所有正在运行的容器都有自己的ID。这个ID可以在各种情况下用来与容器交互。
+- en: 'In development, it makes sense to have access to the command-line printouts
+    that our application generates. When running the container in detached mode, you
+    have to use the Docker CLI to see the printouts, using the following command.
+    Replace the ID at the end of the command with the ID of your container:'
+  id: totrans-159
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在开发中，能够访问我们的应用程序生成的命令行输出是有意义的。当以分离模式运行容器时，你必须使用 Docker CLI 来查看输出，使用以下命令。将命令末尾的
+    ID 替换为你容器 ID：
+- en: '[PRE20]'
+  id: totrans-160
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE20]'
+- en: The `docker logs` command will show you all the printouts that have been made
+    by our application or container recently. Replace the preceding ID with the one
+    given to you by the `docker ps` command. If you want to see the logs in real time
+    while using Graphbook, you can add the `--follow` option.
+  id: totrans-161
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`docker logs` 命令将显示我们的应用程序或容器最近做出的所有输出。将前面的 ID 替换为 `docker ps` 命令提供的 ID。如果你想在使用
+    Graphbook 时实时查看日志，可以添加 `--follow` 选项。'
+- en: As we are running the container in detached mode, you will not be able to stop
+    it by just using *Ctrl* + *C* as before. Instead, you have to use the Docker CLI
+    again.
+  id: totrans-162
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于我们以分离模式运行容器，你将无法像以前那样仅使用 *Ctrl* + *C* 来停止它。相反，你必须再次使用 Docker CLI。
+- en: 'To stop the container again, run the following command:'
+  id: totrans-163
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要再次停止容器，请运行以下命令：
+- en: '[PRE21]'
+  id: totrans-164
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE21]'
+- en: 'To finally remove it, run the following command:'
+  id: totrans-165
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要最终将其删除，请运行以下命令：
+- en: '[PRE22]'
+  id: totrans-166
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE22]'
+- en: The `docker rm` command stops and removes the container from the system. Any
+    changes made to the filesystem inside of the container will be lost. If you start
+    the image again, a new container will be created, with a clean filesystem.
+  id: totrans-167
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`docker rm` 命令会停止并从系统中删除容器。对容器内部文件系统所做的任何更改都将丢失。如果你再次启动镜像，将创建一个新的容器，拥有一个干净的文件系统。'
+- en: 'When working and developing with Docker frequently, you will probably generate
+    many images to test and verify the deployment of your application. These take
+    up a lot of space on your local machine. To remove the images, you can execute
+    the following command:'
+  id: totrans-168
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 当你频繁地使用 Docker 进行工作和开发时，你可能会生成许多镜像来测试和验证你应用程序的部署。这些镜像在你的本地机器上占用大量空间。要删除镜像，你可以执行以下命令：
+- en: '[PRE23]'
+  id: totrans-169
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE23]'
+- en: The ID can be taken from the `docker images` command, the output of which you
+    can see in the first image in this section. You can only remove an image if it
+    is not used in a running container.
+  id: totrans-170
+  prefs: []
+  type: TYPE_NORMAL
+  zh: ID 可以从 `docker images` 命令中获取，该命令的输出你可以看到本节第一张图片。只有当镜像未被用于运行中的容器时，你才能删除它。
+- en: We have come far. We have successfully dockerized our application. However,
+    it is still running in development mode, so there is a lot to do.
+  id: totrans-171
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们已经取得了很大的进展。我们已经成功地将我们的应用程序容器化。然而，它仍在开发模式下运行，所以还有很多事情要做。
+- en: Multi-stage Docker production builds
+  id: totrans-172
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 多阶段 Docker 生产构建
+- en: Our current Docker image, which we are creating from the `Dockerfile`, is already
+    useful. We want our application to be transpiled and running in production mode
+    because many things are not optimized for the public when running in development
+    mode.
+  id: totrans-173
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们当前创建的 Docker 镜像，是从 `Dockerfile` 生成的，已经很有用了。我们希望我们的应用程序能够在生产模式下进行转译并运行，因为许多内容在开发模式下运行时并未针对公众进行优化。
+- en: Obviously, we have to run our build scripts for the backend and frontend while
+    generating the Docker image.
+  id: totrans-174
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 显然，在生成 Docker 镜像时，我们必须运行后端和前端的构建脚本。
+- en: Up until now, we have installed all `npm` packages and copied all files and
+    folders for our project to the container image. This is fine for development because
+    this image is not published or deployed to a production environment. When going
+    live with your application, you will want your image to be as slim and efficient
+    as possible. To achieve this, we will use a so-called **multi-stage build**.
+  id: totrans-175
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 到目前为止，我们已经将所有 `npm` 包和所有文件及文件夹安装到我们的项目容器镜像中。这对于开发来说是可以的，因为这个镜像尚未发布或部署到生产环境中。当你的应用程序上线时，你希望你的镜像尽可能瘦小和高效。为了实现这一点，我们将使用所谓的**多阶段构建**。
+- en: Before Docker implemented the functionality to allow for multi-stage builds,
+    you had to rely on tricks, such as using shell commands to only keep the files
+    that were really required in the container image. The problem that we have is
+    that we copy all files that are used to build the actual distribution code from
+    the project folder. Those files are not needed in the production Docker container,
+    however.
+  id: totrans-176
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在 Docker 实现允许多阶段构建的功能之前，你必须依赖诸如使用 shell 命令仅保留容器镜像中实际需要的文件等技巧。我们面临的问题是，我们从项目文件夹中复制了所有用于构建实际分发代码的文件。然而，这些文件在生产
+    Docker 容器中并不需要。
+- en: 'Let''s see how this looks in reality. You can back up or remove the first `Dockerfile`
+    that we wrote, as we will start with a blank one now. The new file still needs
+    to be called `Dockerfile`. All the following lines of code go directly into this
+    empty `Dockerfile`. Follow these instructions to get the multi-stage production
+    build running:'
+  id: totrans-177
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们看看在现实中这看起来如何。你可以备份或删除我们之前编写的第一个 `Dockerfile`，因为我们现在将从一个空白文件开始。新文件仍然需要被命名为
+    `Dockerfile`。所有接下来的代码行都将直接写入这个空白的 `Dockerfile`。按照以下说明来运行多阶段生产构建：
+- en: 'Our new file starts with the `FROM` command again. We are going to have multiple
+    `FROM` statements because we are preparing a multi-stage build. The first one
+    should look as follows:'
+  id: totrans-178
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 我们的新文件再次以 `FROM` 命令开始。我们将有多个 `FROM` 语句，因为我们正在准备一个多阶段构建。第一个应该看起来如下：
+- en: '[PRE24]'
+  id: totrans-179
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE24]'
+- en: We are introducing the first build stage here. As before, we are using the `node`
+    image in version 14\. Furthermore, we append the `AS build` suffix, which tells
+    Docker that this stage, and everything that we do in it, will be accessible under
+    the name `build` later. A new stage is started with every new `FROM` command.
+  id: totrans-180
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 我们在这里引入第一个构建阶段。和之前一样，我们使用的是 14 版本的 `node` 镜像。此外，我们添加了 `AS build` 后缀，这告诉 Docker，这个阶段以及我们在其中所做的所有操作，将来都可以通过名称
+    `build` 访问。每次新的 `FROM` 命令都会启动一个新的阶段。
+- en: 'Next, we initialize the working directory, as we did in our first `Dockerfile`,
+    as follows:'
+  id: totrans-181
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 接下来，我们初始化工作目录，就像我们在第一个 `Dockerfile` 中做的那样，如下所示：
+- en: '[PRE25]'
+  id: totrans-182
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE25]'
+- en: 'It is essential to only copy the files that we really need. It hugely improves
+    the performance if you reduce the number of files that need to be processed:'
+  id: totrans-183
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 只复制我们真正需要的文件是至关重要的。如果你能减少需要处理的文件数量，这将极大地提高性能：
+- en: '[PRE26]'
+  id: totrans-184
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE26]'
+- en: We copy the `.babelrc`, `package.json`, `package-lock.json`, and webpack files
+    that are required for our application. These include all information we need to
+    generate a production build for the frontend and backend. Furthermore, we also
+    copy the `src`, `public`, and `assets` folders, because they include the code
+    and CSS that will be transpiled and bundled.
+  id: totrans-185
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 我们复制 `.babelrc`、`package.json`、`package-lock.json` 和 webpack 文件，这些文件是我们应用程序所需的。它们包括我们生成前端和后端生产构建所需的所有信息。此外，我们还复制了
+    `src`、`public` 和 `assets` 文件夹，因为它们包含了将被转换和捆绑的代码和 CSS。
+- en: 'Like in our first `Dockerfile`, we must install all `npm` packages; otherwise,
+    our application won''t work. We do this with the following line of code:'
+  id: totrans-186
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 就像在我们的第一个 `Dockerfile` 中一样，我们必须安装所有的 `npm` 包；否则，我们的应用程序将无法工作。我们通过以下代码行来完成这项工作：
+- en: '[PRE27]'
+  id: totrans-187
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE27]'
+- en: 'After all the packages have been installed successfully, we can start the build
+    process. We added the `build` script in the first section of this chapter. Add
+    the following line to execute the script that will generate the production bundles
+    in the Docker image:'
+  id: totrans-188
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在所有包安装成功后，我们可以开始构建过程。我们在本章的第一部分添加了 `build` 脚本。将以下行添加到执行脚本的命令中，该脚本将在 Docker 镜像中生成生产捆绑包：
+- en: '[PRE28]'
+  id: totrans-189
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE28]'
+- en: The following command will generate a `dist` folder for us, where the runnable
+    code (including CSS) will be stored. After the `dist` folder with all bundles
+    has been created, we will no longer need most of the files that we initially copied
+    over to the current build stage.
+  id: totrans-190
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 以下命令将为我们生成一个 `dist` 文件夹，其中将存储可运行的代码（包括 CSS）。在创建完包含所有捆绑包的 `dist` 文件夹后，我们将不再需要最初复制到当前构建阶段的多数文件。
+- en: 'To get a clean Docker image that only contains the `dist` folder and the files
+    that we need to run the application, we will introduce a new build stage that
+    will generate the final image. The new stage is started with a second `FROM` statement,
+    as follows:'
+  id: totrans-191
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 为了得到一个只包含 `dist` 文件夹和运行应用程序所需的文件的干净 Docker 镜像，我们将引入一个新的构建阶段来生成最终镜像。新的阶段通过第二个
+    `FROM` 语句开始，如下所示：
+- en: '[PRE29]'
+  id: totrans-192
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE29]'
+- en: We are building the final image in this build step; therefore, it does not need
+    its own name.
+  id: totrans-193
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 我们在这个构建步骤中构建最终镜像；因此，它不需要自己的名称。
+- en: 'Again, we need to specify the working directory for the second stage, as the
+    path is not copied from the first build stage:'
+  id: totrans-194
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 再次强调，我们需要为第二个阶段指定工作目录，因为路径不会从第一个构建阶段复制过来：
+- en: '[PRE30]'
+  id: totrans-195
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE30]'
+- en: 'Before continuing, we need to ensure that the application has access to all
+    environment variables. For that, add the following lines to the `Dockerfile`:'
+  id: totrans-196
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在继续之前，我们需要确保应用程序可以访问所有环境变量。为此，将以下行添加到 `Dockerfile` 中：
+- en: '[PRE31]'
+  id: totrans-197
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE31]'
+- en: We use the `ENV` command from Docker to fill the environment variables while
+    building the image.
+  id: totrans-198
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 我们使用 Docker 的 `ENV` 命令在构建镜像时填充环境变量。
+- en: 'Because we have given our first build stage a name, we can access the filesystem
+    of this stage through that name. To copy the files from the first stage, we can
+    add a parameter to the `COPY` statement. Add the following commands to the `Dockerfile`:'
+  id: totrans-199
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 由于我们已经给第一个构建阶段起了一个名字，我们可以通过这个名字访问这个阶段的文件系统。要复制第一个阶段的文件，我们可以在 `COPY` 语句中添加一个参数。将以下命令添加到
+    `Dockerfile` 中：
+- en: '[PRE32]'
+  id: totrans-200
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE32]'
+- en: As you should see in the preceding code, we are copying the `package.json` file
+    and the `dist` folder. However, instead of copying the files from our original
+    project folder, we are getting those files directly from the first build stage.
+    For this, we use the `--from` option, following the name of the stage that we
+    want to access; so, we enter the name `build`. The `package.json` file is needed
+    because it includes all dependencies and the `scripts` field, which holds the
+    information on how to run the application in production. The `dist` folder is,
+    of course, our bundled application.
+  id: totrans-201
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 正如你应该在前面的代码中看到的那样，我们正在复制 `package.json` 文件和 `dist` 文件夹。然而，我们不是从原始项目文件夹中复制文件，而是直接从第一个构建阶段获取这些文件。为此，我们使用
+    `--from` 选项，后面跟着我们想要访问的阶段名称；因此，我们输入名称 `build`。`package.json` 文件是必需的，因为它包含了所有依赖项和
+    `scripts` 字段，该字段包含了如何在生产中运行应用程序的信息。`dist` 文件夹当然是我们的打包应用程序。
+- en: Furthermore, we copy a `start.sh` file that we will create and the server folder
+    because in there we have all the database migrations.
+  id: totrans-202
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 此外，我们复制了一个我们将创建的 `start.sh` 文件和服务器文件夹，因为在那里我们有所有的数据库迁移。
+- en: 'Note that we only copy the `package.json` file and the `dist` folder. Our `npm`
+    dependencies are not included in the application build inside of the `dist` folder.
+    As a result, we need to install the `npm` packages in the second build stage,
+    too:'
+  id: totrans-203
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 注意，我们只复制 `package.json` 文件和 `dist` 文件夹。我们的 `npm` 依赖项不包括在 `dist` 文件夹中的应用程序构建中。因此，我们还需要在第二个构建阶段安装
+    `npm` 包：
+- en: '[PRE33]'
+  id: totrans-204
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE33]'
+- en: mysql2 package. We will leverage them to apply migrations at the start of the
+    Docker container. There are also further ways to trigger them manually and not
+    at the start of a Docker container, but this will work for our setup.
+  id: totrans-205
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '`mysql2` 包。我们将利用它们在 Docker 容器启动时应用迁移。还有其他方法可以手动触发它们，而不是在 Docker 容器启动时，但这将适用于我们的设置。'
+- en: '[PRE34]'
+  id: totrans-206
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE34]'
+- en: 'The last two things to do here are to expose the container port to the public
+    and to execute the `CMD` command, which will let the image run a command of our
+    `package.json` file when the container has booted:'
+  id: totrans-207
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在这里需要做的最后两件事是公开容器的端口并执行 `CMD` 命令，这将允许容器启动时运行 `package.json` 文件中的命令：
+- en: '[PRE35]'
+  id: totrans-208
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE35]'
+- en: 'Lastly, we need to create a `start.sh` file at the root of the project with
+    the following content:'
+  id: totrans-209
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 最后，我们需要在项目的根目录下创建一个 `start.sh` 文件，内容如下：
+- en: '[PRE36]'
+  id: totrans-210
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE36]'
+- en: In the `start.sh` file, we have two lines. The first one runs all database migrations.
+    The last one starts the server based on the generated production bundle.
+  id: totrans-211
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 在 `start.sh` 文件中，我们有两行。第一行运行所有数据库迁移。最后一行基于生成的生产包启动服务器。
+- en: Now, you can execute the `docker build` command again and try to start the container.
+    There is only one problem – the database credentials are read from the environment
+    variables when running in production. As the production setup for a database cannot
+    be on our local machine, it needs to live somewhere on a real server. We could
+    also accomplish this through Docker, but this would involve a very advanced Docker
+    configuration. We would need to save the MySQL data in separate storage because
+    Docker does not persist data of any kind, by default.
+  id: totrans-212
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在，你可以再次执行 `docker build` 命令并尝试启动容器。唯一的问题是——在生产环境中运行时，数据库凭据是从环境变量中读取的。由于数据库的生产设置不能在我们的本地机器上，它需要存在于真实的服务器上的某个地方。我们也可以通过
+    Docker 完成这个任务，但这将涉及一个非常高级的 Docker 配置。我们需要将 MySQL 数据保存在单独的存储中，因为 Docker 默认不会持久化任何类型的数据。
+- en: Personally, I like to rely on a cloud host, which handles the database setup
+    for me. It is not only great for the overall setup but also improves the scalability
+    of our application. The next section will cover Amazon RDS and how to configure
+    it for use with our application. You can use any database infrastructure that
+    you like.
+  id: totrans-213
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 个人来说，我喜欢依赖云主机，它为我处理数据库设置。这不仅对整体设置有很大帮助，还提高了我们应用程序的可扩展性。下一节将介绍 Amazon RDS 以及如何为我们的应用程序配置它。你可以使用你喜欢的任何数据库基础设施。
+- en: Amazon RDS
+  id: totrans-214
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: Amazon RDS
+- en: AWS offers Amazon **RDS**, which is an easy tool for setting up a relational
+    database in just a few clicks. Shortly, I will explain how to create your first
+    database with RDS, and afterward, we will look at how to insert environment variables
+    correctly in order to get a database connection going with our application.
+  id: totrans-215
+  prefs: []
+  type: TYPE_NORMAL
+  zh: AWS提供Amazon **RDS**，这是一个只需点击几下即可轻松设置关系型数据库的工具。简而言之，我将解释如何使用RDS创建您的第一个数据库，之后我们将探讨如何正确插入环境变量，以便与应用程序建立数据库连接。
+- en: The first step is to log in to the AWS Management Console, as we did in [*Chapter
+    7*](B17337_07_Final_ASB_ePub.xhtml#_idTextAnchor154), *Handling Image Uploads*.
+    You can find the service by clicking on the `RDS`.
+  id: totrans-216
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 第一步是登录到AWS管理控制台，就像我们在[*第7章*](B17337_07_Final_ASB_ePub.xhtml#_idTextAnchor154)中做的那样，*处理图像上传*。您可以通过点击`RDS`来找到该服务。
+- en: 'After navigating to **RDS**, you will see the dashboard, as shown in the following
+    screenshot:'
+  id: totrans-217
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在导航到**RDS**后，您将看到仪表板，如下面的截图所示：
+- en: '![Figure 12.3 – AWS RDS'
+  id: totrans-218
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图12.3 – AWS RDS'
+- en: '](img/Figure_12.03_B17337.jpg)'
+  id: totrans-219
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.03_B17337.jpg)'
+- en: Figure 12.3 – AWS RDS
+  id: totrans-220
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图12.3 – AWS RDS
+- en: 'Follow these instructions to set the RDS database up:'
+  id: totrans-221
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 按照以下说明设置RDS数据库：
+- en: Initialize a new database by hitting the **Create database** button. You will
+    be presented with a new screen, where you should select an engine for our new
+    database and how to create it, as shown in the following screenshot:![Figure 12.4
+    – AWS RDS Engine selection
+  id: totrans-222
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 通过点击**创建数据库**按钮初始化一个新的数据库。您将看到一个新屏幕，您应该选择我们新数据库的引擎以及如何创建它，如下面的截图所示：![图12.4 –
+    AWS RDS引擎选择
+- en: '](img/Figure_12.04_B17337.jpg)'
+  id: totrans-223
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.04_B17337.jpg)'
+- en: Figure 12.4 – AWS RDS Engine selection
+  id: totrans-224
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.4 – AWS RDS引擎选择
+- en: I recommend that you select **MySQL** here. You should also be able to select
+    **Amazon Aurora** or **MariaDB**, as they are also MySQL compatible; for this
+    book, I have chosen MySQL. Also, stay with the standard creation method. Continue
+    by scrolling down.
+  id: totrans-225
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 我建议您在此处选择**MySQL**。您还应该能够选择**Amazon Aurora**或**MariaDB**，因为它们也与MySQL兼容；对于这本书，我选择了MySQL。此外，请继续使用标准创建方法。通过向下滚动继续操作。
+- en: You will need to specify the use case for your database. The production option
+    is only recommended for live applications because this will include higher costs.
+    Choose the free tier, as shown in the following screenshot:![Figure 12.5 – AWS
+    RDS Templates selection
+  id: totrans-226
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 您需要指定数据库的使用场景。生产选项仅推荐用于实时应用程序，因为这将包括更高的成本。选择免费层，如下面的截图所示：![图12.5 – AWS RDS模板选择
+- en: '](img/Figure_12.05_B17337.jpg)'
+  id: totrans-227
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.05_B17337.jpg)'
+- en: Figure 12.5 – AWS RDS Templates selection
+  id: totrans-228
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.5 – AWS RDS模板选择
+- en: Continue by scrolling down. Next, you need to fill in the database credentials
+    to authenticate on the backend later. Fill in the details, as shown here:![Figure
+    12.6 – AWS RDS database credentials
+  id: totrans-229
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 继续向下滚动。接下来，您需要填写数据库凭据，以便在稍后进行后端认证。填写如下所示的详细信息：![图12.6 – AWS RDS数据库凭据
+- en: '](img/Figure_12.06_B17337.jpg)'
+  id: totrans-230
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.06_B17337.jpg)'
+- en: Figure 12.6 – AWS RDS database credentials
+  id: totrans-231
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.6 – AWS RDS数据库凭据
+- en: Next, you need to select the AWS instance and, by that, the computing power
+    of the database. Select **db.t2.micro**, which is free and enough for our use
+    case now. It should look like as follows:![Figure 12.7 – AWS RDS instance class
+  id: totrans-232
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 接下来，您需要选择AWS实例，从而确定数据库的计算能力。选择**db.t2.micro**，它是免费的，并且目前对我们的用例来说已经足够。它应该看起来像以下这样：![图12.7
+    – AWS RDS实例类型
+- en: '](img/Figure_12.07_B17337.jpg)'
+  id: totrans-233
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.07_B17337.jpg)'
+- en: Figure 12.7 – AWS RDS instance class
+  id: totrans-234
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.7 – AWS RDS实例类型
+- en: You will now be asked for connectivity settings. It is important that you select
+    **Public access**, with **Yes** checked. This does not share your database with
+    the public but makes it accessible from other IPs and other EC2 instances if you
+    select them in your AWS security group. Also, you need to create a new subnet
+    group and give a new security group name:![Figure 12.8 – AWS RDS network settings
+  id: totrans-235
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 现在将要求您设置连接设置。您必须选择**公共访问**，并确保**是**被勾选的。这并不会将您的数据库与公众共享，但如果您在AWS安全组中选择它们，则可以从其他IP和其他EC2实例访问。此外，您还需要创建一个新的子网组，并给出一个新的安全组名称：![图12.8
+    – AWS RDS网络设置
+- en: '](img/Figure_12.08_B17337.jpg)'
+  id: totrans-236
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.08_B17337.jpg)'
+- en: Figure 12.8 – AWS RDS network settings
+  id: totrans-237
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.8 – AWS RDS网络设置
+- en: In the **Additional configuration** section, we need to provide an initial database
+    name, which will create a database inside RDS after finishing the setup:![Figure
+    12.9 – The Additional configuration window
+  id: totrans-238
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在**附加配置**部分，我们需要提供一个初始数据库名称，这样在设置完成后，RDS内部将创建一个数据库：![图12.9 – 附加配置窗口
+- en: '](img/Figure_12.09_B17337.jpg)'
+  id: totrans-239
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.09_B17337.jpg)'
+- en: Figure 12.9 – The Additional configuration window
+  id: totrans-240
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '![图 12.9 – 额外配置窗口](img/Figure_12.9_Additional_configuration_window.jpg)'
+- en: Finish the setup process for your first AWS RDS database by clicking on **Create
+    database** at the bottom of the screen.
+  id: totrans-241
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 通过点击屏幕底部的 **创建数据库**，完成您第一个 AWS RDS 数据库的设置过程。
+- en: You should now be redirected to the list of all databases.
+  id: totrans-242
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 您现在应该被重定向到所有数据库的列表。
+- en: 'Click on the new database instance that has been created. If you scroll down,
+    you will see a list of security groups. Click on the group with the **CIDR/IP
+    - Inbound** type:'
+  id: totrans-243
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 点击已创建的新数据库实例。如果您向下滚动，您将看到安全组列表。点击具有 **CIDR/IP - 入站** 类型的组：
+- en: '![Figure 12.10 – AWS security group rules'
+  id: totrans-244
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图 12.10 – AWS 安全组规则](img/Figure_12.10_B17337.jpg)'
+- en: '](img/Figure_12.10_B17337.jpg)'
+  id: totrans-245
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图 12.10 – AWS 安全组规则](img/Figure_12.10_B17337.jpg)'
+- en: Figure 12.10 – AWS security group rules
+  id: totrans-246
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图 12.10 – AWS 安全组规则
+- en: If you click on the first rule, you will be able to insert the IP that is allowed
+    to access the database. If you insert the `0.0.0.0` IP, it will allow any remote
+    IP to access the database. This is not a recommended database setup for production
+    use, but it makes it easier to test it with multiple environments in developmental
+    use.
+  id: totrans-247
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果您点击第一条规则，您将能够插入允许访问数据库的 IP。如果您插入 `0.0.0.0` IP，它将允许任何远程 IP 访问数据库。这不是推荐用于生产使用的数据库设置，但它使得在开发环境中使用多个环境进行测试变得更容易。
+- en: 'The credentials that you have specified for the database must be included in
+    the `.env` file for running our Docker container, as follows:'
+  id: totrans-248
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 您为数据库指定的凭据必须包含在 `.env` 文件中，以便运行我们的 Docker 容器，如下所示：
+- en: '[PRE37]'
+  id: totrans-249
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE37]'
+- en: The `host` URL can be taken from the Amazon RDS instance dashboard. It should
+    look something like `INSTANCE_NAME.xxxxxxxxxx.eu-central-1.rds.amazonaws.com`.
+  id: totrans-250
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`host` URL 可以从 Amazon RDS 实例仪表板中获取。它应该看起来像 `INSTANCE_NAME.xxxxxxxxxx.eu-central-1.rds.amazonaws.com`。'
+- en: Now, you should be able to run the build for your Docker image again, without
+    any problems. The database has been set up and is available.
+  id: totrans-251
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在，您应该能够再次运行 Docker 镜像的构建，而不会出现任何问题。数据库已经设置好并可用。
+- en: Next, we will look at how we can automate the process of generating the Docker
+    image through continuous integration.
+  id: totrans-252
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 接下来，我们将探讨如何通过持续集成自动化生成 Docker 镜像的过程。
+- en: Configuring continuous integration
+  id: totrans-253
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 配置持续集成
+- en: Many people (especially developers) will have heard of **continuous integration**
+    (**CI**) or **continuous deployment** (**CD**). However, most of them cannot explain
+    their meanings and the differences between the two terms. So, what is CI and CD,
+    in reality?
+  id: totrans-254
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 许多人（尤其是开发者）可能听说过 **持续集成**（**CI**）或 **持续部署**（**CD**）。然而，其中大多数人无法解释它们的含义以及这两个术语之间的区别。那么，CI
+    和 CD 在现实中究竟是什么？
+- en: When it comes to releasing your application, it might seem easy to upload some
+    files to a server and then start the application through a simple command in the
+    shell, via SSH.
+  id: totrans-255
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 当谈到发布您的应用程序时，可能看起来很容易将一些文件上传到服务器，然后通过在 shell 中执行一个简单的命令，通过 SSH 启动应用程序。
+- en: This approach might be a solution for many developers or small applications
+    that are not updated often. However, for most scenarios, it is not a good approach.
+    The word *continuous* represents the fact that all changes or updates are continuously
+    either tested, integrated, or even released. This would be a lot of work, and
+    it would be tough to do if we stayed with a simple file upload and took a manual
+    approach. Automating this workflow makes it convenient to update your application
+    at any time.
+  id: totrans-256
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这种方法可能是一些开发者或更新不频繁的小型应用的解决方案。然而，对于大多数场景来说，这并不是一个好的方法。单词 *持续* 代表了所有更改或更新都是持续不断地进行测试、集成，甚至发布的。这将是一项大量工作，如果我们继续使用简单的文件上传并采取手动方法，这将非常困难。自动化这个工作流程使得在任何时候更新您的应用程序变得方便。
+- en: CI is the development practice where all developers commit their code to the
+    central project repository at least once a day to bring their changes to the mainline
+    stream of code. The integrated code will be verified by automated test cases.
+    This will avoid problems when trying to go live at a specific time.
+  id: totrans-257
+  prefs: []
+  type: TYPE_NORMAL
+  zh: CI 是一种开发实践，其中所有开发人员每天至少将他们的代码提交到中央项目仓库一次，以便将他们的更改带到主代码流中。集成后的代码将通过自动测试用例进行验证。这将避免在特定时间尝试上线时出现的问题。
+- en: CD goes further; it's based on the main principles of CI. Every time the application
+    is successfully built and tested, the changes are directly released to the customer.
+    This is what we are going to implement.
+  id: totrans-258
+  prefs: []
+  type: TYPE_NORMAL
+  zh: CD 更进一步；它基于 CI 的主要原则。每次应用程序成功构建和测试后，更改将直接发布给客户。这正是我们打算实施的。
+- en: Our automation process will be based on **CircleCI**. It is a third-party service
+    offering a CI and CD platform, with a massive number of features.
+  id: totrans-259
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们的自动化流程将基于 **CircleCI**。它是一个提供 CI 和 CD 平台的三方服务，具有大量功能。
+- en: To sign up for CircleCI, visit [https://circleci.com/signup/](https://circleci.com/signup/).
+  id: totrans-260
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要注册 CircleCI，请访问 [https://circleci.com/signup/](https://circleci.com/signup/)。
+- en: You will need to have a Bitbucket or GitHub account in order to sign up. This
+    will also be the source from which the repositories of your application will be
+    taken, for which we can begin using CI or CD.
+  id: totrans-261
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 您需要一个 Bitbucket 或 GitHub 账户才能注册。这也将是您的应用程序仓库的来源，我们可以从这里开始使用 CI 或 CD。
+- en: To get your project up and running with CircleCI, you will need to click on
+    the **Projects** button in the left-hand panel, or you will be redirected there
+    because you have no projects set up yet. After signing up, you should see all
+    your repositories inside of CircleCI.
+  id: totrans-262
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要使您的项目通过 CircleCI 启动并运行，您需要在左侧面板中点击 **项目** 按钮，或者如果您还没有设置任何项目，您将被重定向到那里。注册后，您应该在
+    CircleCI 内看到您所有的仓库。
+- en: 'Select the project that you want to process with CircleCI by hitting **Set
+    Up Project** on the right-hand side of the project. You will then be confronted
+    with the following screen:'
+  id: totrans-263
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 通过在项目的右侧点击 **设置项目** 来选择您想要通过 CircleCI 处理的项目。然后，您将面对以下屏幕：
+- en: '![Figure 12.11 – CircleCI Projects'
+  id: totrans-264
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图 12.11 – CircleCI 项目'
+- en: '](img/Figure_12.11_B17337.jpg)'
+  id: totrans-265
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图片](img/Figure_12.11_B17337.jpg)'
+- en: Figure 12.11 – CircleCI Projects
+  id: totrans-266
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图 12.11 – CircleCI 项目
+- en: The problem is that you have not configured your repository or application accordingly.
+    You are required to create a folder called `.circleci` and a file inside of it,
+    called `config.yml`, which tells CircleCI what to do when a new commit is pushed
+    to the repository. CircleCI will either ask you to set it up yourself or it will
+    do it for you. I recommend selecting that we are going to do it on our own, as
+    this book guides you through the steps.
+  id: totrans-267
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 问题在于您没有相应地配置您的仓库或应用程序。您需要创建一个名为 `.circleci` 的文件夹，并在其中创建一个名为 `config.yml` 的文件，该文件告诉
+    CircleCI 当有新的提交推送到仓库时应该做什么。CircleCI 将会要求您自己设置，或者它会为您设置。我建议选择我们自行设置，因为这本书将引导您完成这些步骤。
+- en: Next, set **sample config** as **Node**. The final step will be to push a new
+    commit with the matching CircleCI config.
+  id: totrans-268
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 接下来，将 **示例配置** 设置为 **Node**。最后一步将是推送一个包含匹配 CircleCI 配置的新提交。
+- en: We will create a straightforward CircleCI configuration so that we can test
+    that everything is working. The final configuration will be done at a later step
+    when we have configured Amazon ECS, which will be the host of our application.
+  id: totrans-269
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将创建一个简单的 CircleCI 配置，以便我们可以测试一切是否正常工作。最终的配置将在稍后的步骤中完成，那时我们已经配置了 Amazon ECS，它将成为我们应用程序的主机。
+- en: So, create a `.circleci` folder at the root of our project and a `config.yml`
+    file inside of this new folder. The `.yml` file extension stands for `.yml` files
+    need a correct indentation. Otherwise, they will not be valid files and cannot
+    be understood by CircleCI.
+  id: totrans-270
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 因此，在我们的项目根目录下创建一个 `.circleci` 文件夹，并在该新文件夹内创建一个 `config.yml` 文件。`.yml` 文件扩展名表示
+    `.yml` 文件需要正确的缩进。否则，它们将不是有效的文件，并且无法被 CircleCI 理解。
+- en: 'Insert the following code into the `config.yml` file:'
+  id: totrans-271
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 将以下代码插入到 `config.yml` 文件中：
+- en: '[PRE38]'
+  id: totrans-272
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE38]'
+- en: 'Let''s quickly go through all the steps in the file, as follows:'
+  id: totrans-273
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们快速浏览一下文件中的所有步骤，如下所示：
+- en: The file starts with a `version` specification. We are using version 2.1, as
+    this is the current version of CircleCI.
+  id: totrans-274
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 文件以 `version` 规范开始。我们使用版本 2.1，因为这是 CircleCI 的当前版本。
+- en: Then, we will have a list of `jobs` that get executed in parallel. As we only
+    have one thing that we want to do, we can only see the `build` job that we are
+    running. Later, we will add the whole Docker build and publish the functionality
+    here.
+  id: totrans-275
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 然后，我们将有一个 `作业` 列表，这些作业将并行执行。因为我们只想做一件事，所以我们只能看到正在运行的 `build` 作业。稍后，我们将在这里添加整个
+    Docker 构建和发布功能。
+- en: Each job receives an executor type, which needs to be `machine`, `docker`, or
+    `macos`. We are using the `docker` type because we can rely on many prebuilt images
+    of CircleCI. The image is specified in a separate `image` property. There, I have
+    specified `node` in version 14, because we need Node.js for our CI workflow.
+  id: totrans-276
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 每个作业都会收到一个执行器类型，该类型需要是 `machine`、`docker` 或 `macos`。我们使用 `docker` 类型，因为我们可以依赖
+    CircleCI 的许多预构建镜像。镜像在单独的 `image` 属性中指定。在那里，我指定了版本 14 的 `node`，因为我们需要在 CI 工作流程中使用
+    Node.js。
+- en: Each job then receives several steps that are executed with every commit that
+    is pushed to the Git repository.
+  id: totrans-277
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 然后，每个作业都会接收到几个步骤，这些步骤会在将每个提交推送到 Git 仓库时执行。
+- en: The first step is the `checkout` command, which clones the current version of
+    our repository so that we can use it in any further steps.
+  id: totrans-278
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 第一步是`checkout`命令，它克隆我们仓库的当前版本，以便我们可以在后续步骤中使用它。
+- en: Lastly, to test that everything has worked, we use the `run` step. It lets us
+    execute a command directly in the Docker `node:14` image that we have started
+    with CircleCI. Each command that you want to execute must be prefixed with `command`.
+  id: totrans-279
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 最后，为了测试一切是否正常工作，我们使用`run`步骤。它允许我们在CircleCI启动的`node:14` Docker镜像中直接执行命令。你想要执行的每个命令都必须以`command`为前缀。
+- en: The result of this config file should be that we have pulled the current master
+    branch of our application and printed the text `This is working` at the end. To
+    test the CircleCI setup, commit and push this file to your GitHub or Bitbucket
+    repository.
+  id: totrans-280
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 此配置文件的结果应该是我们已拉取应用程序的当前master分支，并在最后打印了文本`This is working`。为了测试CircleCI设置，将此文件提交并推送到你的GitHub或Bitbucket仓库。
+- en: 'CircleCI should automatically notify you that it has started a new **CI** job
+    for our repository. You can find the job by hitting the **Jobs** button in the
+    left-hand panel of CircleCI. The newest job should be at the top of the list.
+    Click on the job to see the details. They should look as follows:'
+  id: totrans-281
+  prefs: []
+  type: TYPE_NORMAL
+  zh: CircleCI应该会自动通知你，它已经开始为我们仓库的新**CI**作业。你可以在CircleCI左侧面板的**作业**按钮中找到作业。最新的作业应该位于列表顶部。点击作业以查看详细信息。它们应该如下所示：
+- en: '![Figure 12.12 – CircleCI pipeline'
+  id: totrans-282
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图12.12 – CircleCI流水线'
+- en: '](img/Figure_12.12_B17337.jpg)'
+  id: totrans-283
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.12_B17337.jpg)'
+- en: Figure 12.12 – CircleCI pipeline
+  id: totrans-284
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图12.12 – CircleCI流水线
+- en: In the preceding screenshot, each step is represented in a separate row at the
+    bottom of the window. You can expand each row to see the logs that are printed
+    while executing the specific command shown in the current row. The preceding screenshot
+    shows that the job has been successful.
+  id: totrans-285
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在前面的屏幕截图中，每个步骤都在窗口底部的单独一行中表示。你可以展开每一行，以查看在执行当前行中显示的特定命令时打印的日志。前面的屏幕截图显示作业已成功完成。
+- en: Now that we have configured CircleCI to process our repository on each push,
+    we must take a look at how to host and deploy our application directly, after
+    finishing the build.
+  id: totrans-286
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在我们已经配置了CircleCI在每次推送时处理我们的仓库，我们必须看看如何在构建完成后直接托管和部署我们的应用程序。
+- en: Deploying applications to Amazon ECS
+  id: totrans-287
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 将应用程序部署到Amazon ECS
+- en: CircleCI executes our build steps each time we push a new commit. Now, we want
+    to build our Docker image and deploy it automatically to a machine that will serve
+    our application to the public.
+  id: totrans-288
+  prefs: []
+  type: TYPE_NORMAL
+  zh: CircleCI每次我们推送新的提交时都会执行我们的构建步骤。现在，我们想要构建我们的Docker镜像并将其自动部署到一台将为我们应用程序提供服务的机器上。
+- en: Our database and uploaded images are hosted on AWS already, so we can also use
+    AWS to serve our application. Setting up AWS correctly is a significant task,
+    and it takes a large amount of time. We will use Amazon ECS to run our Docker
+    image. Still, to correctly set up the network, security, and container registry
+    is too complex to be explained in just one chapter. I recommend that you take
+    a course or pick up a separate book to understand and learn advanced setups with
+    AWS, and the configuration that is needed to get production-ready hosting. For
+    now, we will use ECS to get the container, including the database connection,
+    running.
+  id: totrans-289
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们的数据库和上传的图像已经在AWS上托管，因此我们也可以使用AWS来托管我们的应用程序。正确设置AWS是一个重要的任务，并且需要大量的时间。我们将使用Amazon
+    ECS来运行我们的Docker镜像。然而，正确设置网络、安全和容器注册表过于复杂，无法在单章中解释。我建议你参加课程或阅读单独的书籍，以了解和学习AWS的高级设置以及获得生产就绪托管所需的配置。现在，我们将使用ECS来获取容器，包括数据库连接，使其运行。
+- en: Before directly going to Amazon ECS and creating your cluster, we need to prepare
+    two services – one is AWS **ALB**, which stands for **Application Load Balancer**,
+    and the other is Amazon ECR. If you set up an ECS cluster, there will be one or
+    more instances of the same service or, to be exact, task running. Those tasks
+    need to receive traffic, but if you release a new version, they should also be
+    exchanged with new tasks while still serving the traffic. That is a good job for
+    AWS ALB, as it can split traffic between the instances and handle dynamic port
+    mapping if tasks are exchanged.
+  id: totrans-290
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在直接前往Amazon ECS并创建你的集群之前，我们需要准备两个服务 - 一个是AWS **ALB**，代表**应用程序负载均衡器**，另一个是Amazon
+    ECR。如果你设置了一个ECS集群，将有一个或多个相同服务或任务的实例运行。这些任务需要接收流量，但如果发布新版本，它们也应该在继续服务流量的同时与新的任务交换。这对于AWS
+    ALB来说是个好工作，因为它可以在实例之间分割流量，并在任务交换时处理动态端口映射。
+- en: 'Log in to the AWS Management Console, search for the EC2 service, and click
+    on it. Then, follow these instructions:'
+  id: totrans-291
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 登录AWS管理控制台，搜索EC2服务，然后点击它。然后，按照以下说明操作：
+- en: Scroll down on the left panel until you see the **Load Balancing** section,
+    as shown in the following screenshot:![Figure 12.13 – AWS Load Balancing section
+  id: totrans-292
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在左侧面板向下滚动，直到你看到**负载均衡**部分，如图中所示：![图12.13 – AWS负载均衡部分
+- en: '](img/Figure_12.13_B17337.jpg)'
+  id: totrans-293
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '![图12.13 – AWS目标组创建](img/Figure_12.13_B17337.jpg)'
+- en: Figure 12.13 – AWS Load Balancing section
+  id: totrans-294
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.13 – AWS负载均衡部分
+- en: Click on **Load Balancers** and you will see an empty list. We need to click
+    on **Create Load Balancer** in the top left corner now. On the next page, select
+    **Application Load Balancer**.
+  id: totrans-295
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击**负载均衡器**，你会看到一个空列表。现在我们需要在左上角点击**创建负载均衡器**。在下一页，选择**应用程序负载均衡器**。
+- en: We need to specify a name for our load balancer and a scheme. We will go with
+    the **Internet-facing** option because that way we can access it from outside
+    AWS:![Figure 12.14 – AWS ALB configuration
+  id: totrans-296
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 我们需要为我们的负载均衡器指定一个名称和方案。我们将选择**面向互联网**的选项，因为这样我们可以从AWS外部访问它：![图12.14 – AWS ALB配置
+- en: '](img/Figure_12.14_B17337.jpg)'
+  id: totrans-297
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '![图12.14 – AWS ALB配置](img/Figure_12.14_B17337.jpg)'
+- en: Figure 12.14 – AWS ALB configuration
+  id: totrans-298
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.14 – AWS ALB配置
+- en: Important Note
+  id: totrans-299
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 重要提示
+- en: Normally, you would not make the load balancer public but instead add another
+    **Content Delivery Network** (**CDN**), cache, and firewall in front of your application
+    to protect it from **Distributed Denial of Service** (**DDoS**) attacks or unnecessary
+    load. Services on AWS such as Route53 and CloudFront work well together to accomplish
+    this, but they are out of the scope of this book.
+  id: totrans-300
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 通常情况下，你不会将负载均衡器公开，而是会在你的应用程序前面添加另一个**内容分发网络**（**CDN**）、缓存和防火墙来保护它免受**分布式拒绝服务**（**DDoS**）攻击或不必要的负载。AWS上的服务，如Route53和CloudFront，可以很好地协同工作来完成这项任务，但它们超出了本书的范围。
+- en: In the next step, we need to select a VPC that will bring the attached resources
+    into one private network. There should be an existing one from the database that
+    you can select. Please do that and select the availability zones, as shown in
+    the following screenshot:![Figure 12.15 – AWS ALB network settings
+  id: totrans-301
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在下一步中，我们需要选择一个VPC，它将把附加资源带入一个私有网络。数据库中应该有一个现有的VPC可供选择。请选择它并选择可用区域，如图中所示：![图12.15
+    – AWS ALB网络设置
+- en: '](img/Figure_12.15_B17337.jpg)'
+  id: totrans-302
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '![图12.15 – AWS ALB网络设置](img/Figure_12.15_B17337.jpg)'
+- en: Figure 12.15 – AWS ALB network settings
+  id: totrans-303
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.15 – AWS ALB网络设置
+- en: Next, you need to select the security group that we have created with the AWS
+    RDS database, as shown in the following screenshot:![Figure 12.16 – AWS ALB Security
+    groups
+  id: totrans-304
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 接下来，你需要选择与AWS RDS数据库一起创建的安全组，如图中所示：![图12.16 – AWS ALB安全组
+- en: '](img/Figure_12.16_B17337.jpg)'
+  id: totrans-305
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '![图12.16 – AWS ALB安全组](img/Figure_12.16_B17337.jpg)'
+- en: Figure 12.16 – AWS ALB Security groups
+  id: totrans-306
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.16 – AWS ALB安全组
+- en: If you scroll further down, you can see that you need to specify the routing
+    for your load balancer, that is, where the load or traffic needs to go, depending
+    on some rules that you need to define. To do that, we need to define a target
+    group. There should be a link reading **Create** **target group** below the selection
+    input, as shown in the following screenshot:![Figure 12.17 – AWS ALB routing
+  id: totrans-307
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 如果你继续向下滚动，你会看到你需要指定负载均衡器的路由，即负载或流量需要去哪里，这取决于你需要定义的一些规则。为此，我们需要定义一个目标组。在选择输入下方应该有一个链接，上面写着**创建****目标组**，如图中所示：![图12.17
+    – AWS ALB路由
+- en: '](img/Figure_12.17_B17337.jpg)'
+  id: totrans-308
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '![图12.17 – AWS ALB路由](img/Figure_12.17_B17337.jpg)'
+- en: Figure 12.17 – AWS ALB routing
+  id: totrans-309
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.17 – AWS ALB路由
+- en: If you have created and selected the target group, it should look like the preceding
+    figure, so let's do it.
+  id: totrans-310
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 如果你已创建并选择了目标组，它应该看起来像前面的图示，所以让我们来做这件事。
+- en: Open the link in a separate tab or window; as mentioned before, you should see
+    the following screen:![Figure 12.18 – AWS target group creation
+  id: totrans-311
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在新标签页或窗口中打开链接；如前所述，你应该看到以下屏幕：![图12.18 – AWS目标组创建
+- en: '](img/Figure_12.18_B17337.jpg)'
+  id: totrans-312
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '![图12.18 – AWS目标组创建](img/Figure_12.18_B17337.jpg)'
+- en: Figure 12.18 – AWS target group creation
+  id: totrans-313
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.18 – AWS目标组创建
+- en: Select **Instances**, which means load balancing between different instances
+    in one VPC. Give the target group a name and select the same VPC as before.
+  id: totrans-314
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 选择**实例**，这意味着在一个VPC中不同实例之间的负载均衡。为目标组命名，并选择与之前相同的VPC。
+- en: After that, you can hit the **Next** button. You will be presented with the
+    following screen:![Figure 12.19 – AWS target group targets
+  id: totrans-315
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 之后，你可以点击**下一步**按钮。你将看到以下屏幕：![图12.19 – AWS目标组目标
+- en: '](img/Figure_12.19_B17337.jpg)'
+  id: totrans-316
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '![图12.19 – AWS目标组目标](img/Figure_12.19_B17337.jpg)'
+- en: Figure 12.19 – AWS target group targets
+  id: totrans-317
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.19 – AWS目标组目标
+- en: This screen normally shows you all instances that would be included in your
+    target group. Because we did not create the ECS cluster yet, this is empty. You
+    can continue by hitting the **Create target group** button.
+  id: totrans-318
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 此屏幕通常显示所有将包含在您的目标组中的实例。因为我们还没有创建ECS集群，所以这是空的。您可以通过点击**创建目标组**按钮继续。
+- en: Go back to the wizard to set up AWS ALB. Hit the **Refresh** button next to
+    the target group selection and select the target group.
+  id: totrans-319
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 返回向导设置AWS ALB。在目标组选择旁边的**刷新**按钮处点击并选择目标组。
+- en: Hit the **Create load balancer** button at the end of the screen.
+  id: totrans-320
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在屏幕底部点击**创建负载均衡器**按钮。
+- en: 'Finally, you should have reached the end of the wizard and be presented with
+    a summary, as shown in the following screenshot:'
+  id: totrans-321
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 最后，您应该已经到达向导的末尾，并看到一个摘要，如下面的截图所示：
+- en: '![Figure 12.20 – AWS ALB creation summary'
+  id: totrans-322
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图12.20 – AWS ALB创建摘要'
+- en: '](img/Figure_12.20_B17337.jpg)'
+  id: totrans-323
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.20_B17337.jpg)'
+- en: Figure 12.20 – AWS ALB creation summary
+  id: totrans-324
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图12.20 – AWS ALB创建摘要
+- en: The next thing we need to prepare is an Amazon ECR repository. Amazon ECR is
+    nothing more than an alternative to Docker Hub or any other Docker registry. In
+    a Docker registry, you can push the Docker images that you built for your application.
+    This is the basis on which our ECS cluster will run.
+  id: totrans-325
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 下一步我们需要准备的是Amazon ECR存储库。Amazon ECR不过是Docker Hub或其他任何Docker注册中心的替代品。在Docker注册中心中，您可以推送为您的应用程序构建的Docker镜像。这是我们ECS集群运行的基础。
+- en: 'To set up your ECR repository, search for `ECR` in the top bar and click on
+    the corresponding service. You should be presented with the following screen:'
+  id: totrans-326
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要设置您的ECR存储库，在顶部栏中搜索`ECR`并点击相应的服务。您应该会看到以下屏幕：
+- en: '![Figure 12.21 – Amazon ECR overview'
+  id: totrans-327
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图12.21 – Amazon ECR概述'
+- en: '](img/Figure_12.21_B17337.jpg)'
+  id: totrans-328
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.21_B17337.jpg)'
+- en: Figure 12.21 – Amazon ECR overview
+  id: totrans-329
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图12.21 – Amazon ECR概述
+- en: 'To set up your Amazon ECR repository, follow these steps:'
+  id: totrans-330
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要设置您的Amazon ECR存储库，请按照以下步骤操作：
+- en: Click on **Create repository** on the right side to get into the creation wizard.
+  id: totrans-331
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在右侧点击**创建存储库**按钮进入创建向导。
+- en: Next, you need to provide a name for your repository, as shown in the following
+    screenshot:![Figure 12.22 – Amazon ECR settings
+  id: totrans-332
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 接下来，您需要为您的存储库提供一个名称，如下面的截图所示：![图12.22 – Amazon ECR设置
+- en: '](img/Figure_12.22_B17337.jpg)'
+  id: totrans-333
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.22_B17337.jpg)'
+- en: Figure 12.22 – Amazon ECR settings
+  id: totrans-334
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.22 – Amazon ECR设置
+- en: We leave our registry private because no one external should have access to
+    it. If you need to have it public for everyone, you can change this setting.
+  id: totrans-335
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 我们将我们的注册库设置为私有，因为外部没有人应该能够访问它。如果您需要将其设置为对所有人公开，您可以更改此设置。
+- en: Click **Create repository** to set it up. You will see the following update
+    table now:![Figure 12.23 – Amazon ECR repository created
+  id: totrans-336
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击**创建存储库**来设置它。现在您将看到以下更新表：![图12.23 – Amazon ECR存储库已创建
+- en: '](img/Figure_12.23_B17337.jpg)'
+  id: totrans-337
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.23_B17337.jpg)'
+- en: Figure 12.23 – Amazon ECR repository created
+  id: totrans-338
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.23 – Amazon ECR存储库已创建
+- en: Later, you will need the `URI`, which is shown next to the registry name.
+  id: totrans-339
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 之后，您将需要`URI`，它显示在注册名称旁边。
+- en: 'Now we are prepared to start setting up the ECS cluster. To find ECS, just
+    go to the services bar at the top and search for `ECS`. If you click this service
+    and go to the **Clusters** section, it will show you all the running ECS clusters.
+    It should look like the following:'
+  id: totrans-340
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在我们已经准备好开始设置ECS集群。要找到ECS，只需前往顶部服务栏并搜索`ECS`。如果您点击此服务并进入**集群**部分，它将显示所有正在运行的ECS集群。它应该看起来像以下这样：
+- en: '![Figure 12.24 – Amazon ECS Clusters'
+  id: totrans-341
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图12.24 – Amazon ECS集群'
+- en: '](img/Figure_12.24_B17337.jpg)'
+  id: totrans-342
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.24_B17337.jpg)'
+- en: Figure 12.24 – Amazon ECS Clusters
+  id: totrans-343
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图12.24 – Amazon ECS集群
+- en: 'The process to configure ECS is very complex, and we will follow the most basic
+    configuration in the scope of this book. Follow these instructions to get it working:'
+  id: totrans-344
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 配置ECS的过程非常复杂，本书将遵循最基础的配置。按照以下说明来使其工作：
+- en: Hit the **Create Cluster** button (see *Figure 12.24*) to get started.
+  id: totrans-345
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击**创建集群**按钮（见*图12.24*）开始。
+- en: On the next screen, you will be asked what kind of instances you want to use.
+    We are going to use the EC2 Linux instances, as shown in the following screenshot:![Figure
+    12.25 – Amazon ECS cluster template
+  id: totrans-346
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在下一屏，您将被询问想要使用哪种类型的实例。我们将使用以下截图所示的EC2 Linux实例：![图12.25 – Amazon ECS集群模板
+- en: '](img/Figure_12.25_B17337.jpg)'
+  id: totrans-347
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.25_B17337.jpg)'
+- en: Figure 12.25 – Amazon ECS cluster template
+  id: totrans-348
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.25 – Amazon ECS集群模板
+- en: Click **Next** to get to the configuration wizard for your cluster.
+  id: totrans-349
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击**下一步**进入集群的配置向导。
+- en: You will be asked for a cluster name. The default configuration is fine otherwise.
+    The only option that requires a change is the instance type. I recommend going
+    with `t2.micro` because it does not cost that much, which is good for development.
+    The **Number of instances** option specifies how many parallel running EC2 instances
+    we want. For development, mostly one is fine, but if you need to scale, this is
+    something you need to increase:![Figure 12.26 – Amazon ECS cluster configuration
+  id: totrans-350
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 您将被要求输入集群名称。默认配置是合适的，除非您需要更改。唯一需要更改的选项是实例类型。我建议选择`t2.micro`，因为它并不昂贵，这对于开发来说是个不错的选择。**实例数量**选项指定了我们希望有多少个并行运行的EC2实例。对于开发，通常一个就足够了，但如果您需要扩展，您需要增加这个数量：![Figure
+    12.26 – Amazon ECS集群配置
+- en: '](img/Figure_12.26_B17337.jpg)'
+  id: totrans-351
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '![Figure_12.26_B17337.jpg]'
+- en: Figure 12.26 – Amazon ECS cluster configuration
+  id: totrans-352
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: Figure 12.26 – Amazon ECS集群配置
+- en: Scroll down to provide some further networking configuration. As we have selected
+    three subnets when configuring the load balancer, we should also now select those
+    three subnets:![Figure 12.27 – Amazon ECS cluster network settings
+  id: totrans-353
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 滚动以提供一些额外的网络配置。由于我们在配置负载均衡器时选择了三个子网，我们现在也应该选择这三个子网：![Figure 12.27 – Amazon ECS集群网络设置
+- en: '](img/Figure_12.27_B17337.jpg)'
+  id: totrans-354
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '![Figure_12.27_B17337.jpg]'
+- en: Figure 12.27 – Amazon ECS cluster network settings
+  id: totrans-355
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: Figure 12.27 – Amazon ECS集群网络设置
+- en: After selecting the subnets, you need to select the security group that we also
+    used for the ALB configuration:![Figure 12.28 – Amazon ECS Security settings
+  id: totrans-356
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在选择子网后，您需要选择我们也用于ALB配置的安全组：![Figure 12.28 – Amazon ECS安全设置
+- en: '](img/Figure_12.28_B17337.jpg)'
+  id: totrans-357
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '![Figure_12.28_B17337.jpg]'
+- en: Figure 12.28 – Amazon ECS Security settings
+  id: totrans-358
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: Figure 12.28 – Amazon ECS安全设置
+- en: Hit **Create Cluster** and AWS will start the process to spin everything up.
+    This might take some time.
+  id: totrans-359
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击**创建集群**，AWS将开始启动所有进程。这可能需要一些时间。
+- en: Once AWS is done, you can click the **View Cluster** button, which will take
+    you to the detailed cluster page.
+  id: totrans-360
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 一旦AWS配置完成，您可以点击**查看集群**按钮，这将带您进入详细的集群页面。
+- en: 'We have defined now that AWS is running an ECS cluster based on one EC2 instance.
+    One thing we did not do so far is to define what this cluster does. For that,
+    we need to go to **Task definitions** on the left-hand panel. Then, follow these
+    instructions:'
+  id: totrans-361
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们已经定义了AWS正在运行一个基于一个EC2实例的ECS集群。我们之前没有做的一件事是定义这个集群做什么。为此，我们需要转到左侧面板上的**任务定义**。然后，按照以下说明操作：
+- en: Click on the **Create new task definition** button.
+  id: totrans-362
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 点击**创建新任务定义**按钮。
+- en: Select the **EC2** type to make your task compatible with this type of cluster.
+  id: totrans-363
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 选择**EC2**类型以使您的任务与这种类型的集群兼容。
+- en: Give your task definition a name and the **ecsTaskExecutionRole** role. It should
+    look like the following screenshot:![Figure 12.29 – Amazon ECS task definition
+  id: totrans-364
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 给您的任务定义命名并指定**ecsTaskExecutionRole**角色。它应该看起来像以下截图：![Figure 12.29 – Amazon ECS任务定义
+- en: '](img/Figure_12.29_B17337.jpg)'
+  id: totrans-365
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '![Figure_12.29_B17337.jpg]'
+- en: Figure 12.29 – Amazon ECS task definition
+  id: totrans-366
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: Figure 12.29 – Amazon ECS任务定义
+- en: Scroll down and give your task a size, which means a memory size and CPU size
+    that it will need to process its task. It should look like the following screenshot:![Figure
+    12.30 – Amazon ECS task definition size
+  id: totrans-367
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 滚动并给您的任务指定一个大小，这意味着它将需要的内存大小和CPU大小来处理其任务。它应该看起来像以下截图：![Figure 12.30 – Amazon
+    ECS任务定义大小
+- en: '](img/Figure_12.30_B17337.jpg)'
+  id: totrans-368
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '![Figure_12.30_B17337.jpg]'
+- en: Figure 12.30 – Amazon ECS task definition size
+  id: totrans-369
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: Figure 12.30 – Amazon ECS任务定义大小
+- en: This setting needs to be aligned with the resources your cluster has.
+  id: totrans-370
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 此设置需要与您的集群拥有的资源相匹配。
+- en: Now, click the `:latest` for the moment. As we did not publish any image yet,
+    it will not work anyway, but we will fix this later.
+  id: totrans-371
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 现在，暂时点击`:latest`。因为我们还没有发布任何镜像，所以它现在不会工作，但我们会稍后修复这个问题。
+- en: Scroll down to the `8000` because this is the default port that we use for Graphbook.
+    `0`, as this will be automatically assigned by your load balancer. AWS ALB will
+    dynamically map a free port to the container port. We do not need to care exactly
+    which port it will be.
+  id: totrans-372
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 滚动到`8000`，因为这是我们用于Graphbook的默认端口。`0`将被您的负载均衡器自动分配。AWS ALB将动态地将一个空闲端口映射到容器端口。我们不需要关心它将是哪个端口。
+- en: Under the environment section, we need to add all environment variables that
+    our application requires to start. The variables shown in the following screenshot
+    should be enough to get your container running:![Figure 12.32 – Amazon ECS task
+    definition container environment variables
+  id: totrans-373
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 在环境部分，我们需要添加所有我们的应用程序启动所需的环境变量。以下截图显示的变量应该足以使您的容器运行：![Figure 12.32 – Amazon
+    ECS任务定义容器环境变量
+- en: '](img/Figure_12.32_B17337.jpg)'
+  id: totrans-374
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.32_B17337.jpg)'
+- en: Figure 12.32 – Amazon ECS task definition container environment variables
+  id: totrans-375
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.32 – Amazon ECS任务定义容器环境变量
+- en: The only setting that is helpful is under the **Storage and logging** section.
+    I recommend activating CloudWatch Logs, as you can then see all the logs from
+    your application. It should look like the following screenshot:![Figure 12.33
+    – Amazon ECS task definition container logs
+  id: totrans-376
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 唯一有用的设置是在**存储和日志**部分下。我建议激活CloudWatch Logs，这样您就可以看到您应用程序的所有日志。它应该看起来像下面的截图：![图12.33
+    – Amazon ECS任务定义容器日志
+- en: '](img/Figure_12.33_B17337.jpg)'
+  id: totrans-377
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.33_B17337.jpg)'
+- en: Figure 12.33 – Amazon ECS task definition container logs
+  id: totrans-378
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.33 – Amazon ECS任务定义容器日志
+- en: After enabling this option, you can hit the **Add** button at the bottom of
+    the dialog.
+  id: totrans-379
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 启用此选项后，您可以在对话框底部点击**添加**按钮。
+- en: These are all the important things that you need to do. There is a multitude
+    of further detailed configurations that you can do. For us, they are not required
+    to get our application running, and they are out of the scope of this book.
+  id: totrans-380
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这些都是您需要完成的重要事项。还有许多更详细的配置您可以进行。对我们来说，它们不是使我们的应用程序运行所必需的，也不在本书的范围之内。
+- en: 'The container definitions table should look like the following screenshot:'
+  id: totrans-381
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 容器定义表应该看起来像下面的截图：
+- en: '![Figure 12.34 – Amazon ECS task definition container definitions'
+  id: totrans-382
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图12.34 – Amazon ECS任务定义容器定义'
+- en: '](img/Figure_12.34_B17337.jpg)'
+  id: totrans-383
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.34_B17337.jpg)'
+- en: Figure 12.34 – Amazon ECS task definition container definitions
+  id: totrans-384
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图12.34 – Amazon ECS任务定义容器定义
+- en: What we just did is the most basic ECS setup that you can do. Across all the
+    services that we just set up, we used the simplest configuration that you can
+    do, but there is a tremendous amount of advanced setups and configurations we
+    did not have a look at.
+  id: totrans-385
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们刚才所做的是最基本的ECS设置。在我们刚刚设置的所有服务中，我们使用了最简单的配置，但我们没有查看大量的高级设置和配置。
+- en: 'Now, you can click on the **Create** button at the very end of the ECS task
+    definition wizard. After AWS has successfully created the task definition, go
+    back to the main **Clusters** screen of ECS. You will see this cluster overview:'
+  id: totrans-386
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在，您可以在ECS任务定义向导的最后点击**创建**按钮。在AWS成功创建任务定义后，返回ECS的**主集群**屏幕。您将看到此集群概览：
+- en: '![Figure 12.35 – Amazon ECS cluster overview'
+  id: totrans-387
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图12.35 – Amazon ECS集群概览'
+- en: '](img/Figure_12.35_B17337.jpg)'
+  id: totrans-388
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.35_B17337.jpg)'
+- en: Figure 12.35 – Amazon ECS cluster overview
+  id: totrans-389
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图12.35 – Amazon ECS集群概览
+- en: It just shows you that, still, nothing is running inside your cluster. To fix
+    that, click on your cluster name at the top left.
+  id: totrans-390
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这只是表明，仍然，您的集群内部没有任何东西在运行。要解决这个问题，请点击左上角的集群名称。
+- en: 'The actual problem is that no service has been created that is using the just-configured
+    task definition, as shown in the following screenshot:'
+  id: totrans-391
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 实际问题是，没有创建使用刚刚配置的任务定义的服务，如下面的截图所示：
+- en: '![Figure 12.36 – Amazon ECS cluster services'
+  id: totrans-392
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图12.36 – Amazon ECS集群服务'
+- en: '](img/Figure_12.36_B17337.jpg)'
+  id: totrans-393
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.36_B17337.jpg)'
+- en: Figure 12.36 – Amazon ECS cluster services
+  id: totrans-394
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图12.36 – Amazon ECS集群服务
+- en: Hit the **Create** button above the table.
+  id: totrans-395
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 点击表格上方的**创建**按钮。
+- en: 'Then, you need to provide the following data:'
+  id: totrans-396
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然后，您需要提供以下数据：
+- en: For **Launch type**, you need to select **EC2**, as with the previous steps.
+  id: totrans-397
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 对于**启动类型**，您需要选择**EC2**，与之前的步骤相同。
+- en: Then, you need to select the task definition family, which should match the
+    name of your previously created task definition.
+  id: totrans-398
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 然后，您需要选择任务定义家族，它应该与您之前创建的任务定义名称相匹配。
+- en: Also, you need to select the cluster that we are currently looking at.
+  id: totrans-399
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 此外，您还需要选择我们目前正在查看的集群。
+- en: You need to provide a service name for your service, such as `graphbook-service`.
+  id: totrans-400
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 您需要为您的服务提供一个服务名称，例如`graphbook-service`。
+- en: For the `1` is fine. It means that only one task will run in this service at
+    the same time. This is also restricted by the health percentage. The minimum health
+    percent of `100` means that at least one service that is correctly functioning
+    should be running, whereas the maximum percent of `200` means that only a maximum
+    of two tasks that are healthy are allowed to be running. This restriction is required
+    for the moment where you update your service with a new application version. At
+    this moment, there will be two versions running at the same time that will be
+    exchanged. So, currently, we have `200` health percent.
+  id: totrans-401
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 对于 `1` 是可以的。这意味着在同一时间此服务中只运行一个任务。这也受到健康百分比的限制。`100` 的最小健康百分比意味着至少应该有一个正确运行的服务在运行，而
+    `200` 的最大百分比意味着只允许运行最多两个健康的任务。这种限制对于您更新服务为新应用程序版本的情况是必要的。在这种情况下，将同时运行两个版本，它们将进行交换。所以，目前我们有
+    `200` 的健康百分比。
+- en: 'That is all the information that you need to provide. The rest of the settings
+    can be left as they are set by default. The result should look like the following
+    screenshot:'
+  id: totrans-402
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这就是您需要提供的信息。其余的设置可以保留为默认设置。结果应类似于以下屏幕截图：
+- en: '![Figure 12.37 – Amazon ECS service configuration'
+  id: totrans-403
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图 12.37 – Amazon ECS 服务配置'
+- en: '](img/Figure_12.37_B17337.jpg)'
+  id: totrans-404
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图片](img/Figure_12.37_B17337.jpg)'
+- en: Figure 12.37 – Amazon ECS service configuration
+  id: totrans-405
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图 12.37 – Amazon ECS 服务配置
+- en: You can now hit the **Next step** button at the bottom of the screen to continue.
+  id: totrans-406
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 您现在可以点击屏幕底部的**下一步**按钮继续。
+- en: The next screen is very important because this requires our AWS ALB to be set
+    up.
+  id: totrans-407
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 下一个屏幕非常重要，因为这需要我们的 AWS ALB 设置。
+- en: 'You need to select the **Application Load Balancer** option and then select
+    our previously created ALB. The settings should match the configuration in the
+    following screenshot:'
+  id: totrans-408
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 您需要选择**应用程序负载均衡器**选项，然后选择我们之前创建的ALB。设置应与以下屏幕截图中的配置相匹配：
+- en: '![Figure 12.38 – Amazon ECS service load balancing'
+  id: totrans-409
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图 12.38 – Amazon ECS 服务负载均衡'
+- en: '](img/Figure_12.38_B17337.jpg)'
+  id: totrans-410
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图片](img/Figure_12.38_B17337.jpg)'
+- en: Figure 12.38 – Amazon ECS service load balancing
+  id: totrans-411
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图 12.38 – Amazon ECS 服务负载均衡
+- en: This setting will make use of our ALB and do the dynamic port mapping to the
+    container that is running within this service's tasks.
+  id: totrans-412
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 此设置将利用我们的 ALB 并对在此服务任务中运行的容器进行动态端口映射。
+- en: 'If we scroll down, we need to provide details on how the ALB will map to the
+    container. Now, you should see this message:'
+  id: totrans-413
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果我们向下滚动，我们需要提供有关 ALB 如何映射到容器的详细信息。现在，您应该看到以下信息：
+- en: '![Figure 12.39 – Amazon ECS service load balancing mapping'
+  id: totrans-414
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图 12.39 – Amazon ECS 服务负载均衡映射'
+- en: '](img/Figure_12.39_B17337.jpg)'
+  id: totrans-415
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图片](img/Figure_12.39_B17337.jpg)'
+- en: Figure 12.39 – Amazon ECS service load balancing mapping
+  id: totrans-416
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图 12.39 – Amazon ECS 服务负载均衡映射
+- en: 'You need to click the **Add to load balancer** button. The good thing is you
+    can just select the target group that we created previously. After selecting it,
+    you should see the following screen:'
+  id: totrans-417
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 您需要点击**添加到负载均衡器**按钮。好事是您只需选择我们之前创建的目标组。选择它后，您应该看到以下屏幕：
+- en: '![Figure 12.40 – Amazon ECS load balancing target group configuration'
+  id: totrans-418
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图 12.40 – Amazon ECS 负载均衡目标组配置'
+- en: '](img/Figure_12.40_B17337.jpg)'
+  id: totrans-419
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图片](img/Figure_12.40_B17337.jpg)'
+- en: Figure 12.40 – Amazon ECS load balancing target group configuration
+  id: totrans-420
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图 12.40 – Amazon ECS 负载均衡目标组配置
+- en: You can now hit the **Next step** button at the end of the screen and on the
+    next screen where it asks for auto-scaling, which we do not require. You should
+    be able to click the **Create Service** option at the bottom of the summary screen.
+  id: totrans-421
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 您现在可以点击屏幕底部的**下一步**按钮，然后在下一个屏幕中，当询问自动扩展时（我们不需要），您应该能够在摘要屏幕底部点击**创建服务**选项。
+- en: AWS will try to create the service now and spin up the tasks. The problem is
+    that we did not push any Docker image so far. The ECS service will not be able
+    to spin up any task correctly because of that.
+  id: totrans-422
+  prefs: []
+  type: TYPE_NORMAL
+  zh: AWS 将尝试现在创建服务并启动任务。问题是到目前为止我们没有推送任何 Docker 镜像。由于这个原因，ECS 服务将无法正确启动任何任务。
+- en: So, let's fix that.
+  id: totrans-423
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 那么，让我们来解决这个问题。
+- en: Setting up CircleCI with Amazon ECR and ECS
+  id: totrans-424
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 设置 CircleCI 与 Amazon ECR 和 ECS
+- en: We will start with a blank CircleCI config again; so, empty the old `config.yml`
+    file.
+  id: totrans-425
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将再次从空白的 CircleCI 配置开始；因此，清空旧的 `config.yml` 文件。
+- en: One important thing we did not do so far is to set up automated testing within
+    our pipeline. Otherwise, our commits will trigger an automated pipeline and just
+    deploy the untested code, which might cause production issues that we want to
+    prohibit.
+  id: totrans-426
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们之前没有做的一件重要事情是在我们的管道中设置自动化测试。否则，我们的提交将触发自动化管道，并仅部署未经测试的代码，这可能会引起我们想要避免的生产问题。
+- en: 'So, let''s do this first. Follow these steps:'
+  id: totrans-427
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 那么，让我们先这样做。按照以下步骤操作：
+- en: 'Insert these lines into our `config.yml` file, as follows:'
+  id: totrans-428
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将以下行插入到我们的`config.yml`文件中，如下所示：
+- en: '[PRE39]'
+  id: totrans-429
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE39]'
+- en: This configuration creates a `test` job and pulls one Docker image. The Docker
+    image is the Node.js image from CircleCI that we will run our application inside
+    for testing purposes. At the same time, we pass credentials to actually pull the
+    image, but we also pass some default environment variables that we will make use
+    of in the next step.
+  id: totrans-430
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 此配置创建了一个`test`作业并拉取了一个Docker镜像。这个Docker镜像是从CircleCI的Node.js镜像，我们将在这个镜像中运行应用程序以进行测试。同时，我们传递了凭证以实际拉取镜像，但也传递了一些默认环境变量，我们将在下一步中使用它们。
+- en: 'Add another image to the `test` job:'
+  id: totrans-431
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 将另一张图片添加到`test`作业中：
+- en: '[PRE40]'
+  id: totrans-432
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE40]'
+- en: This image is for the MySQL database, against which we can run our migrations
+    but also test scripts. This will be created from scratch every time the pipeline
+    runs. You can see here that we also provide the same environment variables. This
+    will set up the MySQL database with these credentials and the Node.js container
+    will have those credentials in the environment variables.
+  id: totrans-433
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 这个镜像是为MySQL数据库准备的，我们可以对其运行迁移和测试脚本。每次管道运行时，它都会从头开始创建。您可以看到，我们同样提供了相同的环境变量。这将使用这些凭证设置MySQL数据库，并且Node.js容器将在环境变量中拥有这些凭证。
+- en: As you can see in the preceding steps, we are using syntax such as `$DOCKERHUB_USERNAME`
+    to inject variables from the CircleCI settings into our pipeline. That way, we
+    do not need to repeat them repeatedly, but also, they are not committed into our
+    code. Set up the environment variables according to the following screenshot:![Figure
+    12.41 – CircleCI project environment variables
+  id: totrans-434
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 如前所述步骤所示，我们正在使用类似`$DOCKERHUB_USERNAME`这样的语法将CircleCI设置中的变量注入到我们的管道中。这样，我们就不需要反复重复它们，而且它们也不会被提交到我们的代码中。根据以下截图设置环境变量：![图12.41
+    – CircleCI项目环境变量
+- en: '](img/Figure_12.41_B17337.jpg)'
+  id: totrans-435
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.41_B17337.jpg)'
+- en: Figure 12.41 – CircleCI project environment variables
+  id: totrans-436
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 图12.41 – CircleCI项目环境变量
+- en: 'Now, we need to add functionality to actually run our tests. We will do this
+    inside a `steps` property that CircleCI is able to understand. Just add the code
+    below the previously added `jobs` section:'
+  id: totrans-437
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 现在，我们需要添加实际运行测试的功能。我们将在CircleCI能够理解的`steps`属性内部这样做。只需在之前添加的`jobs`部分下方添加以下代码：
+- en: '[PRE41]'
+  id: totrans-438
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE41]'
+- en: The flow of the test job is quite easy. First, we check out our code and then
+    we install all dependencies that our application requires.
+  id: totrans-439
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 测试作业的流程相当简单。首先，我们检出我们的代码，然后安装应用程序所需的所有依赖项。
+- en: 'Then, we also require the same Sequelize packages to run our database migrations
+    as we had in our `Dockerfile`. Add the following code to do so:'
+  id: totrans-440
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 然后，我们还需要使用与`Dockerfile`中相同的Sequelize包来运行数据库迁移。添加以下代码来完成此操作：
+- en: '[PRE42]'
+  id: totrans-441
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE42]'
+- en: 'Then, we need to wait for the database image to come up. If we do not do that,
+    when taking the next steps, the commands will fail if the database is not yet
+    running. Add the following code to wait for our database to come up:'
+  id: totrans-442
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 然后，我们需要等待数据库镜像启动。如果我们不这样做，在执行下一步时，如果数据库尚未运行，命令将失败。添加以下代码等待我们的数据库启动：
+- en: '[PRE43]'
+  id: totrans-443
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE43]'
+- en: 'Once the database is up, we can run our database migrations against the `test`
+    database. Add the following code to run them:'
+  id: totrans-444
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 数据库启动后，我们可以对`test`数据库运行数据库迁移。添加以下代码来运行它们：
+- en: '[PRE44]'
+  id: totrans-445
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE44]'
+- en: 'Now, we can finally run our test against the freshly created database. Just
+    use the below code to get it working:'
+  id: totrans-446
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 现在，我们终于可以针对新创建的数据库运行测试了。只需使用以下代码即可使其工作：
+- en: '[PRE45]'
+  id: totrans-447
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE45]'
+- en: If one of the tests fails, the complete pipeline will fail. This ensures that
+    only working application code is released to the public.
+  id: totrans-448
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+  zh: 如果其中一个测试失败，整个管道将失败。这确保了只有工作的应用程序代码被发布到公共领域。
+- en: 'The last thing to do to get our automated tests running is to set up the CircleCI
+    workflow. You can copy the following code to get it running:'
+  id: totrans-449
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+  zh: 要使我们的自动化测试运行，最后一步是设置CircleCI工作流程。您可以复制以下代码以使其运行：
+- en: '[PRE46]'
+  id: totrans-450
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+  zh: '[PRE46]'
+- en: You can commit and push this new config file into your Git repository, and CircleCI
+    should automatically process it and create a new job for you.
+  id: totrans-451
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 您可以将此新配置文件提交并推送到您的Git仓库，CircleCI应自动处理它并为您创建一个新的作业。
+- en: 'The resulting job should look as follows:'
+  id: totrans-452
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 生成的作业应如下所示：
+- en: '![Figure 12.42 – CircleCI test pipeline'
+  id: totrans-453
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图 12.42 – CircleCI 测试管道'
+- en: '](img/Figure_12.42_B17337.jpg)'
+  id: totrans-454
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.42_B17337.jpg)'
+- en: Figure 12.42 – CircleCI test pipeline
+  id: totrans-455
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图 12.42 – CircleCI 测试管道
+- en: Next, we need to build the Docker image and push this to our registry. Thanks
+    to CircleCI, this is quite easy.
+  id: totrans-456
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 接下来，我们需要构建 Docker 镜像并将其推送到我们的注册表。多亏了 CircleCI，这个过程相当简单。
+- en: 'Add this configuration to your `config.yml` file below the version specification:'
+  id: totrans-457
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在版本规范下面的 `config.yml` 文件中添加此配置：
+- en: '[PRE47]'
+  id: totrans-458
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE47]'
+- en: A CircleCI orb is a set of package configurations that you can share or make
+    use of without needing to write all the steps on your own. This orb that we have
+    just added can build and push a Docker image to Amazon ECR, which we set up in
+    the previous section.
+  id: totrans-459
+  prefs: []
+  type: TYPE_NORMAL
+  zh: CircleCI orbs 是一组可以共享或使用而不需要自己编写所有步骤的包配置。我们刚刚添加的这个 orbs 可以构建并推送 Docker 镜像到 Amazon
+    ECR，这是我们之前章节中设置的。
+- en: Important Note
+  id: totrans-460
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 重要提示
+- en: 'You can find all the available CircleCI orbs and their documentation on the
+    official CircleCI orb website: [https://circleci.com/developer/orbs](https://circleci.com/developer/orbs).'
+  id: totrans-461
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 您可以在官方 CircleCI orbs 网站上找到所有可用的 CircleCI orbs 及其文档：[https://circleci.com/developer/orbs](https://circleci.com/developer/orbs)。
+- en: 'To leverage this orb, add one workflow step, as shown in the following screenshot:'
+  id: totrans-462
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 要利用此 orbs，请添加一个工作流程步骤，如下面的截图所示：
+- en: '[PRE48]'
+  id: totrans-463
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE48]'
+- en: The preceding configuration will build and push your Docker image to Amazon
+    ECR, specified by the `repo` attribute. It will also wait for the `test` step
+    because we have mentioned this in the `requires` property.
+  id: totrans-464
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 上述配置将构建并推送您的 Docker 镜像到由 `repo` 属性指定的 Amazon ECR，它还将等待 `test` 步骤，因为我们已在 `requires`
+    属性中提到这一点。
+- en: If you commit and push this configuration, you will see that in the CircleCI
+    pipeline, there is a separate ECR step. If that is completed, you will be able
+    to find a new Docker image inside the ECR repository.
+  id: totrans-465
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果您提交并推送此配置，您将在 CircleCI 管道中看到单独的 ECR 步骤。如果该步骤完成，您将能够在 ECR 存储库中找到新的 Docker 镜像。
+- en: 'The only thing missing now is to make use of this Docker image inside of Amazon
+    ECS. If you remember, we specified the Docker image inside of our Amazon ECS task
+    definition. Updating this manually after each pipeline run is not feasible though.
+    To automate this process, add one further orb at the top of the CircleCI config:'
+  id: totrans-466
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在唯一缺少的是在 Amazon ECS 中使用此 Docker 镜像。如果您记得，我们在 Amazon ECS 任务定义中指定了 Docker 镜像。但是，在每次管道运行后手动更新这是不可行的。为了自动化此过程，请在
+    CircleCI 配置的顶部添加一个额外的 orbs：
+- en: '[PRE49]'
+  id: totrans-467
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE49]'
+- en: 'CircleCI also has us covered if we want to update and push a new task definition
+    to our service. To leverage this orb, add this code as the last workflow step:'
+  id: totrans-468
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果我们想要更新并推送新的任务定义到我们的服务，CircleCI 也为我们提供了支持。要利用此 orbs，请将以下代码作为最后一个工作流程步骤添加：
+- en: '[PRE50]'
+  id: totrans-469
+  prefs: []
+  type: TYPE_PRE
+  zh: '[PRE50]'
+- en: This step waits for both the test and the ECR job to complete. Afterward, it
+    will create a new task definition revision on Amazon ECS with the given `family`
+    name. It will then update the service with the given name inside the given cluster.
+  id: totrans-470
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 此步骤等待测试和 ECR 作业完成。之后，它将在 Amazon ECS 上创建一个具有给定 `family` 名称的新任务定义修订版。然后，它将更新给定集群中具有给定名称的服务。
+- en: 'Commit and push the new config file, and you will see the following pipeline
+    with three jobs running:'
+  id: totrans-471
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 提交并推送新的配置文件，您将看到以下具有三个正在运行作业的管道：
+- en: '![Figure 12.43 – CircleCI CD pipeline'
+  id: totrans-472
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图 12.43 – CircleCI CD 管道'
+- en: '](img/Figure_12.43_B17337.jpg)'
+  id: totrans-473
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.43_B17337.jpg)'
+- en: Figure 12.43 – CircleCI CD pipeline
+  id: totrans-474
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图 12.43 – CircleCI CD 管道
+- en: Amazon ECS will take some time to replace the currently running task, but after
+    that, the new version of your application will be running.
+  id: totrans-475
+  prefs: []
+  type: TYPE_NORMAL
+  zh: Amazon ECS 将需要一些时间来替换当前正在运行的任务，但在此之后，您应用程序的新版本将开始运行。
+- en: 'Still, the question is how we can access Graphbook now. For that, we can go
+    to our AWS ALB, go to the **Load Balancers** section, and click our ALB. It will
+    show the following information:'
+  id: totrans-476
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然而，问题是我们现在如何访问 Graphbook。为此，我们可以进入我们的 AWS ALB，进入 **负载均衡器** 部分，并点击我们的 ALB。它将显示以下信息：
+- en: '![Figure 12.44 – AWS ALB DNS name'
+  id: totrans-477
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '![图 12.44 – AWS ALB DNS 名称'
+- en: '](img/Figure_12.44_B17337.jpg)'
+  id: totrans-478
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '](img/Figure_12.44_B17337.jpg)'
+- en: Figure 12.44 – AWS ALB DNS name
+  id: totrans-479
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 图 12.44 – AWS ALB DNS 名称
+- en: Under the given DNS name, we can access the load balancer and, via that, our
+    application.
+  id: totrans-480
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在给定的 DNS 名称下，我们可以访问负载均衡器，并通过它访问我们的应用程序。
+- en: As mentioned previously, this is not recommended, but the fully fledged AWS
+    setup is out of the scope of this book. You should be able to access Graphbook
+    under that link.
+  id: totrans-481
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如前所述，这并不推荐，但完整的 AWS 设置超出了本书的范围。您应该能够通过该链接访问 Graphbook。
+- en: That is all you need to do. It will test the application code with our test
+    suite, build and push a new Docker image, and lastly update the task definition
+    and ECS service to replace the old task with an updated task with the new task
+    definition.
+  id: totrans-482
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这就是你需要做的全部。它将使用我们的测试套件测试应用程序代码，构建并推送一个新的Docker镜像，最后更新任务定义和ECS服务，用新的任务定义替换旧的任务。
+- en: Summary
+  id: totrans-483
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 摘要
+- en: In this chapter, you learned how to dockerize your application using a normal
+    `Dockerfile` and a multi-stage build.
+  id: totrans-484
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章中，你学习了如何使用普通的`Dockerfile`和分阶段构建将你的应用程序docker化。
+- en: Furthermore, I have shown you how to set up an exemplary CD workflow using CircleCI
+    and AWS. You can replace the deployment process with a more complex setup while
+    continuing to use your Docker image.
+  id: totrans-485
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 此外，我已经向你展示了如何使用CircleCI和AWS设置一个典型的CD工作流程。你可以在继续使用你的Docker镜像的同时，用更复杂的设置替换部署过程。
+- en: Having read this chapter, you have learned everything from developing a complete
+    application to deploying it to a production environment. Your application should
+    now be running on Amazon ECS.
+  id: totrans-486
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 阅读完本章后，你已经从开发一个完整的应用程序到将其部署到生产环境中的所有内容都学到了。你的应用程序现在应该已经在Amazon ECS上运行了。
+- en: At this point, you have learned all the important things, including setting
+    up React with Webpack, developing a local setup, server-side rendering, and how
+    to tie all the things together with GraphQL. Also, you are able to release changes
+    frequently with CD. Looking ahead, there are still things that we can improve
+    – for example, the scalability of our application or bundle splitting, which are
+    not handled in the scope of this book, but there are many resources available
+    that will help you improve in these areas.
+  id: totrans-487
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 到目前为止，你已经学到了所有重要的东西，包括使用Webpack设置React，开发本地设置，服务器端渲染，以及如何使用GraphQL将所有这些事情结合起来。你也能够通过CD频繁地发布更改。展望未来，我们仍然可以改进一些事情——例如，我们应用程序的可扩展性或包拆分，这些内容超出了本书的范围，但有许多资源可以帮助你在这些领域取得进步。
+- en: I hope you enjoyed the book and wish you every success!
+  id: totrans-488
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我希望你喜欢这本书，并祝愿你一切顺利！

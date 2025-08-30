@@ -1,0 +1,943 @@
+<html><head></head><body><div class="chapter" title="Chapter&#xA0;7.&#xA0;Reactagram"><div class="titlepage"><div><div><h1 class="title"><a id="ch07"/>Chapter 7. Reactagram</h1></div></div></div><p>In this chapter, we'll apply the skills we've developed in the previous chapters and assemble a social web app based around photos. The app will be usable on desktop browsers as well as native phones and tablets.</p><p>We'll explore an alternative to the Flux architecture in this chapter by connecting to a real-time database solution called <a class="indexterm" id="id508"/>
+<span class="strong"><strong>Firebase</strong></span>. We'll create a higher order function that we'll implement as a singleton wrapped around our routes. This setup will enable us to provide our users with real-time streaming as well as the <span class="emphasis"><em>like</em></span> functionality in our app while still adhering to the principle of <span class="emphasis"><em>one-way data flow</em></span>.</p><p>We'll also explore another cloud-based service called <a class="indexterm" id="id509"/>
+<span class="strong"><strong>Cloudinary</strong></span>. It's a cloud service for uploading and hosting images. It's a pay service, but has a generous free tier that will suffice our needs. We'll make an upload service in our Express server that will handle image uploading, and we'll also explore image manipulation in canvas.</p><p>These are the topics that we'll cover:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">Using the web camera API</li><li class="listitem" style="list-style-type: disc">Capturing photo input to an HTML5 canvas</li><li class="listitem" style="list-style-type: disc">Applying an image filter by manipulating canvas pixels</li><li class="listitem" style="list-style-type: disc">Connecting to Firebase and uploading images to the cloud</li><li class="listitem" style="list-style-type: disc">Viewing a stream of all the submitted photos in real time</li><li class="listitem" style="list-style-type: disc">Real-time comments and likes</li></ul></div><div class="section" title="Getting started"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec32"/>Getting started</h1></div></div></div><p>We'll start by using the Webpack<a class="indexterm" id="id510"/> scaffold we developed in <a class="link" href="ch06.html" title="Chapter 6. Advanced React">Chapter 6</a>, <span class="emphasis"><em>Advanced React</em></span>. These are the dependencies we need to install from <code class="literal">npm</code>:</p><div class="informalexample"><pre class="programlisting">"devDependencies": {
+  "autoprefixer": "^6.2.3",
+  "babel-core": "^6.3.26",
+  "babel-loader": "^6.2.0",
+  "babel-plugin-react-transform": "^2.0.0",
+  "babel-preset-es2015": "^6.3.13",
+  "babel-preset-react": "^6.3.13",
+  "babel-tape-runner": "^2.0.0",
+  "classnames": "^2.2.3",
+  "exif-component": "^1.0.1",
+  "exif-js": "^2.1.1",
+  "firebase": "^2.3.2",
+  "history": "^1.17.0",
+  "imagetocanvas": "^1.1.5",
+  "react": "^0.14.5",
+  "react-bootstrap": "^0.28.2",
+  "react-dom": "^0.14.5",
+  "react-router": "^1.0.3",
+  "react-transform-catch-errors": "^1.0.1",
+  "react-transform-hmr": "^1.0.1",
+  "reactfire": "^0.5.1",
+  "redbox-react": "^1.2.0",
+  "superagent": "^1.6.1",
+  "webpack": "^1.12.9",
+  "webpack-dev-middleware": "^1.4.0",
+  "webpack-hot-middleware": "^2.6.0"
+},
+"dependencies": {
+  "body-parser": "^1.14.2",
+  "cloudinary": "^1.3.0",
+  "cors": "^2.7.1",
+  "envs": "^0.1.6",
+  "express": "^4.13.3",
+  "path": "^0.12.7"
+}</pre></div><p>We'll use the same setup as <a class="indexterm" id="id511"/>in the previous chapter, but we'll make some minor changes to <code class="literal">server.js</code>, add a few lines to <code class="literal">index.html</code>, and add some content to our CSS file.</p><p>This is the tree structure in our original Webpack scaffold:</p><div class="informalexample"><pre class="programlisting">├── assets
+│   ├── app.css
+│   ├── favicon.ico
+│   └── index.html
+├── package.json
+├── server.js
+├── source
+│   └── index.jsx
+└── webpack.config.js</pre></div><p>It's worth making sure that your structure is identical to this one.</p><p>We'll need to make a few modifications to our <code class="literal">server.js</code> file. We're going to set up an upload service that we will access from our app, so it needs support for Cross-Origin Resource Sharing (CORS) and a POST route in addition to our normal GET routes.</p><p>Open <code class="literal">server.js</code> and replace the content with this:</p><div class="informalexample"><pre class="programlisting">'use strict';
+var path = require('path');
+var express = require('express');
+var webpack = require('webpack');
+var config = require('./webpack.config');
+var port = process.env.PORT || 8080;
+var app = express();
+var cors = require('cors');
+var compiler = webpack(config);
+var cloudinary = require('cloudinary');
+var bodyParser = require('body-parser');
+app.use( bodyParser.json({limit:'50mb'}) );</pre></div><p>Our app needs the <code class="literal">body-parser</code> package<a class="indexterm" id="id512"/> in order to access the request data in our POST route. We're going to be sending images to our route, so we also need to make sure that the data limit is higher than the default value. Refer to the following code:</p><div class="informalexample"><pre class="programlisting">app.use(cors());
+
+app.use(require('webpack-dev-middleware')(compiler, {
+  noInfo:true,
+  publicPath: config.output.publicPath,
+  stats: {
+    colors: true
+  }
+}));
+
+var isProduction = process.env.NODE_ENV === 'production';
+
+app.use(require('webpack-hot-middleware')(compiler));
+app.use(express.static(path.join(__dirname, "assets")));
+
+cloudinary.config({
+  cloud_name: 'YOUR_CLOUD_NAME',
+  api_key: 'YOUR_API_KEY',
+  api_secret: 'YOUR_API_SECRET'
+});
+
+var routes = function (app) {
+  app.post('/upload', function(req, res) {
+    cloudinary.uploader.upload(req.body.image, function(result) { 
+      res.send(JSON.stringify(result));
+    });
+  });</pre></div><p>This <code class="literal">POST</code> call will handle<a class="indexterm" id="id513"/> image uploads in our app. It will send the image to Cloudinary<a class="indexterm" id="id514"/> and store it for later retrieval in our image stream. You will have to create an account at <a class="ulink" href="http://cloudinary.com/">http://cloudinary.com/</a> and replace the API credentials we just saw with the real credentials in your user administration section. The following is the major change we're making:</p><div class="informalexample"><pre class="programlisting">  app.get('*', function(req, res) {
+    res.sendFile(path.join(__dirname, 'assets','index.html'));
+  });
+}</pre></div><p>This makes sure that any request to any file that's not part of the static <code class="literal">asset</code> folder will be routed to <code class="literal">index.html</code>. This is important because it will allow us to access dynamic routes using the history API instead of using hashed routes, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">var router = express.Router();
+routes(router);
+app.use(router);
+app.listen(port, 'localhost', function(err) {
+  if (err) {
+    console.log(err);
+    return;
+  }
+
+  console.log('Listening at http://localhost:'+port);
+});</pre></div><p>Next, open <code class="literal">assets/index.html</code> and replace the contents with this code:</p><div class="informalexample"><pre class="programlisting">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;title&gt;Reactagram&lt;/title&gt;
+    &lt;meta charset="utf-8"&gt;
+    &lt;meta http-equiv="X-UA-Compatible" content="IE=edge"&gt;
+    &lt;meta name="viewport" content="width=device-width, 
+    initial-scale=1, maximum-scale=1"&gt;
+    &lt;link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css" /&gt;
+    &lt;link rel="stylesheet" type="text/css"href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" /&gt;
+    &lt;link href='https://fonts.googleapis.com/css?family=Bitter' rel='stylesheet' type='text/css'&gt;
+    &lt;link rel="stylesheet" href="/app.css"&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div id="app"&gt;&lt;/div&gt;
+    &lt;script src="/assets/bundle.js"&gt;&lt;/script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</pre></div><p>We're going to rely on<a class="indexterm" id="id515"/> Bootstrap for our grid layout, so we need to add the Bootstrap CSS files. We're also going to add the free Bitter font family as our main font for the app.</p><p>The last thing we'll change is <code class="literal">app.css</code>. We'll add a set of styles that'll make sure the app we're building is functional on the Web as well as on tablets and smartphones.</p><p>Open <code class="literal">app.css</code> and replace the content with this styling:</p><div class="informalexample"><pre class="programlisting">body {
+  font-family: 'Bitter', serif;
+  padding: 15px;
+  margin-top: 60px;
+}</pre></div><p>This applies the <code class="literal">Bitter</code> font as the main font for our app and adds a top margin for our navigation header:</p><div class="informalexample"><pre class="programlisting">body {
+  font-family: 'Bitter', serif;
+  padding: 15px;
+  margin-top: 60px; 
+}
+
+.header {
+  padding: 10px;
+  font-size: 18px;
+  margin: 5px; 
+}
+
+h1 {
+  font-size: 18px; 
+}
+
+ul {
+  list-style-type: none; 
+}
+
+#camera {
+  position: absolute;
+  opacity: 1; 
+}
+
+.hidden {
+  display: none; 
+}</pre></div><p>The <code class="literal">hidden</code> class will be<a class="indexterm" id="id516"/> applied to all the elements that should stay hidden and out of sight. Now check out the following:</p><div class="informalexample"><pre class="programlisting">@media all and (max-width: 320px) {
+  .canvas {
+    padding: 0;
+    text-align: center;
+    margin: 0 auto;
+    display: block;
+    z-index: 10;
+    position: fixed;
+    left: 10px;
+    top: 60px; 
+  }
+}</pre></div><p>This is our only <code class="literal">media</code> query. It will make sure the canvas stays in a centered and fixed position on small smartphones. The height and width of <code class="literal">imageCanvas</code> will be overwritten when the user uploads images, so these values are only defaults:</p><div class="informalexample"><pre class="programlisting">#imageCanvas {
+  max-width: 300px;
+  height: 300px;
+  margin: 0px auto;
+  border: 1px solid #333; 
+}</pre></div><p>The following is the code to set the left and right menu buttons in our header. They'll be our navigation elements:</p><div class="informalexample"><pre class="programlisting">.menuButtonLeft {
+  position: fixed;
+  padding-right: 15px;
+  height: 50px;
+  border-right: 2px solid #999;
+  padding-top: 16px;
+  top: 0;
+  left: 30px;
+  color: #999;
+  z-index: 1; 
+}
+
+.menuButtonRight {
+  padding-left: 15px;
+  height: 50px;
+  border-left: 2px solid #999;
+  padding-top: 16px;
+  top: 0;
+  position: fixed;
+  right: 30px;
+  color: #999;
+  z-index: 1; 
+}</pre></div><p>Check out the following <a class="indexterm" id="id517"/>lines of code:</p><div class="informalexample"><pre class="programlisting">.nav a:visited, .nav a:link {
+  color: #999; }
+.nav a:hover, a:focus {
+  color: #fff;
+  text-decoration: none;
+}
+
+.logo {
+  padding-top: 16px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.filterButtonGrayscale {
+  position: fixed;
+  bottom: 55px;
+  left: 40px; 
+  z-index:2;
+}
+
+.filterButtonThreshold {
+  position: fixed;
+  bottom: 55px;
+  right: 40px; 
+  z-index:2;
+}
+
+.filterButtonBrightness {
+  position: fixed;
+  bottom: 10px;
+  left: 40px; 
+  z-index:2;
+}
+
+.filterButtonSave {
+  position: fixed;
+  bottom: 10px;
+  right: 40px; 
+  z-index:2;
+}</pre></div><p>This is about <a class="indexterm" id="id518"/>the <span class="strong"><strong>Filter</strong></span> buttons. They will be displayed after the images have been captured but before they are sent to the app, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">.stream {
+  transition: all .5s ease-in;
+  -webkit-animation-duration: 1s;
+  animation-duration: 1s;
+  -webkit-animation-fill-mode: both;
+  animation-fill-mode: both;
+  height: 480px;
+  margin-top: 10px;
+  padding: 0; }
+  .stream img {
+    border: 2px solid #333;
+  }</pre></div><p>We're going to reuse the <code class="literal">spinner</code> from the earlier chapters. This will be displayed while the user is uploading images:</p><div class="informalexample"><pre class="programlisting">  .spinner {
+    width: 40px;
+    height: 40px;
+    display: none;
+    position: relative;
+    margin: 100px auto;
+  }
+
+  .double-bounce1, .double-bounce2 {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-color: #333;
+    opacity: 0.6;
+    position: absolute;
+    top: 0;
+    left: 0;
+    -webkit-animation: sk-bounce 2.0s infinite ease-in-out;
+    animation: sk-bounce 2.0s infinite ease-in-out;
+  }
+
+  .double-bounce2 {
+    -webkit-animation-delay: -1.0s;
+    animation-delay: -1.0s;
+  }
+
+  @-webkit-keyframes sk-bounce {
+    0%, 100% {
+      -webkit-transform: scale(0);
+    }
+    50% {
+      -webkit-transform: scale(1);
+    }
+  }
+  @keyframes sk-bounce {
+    0%, 100% {
+      transform: scale(0);
+      -webkit-transform: scale(0);
+    }
+    50% {
+      transform: scale(1);
+      -webkit-transform: scale(1);
+    }
+  }
+}</pre></div><p>The basic setup of our app is now complete, and you can run it by issuing this command in your terminal:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>node server.js</strong></span>
+</pre></div><p>You should see <a class="indexterm" id="id519"/>Webpack compile your app, and when ready, log this information in your terminal window (with a different hash and millisecond count of course):</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>Listening at http://localhost:8080</strong></span>
+<span class="strong"><strong>webpack built c870b4500e3efe8b5030 in 1462ms</strong></span>
+</pre></div><p>You'll also need to register accounts at Firebase and Cloudinary. Both services are free for development use. You can register an account with Firebase<a class="indexterm" id="id520"/> by visiting <a class="ulink" href="https://www.firebase.com/">https://www.firebase.com/</a> and registering a database name to use when developing this app.</p><p>The following screenshot shows<a class="indexterm" id="id521"/> how the app will look on an iPhone once we're done writing the code:</p><div class="mediaobject"><img alt="Getting started" src="graphics/B04943_07_05.jpg"/></div></div></div>
+<div class="section" title="Setting up the routes"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec33"/>Setting up the routes </h1></div></div></div><p>Let's start this app by setting up the router configuration<a class="indexterm" id="id522"/> in the root of our app.</p><p>Open <code class="literal">index.jsx</code> and replace the contents with this code:</p><div class="informalexample"><pre class="programlisting">import React from 'react';
+import {render} from 'react-dom';
+import config from './config';
+import RoutesConfig from './routes';
+
+render(
+  RoutesConfig(config),
+  document.getElementById('app')
+);</pre></div><p>You'll notice that we reference two files that we haven't created yet, so let's go ahead and add them to our app.</p><p>Create <code class="literal">config.js</code> in the root of the <code class="literal">source</code> folder and then add this code:</p><div class="informalexample"><pre class="programlisting">var rootUrl = "https://YOURAPP.firebaseio.com/";</pre></div><p>Replace <code class="literal">YOURAPP</code> with the name of your registered Firebase app, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">var rootDb = "imageStream";
+var likesDb = "likes";
+
+module.exports = {
+  rootUrl: rootUrl,
+  rootDb: rootDb,
+  fbImageStream: rootUrl + rootDb,
+  fbLikes: rootUrl + likesDb
+}</pre></div><p>Then, create <code class="literal">routes.jsx</code> and add this code:</p><div class="informalexample"><pre class="programlisting">import React from 'react';
+import { Link,
+  Router,
+  Route,
+  NoMatch,
+  IndexRoute,
+  browserHistory
+}
+from 'react-router'
+import App from './components/app';
+import Welcome from './components/welcome';
+import Camera from './components/camera';
+import Stream from './components/stream';
+import Item from './components/item';
+import config from './config';
+import FBConnect from './fbconnect';</pre></div><p>Here, we're importing a <a class="indexterm" id="id523"/>number of components that we haven't created yet. We'll proceed by creating the components one by one, starting with <code class="literal">FBConnect</code>. This component is special because it's a higher order component that will make sure that the components it wraps will be provided with a correct state. It works much in the same way as Redux, which we explored in <a class="link" href="ch06.html" title="Chapter 6. Advanced React">Chapter 6</a>, <span class="emphasis"><em>Advanced React</em></span>. Now add this code:</p><div class="informalexample"><pre class="programlisting">function Routes(config) {
+  return &lt;Router history={ browserHistory }&gt;
+    &lt;Route path="/" name="Reactagram" 
+      component={ FBConnect( App, config)} &gt;
+      &lt;Route name="Stream" path="stream"
+        component={ FBConnect( Stream, config) } /&gt;
+      &lt;Route name="ItemParent" path="item"
+        component={ FBConnect( Item, config) } &gt;
+        &lt;Route name="Item" path=":key"
+         component={ FBConnect( Item, config) } /&gt;
+      &lt;/Route&gt;
+      &lt;Route name="Camera" path="camera" 
+        component={ FBConnect( Camera, config) } /&gt;
+      &lt;IndexRoute name="Welcome" 
+        component={ FBConnect( Welcome, config) } /&gt;
+    &lt;/Route&gt;
+    &lt;Route name="404: No Match for route" path="*" component={FBConnect(App,config)} /&gt;
+  &lt;/Router&gt;
+}
+export default Routes;</pre></div><p>After you've added this code, Webpack will throw a number of errors and the app will show a red error screen in the browser. We'll need to add all of the components we'll use before the app is usable again, and as you add them, you'll see that the error log will gradually diminish until the app is ready to be displayed properly again.</p></div>
+<div class="section" title="Creating a higher order function"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec34"/>Creating a higher order function</h1></div></div></div><p>A higher order function<a class="indexterm" id="id524"/> is a function that takes one or more functions as <a class="indexterm" id="id525"/>arguments and returns a function as its result. All other functions are first-order functions.</p><p>Using higher order functions is a brilliant way to extend your composition-making skills and an easy way to make complex apps easier. It complements the use of mixins, which is another way of providing inheritance in your components.</p><p>The function we'll create is a higher order component with mixins. It will connect to Firebase by using the configuration we provide in <code class="literal">config.js</code> and make sure the stateful data we rely on is kept in sync in real time. That's a tall order, but by using Firebase, we'll unload much of the heavy lifting needed to provide this functionality.</p><p>As you've seen earlier, we'll <a class="indexterm" id="id526"/>use this function to wrap our routed components and provide them with a state in the form of props.</p><p>Create <code class="literal">fbconnect.jsx</code> in<a class="indexterm" id="id527"/> the root of your <code class="literal">source</code> folder and add this code:</p><div class="informalexample"><pre class="programlisting">import React, { Component, PropTypes } from 'react';
+import ReactFireMixin from 'reactfire';
+import Firebase from 'firebase';
+import FBFunc from './fbfunc';
+import Userinfo from './userinfo';
+
+function FBConnect(Component, config) {
+  const FirebaseConnection = React.createClass({
+    mixins:[ReactFireMixin, Userinfo],
+    getInitialState: function() {
+      return {
+        data: [],
+        imageStream: [],
+        fbImageStream: config.fbImageStream
+      };
+    },
+    componentDidMount() {
+      const firebaseRef = new Firebase(
+      this.state.fbImageStream, 'imageStream');
+      this.bindAsArray(firebaseRef.orderByChild("timestamp"),
+      "imageStream");</pre></div><p>This will fetch the contents of your image stream and store them in <code class="literal">this.state.imageStream</code>. The state will be available to all wrapped components in <code class="literal">this.props.imageStream</code>. We'll be setting it so that it's ordered by the timestamp value. Refer to the following code:</p><div class="informalexample"><pre class="programlisting">    },
+    render() {
+      return &lt;Component {...this.props}
+      {...this.state} {...FBFunc} /&gt;;</pre></div><p>Here, we return the component passed to this function along with the state from Firebase and a set of stateful functions in <code class="literal">FBFunc</code>, such as follows:</p><div class="informalexample"><pre class="programlisting">    }
+  });
+  return FirebaseConnection;
+};
+export default FBConnect;</pre></div><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note25"/>Note</h3><p>
+<span class="strong"><strong>Sorting with Firebase</strong></span>
+</p><p>Firebase will always<a class="indexterm" id="id528"/> return data in ascending order, which means that newer pictures will be inserted at the bottom. If you want to sort by descending order, replace the <code class="literal">bindAsArray</code> function with a custom loop and then reverse the array before you store it with <code class="literal">setState()</code>.</p></div></div><p>You will also need to <a class="indexterm" id="id529"/>create a file that will hold the functions you'll use to<a class="indexterm" id="id530"/> add content to the image stream. Create a file called <code class="literal">fbfunc.js</code> in the root of your project and enter this code:</p><div class="informalexample"><pre class="programlisting">import Firebase from 'firebase';
+
+const FbFunc = {
+  uploadImage(url: string, user: string) {
+    let firebaseRef = new Firebase(this.fbImageStream);
+    let object = JSON.stringify(
+      {
+        url:url,
+        user:user,
+        timestamp: new Date().getTime(),
+        likes:0
+      }
+    );
+    firebaseRef.push({
+      text: object
+    });
+  },</pre></div><p>This function will store new images with an image URL to Cloudinary, the username, a timestamp, and zero likes. The following is our <code class="literal">like</code> functionality:</p><div class="informalexample"><pre class="programlisting">  like(key) {
+    var onComplete = function(error) {
+      if (error) {
+        console.log('Update failed');
+      }
+      else {
+        console.log('Update succeeded');
+      }
+    };
+    var firebaseRef = new Firebase(`${this.props.fbImageStream}/${key}/likes`);
+    firebaseRef.transaction(function(likes) {
+      return likes+1;
+    }, onComplete);
+  },</pre></div><p>As you can see, every <a class="indexterm" id="id531"/>press on like will add a <code class="literal">+1</code> like(s) to the image it's attached <a class="indexterm" id="id532"/>to. You could extend the functionality to prevent the current user from voting on their own images and also prevent them from voting more than once. Now refer to the following code:</p><div class="informalexample"><pre class="programlisting">addComment(e,key) {
+  const comment = this.refs.comment.getValue();
+  var onComplete = function(error) {
+    if (error) {
+      console.log('Synchronization failed');
+    }
+    else {
+      console.log('Synchronization succeeded');
+    }
+  };
+  let object = JSON.stringify(
+    {
+      comment:comment,
+      user:this.props.username,
+      timestamp: new Date().getTime()
+    }
+  );
+  var firebaseRef = new Firebase(this.props.fbImageStream+`/${key}/comments`);
+  firebaseRef.push({
+    text: object
+  }, onComplete);
+},</pre></div><p>The <code class="literal">comment</code> functionality will be visible in <code class="literal">item.jsx</code>, which is a page displaying a single photo. This function will store a new comment, along with the username of the submitter along with a timestamp. Now we move on to the two <code class="literal">helper</code> functions:</p><div class="informalexample"><pre class="programlisting">removeItem(key) {
+  var firebaseRef = new Firebase(this.props.fbImageStream);
+  firebaseRef.child(key).remove();
+},
+resetDatabase() {
+  let stringsRef = new Firebase(this.props.fbImageStream);
+  stringsRef.set({});
+  }
+};
+export default FbFunc;</pre></div><p>These functions will let you either<a class="indexterm" id="id533"/> remove a single item or clear the entire <a class="indexterm" id="id534"/>database. The latter one is especially useful for debugging but very dangerous to keep around if you go live with the app.</p></div>
+<div class="section" title="Creating a random username"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec35"/>Creating a random username</h1></div></div></div><p>In order to separate the different images<a class="indexterm" id="id535"/> coming in, you need to give the users a name. We'll do this in a very simple manner, so please refer to <a class="link" href="ch06.html" title="Chapter 6. Advanced React">Chapter 6</a>, <span class="emphasis"><em>Advanced React</em></span>, for details on how to implement a more secure login solution.</p><p>The way we're going to do this is by simply picking one word from a list of adjectives and another from a list of nouns and composing a username from both. We'll store the names in <code class="literal">localStorage</code> and generate a new one if we are unable to find an existing one.</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note26"/>Note</h3><p>
+<span class="strong"><strong>Local storage</strong></span>
+</p><p>All of the major browsers now support <code class="literal">localStorage</code>, but if you're planning on supporting older browsers, especially Internet Explorer, it might be wise to look into polyfills. A good discussion on polyfilling <code class="literal">localStorage</code><a class="indexterm" id="id536"/> can be found at <a class="ulink" href="https://gist.github.com/juliocesar/926500">https://gist.github.com/juliocesar/926500</a>.</p></div></div><p>Let's create our <code class="literal">username</code> function. Create a file called <code class="literal">username.js</code> and put it in the <code class="literal">tools</code> folder. Add this code:</p><div class="informalexample"><pre class="programlisting">export function username() {
+  const adjs = ["autumn", "hidden", "bitter", "misty", "silent",
+    "empty", "dry", "dark", "summer", "icy",
+    "delicate", "quiet", "ancient", "purple",
+    "lively", "nameless"];
+  const nouns = ["breeze", "moon", "rain", "wind", "sea", 
+    "morning", "snow", "lake", "sunset", "pine",
+    "shadow", "leaf", "dawn", "frog", "smoke",
+    "star"];
+  const rnd = Math.floor(Math.random() * Math.pow(2, 12));
+  return `${adjs[rnd % (adjs.length-1)]}-
+    ${nouns[rnd % (nouns.length-1)]}`;
+};</pre></div><p>The number of adjectives and <a class="indexterm" id="id537"/>nouns has been cut for brevity, but go ahead and add more words to add a touch of variety to your usernames.</p><p>The resulting usernames will be a variation of the following: <span class="emphasis"><em>autumn-breeze</em></span>, <span class="emphasis"><em>misty-dawn</em></span>, and <span class="emphasis"><em>empty-smoke</em></span>.</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note27"/>Note</h3><p>If you want to explore name and sentence generation<a class="indexterm" id="id538"/> in more depth, I urge you to take a look at <a class="ulink" href="https://www.npmjs.com/package/rantjs">https://www.npmjs.com/package/rantjs</a>.</p></div></div><p>Next, you need the file that actually implements this functionality and sets the desired username. This is <code class="literal">userinfo.js</code>, which is referenced in <code class="literal">fbconnect.js</code>. Add the file to your <code class="literal">root</code> folder and then add the following code:</p><div class="informalexample"><pre class="programlisting">module.exports = {
+
+  getInitialState() {
+    username: ""
+  },
+
+  componentDidMount() {
+    let username;
+    if(localStorage.getItem("username")) {
+      username = localStorage.getItem("username");
+    }
+
+    if(!username || username === undefined) {
+      localStorage.setItem("username",
+      require("./tools/username").username());
+    }
+
+    this.setState({username: username})
+  }
+
+}</pre></div><p>This file is a mixin and will extend <code class="literal">getInitialState</code> and <code class="literal">componentDidMount</code> in <code class="literal">fbconnect</code> with a username state variable, and it will create a username and store it in <code class="literal">localStorage</code> if none exist.</p></div>
+<div class="section" title="Creating a welcome screen"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec36"/>Creating a welcome screen</h1></div></div></div><p>Let's create an app header and a<a class="indexterm" id="id539"/> welcome screen. We'll do this in two different files, <code class="literal">app.jsx</code> and <code class="literal">welcome.jsx</code>, which we'll place in the <code class="literal">components</code> folder.</p><p>Add <code class="literal">components/app.jsx</code> and then add this code:</p><div class="informalexample"><pre class="programlisting">import React from 'react';
+import { Grid, Col, Row, Nav, Navbar } from 'react-bootstrap';
+import { Link } from 'react-router';
+import Classnames from 'classnames';
+
+module.exports = React.createClass({
+  goBack() {
+    return this.props.location.pathname.split("/")[1]
+      ==="item" ? "/stream" : "/";
+  },</pre></div><p>The <code class="literal">goBack()</code> function will send you back to the correct page depending on your current location. If you're viewing a single item, you'll be taken back to the stream if you press <span class="strong"><strong>Go Back</strong></span>. If you're on the stream, you'll be taken to the front page, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">  render() {
+    const BackStyle = Classnames({
+      hidden: this.props.location.pathname==="/",
+      "menuButtonLeft": true
+    });
+
+    const PhotoStyle = Classnames({
+      hidden: this.props.location.pathname==="/camera",
+      "menuButtonRight": true
+    });</pre></div><p>These two styles will prevent the links from being displayed when there's no need for them to be visible. The <span class="strong"><strong>Back</strong></span> button will only be visible when you're not on the front page, and the the photo button will be hidden if you're on the photo page. Refer to the following code:</p><div class="informalexample"><pre class="programlisting">    return &lt;Grid&gt;
+  &lt;Navbar
+    componentClass="header""
+    fixedTop
+    inverse&gt;
+    &lt;h1
+      center
+      style={{ color:"#fff" }}
+      className="logo"&gt;Reactagram
+    &lt;/h1&gt;
+    &lt;Nav
+      role="navigation"
+      eventKey={ 0 }
+      pullRight&gt;
+      &lt;Link
+        className={ BackStyle }
+        to={this.goBack()}&gt;Back&lt;/Link&gt;
+      &lt;Link
+        className={ PhotoStyle }
+        to="/camera"&gt;Photo&lt;/Link&gt;
+    &lt;/Nav&gt;
+  &lt;/Navbar&gt;
+  { this.props.children }
+  &lt;/Grid&gt;
+  }
+});</pre></div><p>In this section, we add a <a class="indexterm" id="id540"/>Bootstrap grid with a fixed navigation bar. This makes sure that the navigation bar is always present. The code block <code class="literal">{ this.props.children }</code> makes sure that any React.js components are rendered within the grid.</p><p>Next, create <code class="literal">components/welcome.jsx</code> and add this code:</p><div class="informalexample"><pre class="programlisting">import React from 'react';
+import { Row, Col, Button } from 'react-bootstrap';
+
+module.exports = React.createClass({
+  contextTypes: {
+    router: React.PropTypes.object.isRequired
+  },
+  historyPush(location) {
+    this.context.router.push(location);
+  },</pre></div><p>We'll use the built-in <code class="literal">push</code> functionality in <code class="literal">react-router</code> to transition our users to the desired location. The URL will be <code class="literal">http://localhost:8080/stream</code> or <code class="literal">http://localhost:8080/camera</code>.</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note28"/>Note</h3><p>Notice that the routes are non-hashed.</p></div></div><p>Let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">  renderResetButton() {
+    return &lt;Button bsStyle="danger"
+    onClick={this.props.resetDatabase.bind(null, this)}&gt;
+    Reset database!
+    &lt;/Button&gt;
+  },
+  renderPictureButton() {
+    return &lt;Button bsStyle="default"
+      onClick={this.historyPush.bind(null, '/camera')}&gt;
+      Take a picture
+    &lt;/Button&gt;
+  },</pre></div><p>We bind the route <a class="indexterm" id="id541"/>argument to the <code class="literal">historyPush</code> function as a handy way to transition our users on click. The first argument is the context, but since we don't need it, we assign it to <code class="literal">null</code>. The second is the route we want the user to be transitioned to. Let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">  renderStreamButton() {
+    return &lt;Button bsStyle="default"
+      onClick={ this.historyPush.bind(null, '/stream') }&gt;
+      Stream
+    &lt;/Button&gt;
+  },
+  render() {
+    return &lt;Row&gt;
+      &lt;Col md={12}&gt;
+        &lt;h1&gt;Welcome { this.props.username }&lt;/h1&gt;
+        &lt;p&gt;
+          Reactagram is social picture app. Take snapshots of
+          yourself and share with your friends.
+        &lt;/p&gt;
+        &lt;p&gt;
+          { this.renderPictureButton() }
+        &lt;/p&gt;
+        &lt;p&gt;
+          { this.renderStreamButton() }
+        &lt;/p&gt;
+
+        &lt;p&gt;
+          &lt;em&gt;PS! The username has been automatically
+          generated for you.&lt;/em&gt;
+        &lt;/p&gt;
+
+      &lt;/Col&gt;
+      &lt;Col md={ 12 }&gt;
+        &lt;h3&gt;Reset database&lt;/h3&gt;
+        &lt;p&gt;
+          Click here to reset your database.
+          Note: This will completely
+          Clear all of your uploaded pictures.
+          There's no way to undo this.
+        &lt;/p&gt;
+        &lt;p&gt;
+          { this.renderResetButton() }
+        &lt;/p&gt;
+      &lt;/Col&gt;
+    &lt;/Row&gt;
+  }
+})</pre></div><p>This is how the<a class="indexterm" id="id542"/> application will look in the browser after you've added the preceding code. Note that the links won't work at this point because we haven't made the components yet. We'll get to them shortly:</p><div class="mediaobject"><img alt="Creating a welcome screen" src="graphics/B04943_07_01.jpg"/></div></div>
+<div class="section" title="Taking a picture"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec37"/>Taking a picture</h1></div></div></div><p>We'll be using <a class="indexterm" id="id543"/>the camera API to take pictures for our image app. Through this interface, it is possible to take pictures with a native camera device as well as select pictures to upload them through a web page.</p><p>The API is set up by adding an input element with <code class="literal">type="file"</code> and an <code class="literal">accept</code> attribute to declare to our component that it accepts images.</p><p>The ReactJS JSX looks like this:</p><div class="informalexample"><pre class="programlisting">&lt;Input type="file" label="Camera" onChange={this.takePhoto}
+  help="Click to snap a photo" accept="image/*" /&gt;</pre></div><p>When a user activates the element, they are presented with an option to choose a file or take a picture with the built-in camera (if available). The user must accept the picture before it's sent to the <code class="literal">&lt;input type="file"&gt;</code> element, and its <code class="literal">onchange</code> event is triggered.</p><p>Once you have a reference to the picture, you can render it to an image element or a canvas element. We'll do the latter, as rendering to canvas opens up a lot of possibilities for manipulating an image.</p><p>Create a new file called <code class="literal">camera.jsx</code> and put it in the <code class="literal">components</code> folder. Add this code to it:</p><div class="informalexample"><pre class="programlisting">import React from 'react';
+import { Link } from 'react-router';
+import classNames from 'classnames';
+import { Input, Button } from 'react-bootstrap';
+//import Filters from '../tools/filters';</pre></div><p>Leave this commented out until we add the code for this function:</p><div class="informalexample"><pre class="programlisting">import request from 'superagent';
+import ImageToCanvas from 'imagetocanvas';</pre></div><p>The <code class="literal">ImageToCanvas</code> module <a class="indexterm" id="id544"/>contains a lot of code that was originally written for this chapter, but since it consists of a lot of camera- and canvas-specific code, it was a bit too niche to include. Take a look at the code in the GitHub repository if you want to delve more into the canvas code:</p><div class="informalexample"><pre class="programlisting">module.exports = React.createClass({
+
+  getInitialState() {
+    return {
+      imageLoaded: false
+    };
+  },</pre></div><p>We'll use this state variable to switch between showing the input field or the captured image. When an image is captured, this state is set to <code class="literal">true</code>. Consider the following code:</p><div class="informalexample"><pre class="programlisting">  componentDidMount() {
+    this.refs.imageCanvas.style.display="none";
+    this.refs.spinner.style.display="none";
+  },</pre></div><p>As illustrated in the code, we'll hide the canvas until we've got some content to show. The spinner should only be visible while the user is uploading an image. Refer to the helper functions in the following code:</p><div class="informalexample"><pre class="programlisting">  toImg(imageData) {
+    var imgElement = document.createElement('img');
+    imgElement.src = imageData;
+    return imgElement;
+  },
+
+  toPng(canvas) {
+    var img = document.createElement('img');
+    img.src = canvas.toDataURL('image/png');
+    return img;
+  },</pre></div><p>These functions will be useful when rendering the final image to the user. Now check this out:</p><div class="informalexample"><pre class="programlisting">  putImage(img, orientation) {
+    var canvas = this.refs.imageCanvas;
+    var ctx = canvas.getContext("2d");
+    let w = img.width;
+    let h = img.height;
+    const scaleH = h / 400;
+    const scaleW = w / 300;
+    let tempCanvas = document.createElement('canvas');
+    let tempCtx = tempCanvas.getContext('2d');
+    canvas.width = w/scaleW &lt; 300 ? w/scaleW : 300;
+    canvas.height = h/scaleH &lt; 400 ? h/scaleH : 400;
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+    tempCtx.drawImage(img, 0, 0, w/scaleW, h/scaleH); 
+
+    ImageToCanvas.drawCanvas(canvas, this.toPng(tempCanvas), orientation, scaleW, scaleH);
+
+    this.refs.imageCanvas.style.display="block";
+    this.refs.imageCanvas.style.width= w/scaleW + "px";
+    this.refs.imageCanvas.style.height= h/scaleH + "px";
+  },</pre></div><p>This function takes care of<a class="indexterm" id="id545"/> all the canvas-handling logic that we'll need to display an image with proper ratios. Our default is 4:3 (portrait pictures), and we'll scale the images down to approximately 400 pixels in height and 300 pixels in width. The reduced image size will result in quality degradation, but it will make image processing faster and reduce the file size, resulting in a faster upload speed and better user experience.</p><p>This does mean that square pictures or photos in landscape mode will appear squished. This function could thus be extended to look for horizontally placed square or rectangular photos so that they could be scaled properly, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">  takePhoto(event) {
+    let camera = this.refs.camera,
+      files = event.target.files,
+      file, w, h, mpImg, orientation;
+    let canvas = this.refs.imageCanvas;
+    if (files &amp;&amp; files.length &gt; 0) {
+      file = files[0];
+      var fileReader = new FileReader();
+      var putImage = this.putImage;
+      fileReader.onload = (event)=&gt; {
+        var img = new Image();
+        img.src=event.target.result;
+        try {
+          ImageToCanvas.getExifOrientation(
+            ImageToCanvas.toBlob(img.src),
+          (orientation)=&gt; {
+            putImage(img, orientation);
+          });</pre></div><p>Cameras on native devices <a class="indexterm" id="id546"/>will take pictures with different orientations. Unless we adjust this, we'll end up with images rotated left, right, or upside down, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">        }
+        catch (e) {
+          this.putImage(img, 1);</pre></div><p>If we can't get the <code class="literal">exif</code> information, we'll default the orientation to <code class="literal">1</code>, meaning no transformation is needed, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">        }
+      }
+      fileReader.readAsDataURL(file);
+      this.setState({imageLoaded:true});
+    }
+  },
+
+  applyGrayscale() {
+    let canvas = this.refs.imageCanvas;
+    let ctx=canvas.getContext("2d");
+    let pixels = Filters.grayscale( 
+      ctx.getImageData(0,0,canvas.width,canvas.height), {});
+    ctx.putImageData(pixels, 0, 0);
+  },</pre></div><p>We'll set up three different filters: <code class="literal">grayscale</code>, <code class="literal">threshold</code>, and <code class="literal">brightness</code>. We'll go more into the filters when we add <code class="literal">filters.js</code>:</p><div class="informalexample"><pre class="programlisting">  applyThreshold(threshold) {
+    let canvas = this.refs.imageCanvas;
+    let ctx=canvas.getContext("2d");
+    let pixels = Filters.threshold(
+      ctx.getImageData(0,0,canvas.width,canvas.height), threshold);
+    ctx.putImageData(pixels, 0, 0);
+  },
+
+  applyBrightness(adjustment) {
+    let canvas = this.refs.imageCanvas;
+    let ctx=canvas.getContext("2d");
+    let pixels = Filters.brightness(
+      ctx.getImageData(0,0,canvas.width,canvas.height), adjustment);
+    ctx.putImageData(pixels, 0, 0);
+  },
+
+  saveImage() {
+    let canvas = this.refs.imageCanvas;
+    document.body.style.opacity=0.4;
+    this.refs.spinner.style.display="block";
+    this.refs.imageCanvas.style.display="none";</pre></div><p>When the user saves an <a class="indexterm" id="id547"/>image, we'll turn down the opacity of the entire page and display the loading spinner, as illustrated in the last part of the preceding code, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">    var dataURL = canvas.toDataURL();
+
+    new Promise((resolve, reject)=&gt; {
+      request
+      .post('/upload')
+      .send({ image: dataURL, username: this.props.username })
+      .set('Accept', 'application/json')
+      .end((err, res)=&gt; {
+        console.log(err);
+        if(err) {
+          reject(err)
+      }
+      if(res.err) {
+        reject(res.err);
+      }
+      resolve(res);
+    });
+  }).then((res)=&gt; {
+  const result = JSON.parse(res.text);
+  this.props.uploadImage(result.secure_url,this.props.username);
+  this.props.history.pushState(null,'stream');
+  document.body.style.opacity=1.0;
+});</pre></div><p>When the image is uploaded to <span class="strong"><strong>Cloudinary</strong></span>, we'll store the result in Firebase using the <code class="literal">uploadImage</code> function <a class="indexterm" id="id548"/>from <code class="literal">fbfunc.js</code>. Consider the following code:</p><div class="informalexample"><pre class="programlisting">  },
+
+  render() {
+    const inputClass= classNames({
+      hidden: this.state.imageLoaded
+    });
+    const grayScaleButton= classNames({
+      hidden: !this.state.imageLoaded,
+      "filterButtonGrayscale": true
+    });
+    const thresholdButton= classNames({
+      hidden: !this.state.imageLoaded,
+      "filterButtonThreshold": true
+    });
+    const brightnessButton= classNames({
+      hidden: !this.state.imageLoaded,
+      "filterButtonBrightness": true
+    });
+    const saveButton= classNames({
+      hidden: !this.state.imageLoaded,
+      "filterButtonSave": true
+    });</pre></div><p>Here, the <code class="literal">classNames</code> function provides an easy interface to toggle classes on our HTML nodes, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">  return &lt;div&gt;
+    &lt;Button className={grayScaleButton} onClick={this.applyGrayscale}&gt;Grayscale&lt;/Button&gt;
+
+    &lt;Button className={thresholdButton} 
+      onClick={this.applyThreshold.bind(null,128)}&gt;Threshold
+    &lt;/Button&gt;
+
+    &lt;Button className={brightnessButton}
+      onClick={this.applyBrightness.bind(null,40)}&gt;Brighter
+    &lt;/Button&gt;
+
+    &lt;Button className={saveButton} bsStyle="success" 
+        onClick={this.saveImage}&gt;Save Image&lt;/Button&gt;
+    &lt;div className={inputClass}&gt;
+
+    &lt;Input type="file" label="Camera"  onChange={this.takePhoto}
+      help="Click to snap a photo or select an image from your 
+      photo roll" ref="camera" accept="image/*" /&gt;
+  &lt;/div&gt;
+
+  &lt;div className="spinner" ref="spinner"&gt;
+    &lt;div className="double-bounce1"&gt;&lt;/div&gt;
+    &lt;div className="double-bounce2"&gt;&lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div className="canvas"&gt;
+
+    &lt;canvas ref="imageCanvas" id="imageCanvas"&gt;
+      Your browser does not support the HTML5 canvas tag.
+    &lt;/canvas&gt;
+  &lt;/div&gt;
+
+  &lt;/div&gt;
+  }
+});</pre></div><p>You should now be able <a class="indexterm" id="id549"/>to click on the camera button and take a picture with your camera phone or select an image from your hard drive if you're working on a desktop computer. The following screenshot shows an image from the desktop selected with the file browser using the camera button:</p><div class="mediaobject"><img alt="Taking a picture" src="graphics/B04943_07_02.jpg"/></div><p>The filters won't work yet, but<a class="indexterm" id="id550"/> we're going to add them now. Once we've done this, remove the comments from the <code class="literal">import</code> function in <code class="literal">camera.jsx</code>.</p></div>
+<div class="section" title="Adding filters"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec38"/>Adding filters</h1></div></div></div><p>We've set up a few <a class="indexterm" id="id551"/>filter buttons for manipulating the image after it's been captured from the image uploader, but we're yet to set up the actual filter functions.</p><p>You apply filters to the images by reading the canvas pixels, modifying them, and then writing them back to the canvas.</p><p>We'll start by fetching the image pixels. This is how you do it:</p><div class="informalexample"><pre class="programlisting">let canvas = this.refs.imageCanvas;
+let ctx= canvas.getContext("2d");
+let pixels = ctx.getImageData(0,0,canvas.width,canvas.height)</pre></div><p>In <code class="literal">camera.jsx</code>, we'll pass the results of <code class="literal">getImageData</code> as an argument to the <code class="literal">filter</code> function, like this:</p><div class="informalexample"><pre class="programlisting">let pixels = Filters.grayscale(
+ctx.getImageData(0,0,canvas.width,canvas.height), {});</pre></div><p>Now that you have the pixels, you can loop through them and apply your modifications.</p><p>Let's look at the complete grayscale filter. Add a file called <code class="literal">filters.js</code> and put it in the <code class="literal">tools</code> folder. Add this code to it:</p><div class="informalexample"><pre class="programlisting">let Filters = {};
+
+Filters.grayscale = function(pixels, args) {
+  var data = pixels.data;
+  for (let i=0; i &lt; data.length; i+=4) {
+    let red = data[i];
+    let green = data[i+1];
+    let blue = data[i+2];
+    let variance = 0.2126*red + 0.7152*green + 0.0722*blue;</pre></div><p>We fetch the values <a class="indexterm" id="id552"/>for <code class="literal">red</code>, <code class="literal">green</code>, and <code class="literal">blue</code> separately and then apply the RGB to the Luma conversion formula, which is a set of weights that will deemphasize color information and produce a grayscale image:</p><div class="informalexample"><pre class="programlisting">    data[i] = data[i+1] = data[i+2] = variance</pre></div><p>We then replace the original color value with the new, monochromatic color value, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">  }
+  return pixels;
+};
+
+Filters.brightness = function(pixels, adjustment) {
+  var data = pixels.data;
+  for (let i=0; i&lt;data.length; i+=4) {
+    data[i] += adjustment;
+    data[i+1] += adjustment;
+    data[i+2] += adjustment;</pre></div><p>This filter makes the pixels brighter by simply increasing the RGB values. It's similar to setting the color values of a font in CSS to <code class="literal">#eeeeee (R: 238 G: 238 B: 238)</code> from <code class="literal">#999 (R: 153 G: 153 B: 153)</code>. Now we move on to threshold:</p><div class="informalexample"><pre class="programlisting">  }
+  return pixels;
+};
+
+Filters.threshold = function(pixels, threshold) {
+  var data = pixels.data;
+  for (let i=0; i&lt;data.length; i+=4) {
+    let red = data[i];
+    let green = data[i+1];
+    let blue = data[i+2];
+    let variance = (0.2126*red + 0.7152*green + 0.0722*blue &gt;= threshold) ? 255 : 0;</pre></div><p>As you can see, threshold is applied by comparing the grayscale value of a pixel with the threshold value. Once this is done, set the color to either black or white, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">    data[i] = data[i+1] = data[i+2] = variance
+  }
+  return pixels;
+};
+
+module.exports = Filters;</pre></div><p>This is a very basic set of<a class="indexterm" id="id553"/> filters, and you can easily create more by tuning the values. You can also check out <a class="ulink" href="https://github.com/kig/canvasfilters">https://github.com/kig/canvasfilters</a> for a good set of filters to add, including blur, sobel, blend, luminance, and invert.</p><p>The following screenshot shows a picture with brightness and threshold applied:</p><div class="mediaobject"><img alt="Adding filters" src="graphics/B04943_07_03.jpg"/></div></div>
+<div class="section" title="Adding the stream"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec39"/>Adding the stream</h1></div></div></div><p>It's now time to add the<a class="indexterm" id="id554"/> <code class="literal">stream</code> functionality. It's very simple because the data stream is already available through <code class="literal">fbconnect.js</code>, so all we have to do is map through the stream data and render the HTML.</p><p>Create a file called <code class="literal">stream.jsx</code> in your <code class="literal">components</code> folder and add this code:</p><div class="informalexample"><pre class="programlisting">import React from 'react';
+import { Grid,Row, Col, Button } from 'react-bootstrap';
+import { Link } from 'react-router';
+
+module.exports = React.createClass({
+  renderStream(item, index, image, data){
+    return (
+      &lt;Col
+        className="stream"
+        sm={ 12 }
+        md={ 6 }
+        lg={ 4 }
+        key={ index } &gt;
+          &lt;Link to={`/item/${item['.key']}`}&gt;
+          &lt;img style={{ margin:'0 auto',display:'block' }}
+            width="300"
+            height="400"
+            src={ image } /&gt;
+        &lt;/Link&gt;
+
+        &lt;strong style={{ display:'block', fontWeight:600,
+         textAlign:'center' }}&gt;
+           { data.user }
+        &lt;/strong&gt;
+
+        &lt;strong style={{ display:'block', fontWeight:600,
+          textAlign:'center' }}&gt;
+          Likes: { item.likes || 0 }
+        &lt;/strong&gt;
+
+        &lt;div style={{ padding:0,display:'block', fontWeight:600,
+          textAlign:'center' }}&gt;
+
+          &lt;Button bsStyle="success"
+            onClick={ this.props.like.bind(this,item['.key']) }&gt;
+            Like
+          &lt;/Button&gt;
+        &lt;/div&gt;</pre></div><p>A user can click on like as<a class="indexterm" id="id555"/> many times as they want, and the counter will be updated every time. The like counter is transaction-based, so if two or more users click on the like button at the same time, the operation will be queued until all likes have been counted, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">      &lt;/Col&gt;
+    );
+  },
+
+  render() {
+    let stream = this.props.imageStream.map((item, index) =&gt; {
+      const data = JSON.parse(item.text);
+      let image;
+      try {
+        image = 
+        data.url.replace("upload/","upload/c_crop,g_center,h_300/");
+      }
+      catch(e) {
+        console.log(e);
+      }</pre></div><p>The <code class="literal">try…catch</code> block will<a class="indexterm" id="id556"/> prevent blank sections from appearing (or the app from throwing an error), in case a user has unwittingly uploaded a broken image (or due to some error, the image upload failed). If an error is caught, this will be logged to the console and the image will simply not be displayed.</p><p>One of the many benefits of using a service like Cloudinary is that you can request a different version of your image file and have it delivered without having to do any work on our end.</p><p>Here, we request a cropped image with a height of 300, weighted at the center. This makes sure that the images we return on this page are uniform in height, though the width may vary by a few pixels.</p><p>Cloudinary<a class="indexterm" id="id557"/> has a wealth of options, and you could conceivably use it for filtering the images instead of doing it in JavaScript. You can make changes to the app such that whenever the user captures an image, you could send it to Cloudinary before further processing. All filters could then be applied by adding filters to the image URL provided by Cloudinary, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">      return image ?
+        this.renderStream(item, index, image, data) : null;
+
+    });
+    return &lt;Row&gt;
+      {stream}
+    &lt;/Row&gt;
+  }
+});</pre></div><p>If images are added, or the like count is updated, the changes will immediately be visible in the stream. Try opening the app on a device and a browser window or two browser windows at the same time, and you'll notice that any changes made will be synchronized in real time.</p></div>
+<div class="section" title="Creating an item page and adding comments"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec40"/>Creating an item page and adding comments</h1></div></div></div><p>If you click on any of the <a class="indexterm" id="id558"/>pictures in the stream, you'll be taken<a class="indexterm" id="id559"/> to the item page. We don't need to set up a new query for this because we already have everything we need to display it. We'll get the item key from the router and apply a filter to the image stream, and we'll end up with a single item.</p><p>In the following screenshot, notice that the comment section has been added and that two random users have added some comments:</p><div class="mediaobject"><img alt="Creating an item page and adding comments" src="graphics/B04943_07_04.jpg"/></div><p>Create a new<a class="indexterm" id="id560"/> file called <code class="literal">item.jsx</code> in the <code class="literal">components</code> folder <a class="indexterm" id="id561"/>and add this code:</p><div class="informalexample"><pre class="programlisting">import React from 'react';
+import { Grid,Row, Col, Button, Input } from 'react-bootstrap';
+import { Link } from 'react-router';
+import { pad } from '../tools/pad';
+
+module.exports = React.createClass({
+  renderStream(item, index, image, data) {
+    return (
+      &lt;Col className="stream" sm={12} md={6} lg={4} key={ index } &gt;
+
+        &lt;img style={{margin:'0 auto',display:'block'}}
+          width="300" height="400" src={ image } /&gt;
+
+        &lt;strong style={{display:'block', fontWeight:600, 
+          textAlign:'center'}}&gt;{data.user}&lt;/strong&gt;
+
+        &lt;strong style={{display:'block', fontWeight:600,
+          textAlign:'center'}}&gt;Likes: {item.likes||0}&lt;/strong&gt;
+
+        &lt;div style={{padding:0,display:'block', fontWeight:600, 
+          textAlign:'center'}}&gt;
+
+          &lt;Button bsStyle="success"
+            onClick={this.props.like.bind(this,item['.key'])}&gt;
+            Like&lt;/Button&gt;
+        &lt;/div&gt;
+
+        {this.renderComments(item.comments)}
+        {this.renderCommentField(item['.key'])}
+
+      &lt;/Col&gt;
+    );
+  },</pre></div><p>The <code class="literal">renderStream()</code> function is<a class="indexterm" id="id562"/> almost identical to the one we <a class="indexterm" id="id563"/>created for <code class="literal">stream.jsx</code>, except that we've removed the link here and added a way to display and add comments. Refer to the following code:</p><div class="informalexample"><pre class="programlisting">  renderComments(comments) {
+    if(!comments) return;
+
+    let data,text, commentStream=[];
+    const keys = Object.keys(comments);
+    keys.forEach((key)=&gt;{
+      data = comments[key];
+      text = JSON.parse(data.text);
+      commentStream.push(text);
+    })
+
+    return &lt;Col md={12}&gt;&lt;h4&gt;Comments&lt;/h4&gt;
+      {commentStream.map((item,idx)=&gt;{
+        const date = new Intl.DateTimeFormat().format(item.timestamp)
+        const utcdate = new Intl.DateTimeFormat('en-US').format(date);
+        const utcdate = new Intl.DateTimeFormat('en-US').format(date);
+      return &lt;div
+        key={ ´comment${idx}` }
+        style={{ paddingTop:15 }}&gt;
+          { utcdate } &lt;br/&gt; { item.comment }
+          - &lt;small&gt;{ item.user }&lt;/small&gt;
+      &lt;/div&gt;
+    })}&lt;/Col&gt;
+  },</pre></div><p>First we grab the comment<a class="indexterm" id="id564"/> identifiers by using <code class="literal">Object.keys()</code>, which returns an array of keys. Then, we map through this array to find and<a class="indexterm" id="id565"/> render each individual comment to HTML.</p><p>We also take the timestamp and convert it to a human-readable date by using the international date formatter. Further, we used the en-US locale in this example, but you can easily swap it with any locale. Have a look at the following code:</p><div class="informalexample"><pre class="programlisting">  renderCommentField(key) {
+    return &lt;Col md={12}&gt;
+      &lt;hr/&gt;
+      &lt;h4&gt;Add your own comment&lt;/h4&gt;
+      &lt;Input type="textarea" ref="comment"&gt;&lt;/Input&gt;
+      &lt;Button bsStyle="info"
+        onClick={this.props.addComment.bind(this,
+        this.refs.comment, key)} &gt;Comment&lt;/Button&gt;
+    &lt;/Col&gt;
+  },</pre></div><p>Here, we render an input field and a submit button with an <code class="literal">onclick</code> handler to the <code class="literal">addComment()</code> function in <code class="literal">fbfunc.js</code>. Finally, we return to the <code class="literal">render()</code> function:</p><div class="informalexample"><pre class="programlisting">  render() {
+    let { key } = this.props.params;
+    let stream = this.props.imageStream
+    .filter((item)=&gt;{return item['.key']==key})
+    .map((item, index) =&gt; {
+      const data = JSON.parse(item.text);
+      let image;
+      try {
+        image = data.url.replace("upload/","upload/c_crop,g_center,h_300/");
+      } catch(e){
+        console.log(e);
+      }
+      return image ?
+      this.renderStream(item, index, image, data) : null;
+
+    });
+    return &lt;Row&gt;
+      {stream}
+      &lt;/Row&gt;
+  }
+});</pre></div><p>As illustrated, we get the <a class="indexterm" id="id566"/>key from the router parameters and apply <a class="indexterm" id="id567"/>a filter to the image stream so that we're left with an array containing just the single item we want from the stream data.</p><p>We then apply a <code class="literal">map</code> function to the array, fetch the image, and call the <code class="literal">renderStream()</code> function.</p><p>You need to add the <code class="literal">padding</code> file we imported at the top of <code class="literal">item.jsx</code>, so create a file called <code class="literal">pad.js</code> in the <code class="literal">tools</code> folder and add this code:</p><div class="informalexample"><pre class="programlisting">export const pad = (p = '00', s = '') =&gt; {
+  return p.toString().slice(s.toString().length)+s;
+}</pre></div><p>It will transform 1 to 01 and so on, but will not do anything with 10, 11, or 12. So it's safe to use whenever you want to add left padding to a string.</p></div>
+<div class="section" title="Wrapping up"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec41"/>Wrapping up</h1></div></div></div><p>Your <a class="indexterm" id="id568"/>social-photo-sharing app is now ready for action. It should now compile fully and work without problems on desktop browsers and native smartphones and tablets.</p><p>Working with images and canvas can be a bit tricky when it comes to native devices. The file size of a photo often becomes a problem because many smartphones have very little memory to work with, so you may often run into problems rendering canvas images.</p><p>This is one of the reasons we're working with downscaled images in this app. The other is of course to make it faster when transmitting photos to the cloud. Both of these problems are very real but can more or less be classified as corner cases, so I'm leaving this up to you, should you go ahead and develop the app further.</p><p>In the following screenshot, you can see <a class="indexterm" id="id569"/>the app deployed on an iPad:</p><div class="mediaobject"><img alt="Wrapping up" src="graphics/B04943_07_06.jpg"/></div><p>This is the final file structure of the app:</p><div class="informalexample"><pre class="programlisting">├── assets
+│   ├── app.css
+│   ├── favicon.ico
+│   └── index.html
+├── package.json
+├── server.js
+├── source
+│   ├── components
+│   │   ├── app.jsx
+│   │   ├── camera.jsx
+│   │   ├── item.jsx
+│   │   ├── stream.jsx
+│   │   └── welcome.jsx
+│   ├── config.js
+│   ├── fbconnect.js
+│   ├── fbfunc.js
+│   ├── index.jsx
+│   ├── routes.jsx
+│   ├── tools
+│   │   ├── filters.js
+│   │   ├── pad.js
+│   │   └── username.js
+│   └── userinfo.js
+└── webpack.config.js</pre></div><p>It's a very concise file structure for an app that already is quite capable. You could argue that the <code class="literal">config</code> files and the Firebase files could be put in a folder of their own, and you wouldn't find me disagreeing.</p><p>In the end, the way you <a class="indexterm" id="id570"/>organize your files is often down to personal preference. Some may like having all JavaScript files in a single folder, while others prefer to sort them by functionality.</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note29"/>Note</h3><p>The finished project can be viewed online at <a class="ulink" href="http://reactjsblueprints-chapter7.herokuapp.com">http://reactjsblueprints-chapter7.herokuapp.com</a>.</p></div></div></div>
+<div class="section" title="Summary"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec42"/>Summary</h1></div></div></div><p>In this chapter, you learned how to use the camera/filereader API using the HTML5 canvas and how to manipulate images by modifying the pixels. You connected to Firebase and Cloudinary, both popular cloud-based tools that help you as a developer to work on your apps rather than your infrastructure.</p><p>You also experienced that by using a tool such as Firebase, you can completely avoid using Flux. It's not a common architecture, but it's worth knowing that it's at least possible to go down this route.</p><p>In the end, you made a real-time social photo app that you can easily extend further and mark with your brand.</p><p>In the next chapter, we'll look at how you could develop isomorphic apps with ReactJS. An isomorphic app means an app that is pre-rendered on the server, so we'll look at techniques to serve up your ReactJS apps even to users who don't have JavaScript enabled in their respective browsers.</p></div></body></html>

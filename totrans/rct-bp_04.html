@@ -1,0 +1,913 @@
+<html><head></head><body><div class="chapter" title="Chapter&#xA0;4.&#xA0;Building a Real-Time Search App"><div class="titlepage"><div><div><h1 class="title"><a id="ch04"/>Chapter 4. Building a Real-Time Search App</h1></div></div></div><p>Search is an important feature in most apps. Depending on the kind of application you're developing, you can get away with setting up a field for looking up simple keywords, or you may have to delve into a world of fuzzy algorithms and lookup tables. In this chapter, we'll create a real-time search app that mimics a web search engine. We'll work on quick searches that appear as you type, displaying the search results and providing the endless scrolling feature. We'll also create our own search API to handle our requests.</p><p>The application of these techniques are only limited by your imagination. On that note, let's get started.</p><p>These are the major topics that we'll cover in this chapter:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">Creating your own search API</li><li class="listitem" style="list-style-type: disc">Connecting your API to MongoDB</li><li class="listitem" style="list-style-type: disc">Setting up API routing</li><li class="listitem" style="list-style-type: disc">Performing regex-based searches</li><li class="listitem" style="list-style-type: disc">Securing your API</li><li class="listitem" style="list-style-type: disc">Creating a ReactJS search app</li><li class="listitem" style="list-style-type: disc">Setting up react-router to handle non-hashed routes</li><li class="listitem" style="list-style-type: disc">Listening to event handlers</li><li class="listitem" style="list-style-type: disc">Creating a service layer</li><li class="listitem" style="list-style-type: disc">Connecting to your API</li><li class="listitem" style="list-style-type: disc">Pagination</li><li class="listitem" style="list-style-type: disc">Endless scrolling</li></ul></div><div class="section" title="Creating your own search API"><div class="titlepage"><div><div><h1 class="title"><a id="ch04lvl1sec20"/>Creating your own search API</h1></div></div></div><p>Data fetching is a<a class="indexterm" id="id276"/> topic fraught with uncertainty, and there really does not exist a recommended way of dealing with it that will make sense to everyone.</p><p>Two of the main strategies you can search between are as follows: either query a data source directly or query an API. Which one is more extensible and future proof? Let's look at it from the perspective of your search controller. Querying the data source directly means setting up connectors and the logic involved inside your app. You need to construct a proper search query, and then you usually need to parse the results. Your data fetching logic is now strongly tied to the data source.</p><p>Querying an API means sending a search query and retrieving a preformatted result. Now, your app is only loosely tied to the API, and switching it out is often simply a matter of changing the API URL.</p><p>It's usually preferable to establish loose ties rather than strong ties, so we'll start this chapter by creating a Node.js API before moving on to the ReactJS app that will display the search results to the user.</p><div class="section" title="Getting started with your API"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec38"/>Getting started with your API</h2></div></div></div><p>Let's start by creating an<a class="indexterm" id="id277"/> empty project. Create a folder to store your files, open a terminal, and change the directory to the folder. Run <code class="literal">npm init</code>. The installer will ask you a number of questions, but the defaults are all fine so go ahead and press <span class="emphasis"><em>Enter</em></span> until the command is finished. You will be left with a barebones <code class="literal">package.json</code> file that <code class="literal">npm</code> will use to store your dependency configuration. Next, install <code class="literal">express</code>, <code class="literal">mongoose</code>, <code class="literal">cors</code>, <code class="literal">morgan</code>, and <code class="literal">body-parser</code> by executing this command:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>npm install --save express@4.12.3 mongoose@4.0.2 body-parser@1.12.3 cors@2.7.1 morgan@1.7.0</strong></span>
+</pre></div><p>
+<span class="strong"><strong>Morgan</strong></span> is a middleware<a class="indexterm" id="id278"/> utility designed for automatic logging of requests and responses.</p><p>
+<span class="strong"><strong>Mongoose</strong></span> is a utility<a class="indexterm" id="id279"/> for connecting to <span class="strong"><strong>MongoDB</strong></span>, a very simple and popular document-oriented non-relational database. It's a good choice for the kind of API we want to create because it excels <a class="indexterm" id="id280"/>at query speeds and outputs <span class="strong"><strong>JSON</strong></span> data by <a class="indexterm" id="id281"/>default.</p><p>Before you continue, make sure you have MongoDB installed on your system. You can do this by typing in <code class="literal">mongo</code> in your terminal. If it's installed, it will display something like this:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>MongoDB shell version: 3.0.7</strong></span>
+<span class="strong"><strong>connecting to: test</strong></span>
+<span class="strong"><strong>&gt;</strong></span>
+</pre></div><p>If it displays an error or <span class="strong"><strong>command not found</strong></span>, you need to install MongoDB before proceeding. There are different ways to accomplish this depending on which operating system is installed on your computer. If <a class="indexterm" id="id282"/>you're on a Mac, you can install MongoDB with <span class="emphasis"><em>Homebrew</em></span> by issuing <code class="literal">brew install mongodb</code>. If you don't have Homebrew, you can go to <a class="ulink" href="http://brew.sh/">http://brew.sh/</a> for<a class="indexterm" id="id283"/> instructions on how to install it. Windows users and Mac users who don't want to use Homebrew can install<a class="indexterm" id="id284"/> MongoDB by downloading an executable from <a class="ulink" href="https://www.mongodb.org/downloads">https://www.mongodb.org/downloads</a>.</p></div><div class="section" title="Creating the API"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec39"/>Creating the API</h2></div></div></div><p>Create a file called <code class="literal">server.js</code> in the <code class="literal">root</code> folder and add the following code:</p><div class="informalexample"><pre class="programlisting">'use strict';
+var express = require('express');
+var bodyparser = require('body-parser');
+var app = express();
+var morgan = require('morgan');
+var cors = require('cors');
+app.use(cors({credentials: true, origin: true}));
+var mongoose = require('mongoose');
+mongoose.connect('mongodb://localhost/websearchapi/sites');</pre></div><p>This will set up our dependencies and make them ready for use. We're opening our app for cross-origin requests <a class="indexterm" id="id285"/>with the use of the <a class="indexterm" id="id286"/>
+<span class="strong"><strong>cors</strong></span> library. This is necessary when we're not running the API on the same domain and port as the app itself.</p><p>We'll then create a schema that describes what kind of data we'll be working with. A schema in Mongoose maps to a MongoDB collection and defines the shape of the documents within that collection.</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note11"/>Note</h3><p>Note that this is idiomatic to Mongoose as MongoDB is schema-less by default.</p></div></div><p>Add this schema to <code class="literal">server.js</code>:</p><div class="informalexample"><pre class="programlisting">var siteSchema = new mongoose.Schema({
+  title: String,
+  link: String,
+  desc: String
+});</pre></div><p>As you can see, it's a very simple schema and all the attributes share the same <code class="literal">SchemaType</code> object. The permitted types are <code class="literal">String</code>, <code class="literal">Number</code>, <code class="literal">Date</code>, <code class="literal">Buffer</code>, <code class="literal">Boolean</code>, <code class="literal">Mixed</code>, <code class="literal">ObjectId</code>, and <code class="literal">Array</code>.</p><p>To use our schema definition, we need to convert our <code class="literal">siteSchema</code> object into a model we can work with. To do so, we pass it to <code class="literal">mongoose.model(modelName, schema)</code>:</p><div class="informalexample"><pre class="programlisting">var searchDb = mongoose.model('sites', siteSchema);</pre></div><p>Next, we need to define our routes. We'll start by defining a simple search route that takes a title as a query<a class="indexterm" id="id287"/> and returns a set of matching results:</p><div class="informalexample"><pre class="programlisting">var routes = function (app) {
+  app.use(bodyparser.json());
+
+  app.get('/search/:title', function (req, res) {
+    searchDb.find({title: req.params.title}, function (err, data) {
+      if (err) return res.status(500)
+        .send({
+          'msg': 'couldn\'t find anything'
+        });
+      res.json(data);
+    });
+  });
+};</pre></div><p>Let's finish it up by starting the server:</p><div class="informalexample"><pre class="programlisting">var router = express.Router();
+routes(router);
+app.use('/v1', router);
+var port = process.env.PORT || 5000;
+app.listen(port, function () {
+  console.log('server listening on port ' + (process.env.PORT || port));
+});</pre></div><p>Here, we tell <code class="literal">express</code> to use our defined router and prefix it with <code class="literal">v1</code>. The full path to the API will be <code class="literal">http://localhost:5000/v1/search/title</code>. You can now start the API by executing <code class="literal">node server.js</code>.</p><p>We have added <code class="literal">process.env</code> to some of the variables. The point of this is to make it easy to override the values when we start the app. If we want to start the app on port <code class="literal">2999</code>, we will need to start the app with <code class="literal">PORT=2999 node server.js</code>.</p></div><div class="section" title="Importing documents"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec40"/>Importing documents</h2></div></div></div><p>Inserting documents into<a class="indexterm" id="id288"/> a MongoDB collection isn't very complicated. You log in to MongoDB via the terminal, select the database, and run <code class="literal">db.collection.insert({})</code>. Inserting documents manually looks like this:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>$ mongo</strong></span>
+<span class="strong"><strong>MongoDB shell version: 3.0.7</strong></span>
+<span class="strong"><strong>connecting to: test</strong></span>
+<span class="strong"><strong>&gt; use websearchapi</strong></span>
+<span class="strong"><strong>switched to db websearchapi</strong></span>
+<span class="strong"><strong>&gt; db.sites.insert({"title": ["Algorithm Design Paradigms"], "link": ["http://www.csc.liv.ac.uk/~ped/teachadmin/algor/algor.html"], "desc": ["A course by Paul Dunne at the University of Liverpool.  Slides and notes in HTML and PS.\r"]})</strong></span>
+<span class="strong"><strong>WriteResult({ "nInserted" : 1 })</strong></span>
+<span class="strong"><strong>&gt;</strong></span>
+</pre></div><p>This will of course take a lot of time, and making up a set of titles, links, and descriptions is not a particularly fruitful endeavor. It's fortunate that there's a wide range of free and open sets available for us to use. One such <a class="indexterm" id="id289"/>database is <a class="ulink" href="http://dmoz.org">dmoz.org</a>, and I've taken the liberty of downloading a sample selection from the<a class="indexterm" id="id290"/> database and making it available at <a class="ulink" href="https://websearchapi.herokuapp.com/v1/sites.json">https://websearchapi.herokuapp.com/v1/sites.json</a> in JSON format. Download this set and import it with the <code class="literal">mongoimport</code> tool, like this:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>mongoimport --host localhost --db websearchapi  --collection sites &lt; sites.json</strong></span>
+</pre></div><p>When executed, it will place 598 documents in your API database.</p></div><div class="section" title="Querying the API"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec41"/>Querying the API</h2></div></div></div><p>A <code class="literal">get</code> query can be executed by<a class="indexterm" id="id291"/> your browser. Just type in the address and a title from the sample JSON file, for instance, <code class="literal">http://localhost:5000/v1/search/CoreChain</code>.</p><p>You may also use the command line with tools such as<a class="indexterm" id="id292"/> <span class="strong"><strong>cURL</strong></span> or <span class="strong"><strong>HTTPie</strong></span>. The latter is designed to make command-line interactions<a class="indexterm" id="id293"/> with web services more human-friendly than the likes of cURL, so it's absolutely worth checking it out, and it's the one we'll be using in this chapter to test our API.</p><p>Here's the output from the preceding query with HTTPie:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>$ http http://localhost:5000/v1/search/CoreChain</strong></span>
+<span class="strong"><strong>HTTP/1.1 200 OK</strong></span>
+<span class="strong"><strong>Connection: keep-alive</strong></span>
+<span class="strong"><strong>Content-Length: 144</strong></span>
+<span class="strong"><strong>Content-Type: application/json; charset=utf-8</strong></span>
+<span class="strong"><strong>Date: Thu, 05 May 2016 11:09:48 GMT</strong></span>
+<span class="strong"><strong>ETag: W/"90-+q3XcPaDzte23IiyDJxmow"</strong></span>
+<span class="strong"><strong>X-Powered-By: Express</strong></span>
+
+<span class="strong"><strong>[</strong></span>
+<span class="strong"><strong>    {</strong></span>
+<span class="strong"><strong>        "_id": "56336529aed5e6116a772bb0",</strong></span>
+<span class="strong"><strong>        "desc": "JavaScript library for displaying graphs.\r",</strong></span>
+<span class="strong"><strong>        "link": "http://www.corechain.com/",</strong></span>
+<span class="strong"><strong>        "title": "CoreChain"</strong></span>
+<span class="strong"><strong>    }</strong></span>
+<span class="strong"><strong>]</strong></span>
+</pre></div><p>This is very nice, but<a class="indexterm" id="id294"/> notice that the routing we've created demands an exact match for the title. Searching for <code class="literal">corechain</code> or <code class="literal">Corechain</code> will not return any results. Querying <code class="literal">Cubism.js</code> will return one result, but <span class="emphasis"><em>Cubism</em></span> will return nothing.</p><p>Clearly, this is not a very query-friendly API.</p></div><div class="section" title="Creating a wildcard search"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec42"/>Creating a wildcard search</h2></div></div></div><p>Introducing wildcard searches <a class="indexterm" id="id295"/>would make the API more user-friendly, but you cannot use traditional SQL-based approaches, such as <code class="literal">LIKE</code>, since MongoDB doesn't support these kinds of operations.</p><p>On the other hand, MongoDB comes with full support for regular expressions, so it's entirely possible to construct a query that mimics <code class="literal">LIKE</code>.</p><p>In MongoDB, you can use a regular expression object to create a regular expression:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>{ &lt;field&gt;: /pattern/&lt;options&gt; }</strong></span>
+</pre></div><p>You can also create a regular expression with any of the following syntaxes:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>{ &lt;field&gt;: { $regex: /pattern/, $options: '&lt;options&gt;' } }</strong></span>
+<span class="strong"><strong>{ &lt;field&gt;: { $regex: 'pattern', $options: '&lt;options&gt;' } }</strong></span>
+<span class="strong"><strong>{ &lt;field&gt;: { $regex: /pattern/&lt;options&gt; } }</strong></span>
+</pre></div><p>The following <code class="literal">&lt;options&gt;</code> are available for use with a regular expression:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc"><code class="literal">i</code>: This is for case insensitivity to match uppercase and lowercase characters.</li><li class="listitem" style="list-style-type: disc"><code class="literal">m</code>: For patterns that include anchors (that is, <code class="literal">^</code> for the start and <code class="literal">$</code> for the end), match the anchors at the beginning or end of each line for strings with multiline values. Without this option, these anchors will only match at the beginning or end of the string.</li><li class="listitem" style="list-style-type: disc"><code class="literal">x</code>: This is the "extended" capability to ignore all whitespace characters in the <code class="literal">$regex</code> pattern unless escaped or included in a <code class="literal">character</code> class.</li><li class="listitem" style="list-style-type: disc"><code class="literal">s</code>: This allows the dot character (<code class="literal">.</code>) to match all the characters, including newline characters.</li></ul></div><p>Using <code class="literal">x</code> and <code class="literal">s</code> requires <code class="literal">$regex</code> with the <code class="literal">$options</code> syntax.</p><p>Now that we know this, let's start by creating a wildcard query:</p><div class="informalexample"><pre class="programlisting">  app.get('/search/:title', function (req, res) {
+    searchDb.find({title: 
+     { $regex: '^' + req.params.title + '*', $options: 'i' } }, 
+    function (err, data) {
+      res.json(data);
+    });
+  });</pre></div><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note12"/>Note</h3><p>Remember to restart your node server instance every time you make changes to the query logic. You can do this by breaking the instance using a keyboard shortcut, such as <span class="emphasis"><em>CTRL</em></span> + <span class="emphasis"><em>C</em></span> (Mac), and then running <code class="literal">node server.js</code> again.</p></div></div><p>This query returns any<a class="indexterm" id="id296"/> titles that start with the search word, and it will perform a case-insensitive search.</p><p>If you remove the first anchor (<code class="literal">^</code>), it will match all occurrences of the word in the string:</p><div class="informalexample"><pre class="programlisting">  app.get('/search/:title', function (req, res) {
+    searchDb.find({title: 
+     { $regex: req.params.title +'*', $options: 'ix' } },
+    function (err, data) {
+      res.json(data);
+    });
+  });</pre></div><p>This is the query that we'll be using for quick searches. It will return hits for <span class="emphasis"><em>Cubism</em></span>, <span class="emphasis"><em>cubism</em></span>, and even <span class="emphasis"><em>ubi</em></span>:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>$ http http://localhost:5000/v1/search/ubi</strong></span>
+<span class="strong"><strong>HTTP/1.1 200 OK</strong></span>
+<span class="strong"><strong>Access-Control-Allow-Credentials: true</strong></span>
+<span class="strong"><strong>Connection: keep-alive</strong></span>
+<span class="strong"><strong>Content-Length: 1235</strong></span>
+<span class="strong"><strong>Content-Type: application/json; charset=utf-8</strong></span>
+<span class="strong"><strong>Date: Thu, 05 May 2016 11:07:00 GMT</strong></span>
+<span class="strong"><strong>ETag: W/"4d3-Pr1JAiSI46vMRz2ogRCF0Q"</strong></span>
+<span class="strong"><strong>Vary: Origin</strong></span>
+<span class="strong"><strong>X-Powered-By: Express</strong></span>
+
+<span class="strong"><strong>[</strong></span>
+<span class="strong"><strong>  {</strong></span>
+<span class="strong"><strong>    "_id": "572b29507d406be7852e8279",</strong></span>
+<span class="strong"><strong>    "desc": "The component oriented simple scripting language with a robust component composition model.\r",</strong></span>
+<span class="strong"><strong>    "link": "http://www.lubankit.org/",</strong></span>
+<span class="strong"><strong>    "title": "Luban"</strong></span>
+<span class="strong"><strong>  },</strong></span>
+<span class="strong"><strong>  {</strong></span>
+<span class="strong"><strong>    "_id": "572b29507d406be7852e82a4",</strong></span>
+<span class="strong"><strong>    "desc": "A specification of a new 'bubble sort' in three or more dimensions, with illustrative images.\r",</strong></span>
+<span class="strong"><strong>    "link": "http://www.tropicalcoder.com/3dBubbleSort.htm",</strong></span>
+<span class="strong"><strong>    "title": "Three Dimensional Bubble Sort"</strong></span>
+<span class="strong"><strong>  },</strong></span>
+<span class="strong"><strong>  {</strong></span>
+<span class="strong"><strong>    "_id": "572b29507d406be7852e82ab",</strong></span>
+<span class="strong"><strong>    "desc": "Comprehensive list of publications by L. Barthe on modelling from sketching, point based modelling, subdivision surfaces and implicit modelling.\r",</strong></span>
+<span class="strong"><strong>    "link": "http://www.irit.fr/~Loic.Barthe/",</strong></span>
+<span class="strong"><strong>    "title": "Publications by Loic Barthe"</strong></span>
+<span class="strong"><strong>  },</strong></span>
+<span class="strong"><strong>  {</strong></span>
+<span class="strong"><strong>    "_id": "572b29507d406be7852e8315",</strong></span>
+<span class="strong"><strong>    "desc": "D3 plugin for visualizing time series.\r",</strong></span>
+<span class="strong"><strong>    "link": "http://square.github.io/cubism/",</strong></span>
+<span class="strong"><strong>    "title": "Cubism.js"</strong></span>
+<span class="strong"><strong>  },</strong></span>
+<span class="strong"><strong>  {</strong></span>
+<span class="strong"><strong>    "_id": "572b29507d406be7852e848a",</strong></span>
+<span class="strong"><strong>    "desc": "Browserling and Node modules.\r",</strong></span>
+<span class="strong"><strong>    "link": "http://substack.net/",</strong></span>
+<span class="strong"><strong>    "title": "Substack"</strong></span>
+<span class="strong"><strong>  },</strong></span>
+<span class="strong"><strong>  {</strong></span>
+<span class="strong"><strong>    "_id": "572b29507d406be7852e848d",</strong></span>
+<span class="strong"><strong>    "desc": "Google tech talk presented by Ryan Dahl creator of the node.js. Explains its design and how to get started with it.\r",</strong></span>
+<span class="strong"><strong>    "link": "https://www.youtube.com/watch?v=F6k8lTrAE2g",</strong></span>
+<span class="strong"><strong>    "title": "Youtube : Node.js: JavaScript on the Server"</strong></span>
+<span class="strong"><strong>  }</strong></span>
+<span class="strong"><strong>]</strong></span>
+</pre></div><p>This will do for the<a class="indexterm" id="id297"/> kind of app we're building now. There are many ways to construct a regular expression, and you may further refine it according to your needs. More advanced matching is possible by implementing <span class="emphasis"><em>soundex</em></span>, <span class="emphasis"><em>fuzzy matching</em></span>, or <span class="emphasis"><em>Levenshtein distance</em></span>, although none of these are supported by MongoDB.</p><p>
+<span class="strong"><strong>Soundex</strong></span> is a phonetic<a class="indexterm" id="id298"/> algorithm for indexing names by sound as pronounced in English. It is appropriate when you want to do name lookups and allow users to find correct results despite minor differences in spelling.</p><p>
+<span class="strong"><strong>Fuzzy matching</strong></span> is the technique<a class="indexterm" id="id299"/> of finding strings that match a string, approximately, not exactly. The closeness of a match is measured in terms of operations necessary to convert the string into an exact match. A well-known and often used algorithm is <span class="strong"><strong>Levenshtein</strong></span>. It's a simple algorithm<a class="indexterm" id="id300"/> that provides<a class="indexterm" id="id301"/> good results, but it's not supported by MongoDB. Measuring the Levenshtein distance must thus be done by fetching the entire result set and then applying the algorithm for the search query on all the strings. The speed of the operation grows linearly with the number of documents in your database, so unless you have a very small document set, this is most likely not worth doing.</p><p>If you want these kinds of features, you need to<a class="indexterm" id="id302"/> look somewhere else. <span class="strong"><strong>Elasticsearch</strong></span> (<a class="ulink" href="https://www.elastic.co/">https://www.elastic.co/</a>) is a good alternative that's worth looking into. You can easily combine a node API, like the one we just created, with an <code class="literal">Elasticsearch</code> instance in the backend instead of MongoDB, or a combination of the two.</p></div><div class="section" title="Securing your API"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec43"/>Securing your API</h2></div></div></div><p>Right now, your API is <a class="indexterm" id="id303"/>accessible to anyone if you put it online. This is not an ideal situation, although you can argue that since you only support <code class="literal">GET</code> requests, it's not much different than putting up a simple website.</p><p>Suppose that you add <code class="literal">PUT</code> and <code class="literal">DELETE</code> at some point. You'd definitely want to protect it from anyone having complete access to it.</p><p>Let's look at a simple way of<a class="indexterm" id="id304"/> securing it by adding a bearer token to our app. We'll be using the Node.js authentication module, <span class="strong"><strong>Passport</strong></span>, to protect our API. Passport has more than 300 strategies of varying applicability. We'll chose the bearer token strategy, so install the following two modules:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>npm install --save passport@0.3.0 passport-http-bearer@1.0.1</strong></span>
+</pre></div><p>In <code class="literal">index.js</code>, add the following import statements to the head of the file:</p><div class="informalexample"><pre class="programlisting">var passport = require('passport');
+var Strategy = require('passport-http-bearer').Strategy;</pre></div><p>Next, add the following code just below the line with <code class="literal">mongoose.connect</code>:</p><div class="informalexample"><pre class="programlisting">var appToken = '1234567890';
+
+passport.use(new Strategy(
+  function (token, cb) {
+    console.log(token);
+    if (token === appToken) {
+      return cb(null, true);
+    }
+    return cb(null, false);
+
+  })
+);</pre></div><p>You also need to change the route, so replace the search route with this:</p><div class="informalexample"><pre class="programlisting">  app.get('/search/:title',
+    passport.authenticate('bearer', {session: false}),
+    function (req, res) {
+      searchDb.find({title: { $regex: '^' + req.params.title + '*', $options: 'i' } },
+      function (err, data) {
+        if(err) return console.log('find error:', err);
+        if(!data.length)
+          return res.status(500)
+            .send({
+              'msg': 'No results'
+            })
+        res.json(data);
+      });
+    });</pre></div><p>When you restart the app, the<a class="indexterm" id="id305"/> request will now require the user to send a bearer token with <span class="emphasis"><em>1234567890</em></span> as the content. If the token is correct, the app will return <code class="literal">true</code> and execute the query; if not, it will return a simple message saying <span class="strong"><strong>Unauthorized</strong></span>:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>$ http http://localhost:5000/v1/search/react 'Authorization:Bearer 1234567890'</strong></span>
+<span class="strong"><strong>Access-Control-Allow-Credentials: true</strong></span>
+<span class="strong"><strong>Connection: keep-alive</strong></span>
+<span class="strong"><strong>Content-Length: 290</strong></span>
+<span class="strong"><strong>Content-Type: application/json; charset=utf-8</strong></span>
+<span class="strong"><strong>Date: Thu, 05 May 2016 11:15:32 GMT</strong></span>
+<span class="strong"><strong>ETag: W/"122-7QHSA2Gb7qRseLzxE1QBhg"</strong></span>
+<span class="strong"><strong>Vary: Origin</strong></span>
+<span class="strong"><strong>X-Powered-By: Express</strong></span>
+
+<span class="strong"><strong>[</strong></span>
+<span class="strong"><strong>  {</strong></span>
+<span class="strong"><strong>    "_id": "572b29507d406be7852e8388",</strong></span>
+<span class="strong"><strong>    "desc": "A JavaScript library for building user interfaces.\r",</strong></span>
+<span class="strong"><strong>    "link": "http://facebook.github.io/react/",</strong></span>
+<span class="strong"><strong>    "title": "React"</strong></span>
+<span class="strong"><strong>  },</strong></span>
+<span class="strong"><strong>  {</strong></span>
+<span class="strong"><strong>    "_id": "572b29507d406be7852e8479",</strong></span>
+<span class="strong"><strong>    "desc": "Node.js humour.\r",</strong></span>
+<span class="strong"><strong>    "link": "http://nodejsreactions.tumblr.com/",</strong></span>
+<span class="strong"><strong>    "title": "Node.js Reactions"</strong></span>
+<span class="strong"><strong>  }</strong></span>
+<span class="strong"><strong>]</strong></span>
+</pre></div><p>Admittedly, bearer tokens<a class="indexterm" id="id306"/> provide a very weak security layer. It's still possible for a potential hacker to sniff your API request and reuse your tokens, but making the tokens short-lived and changing them every now and then can help increase the security. To make it really secure, it's often used in combination with user authentication.</p></div></div></div>
+<div class="section" title="Creating your ReactJS search app"><div class="titlepage"><div><div><h1 class="title"><a id="ch04lvl1sec21"/>Creating your ReactJS search app</h1></div></div></div><p>Start this project by making a<a class="indexterm" id="id307"/> copy of the scaffolding from <a class="link" href="ch01.html" title="Chapter 1. Diving Headfirst into ReactJS">Chapter 1</a>, <span class="emphasis"><em>Diving Headfirst into ReactJS</em></span>, (you will find the code file for this along with the code bundle for this book on the Packt Publishing website), and then add <code class="literal">React-Bootstrap</code> to your project. Open up a terminal, go to the root of your project, and issue an <code class="literal">npm install</code> command for React-Bootstrap:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>npm install --save react-bootstrap@0.29.3 classnames@2.2.5 history@2.1.1 react-router@2.4.0 react-router-bootstrap@0.23.0 superagent@1.8.3 reflux@0.4.1</strong></span>
+</pre></div><p>The <code class="literal">dependencies</code> section in <code class="literal">package.json</code> should now look like this:</p><div class="informalexample"><pre class="programlisting">"dependencies": {
+  "babel-preset-es2015": "^6.6.0",
+  "babel-preset-react": "^6.5.0",
+  "babel-tape-runner": "^2.0.0",
+  "babelify": "^7.3.0",
+  "browser-sync": "^2.12.5",
+  "browserify": "^13.0.0",
+  "browserify-middleware": "^7.0.0",
+  "classnames": "^2.2.5",
+  "easescroll": "0.0.10",
+  "eslint": "^2.9.0",
+  "history": "^2.1.1",
+  "lodash": "^4.11.2",
+  "react": "^15.0.2",
+  "react-bootstrap": "^0.29.3",
+  "react-dom": "^15.0.2",
+  "react-router": "^2.4.0",
+  "react-router-bootstrap": "^0.23.0",
+  "reactify": "^1.1.1",
+  "reflux": "^0.4.1",
+  "serve-favicon": "^2.3.0",
+  "superagent": "^1.8.3",
+  "tape": "^4.5.1",
+  "url": "^0.11.0",
+  "basic-auth": "^1.0.3"
+}</pre></div><p>If <code class="literal">package.json</code> doesn't look like this, please update it and then run <code class="literal">npm install</code> in a terminal from the root of your project. You also need to add the <code class="literal">Bootstrap</code> CSS files to the <code class="literal">&lt;head&gt;</code> section of your <code class="literal">index.html</code> file:</p><div class="informalexample"><pre class="programlisting">&lt;meta http-equiv="X-UA-Compatible" content="IE=edge"&gt;
+&lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+
+&lt;link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.min.css"&gt;
+&lt;link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" /&gt;</pre></div><p>Put the preceding<a class="indexterm" id="id308"/> code above the line with <code class="literal">app.css</code> so that you're able to override the styles from Bootstrap.</p><p>Finally, create a <code class="literal">components</code> folder inside your <code class="literal">source</code> folder, then copy the components <code class="literal">fontawesome.jsx</code> and <code class="literal">picture.jsx</code> from <a class="link" href="ch03.html" title="Chapter 3. Responsive Web Development with ReactJS">Chapter 3</a>, <span class="emphasis"><em>Responsive Web Development with ReactJS</em></span>, into this folder.</p><div class="section" title="Setting up your app"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec44"/>Setting up your app</h2></div></div></div><p>Let's start with our<a class="indexterm" id="id309"/> application root, <code class="literal">source/app.jsx</code>. Replace the contents with this code:</p><div class="informalexample"><pre class="programlisting">'use strict';
+import React from 'react';
+import { Router, Route, DefaultRoute }
+  from 'react-router';
+import { render } from 'react-dom'
+import Search from './components/search.jsx';
+import Results from './components/results.jsx';
+import Layout from './components/layout.jsx';
+import SearchActions from './actions/search.js';</pre></div><p>You need to create these four files in your <code class="literal">components</code> folder in order for the app to compile. We'll do this shortly. Now, refer to the following:</p><div class="informalexample"><pre class="programlisting">import { browserHistory } from 'react-router'</pre></div><p>The preceding code sets up a route with the browser history library. One of the primary benefits of this library is that you can avoid hashtags in your URL, so the app can reference absolute paths such as <code class="literal">http://localhost:3000/search</code> and <code class="literal">http://localhost:3000/search/term</code>:</p><div class="informalexample"><pre class="programlisting">render((
+  &lt;Router history={ browserHistory }&gt;
+    &lt;Route component={Layout}&gt;
+      &lt;Route path="/" component={Search}&gt;
+        &lt;Route path="search" component={Results}/&gt;
+      &lt;/Route&gt;
+    &lt;/Route&gt;
+  &lt;/Router&gt;
+), document.getElementById('container'));</pre></div><p>Let's create the skeleton files for <code class="literal">SearchActions</code>, <code class="literal">Search</code>, <code class="literal">Results</code>, and the complete <code class="literal">Layout</code> file.</p><p>Create <code class="literal">source/actions/search.js</code> and add this:</p><div class="informalexample"><pre class="programlisting">'use strict';
+import Reflux from "reflux";
+let actions = {
+  performSearch: Reflux.createAction("performSearch"),
+  emitSearchData: Reflux.createAction("emitSearchData")
+};
+
+export default actions;</pre></div><p>This sets up two <a class="indexterm" id="id310"/>actions that we'll use in <code class="literal">search.jsx</code>.</p><p>Create <code class="literal">source/components/search.jsx</code> and add this:</p><div class="informalexample"><pre class="programlisting">'use strict';
+import React from 'react';
+const Search = React.createClass({
+  render() {
+    return &lt;div/&gt;;
+  }
+});
+
+export default Search;</pre></div><p>Create <code class="literal">source/components/results.jsx</code> and add this:</p><div class="informalexample"><pre class="programlisting">'use strict';
+import React from 'react';
+const Results = React.createClass({
+  render() {
+    return &lt;div/&gt;;
+  }
+});
+
+export default Results;</pre></div><p>Create <code class="literal">source/components/layout.jsx</code> and add this:</p><div class="informalexample"><pre class="programlisting">'use strict';
+import React from 'react';
+import Reflux from 'reflux';
+import {Row} from "react-bootstrap";
+import Footer from "./footer.jsx";
+
+const Layout = React.createClass({
+  render() {
+    return (&lt;div&gt;
+
+      {this.props.children}</pre></div><p>This code propagates pages<a class="indexterm" id="id311"/> from the router hierarchy that we set up in <code class="literal">app.jsx</code>:</p><div class="informalexample"><pre class="programlisting">      &lt;Footer /&gt;</pre></div><p>We'll also create a basic fixed footer for our app, as follows:</p><div class="informalexample"><pre class="programlisting">      &lt;/div&gt;);
+  }
+});
+
+export default Layout;</pre></div><p>Create <code class="literal">source/components/footer.jsx</code> and add this:</p><div class="informalexample"><pre class="programlisting">'use strict';
+import React from 'react';
+
+const Footer = React.createClass({
+  render(){
+    return (&lt;footer className="footer text-center"&gt;
+      &lt;div className="container"&gt;
+        &lt;p className="text-muted"&gt;The Web Searcher&lt;/p&gt;
+      &lt;/div&gt;
+    &lt;/footer&gt;);
+  }
+
+});
+export default Footer;</pre></div><p>The app should now compile and you'll be greeted with a footer message. We'll need to apply a few styles to fix it to the bottom of the page. Open <code class="literal">public/app.css</code> and replace the contents with this styling:</p><div class="informalexample"><pre class="programlisting">html {
+  position: relative;
+  min-height: 100%;
+}
+body {
+  margin-top: 60px;
+  margin-bottom: 60px;
+}
+.footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 60px;
+  background-color: #f5f5f5;
+}</pre></div><p>Setting the page to 100 percent <a class="indexterm" id="id312"/>minimum height and setting the footer to the absolute position at the bottom will make sure it stays fixed. Now, have a look at this:</p><div class="informalexample"><pre class="programlisting">*:focus {
+  outline: none
+}</pre></div><p>The preceding code is to avoid an outline border from appearing when you click on focused divisions. Next, complete the <code class="literal">public/app.css</code> with the following styling to make the search results stand out:</p><div class="informalexample"><pre class="programlisting">.header {
+  background-color: transparent;
+  border-color: transparent;
+}
+.quicksearch {
+  padding-left: 0;
+  margin-bottom: 20px;
+  width: 95.5%;
+  background: white;
+  z-index: 1;
+}
+.fullsearch .list-group-item{
+  border:0;
+  z-index: 0;
+}
+ul.fullsearch li:hover, ul.quicksearch li:active, ul.quicksearch li:focus {
+  color: #3c763d;
+  background-color: #dff0d8;
+  outline: 0;
+  border: 0;
+}
+ul.quicksearch li:hover, ul.quicksearch li:active, ul.quicksearch li:focus {
+  color: #3c763d;
+  background-color: #dff0d8;
+  outline: 0;
+  border: 0;
+}
+.container {
+  width: auto;
+  max-width: 680px;
+  padding: 0 15px;
+}
+.container .text-muted {
+  margin: 20px 0;
+}</pre></div></div><div class="section" title="Creating a search service"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec45"/>Creating a search service</h2></div></div></div><p>Before you go ahead and<a class="indexterm" id="id313"/> create a view layer for your search, you need a way to connect to your API. You could go about creating this in a variety of <a class="indexterm" id="id314"/>ways, and this is one situation where you won't find an authoritative answer. Some prefer to put this in the action layer, others in the store, and some would be perfectly happy to add it to the view layer.</p><p>We're going to take a cue from the MVC architecture and create a service layer. We'll access the service from the <code class="literal">action</code> file you created earlier. We're going to do this for the simple reason that it separates the search into a small and easily testable subsection of our code. For simplified development and easy testing, you always want to make your components as small as possible.</p><p>Create a folder called <code class="literal">in service</code> within your <code class="literal">source</code> folder and add these three files: <code class="literal">index.js</code>, <code class="literal">request.js</code>, and <code class="literal">search.js</code>.</p><p>Let's start by adding the code for <code class="literal">request.js</code>:</p><div class="informalexample"><pre class="programlisting">'use strict';
+import Agent from 'superagent';</pre></div><p>
+<span class="strong"><strong>SuperAgent</strong></span> is a light-weight <a class="indexterm" id="id315"/>client-side HTTP request library that makes working with AJAX a lot less painful than it normally is. It's also fully compatible with <span class="strong"><strong>node</strong></span>, which is a <a class="indexterm" id="id316"/>huge benefit when performing server-side rendering. We'll delve into<a class="indexterm" id="id317"/> server-side rendering in <a class="link" href="ch09.html" title="Chapter 9. Creating a Shared App">Chapter 9</a>, <span class="emphasis"><em>Creating a Shared App</em></span>. Check out the following examples:</p><div class="informalexample"><pre class="programlisting">class Request {
+
+  constructor(baseUrl) {
+    this.baseUrl = baseUrl;
+  }
+
+  get(query, params) {
+    return this.httpAgent(query, 'get', params, null);
+  }
+
+  post(url, params, data, options) {
+    return this.httpAgent(url, 'post', params, data)
+  }
+
+  put(url, params, data) {
+    return this.httpAgent(url, 'put', params, data)
+  }</pre></div><p>We're actually only <a class="indexterm" id="id318"/>going to use the <code class="literal">get</code> function in our app. Other methods have been added as examples. You could make additions or deletions here, or even merge them into a common function (though that would increase the complexity of using the function).</p><p>All operations are sent to the <code class="literal">httpAgent</code> function:</p><div class="informalexample"><pre class="programlisting">  httpAgent(url, httpMethod, params, data) {
+    const absoluteUrl = this.baseUrl + url;
+    let req = Agent[httpMethod](absoluteUrl)
+      .timeout(5000);
+
+    let token = '1234567890';
+
+    req.set('Authorization', 'Bearer ' + token);
+    req.withCredentials();</pre></div><p>We're adding the bearer token scheme that we developed in our API earlier. If you skipped that part, you can remove the preceding two lines, though it doesn't matter to the API if it receives a bearer token and has no method to handle it. In such cases, it will simply discard the information.</p><p>It's worth noting that <a class="indexterm" id="id319"/>hardcoding the token in the service is terribly unsecure. To make it more secure, you could, for instance, set up a scheme where you can create a new token in the browser's session storage with regular intervals and replace the hardcoded variable with a lookup instead. Let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">    if (data)
+      req.send(data);
+
+    if (params)
+      req.query(params);
+
+    return this.sendAgent(req);
+  }</pre></div><p>After we're done adding parameters, we need to send the request via the <code class="literal">sendAgent</code> function. This function<a class="indexterm" id="id320"/> returns a promise that we can listen to, which will in time be either rejected or resolved. A <code class="literal">promise</code> is a construct used for synchronization. It's a proxy for a result that is initially unknown. When we return a promise in our code, we get an object that will eventually contain the data that we want:</p><div class="informalexample"><pre class="programlisting">  sendAgent(req) {
+    return new Promise(function (resolve, reject) {
+      req.end(function (err, res) {
+        if (err) {
+          reject(err);
+        } else if (res.error) {
+          reject(res.error);
+        }
+        else {
+          resolve(JSON.parse(res.text));
+        }
+      });
+    });
+  }
+
+}
+
+export default Request;</pre></div><p>The next file we'll add code for is <code class="literal">search.js</code>:</p><div class="informalexample"><pre class="programlisting">'use strict';
+import Request from './request.js';
+
+}
+
+export default SearchService;</pre></div><p>This simply imports and extends the code we created in <code class="literal">request.js</code>. As we don't need to extend or modify any of the request code, we'll simply leave it as it is.</p><p>The final file is <code class="literal">index.js</code>:</p><div class="informalexample"><pre class="programlisting">'use strict';
+import SearchService from './search.js';
+exports.searchService = new SearchService('http://localhost:5000/v1/search/');</pre></div><p>This is where we specify the endpoint from where we connect to our API. The preceding setting specifies the API running at<a class="indexterm" id="id321"/> localhost. You can substitute this <a class="indexterm" id="id322"/>with the example interface at <a class="ulink" href="http://websearchapi.herokuapp.com/v1/search/">http://websearchapi.herokuapp.com/v1/search/</a> if you'd like to test your code with an external service.</p><p>It's usually a good idea<a class="indexterm" id="id323"/> to store endpoints and other configuration details in a separate <code class="literal">configuration</code> file. Let's create a <code class="literal">config.js</code> file and place it in the <code class="literal">source</code> folder:</p><div class="informalexample"><pre class="programlisting">'use strict';
+export const Config = {
+  'urls':{
+    'search' : 'http://localhost:5000/v1/search/'
+  }
+};</pre></div><p>Then, change the contents of <code class="literal">service/index.js</code> to this:</p><div class="informalexample"><pre class="programlisting">import {Config} from '../config.js';
+import SearchService from './search.js';
+exports.searchService = new SearchService(Config.urls.search); </pre></div><p>Note that we needed to dereference the config name from <code class="literal">config.js</code>. This is because we exported it as a named export with <code class="literal">exports</code> rather than <code class="literal">module.exports</code>. If we had declared the variable first and exported it with <code class="literal">module.exports</code>, we wouldn't have had to dereference it.</p><p>The difference is that <code class="literal">exports</code> is simply a helper to <code class="literal">module</code>. In the end, the module will use <code class="literal">module.exports</code>, and <code class="literal">Config</code> will be available as a named property to the module.</p><p>You can also import it with this command: <code class="literal">const Config = require('../config.js')</code> or <code class="literal">import * as Config from '../config.js'</code>. Both variants will set up a <code class="literal">Config</code> <a class="indexterm" id="id324"/>variable that you can access with <code class="literal">Config.Config</code>.</p><div class="section" title="Testing the service"><div class="titlepage"><div><div><h3 class="title"><a id="ch04lvl3sec04"/>Testing the service</h3></div></div></div><p>We've made the service, but<a class="indexterm" id="id325"/> does it work? Let's find out. We'll use a small and <a class="indexterm" id="id326"/>very competent test framework called <span class="strong"><strong>Tape</strong></span>. Install this with the following:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>npm install --save babel-tape-runner@2.0.0 tape@4.5.1</strong></span>
+</pre></div><p>We add <code class="literal">babel-tape-runner</code> since we're using ECMAScript 6 throughout our app and we'd like to use it in our test scripts as well.</p><p>In the root of the project, create the <code class="literal">test/service</code> folders and add a file called <code class="literal">search.js</code> and add this code:</p><div class="informalexample"><pre class="programlisting">import test from 'tape';
+import {searchService} from '../../source/service/index.js';
+test('A passing test', (assert) =&gt; {
+  searchService.get('Understanding SoundEx Algorithms')
+  .then((result)=&gt; {
+    assert.equals(result[0].title,
+    "Understanding SoundEx Algorithms","Exact match found for \"Understanding SoundEx Algorithms\"");
+    assert.end();
+  });
+});</pre></div><p>This test will import the search service and search for a specific title in the database. It will return <code class="literal">pass</code> if an exact match is found. You can run it by using a terminal and going to the root folder and executing <code class="literal">./.bin/babel-tape-runner test/service/search.js</code>.</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note13"/>Note</h3><p>Note that the API server must be up and running before your start the test.</p></div></div><p>The result should look like this:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>$ ./.bin/babel-tape-runner test/service/search.js </strong></span>
+<span class="strong"><strong>TAP version 13</strong></span>
+<span class="strong"><strong># A passing test</strong></span>
+<span class="strong"><strong>ok 1 Exact match found for "Understanding SoundEx Algorithms"</strong></span>
+
+<span class="strong"><strong>1..1</strong></span>
+<span class="strong"><strong># tests 1</strong></span>
+<span class="strong"><strong># pass  1</strong></span>
+
+<span class="strong"><strong># ok</strong></span>
+</pre></div><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note14"/>Note</h3><p>Note that if you install <code class="literal">tape</code> and <code class="literal">babel-tape-runner</code> globally with the <code class="literal">-g</code> flag, then you don't need to specify the binary version from <code class="literal">node_modules</code> and simply run the test with <code class="literal">babel-tape-runner test/service/search.js</code>. To make it even easier to run the tests, you can add a script inside the <code class="literal">scripts</code> section of your <code class="literal">package.json</code> file. If you add the test command to<a class="indexterm" id="id327"/> the <code class="literal">tests</code> script, you can execute the test by simply executing <code class="literal">npm test</code>.</p></div></div></div></div><div class="section" title="Setting up the store"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec46"/>Setting up the store</h2></div></div></div><p>The store will be <a class="indexterm" id="id328"/>very simple. We're going to be performing the service calls in the action, so the store will simply hold the results of the service calls and pass them on to the components.</p><p>In the <code class="literal">source</code> folder, create a new folder and name it <code class="literal">store</code>. Then create a new file, name it <code class="literal">search.js</code> and add this code:</p><div class="informalexample"><pre class="programlisting">"use strict";
+import Reflux from "reflux";
+import SearchActions from "../actions/search";
+import {searchService} from "../service/index.js";
+let _history = {};</pre></div><p>This is the store state. Setting the variable outside the store definition automatically makes this a private variable that is only accessible to the store itself, and not to the instances of the store. Refer to the ensuing code:</p><div class="informalexample"><pre class="programlisting">const SearchStore = Reflux.createStore ({
+
+  init() {
+    this.listenTo(SearchActions.emitSearchData, this.emitSearchResults)
+  },</pre></div><p>The line in <code class="literal">init()</code> sets up a listener for the <code class="literal">emitSearchData</code> action. Whenever this action is called, the <code class="literal">emitSearchResults</code> function is executed:</p><div class="informalexample"><pre class="programlisting">  emitSearchResults(results) {
+    if (!_history[JSON.stringify(results.query)])
+      _history[JSON.stringify(results.query)] = results.response;
+    this.trigger(_history[JSON.stringify(results.query)]);
+  }</pre></div><p>These lines look a bit complicated, so let's examine the logic from the last line up. The trigger action emits the results from the <code class="literal">_history</code> variable under the <code class="literal">results.query</code> key, which is the search<a class="indexterm" id="id329"/> term being used. The search term is wrapped with <code class="literal">JSON.stringify</code>, which is a method that converts JSON data into a string. This allows us to keep the query with spaces and use it as an object key for our <code class="literal">_history</code> variable.</p><p>The two lines that precede the trigger checks whether the search term has been stored in <code class="literal">_history</code> and adds it if it hasn't. We currently don't have a method to deal with the history, but it's conceivable that the store could be extended with such a function later:</p><div class="informalexample"><pre class="programlisting">});
+
+export default SearchStore;</pre></div></div><div class="section" title="Creating the search view"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec47"/>Creating the search view</h2></div></div></div><p>We're finally ready to<a class="indexterm" id="id330"/> start work on the view components. Let's open <code class="literal">search.jsx</code> and flesh it out with some content. We'll add a lot of code, so we'll take it step by step.</p><p>Start out by replacing the contents with this code:</p><div class="informalexample"><pre class="programlisting">import React, { Component, PropTypes } from 'react';
+import {Grid,Col,Row,Button,Input,Panel,ListGroup,ListGroupItem} from 'react-bootstrap';
+import FontAwesome from '../components/fontawesome.jsx';
+import Picture from '../components/picture.jsx';</pre></div><p>Remember to copy the <a class="indexterm" id="id331"/>
+<code class="literal">FontAwesome</code> and <code class="literal">Picture</code> components from <a class="link" href="ch03.html" title="Chapter 3. Responsive Web Development with ReactJS">Chapter 3</a>, <span class="emphasis"><em>Responsive Web Development with ReactJS</em></span>, to the <code class="literal">source/components</code> folder, let's<a class="indexterm" id="id332"/> take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">import SearchActions from '../actions/search.js';
+import Reflux from 'reflux';
+import { findDOMNode } from 'react-dom';
+import { Router, Link } from 'react-router'
+import Footer from "./footer.jsx";
+import SearchStore from "../store/search.js";
+
+const Search = React.createClass ({
+  contextTypes: {
+    router: React.PropTypes.object.isRequired
+  },
+  getInitialState() {
+    return {
+      showQuickSearch: false
+    }
+  },</pre></div><p>
+<code class="literal">QuickSearch</code> will pop up a set of search results as you type. We want to keep this hidden initially, let's take a look at the following code:</p><div class="informalexample"><pre class="programlisting">  renderQuickSearch() {
+  },</pre></div><p>The quick-search currently does nothing, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">  renderImages() {
+  const searchIcon = &lt;FontAwesome style={{fontSize:20}} icon="search"/&gt;;
+  const imgSet = [
+    {
+      media: "only screen and (min-width: 601px)",
+      src: " http://websearchapp.herokuapp.com/large.png"
+    },
+    {
+      media: "only screen and (max-width: 600px)",
+      src: "http://websearchapp.herokuapp.com/small.png"
+    }
+  ];
+  const defaultImage = {
+    src: "http://websearchapp.herokuapp.com/default.png",
+    alt: "SearchTheWeb logo"
+  };
+  return {
+    searchIcon: searchIcon,
+    logoSet: imgSet,
+    defaultImage: defaultImage
+  }
+},</pre></div><p>Using the <code class="literal">Picture</code> component <a class="indexterm" id="id333"/>means we can provide a <a class="indexterm" id="id334"/>high-resolution version for desktop and tablet users and a smaller version for mobile users. A full description of this component can be found in <a class="link" href="ch03.html" title="Chapter 3. Responsive Web Development with ReactJS">Chapter 3</a>, <span class="emphasis"><em>Responsive Web Development with ReactJS</em></span>. Now refer to the following code:</p><div class="informalexample"><pre class="programlisting">render() {
+  return (&lt;Grid&gt;
+    &lt;Row&gt;
+      &lt;Col xs={ 12 } style={{ textAlign:"center" }}&gt;
+        &lt;Picture 
+          imgSet={ this.renderImages().logoSet }
+          defaultImage={ this.renderImages().defaultImage }/&gt;
+      &lt;/Col&gt;
+    &lt;/Row&gt;
+    &lt;Row&gt;
+      &lt;Col xs={12}&gt;
+        &lt;form&gt;
+          &lt;FormGroup&gt;
+            &lt;InputGroup&gt;
+              &lt;InputGroup.Addon&gt;
+                { this.renderImages().searchIcon }
+              &lt;/InputGroup.Addon&gt;
+              &lt;FormControl
+                ref="searchInput"
+                type="text" /&gt;
+              &lt;InputGroup.Button&gt;
+                &lt;Button onClick={ this.handleSearchButton }&gt;
+                  Search
+                &lt;/Button&gt;
+              &lt;/InputGroup.Button&gt;
+            &lt;/InputGroup&gt;
+          &lt;/FormGroup&gt;
+        &lt;/form&gt;
+        &lt;ListGroup style={{display:this.state.showQuickSearch ?
+          'block':'none'}}
+          className="quicksearch"&gt;
+          {this.renderQuickSearch()}
+        &lt;/ListGroup&gt;
+      &lt;/Col&gt;
+    &lt;/Row&gt;
+    &lt;Row&gt;
+      &lt;Col xs={12}&gt;
+        {this.props.children}</pre></div><p>This will propagate a children <a class="indexterm" id="id335"/>page from the routing setup in <code class="literal">app.jsx</code>:</p><div class="informalexample"><pre class="programlisting">      &lt;/Col&gt;
+    &lt;/Row&gt;
+
+  &lt;/Grid&gt;);
+  }
+});
+
+export default Search;</pre></div><p>Things are finally happening on screen. If you open your web browser now, you'll see a logo on the screen; below it, you'll find a search field with a magnifying glass to the left and a <span class="strong"><strong>Search</strong></span> button to the right.</p><p>However, nothing happens when you start typing, and no results appear when you click on the <span class="strong"><strong>Search</strong></span> button. Clearly, there's more work ahead.</p><p>Let's flesh out the <code class="literal">QuickSearch</code> method. Replace the empty block with this code:</p><div class="informalexample"><pre class="programlisting">renderQuickSearch(){
+  return this.state.results.map((result, idx)=&gt; {
+    if (idx &lt; 5) {
+      return (&lt;ListGroupItem key={"f"+idx}
+        onClick={this.handleClick.bind(null,idx)}
+        header={result.title}&gt;{result.desc}
+        &lt;br/&gt;
+        &lt;a bsStyle="link" style={{padding:0}}
+          href={result.link} target="_blank"&gt;{result.link}
+        &lt;/a&gt;
+      &lt;/ListGroupItem&gt;)
+      }
+    })
+  },</pre></div><p>And, replace the initial state block with this code:</p><div class="informalexample"><pre class="programlisting">getInitialState(){
+  return {
+    showQuickSearch: false,
+    results: [],
+    numResults: 0
+  }
+},</pre></div><p>The <code class="literal">QuickSearch</code> method now iterates over the results from the state and adds a <code class="literal">ListGroupItem</code> item <a class="indexterm" id="id336"/>with an <code class="literal">onClick</code> handler, a header, a description, and a link. We'll add the <code class="literal">results</code> variable to the initial state to avoid the app from stopping because of an undefined <code class="literal">state</code> variable.</p><p>Next up, we need to add the <code class="literal">onClick</code> handler to the code. To do this, add the following:</p><div class="informalexample"><pre class="programlisting">handleClick(targetIndex) {
+  if (this.state.numResults &gt;= targetIndex) {
+    window.open(this.state.results[targetIndex].link, "_blank");
+  }
+},</pre></div><p>This code will force the browser to load the URL contained in the target index, which corresponds to <code class="literal">targetIndex</code>.</p><p>Yet, typing anything in the input field still doesn't do anything. Let's do something about it.</p></div><div class="section" title="Performing searches"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec48"/>Performing searches</h2></div></div></div><p>The idea now is to present<a class="indexterm" id="id337"/> a real-time search while the user types in the search input. We've already created the setup for this to happen; all we need is to connect the act of typing into action.</p><p>The first idea that springs to mind is to add an <code class="literal">onChange</code> handler to the input field itself. This is the easiest way to accomplish the first milestone, presenting the search. It would look like this:</p><div class="informalexample"><pre class="programlisting">&lt;form&gt;
+  &lt;FormGroup&gt;
+    &lt;InputGroup&gt;
+      &lt;InputGroup.Addon&gt;
+        { this.renderImages().searchIcon }
+      &lt;/InputGroup.Addon&gt;
+      &lt;FormControl
+        ref="searchInput"
+        type="text" /&gt;
+      &lt;InputGroup.Button&gt;
+        &lt;Button onClick={ this.handleSearchButton }&gt;
+          Search
+        &lt;/Button&gt;
+      &lt;/InputGroup.Button&gt;
+    &lt;/InputGroup&gt;
+  &lt;/FormGroup&gt;
+&lt;/form&gt;</pre></div><p>Next, you'd add a <code class="literal">performSearch</code> method to the code, like this:</p><div class="informalexample"><pre class="programlisting">performSearch() {
+  console.log(findDOMNode(this.refs.searchInput).value);
+},</pre></div><p>When you start<a class="indexterm" id="id338"/> typing now, the console log will immediately start filling up with values:</p><div class="mediaobject"><img alt="Performing searches" src="graphics/B04943_04_01.jpg"/></div><p>This is quite decent, but for<a class="indexterm" id="id339"/> a search page that only consists of a single input field and nothing more, it would be nice to not have to manually focus on the search field in order to input values.</p><p>Let's drop the <code class="literal">onChange</code> handler and start the search process as soon as the user inputs data.</p><p>Add the following two methods to <code class="literal">search.jsx</code>:</p><div class="informalexample"><pre class="programlisting">componentDidMount() {
+  document.getElementById("container")
+  .addEventListener('keypress', this. handleKeypress);
+  document.getElementById("container")
+  .addEventListener('keydown', this.handleKeypress);
+},
+componentWillUnmount() {
+  document.getElementById("container")
+  .removeEventListener('keypress', this.handleKeypress);
+  document.getElementById("container").removeEventListener('keydown', this.handleKeypress);
+},</pre></div><p>This sets up two event listeners when the component mounts. The <code class="literal">keypress</code> event listener takes care of ordinary key events, while the <code class="literal">keydown</code> event listener makes sure we can capture the arrow key input as well.</p><p>The <code class="literal">handleKeypress</code> method is quite complex, so let's add the code and examine it step by step.</p><p>When you've registered these event listeners, you'll be able to capture every key event from the user. If the user hits the key <span class="emphasis"><em>A</em></span>, an object will be sent to the <code class="literal">handleKeypress</code> function with a lot of information about the event. Here's a subsection of the attributes from the event object that is of particular interest to us:</p><div class="informalexample"><pre class="programlisting">altKey: false
+charCode: 97
+ctrlKey: false
+keyCode: 97
+shiftKey: false
+metaKey: false
+type: "keypress"</pre></div><p>It tells us it's a <code class="literal">keypress</code> event (the arrow keys would register as a <code class="literal">keydown</code> event). The <code class="literal">charCode</code> parameter is <code class="literal">97</code>, and neither the <span class="emphasis"><em>Alt</em></span> key, the <span class="emphasis"><em>Meta</em></span> key, the <span class="emphasis"><em>Ctrl</em></span> key, or the <span class="emphasis"><em>Shift</em></span> key was used in conjunction with the event.</p><p>We can decode <code class="literal">charCode</code> with a native JavaScript function. If you execute <code class="literal">String.fromCharCode(97)</code>, you'll get a string back with a lowercase <code class="literal">a</code>.</p><p>Working with key events based on knowing the numbers is doable, but it's better to map the numbers to friendlier strings, so we'll add an object to hold the <code class="literal">charCode</code> parameters for us. Add this to the top of the file, just below the imports but above the <code class="literal">createClass</code> definition:</p><div class="informalexample"><pre class="programlisting">const keys = {
+  "BACKSPACE": 8,
+  "ESCAPE": 27,
+  "UP": 38,
+  "LEFT": 37,
+  "RIGHT": 39,
+  "DOWN": 40,
+  "ENTER": 13
+};</pre></div><p>Now we can<a class="indexterm" id="id340"/> type <code class="literal">keys.BACKSPACE</code> and it will send the number <code class="literal">8</code> and so on.</p><p>Let's add the <code class="literal">handleKeypress</code> function:</p><div class="informalexample"><pre class="programlisting">handleKeypress (e) {
+  if (e.ctrlKey || e.metaKey) {
+    return;
+  }</pre></div><p>If we detect that the user is using either the <span class="emphasis"><em>Ctrl</em></span> or <span class="emphasis"><em>Meta</em></span> key (<span class="strong"><strong>CMD</strong></span> on Mac), we terminate the function. This allows the user to use regular OS methods, such as copy/paste or <span class="emphasis"><em>Ctrl</em></span> + <span class="emphasis"><em>A</em></span> to select all of the text, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">  const inputField = findDOMNode(this.refs.searchInput);
+    const charCode = (typeof e.which == "number") ?
+    e.which : e.keyCode</pre></div><p>We define a variable to hold the input field, so we don't have to look it up more than once. For compatibility reasons, we also make sure we get a valid character code by checking whether the character type passed to us is a number. Refer to the following:</p><div class="informalexample"><pre class="programlisting">  switch (charCode) {
+    case keys.BACKSPACE:
+    inputField.value.length &lt;= 0 ?
+    this.closeSearchField(e) : null;
+    break;</pre></div><p>We add a <code class="literal">closeSearchField</code> function in order to hide the search results even if it's populated. We do this because we don't want it to remain open when the user has cleared out all of the text and is ready to start a new search, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">  case keys.ESCAPE:
+    this.closeSearchField(e);
+    break;</pre></div><p>We'll also hide the search results if the user presses the <span class="emphasis"><em>Esc</em></span> key, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">  case keys.LEFT:
+    case keys.RIGHT:
+    // allow left and right but don't perform search
+    break;</pre></div><p>These checks don't do<a class="indexterm" id="id341"/> anything, but they'll prevent the switch to hit <code class="literal">default</code> and thus trigger a search, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">  case keys.UP:
+    if (this.state.activeIndex &gt; -1) {
+      this.setState(
+        {activeIndex: this.state.activeIndex - 1}
+      );
+    }
+    if (this.state.activeIndex &lt; 0) {
+      inputField.focus();
+      e.preventDefault();
+    }
+    break;</pre></div><p>We've added special handling for the arrow keys. When the user presses the up arrow, the <code class="literal">activeIndex</code> will decrease as long as it's zero or above. This will make sure we'll never have to deal with an invalid <code class="literal">activeIndex</code> parameter (less than <code class="literal">-1</code>):</p><div class="informalexample"><pre class="programlisting">  case keys.DOWN:
+    if (this.state.activeIndex &lt; 5
+    &amp;&amp; this.state.numResults &gt; (1 + this.state.activeIndex)) {
+      this.setState({activeIndex: this.state.activeIndex + 1});
+    }
+    e.preventDefault();
+    break;</pre></div><p>We've defined that the maximum number of results for the quick search is <code class="literal">5</code>. This snippet will make sure <code class="literal">activeIndex</code> never goes above <code class="literal">5</code>:</p><div class="informalexample"><pre class="programlisting">  case keys.ENTER:
+    e.preventDefault();
+    if (this.state.activeIndex === -1 ||
+      inputField === document.activeElement) {
+        if (inputField.value.length &gt; 1) {
+          this.context.router.push(null,
+          `/search?q=${inputField.value}`, null);
+          this.closeSearchField(e);
+          SearchActions.showResults();
+        }
+      }
+      else {
+        if (this.state.numResults &gt;= this.state.activeIndex) {
+          window.open( this.state.results[this.state.activeIndex].link, '_blank');
+        }
+      }
+      break;</pre></div><p>This switch does one of two things. First, if <code class="literal">activeIndex</code> is <code class="literal">-1</code>, it means the user has not navigated to any<a class="indexterm" id="id342"/> of the quick search results, and we'll simply go to the results page for all the matches. The same will happen if <code class="literal">activeIndex</code> is not <code class="literal">-1</code> but <code class="literal">inputfield</code> still has focus (<code class="literal">inputField === document.activeElement</code>).</p><p>Second, if <code class="literal">activeIndex</code> is not <code class="literal">-1</code>, the user has navigated below the input and made a choice. In that case, we'll send the user to the desired URL:</p><div class="informalexample"><pre class="programlisting">      default:
+        inputField.focus();
+        this.performSearch();
+        if (!this.state.showQuickSearch) {
+          this.setState({showQuickSearch: true});
+        }
+        SearchActions.hideResults();
+        break;
+    }
+  },</pre></div><p>Finally, if none of the switches are valid, for instance, a regular key has been pressed, then we'll perform a search. We'll also hide any potential complete results with the <code class="literal">SearchActions.hideResults()</code> action.</p><p>This code will not compile until we add <code class="literal">hideResults</code> to our actions, so open <code class="literal">actions/search.js</code> and add these lines to the actions object:</p><div class="informalexample"><pre class="programlisting">  hideResults: Reflux.createAction("hideResults"),showResults: Reflux.createAction("showResults"),</pre></div><p>The code will compile <a class="indexterm" id="id343"/>and when you start typing in the browser, the input field will be focused and will receive input. It's finally time to hook up our search service, and we'll do that in the <code class="literal">actions</code> file you just edited. Add these two lines at the top of the file, just beneath the first import:</p><div class="informalexample"><pre class="programlisting">import {searchService} from "../service/index.js";
+let _history = {};</pre></div><p>We'll create a private <code class="literal">_history</code> variable to hold our search history. It's not strictly necessary, but we'll use it to reduce the number of API calls we're going to make.</p><p>Next, add this snippet:</p><div class="informalexample"><pre class="programlisting">actions.performSearch.listen( (query) =&gt; {
+  if(_history[JSON.stringify(query)]){
+    actions.emitSearchData({query:query,response:
+      _history[JSON.stringify(query)]});
+  }
+  else {
+    searchService.get(query)
+      .then( (response) =&gt; {
+        _history[JSON.stringify(query)]=response;
+        actions.emitSearchData({query:query,response:response});
+      }).catch( (err) =&gt; {
+      // do some error handling
+    })
+  }
+});</pre></div><p>This code will make sure we call our API whenever <code class="literal">performSearch</code> is triggered. Whenever a result is returned from the search service, we store it in our <code class="literal">_history</code> object, and we'll make sure to<a class="indexterm" id="id344"/> check whether there's a result ready for us before we send a new query to the search service. This will save us a trip to the API and the user will get a faster response.</p><p>Next, add the code that will actually perform the search when we type or hit the button. Replace the code inside <code class="literal">performSearch()</code> with this:</p><div class="informalexample"><pre class="programlisting">performSearch(){
+  const val = findDOMNode(this.refs.searchInput).value;
+  val.length &gt; 1 ?
+    SearchActions.performSearch(val) :
+    this.setState({results: []});
+},</pre></div><p>We'll need to do one more thing before we can see the results in the browser, but you can verify that it works by typing in search queries and examining the network traffic in the developer tools:</p><div class="mediaobject"><img alt="Performing searches" src="graphics/B04943_04_02.jpg"/></div><p>To show our results in the browser, we'll need to add a listener that can react to the changes in the store. </p><p>Open <code class="literal">components/search.jsx</code> and add this code just before <code class="literal">getInitialState</code>:</p><div class="informalexample"><pre class="programlisting">mixins: [
+  Reflux.listenTo(SearchStore, "getSearchResults")
+],
+getSearchResults(res) {
+  this.setState({results: res, numResults: 
+    res.length &lt; 5 ? res.length : 5});
+},</pre></div><p>What this code does is tell React to call <code class="literal">getSearchResults</code> when <code class="literal">SearchStore</code> emits new data. The function it calls<a class="indexterm" id="id345"/> stores up to five results in the component state. When you type in something now, a list group will pop up beneath the search field with the results.</p><p>You can use your mouse to hover over any result and click on it to visit the link it refers to.</p></div><div class="section" title="Navigating the search results with the arrow keys"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec49"/>Navigating the search results with the arrow keys</h2></div></div></div><p>Since we've already put in so<a class="indexterm" id="id346"/> much work with the keyboard events, it would be a shame to not utilize it even more. You're already using your keyboard when you're searching, so it seems natural to be able to navigate the search results with the arrow keys as well, and then press <span class="emphasis"><em>Enter</em></span> to go to the page you've selected.</p><p>Open <code class="literal">search.jsx</code>. In <code class="literal">getInitialState</code> add this key:</p><div class="informalexample"><pre class="programlisting">activeIndex: -1,</pre></div><p>Then, in the <code class="literal">renderQuickSearch</code> function, add the highlighted line with <code class="literal">className</code>:</p><div class="informalexample"><pre class="programlisting">renderQuickSearch() {
+  return this.state.results.map((result, idx)=&gt; {
+    if (idx &lt; 5) {
+      return (&lt;ListGroupItem key={ "f" + idx }
+        className={ this.state.activeIndex === idx ? 
+<span class="strong"><strong>        "list-group-item-success":""}</strong></span>
+        onClick={this.handleClick.bind(null,idx)}
+        header={result.title}&gt;{ result.desc }
+        &lt;br/&gt;
+        &lt;a bsStyle="link" style={{padding:0}}
+          href={ result.link } target="_blank"&gt;
+          { result.link }
+        &lt;/a&gt;
+      &lt;/ListGroupItem&gt;)
+    }
+  })
+},</pre></div><p>Now you'll be able to move up and down with the arrow keys and hit <span class="emphasis"><em>Enter</em></span> to visit the active link. There's a couple of things about this solution that's a little bit annoying though. For one, when <a class="indexterm" id="id347"/>you're navigating up and down, the input field stays focused. If you enter something else, you'll get a new set of search results, but the active index will stay the same as before, possibly being out of bounds if the new result returns fewer results than the previous one. Second, the up and down action moves the cursor in the input field, and that is quite disconcerting.</p><p>The first problem is quite easy to solve; it's simply a matter of adding <code class="literal">activeIndex:-1</code> to the <code class="literal">getSearchResults</code> function, but the second problem requires us to resort to an old web developer trick. There's simply no way to "unfocus" the input field, so instead, we'll create a hidden and invisible input field that we'll send the focus to.</p><p>Add this code to just above the input field in the <code class="literal">render</code> method:</p><div class="informalexample"><pre class="programlisting">&lt;input type="text" ref="hiddeninput"
+  style={{left:-100000,top:-100000,position: 'absolute',  
+  display:'block',height:0,width:0,zIndex:0,
+  padding:0,margin:0}}/&gt;</pre></div><p>And then go to the <code class="literal">switch</code> method and add the highlighted line to the down arrow action:</p><div class="informalexample"><pre class="programlisting">  case keys.DOWN:
+    if (this.state.activeIndex &lt; 5
+    &amp;&amp; this.state.numResults &gt; (1 + this.state.activeIndex)) {
+      this.setState({activeIndex: this.state.activeIndex + 1});
+    }
+<span class="strong"><strong>    findDOMNode(this.refs.hiddeninput).focus();</strong></span>
+    e.preventDefault();
+    break;</pre></div><p>When the app recompiles, you'll be able to navigate up and down, and the proper input field will only activate when <a class="indexterm" id="id348"/>you've navigated up to the top. The rest of the time the hidden input field will have focus, but as it's placed outside the viewport, no one will see it or be able to use it. Let's take a look at the following screenshot:</p><div class="mediaobject"><img alt="Navigating the search results with the arrow keys" src="graphics/B04943_04_03.jpg"/></div></div><div class="section" title="Debouncing the search"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec50"/>Debouncing the search</h2></div></div></div><p>Every <code class="literal">keypress</code> class<a class="indexterm" id="id349"/> submits a new search to the API. Even with the history variable system we've implemented, that's quite a hammering we're bringing down on our API. It's not in the user's best interest either, because it will probably lead to a slew of irrelevant hits. Imagine you're interested in searching for JavaScript. You're probably not interested in getting results for j, ja, jav, Java, javas, javasc, javascr, javascri, and JavaScript, but this is currently what's happening.</p><p>Fortunately, it's quite easy to improve the user experience by simply delaying the search. Go to the <code class="literal">switch</code> statement and replace the content with this:</p><div class="informalexample"><pre class="programlisting">default:
+  inputField.focus();
+<span class="strong"><strong>  delay(() =&gt; {</strong></span>
+<span class="strong"><strong>    if (inputField.value.length &gt;= 2) {</strong></span>
+<span class="strong"><strong>      this.performSearch();</strong></span>
+<span class="strong"><strong>    }</strong></span>
+<span class="strong"><strong>  }, 400);</strong></span>
+  if (!this.state.showQuickSearch) {
+    this.setState({showQuickSearch: true});
+  }
+  SearchActions.hideResults();
+  break;</pre></div><p>You'll need the <code class="literal">delay</code> function as well, so add it to the top of the file, just below the imports:</p><div class="informalexample"><pre class="programlisting">let delay = (() =&gt; {
+  var timer = 0;
+  return function (callback, ms) {
+    clearTimeout(timer);
+    timer = setTimeout(callback, ms);
+  };
+})();</pre></div><p>This code will make <a class="indexterm" id="id350"/>sure the results are delayed just enough to allow the user to type in a query before exiting, but not make it feel sluggish. You should experiment with the milliseconds setting to suit your needs best.</p></div><div class="section" title="Moving beyond the quick search to the results page"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec51"/>Moving beyond the quick search to the results page</h2></div></div></div><p>We're almost done with the<a class="indexterm" id="id351"/> component now. The final piece of code we'll add to <code class="literal">search.jsx</code> is the functionality for handling the search button and preparing to move on to the next page. To do this, add the following:</p><div class="informalexample"><pre class="programlisting">handleSearchButton(e) {
+  const val = findDOMNode(this.refs.searchInput).value;
+  if (val.length &gt; 1) {
+    this.context.router.push(`/search?q=${val}`);
+    this.closeSearchField(e);
+    SearchActions.showResults();
+  }
+},
+closeSearchField(e) {
+  e.preventDefault();
+  this.setState({showQuickSearch: false});
+},</pre></div><p>This code will close the search field and send us to a new route using <code class="literal">push</code> from react-router.</p><p>The <code class="literal">push</code> parameter is supported by the 2.0 branch of react-router, so all we need to do is add a context type to our component. We can do this by adding these lines at the top of the component (just beneath the line with <code class="literal">React.createClass</code>):</p><div class="informalexample"><pre class="programlisting">contextTypes: {
+  router: React.PropTypes.object.isRequired
+},
+childContextTypes: {
+  location: React.PropTypes.object
+},
+getChildContext() {
+  return { location: this.props.location }
+},</pre></div></div><div class="section" title="Setting up the results page"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec52"/>Setting up the results page</h2></div></div></div><p>The purpose of the results <a class="indexterm" id="id352"/>page is to show all of the search results. Traditionally, you show a list of 10-20 results and the paging functionality, which allows you to show more results until you reach the end.</p><p>Let's set up the results page and start with a traditional pager.</p><p>Open <code class="literal">components/results.jsx</code> and replace the contents with the following:</p><div class="informalexample"><pre class="programlisting">import React, { Component, PropTypes } from 'react';
+import Reflux from 'reflux';
+import {Router, Link, Lifecycle } from 'react-router'
+import SearchActions from '../actions/search.js';
+import SearchStore from "../store/search.js";
+import {Button,ListGroup,ListGroupItem} from 'react-bootstrap';
+import {findDOMNode} from 'react-dom';
+
+const Results = React.createClass ({
+  contextTypes: {
+    location: React.PropTypes.object
+  },</pre></div><p>Setting the <code class="literal">contextType</code> object is necessary in order to retrieve the <code class="literal">query</code> parameter from the URL. Now look at the following:</p><div class="informalexample"><pre class="programlisting">  getInitialState() {
+    return {
+      results: [],
+      resultsToShow: 10,
+      numResults: 0,
+      showResults: true
+    }
+  },</pre></div><p>Here we define that the results should be visible by default. This is necessary for users that go to the search page directly. We also define that we want to show 10 results per page, let's take a look at the following code:</p><div class="informalexample"><pre class="programlisting">  componentWillMount() {
+    SearchActions.performSearch(this.context.location.query.q);
+  },</pre></div><p>We want to kick off the<a class="indexterm" id="id353"/> search as soon as possible in order to have something to display to the user. If we're moving on from the front page, the results will already be ready in the <code class="literal">_history</code> variable and will be available before the component is mounted. Refer to the following code:</p><div class="informalexample"><pre class="programlisting">  mixins: [
+    Reflux.listenTo(SearchStore, "getSearchResults"),
+    Reflux.listenTo(SearchActions.hideResults, "hideResults"),
+    Reflux.listenTo(SearchActions.showResults, "showResults")
+  ],</pre></div><p>The <code class="literal">hideResults</code> and <code class="literal">showResults</code> methods are actions that will be used when the user starts a new query. Instead of pushing the results down or displaying the quick search above the results, we simply hide the existing results:</p><div class="informalexample"><pre class="programlisting">  hideResults() {
+    this.setState({showResults: false});
+  },
+  showResults() {
+    this.setState({showResults: true});
+  },</pre></div><p>These <code class="literal">setState</code> functions react to the preceding actions, as follows:</p><div class="informalexample"><pre class="programlisting">  getSearchResults(res) {
+    let resultsToShow = this.state.resultsToShow;
+    if (res.length &lt; resultsToShow) {
+      resultsToShow = res.length;
+    }
+    this.setState({results: res, numResults: res.length,
+      resultsToShow: resultsToShow});
+  },</pre></div><p>When we retrieve fewer results than <code class="literal">this.state.resultsToShow</code>, we adjust the state variable to the number of results in the set, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">  renderSearch(){
+    return this.state.results.map((result, idx)=&gt; {
+      if (idx &lt; this.state.resultsToShow) {
+        return &lt;ListGroupItem key={"f"+idx}
+          header={result.title}&gt;{result.desc}&lt;br/&gt;
+          &lt;Button bsStyle="link" style={{padding:0}}&gt;
+            &lt;a href={result.link}
+              target="_blank"&gt;{result.link}&lt;/a&gt;
+          &lt;/Button&gt;
+        &lt;/ListGroupItem&gt;
+      }
+    })
+  },</pre></div><p>This renderer is <a class="indexterm" id="id354"/>almost identical to the one in <code class="literal">search.jsx</code>. The main difference is that we return a button with a <code class="literal">link</code> style and that we don't have an <code class="literal">activeIndex</code> attribute that we check, let's take a look at the remaining code:</p><div class="informalexample"><pre class="programlisting">  render() {
+    return (this.state.showResults) ? (
+      &lt;div&gt;
+        &lt;div style={{textAlign:"center"}}&gt;
+          Showing {this.state.resultsToShow} out of {this.state.numResults} hits
+        &lt;/div&gt;
+        &lt;ListGroup className="fullsearch"&gt;
+          {this.renderSearch()}
+        &lt;/ListGroup&gt;
+      &lt;/div&gt;
+    ): null;
+  }
+});
+export default Results;</pre></div></div><div class="section" title="Setting up pagination"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec53"/>Setting up pagination</h2></div></div></div><p>Let's start by adding <a class="indexterm" id="id355"/>an attribute to <code class="literal">getInitialState</code> and a <code class="literal">resetState</code> function:</p><div class="informalexample"><pre class="programlisting">getInitialState() {
+  return {
+    results: [],
+    resultsToShow: 10,
+    numResults: 0,
+    showResults: true,
+<span class="strong"><strong>    activePage: 1</strong></span>
+  }
+},
+resetState() {
+  this.setState({
+    resultsToShow: 10,
+    showResults: true,
+    activePage: 1
+  })
+},</pre></div><p>The <code class="literal">resetState</code> function needs to be added to <code class="literal">getSearchResults</code>:</p><div class="informalexample"><pre class="programlisting">getSearchResults(res) {
+<span class="strong"><strong>  this.resetState();</strong></span>
+  let resultsToShow = this.state.resultsToShow;
+  if (res.length &lt; resultsToShow) {
+    resultsToShow = res.length;
+  }
+  this.setState({results: res, numResults: res.length,
+  resultsToShow: resultsToShow});
+},</pre></div><p>There's absolutely no problem running two <code class="literal">setStates</code> objects one after the other. They will simply be queued on a first come, first served basis.</p><p>Next, add a pager:</p><div class="informalexample"><pre class="programlisting">renderPager() {
+  return (&lt;Pagination
+    prev
+    next
+    items={Math.ceil(this.state.results.length/this.state.resultsToShow)}
+    maxButtons={10}
+    activePage={this.state.activePage}
+    onSelect={this.handleSelect}/&gt;)
+},</pre></div><p>This pager will automatically populate a number of buttons on the page, in this case, 10. The number of items is determined by the number of results divided by the number of items to show on each page. <code class="literal">Math.ceil</code> rounds up to the nearest integer, so if you get 54 results, the number of pages will be rounded up to 6 from 5.4. The first five pages will show ten results, and<a class="indexterm" id="id356"/> the last page will show the remaining four results.</p><p>In order to use the pagination component, we need to add it to the imports section, so replace the react-bootstrap import with this:</p><div class="informalexample"><pre class="programlisting">import {Button,ListGroup,ListGroupItem,Pagination} from 'react-bootstrap';</pre></div><p>To show the pager, replace the render with this:</p><div class="informalexample"><pre class="programlisting">render() {
+<span class="strong"><strong>  let start = -this.state.resultsToShow +</strong></span>
+<span class="strong"><strong>    (this.state.activePage*this.state.resultsToShow);</strong></span>
+<span class="strong"><strong>  let end=this.state.activePage*this.state.resultsToShow;</strong></span>
+  return (this.state.showResults) ? (
+    &lt;div&gt;
+      &lt;div style={{textAlign:"center"}}&gt;
+<span class="strong"><strong>        Showing {start}-{end} out of {this.state.numResults} hits</strong></span>
+      &lt;/div&gt;
+      &lt;ListGroup className="fullsearch"&gt;
+        {this.renderSearch()}
+      &lt;/ListGroup&gt;
+<span class="strong"><strong>      &lt;div style={{textAlign:"center"}}&gt;</strong></span>
+<span class="strong"><strong>        {this.renderPager()}</strong></span>
+<span class="strong"><strong>      &lt;/div&gt;</strong></span>
+    &lt;/div&gt;
+    ) : null;
+  }</pre></div><p>And, add the <code class="literal">handleSelect</code> function:</p><div class="informalexample"><pre class="programlisting">handleSelect(eventKey) {
+  this.setState ({
+    activePage: eventKey
+  });
+},</pre></div><p>That's all you need to set <a class="indexterm" id="id357"/>up a pager. There's only one problem. When you click on <span class="strong"><strong>Next</strong></span>, you are left at the bottom position, and as a user, that doesn't feel right. Let's add a nice scroll to it with this dependency:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>npm install --save easescroll@0.0.10</strong></span>
+</pre></div><p>We'll add it to the imports section:</p><div class="informalexample"><pre class="programlisting">import Scroller from 'easescroll';</pre></div><p>Add this to the <code class="literal">handleSelect</code> function:</p><div class="informalexample"><pre class="programlisting">handleSelect(event, selectedEvent) {
+  this.setState({
+    activePage: selectedEvent.eventKey
+  });
+<span class="strong"><strong>  Scroller(220, 50, 'easeOutSine');</strong></span>
+},</pre></div><p>There are lots of scroll variants to choose from. Here are some other settings you can try:</p><div class="informalexample"><pre class="programlisting">  Scroller(220, 500, 'elastic');
+  Scroller(220, 500, easeInOutQuint);
+  Scroller(220, 50, 'bouncePast');</pre></div><p>Let's take a look at the following screenshot:</p><div class="mediaobject"><img alt="Setting up pagination" src="graphics/B04943_04_04.jpg"/></div></div><div class="section" title="Setting up endless scroll"><div class="titlepage"><div><div><h2 class="title"><a id="ch04lvl2sec54"/>Setting up endless scroll</h2></div></div></div><p>
+<span class="strong"><strong>Endless scroll</strong></span> is a very<a class="indexterm" id="id358"/> popular functionality, and it so happens that it's very easy to implement in ReactJS. Let's go back to the state of the code as it was before we added the pager and implement endless scrolling instead.</p><p>Endless scrolling works by simply loading more items as you reach the end of the page. There are no pagers involved. You simply scroll, and then you scroll some more. </p><p>Let's see how we can add this to our code.</p><p>First, we need to add a couple of attributes to <code class="literal">getInitialState</code>:</p><div class="informalexample"><pre class="programlisting">  getInitialState() {
+    return {
+      results: [],
+      resultsToShow: 10,
+      numResults: 0,
+<span class="strong"><strong>      threshold: -60,</strong></span>
+<span class="strong"><strong>      increase: 3,</strong></span>
+      showResults: true
+    }
+  },</pre></div><p>The <code class="literal">threshold</code> variable is given in pixels and will activate when we reach 60 pixels from the bottom. The <code class="literal">increase</code> variable is how many more items we'll load at a time. It's usually the same<a class="indexterm" id="id359"/> as the <code class="literal">resultToShow</code> variable, but in this case, three proved to be very visual.</p><p>We'll then add an event listener to mount (and remove it when we're done with it):</p><div class="informalexample"><pre class="programlisting">componentDidMount: function () {
+  this.attachScrollListener();
+},
+componentWillUnmount: function () {
+  this.detachScrollListener();
+},
+attachScrollListener: function () {
+  window.addEventListener('scroll', this.scrollListener);
+  this.scrollListener();
+},
+detachScrollListener: function () {
+  window.removeEventListener('scroll', this.scrollListener);
+},</pre></div><p>These event listeners will listen to the scroll event. It will also start <code class="literal">scrollListener</code> as soon as the component is mounted.</p><p>Next, we'll add the actual function:</p><div class="informalexample"><pre class="programlisting">scrollListener: function () {
+  const component = findDOMNode(this);
+  if(!component) return;
+  let scrollTop;
+
+  if((window.pageYOffset != 'undefined')) {
+    scrollTop = window.pageYOffset;
+  } else {
+    scrollTop = (document.documentElement ||
+    document.body.parentNode || document.body).scrollTop;
+  }
+
+  const reachedTreshold =  (this.topPosition(self) +
+  self.offsetHeight - scrollTop - 
+  window.innerHeight &lt; Number(this.state.threshold));
+
+  const hasMore =  (this.state.resultsToShow +
+  this.state.increase &lt; this.state.numResults);
+
+  if(reachedTreshold &amp;&amp; hasMore) {</pre></div><p>While we still have <a class="indexterm" id="id360"/>more results, increase the number of results to show with the number in <code class="literal">this.state.increase</code>, let's take a look at the following code:</p><div class="informalexample"><pre class="programlisting">    this.setState ({
+      resultsToShow: (this.state.increase +
+      this.state.resultsToShow &lt;= this.state.numResults) ?
+      this.state.increase + this.state.resultsToShow :
+      this.state.numResults
+    });
+  } else {
+    this.setState({resultsToShow: this.state.numResults});</pre></div><p>When we can increase no more, we set <code class="literal">resultsToShow</code> to be identical to the number of results received, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">  }
+},
+topPosition: function (el) {
+  if (!el) {
+    return 0;
+  }
+  return el.offsetTop + this.topPosition(el.offsetParent);
+},</pre></div><p>This function simply finds the top position of the component within the viewport.</p><p>When you scroll down now, the page will load new snippets until it runs out of results. It can definitely be argued that this is a simplistic endless scroll and it's neither endless nor does it actually load more content.</p><p>However, it's easy to modify it in such a way that instead of setting a new state immediately, it sends an action call that triggers a service call to load more data. In this case, the listener needs to be detached until a new set of data arrives, and when it does, reattach the listener and set up a new state like we did earlier. If you truly have an endless amount of data to fetch, this method will not let you down.</p><p>We are getting close to completion. There's only one more thing to add. The input field is not populated when you go to the results page directly. It's not critically important, but it's a nice feature, so let's add it.</p><p>In the <code class="literal">componentWillMount</code> function in <code class="literal">results.jsx</code>, add this line:</p><div class="informalexample"><pre class="programlisting">  SearchActions.setInputText(this.context.location.query.q);</pre></div><p>Then, open <code class="literal">search.jsx</code> again and add this line to the mixins:</p><div class="informalexample"><pre class="programlisting">  Reflux.listenTo(SearchActions.setInputText, "setInputText")</pre></div><p>In the same file, add the function that sets the input text:</p><div class="informalexample"><pre class="programlisting">setInputText(val) {
+  findDOMNode(this.refs.searchInput).value = val;
+},</pre></div><p>And finally, in <code class="literal">actions/search.js</code>, add this to the <code class="literal">actions</code> object:</p><div class="informalexample"><pre class="programlisting">  setInputText: Reflux.createAction("setInputText")</pre></div><p>If you navigate directly<a class="indexterm" id="id361"/> to the results page now, for instance, by going locally to your test site <code class="literal">http://localhost:3001/search?q=javascript</code> or remotely to the example app <a class="ulink" href="http://websearchapp.herokuapp.com/search?q=javascript">http://websearchapp.herokuapp.com/search?q=javascript</a>, you'll find the input field being set with whatever<a class="indexterm" id="id362"/> you would add to the <code class="literal">q</code> variable.</p></div></div>
+<div class="section" title="Summary"><div class="titlepage"><div><div><h1 class="title"><a id="ch04lvl1sec22"/>Summary</h1></div></div></div><p>In this chapter, we made a working API and hooked it up to a MongoDB instance before marching to make a snappy search application that displays results as you search in real time. Furthermore, we looked at event listeners for keyboard actions as well as scroll actions and put them to work.</p><p>Congratulations! That was a lot of hard work.</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note15"/>Note</h3><p>The finished project can be viewed online at <a class="ulink" href="https://reactjsblueprints-chapter4.herokuapp.com">https://reactjsblueprints-chapter4.herokuapp.com</a>.</p></div></div><p>You can improve the project in many ways. For instance, the search component is quite long and hard to maintain. It's a good idea to split it up into a number of smaller components.</p><p>You can also implement an <code class="literal">update</code> method so that every click on a search result gets stored in your MongoDB instance. This makes it possible for you to range popular hits among your users.</p><p>In the next chapter, we'll venture outside and look at making a map-based application and using the HTML5 Geolocation API.</p></div></body></html>

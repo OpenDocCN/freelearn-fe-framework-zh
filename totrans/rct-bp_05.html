@@ -1,0 +1,995 @@
+<html><head></head><body><div class="chapter" title="Chapter&#xA0;5.&#xA0;Creating a Map App with HTML5 APIs"><div class="titlepage"><div><div><h1 class="title"><a id="ch05"/>Chapter 5. Creating a Map App with HTML5 APIs</h1></div></div></div><p>In this chapter, we'll cover a variety of HTML5 APIs with ReactJS, and we'll generate a map-based application that can run on your desktop browser as well as your mobile device.</p><p>In brief, these are the topics that we will cover:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">An overview of useful HTML5 APIs<div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">The High Resolution Time API</li><li class="listitem" style="list-style-type: disc">The Vibration API</li><li class="listitem" style="list-style-type: disc">The Battery Status API</li><li class="listitem" style="list-style-type: disc">The Page Visibility API</li><li class="listitem" style="list-style-type: disc">The Geolocation API</li></ul></div></li><li class="listitem" style="list-style-type: disc">Reverse geolocation</li><li class="listitem" style="list-style-type: disc">Static and interactive maps </li></ul></div><div class="section" title="The state of HTML5 APIs"><div class="titlepage"><div><div><h1 class="title"><a id="ch05lvl1sec23"/>The state of HTML5 APIs</h1></div></div></div><p>The <a class="indexterm" id="id363"/>HTML5 specification<a class="indexterm" id="id364"/> has added a number of useful APIs that you may not have tried yet. The reason is likely to be a combination of lack of browser support and knowing that they exist. A lot of APIs have been introduced since the dawn of HTML5. Some have reached stability; some are still up and coming; and sadly, some have fallen to the wayside and are about to be deprecated—like the highly promising getUserMedia API—or are not able to get enough traction to gain support on all browsers.</p><p>Let's take a look at the most interesting APIs available right now and how you can use them to create powerful <a class="indexterm" id="id365"/>web applications. We'll use several of these in the map application we will create later in the chapter.</p><div class="section" title="The High Resolution Time API"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec55"/>The High Resolution Time API</h2></div></div></div><p>If <a class="indexterm" id="id366"/>your website loads too slowly, users will become frustrated and <a class="indexterm" id="id367"/>leave. Measuring the execution time and page load is therefore one of the most important aspects of user experience, but unfortunately, it's also one of the most difficult to troubleshoot.</p><p>For historical reasons, the most commonly used method of measuring page load is using the Date API to compare timestamps. This was the best tool available for a long time, but there are a number of problems with this approach. </p><p>JavaScript time is infamous for being inaccurate (for instance, some versions of Internet Explorer simply round down time representation if the results are less than a certain threshold, making it virtually impossible to retrieve correct measurements). The Date API can only be used once the code is running in the browser, which means that you cannot measure processes involving the server or network. It also introduces overhead and clutter in your code. </p><p>In short, you deserve a better tool, something that's native to the browser, provides fine precision, and doesn't clutter up your code base. Fortunately, all of this is already available to you in the form of the <span class="strong"><strong>High Resolution Time API</strong></span>. It provides the current time in sub-millisecond resolution. Unlike the Date API, it is not subject to system clock skew or adjustments, and since it's native, no additional overhead is created.</p><p>The API exposes only one method, called <code class="literal">now()</code>. It returns a very accurate timestamp with a precision to a thousandth of a millisecond, allowing you to have accurate performance tests of your code.</p><p>It's very easy to replace instances of your code where you use the Date API with the High Resolution Time API. For instance, the following code uses the Date API (and may log a positive or negative number, or zero):</p><div class="informalexample"><pre class="programlisting">var mark_start = Date.now();
+doSomething(); 
+var duration = (Date.now() - mark_start);</pre></div><p>A similar operation with <code class="literal">performance.now()</code> looks like the next segment and will not only be more accurate, but always positive as well:</p><div class="informalexample"><pre class="programlisting">var mark_start = performance.now();
+doSomething(); 
+var duration = (performance.now() - mark_start);
+</pre></div><p>As noted, the High Resolution Time API originally exposed only one method, but through the <a class="indexterm" id="id368"/>
+<span class="strong"><strong>User Timing API</strong></span>, you can access a few more methods that let you measure performance without littering your code base with excess variables:</p><div class="informalexample"><pre class="programlisting">
+performance.mark('startTask') 
+doSomething(); 
+performance.mark('endTask');
+performance.measure('taskDuration','startTask','endTask');</pre></div><p>You can fetch <a class="indexterm" id="id369"/>existing marks by type or name by calling either <code class="literal">performance.getEntriesByType('measure')</code> or <code class="literal">performance.getEntriesByType('mark')</code>. You can also get a list of all the entries by calling <code class="literal">performance.getEntries()</code>: </p><div class="informalexample"><pre class="programlisting">performance.getEntriesByName('taskDuration')</pre></div><p>You can easily get rid of any marks you've set up by calling <code class="literal">performance.clearMarks()</code>. Calling it with no value will clear all marks, but you can also remove single marks by calling <code class="literal">clearMarks()</code> with the mark you want to remove. The same goes for measures, using <code class="literal">performance.clearMeasure()</code>.</p><p>Using <code class="literal">performance.mark()</code> and <code class="literal">performance.measure()</code> is great for measuring the execution time of your code, but using them to measure page load is still rather clunky. To help troubleshoot page loads, a third API has been developed, which extends the High Resolution Time API even further. This is called the <span class="strong"><strong>Navigation Timing API</strong></span><a class="indexterm" id="id370"/>
+and provides measurements related to DNS lookup, TCP connection, redirects, DOM building, and so on. </p><p>It works by recording<a class="indexterm" id="id371"/> the time when milestones in the page load process occur. There are many measured events given in milliseconds that can be accessed through the <code class="literal">PerformanceTiming</code> interface. You can easily use these records to calculate the many factors that surround page load time. For instance, you can measure the time taken for the page to be visible to the user by subtracting <code class="literal">timing.navigationStart</code>
+from <code class="literal">timing.loadEventEnd</code>, or measure how long the DNS lookup takes by subtracting <code class="literal">timing.domainLookupStart</code> from <code class="literal">timing.domainLookupEnd</code>.</p><p>The <code class="literal">performance.navigation</code> object also stores two attributes that can be used to find out whether a page load is triggered by a redirect, back/forward button, or normal URL load.</p><p>All of these methods combined enable you to find the bottlenecks in your application. We'll be using the API for debugging information and highlighting which parts of the app take the most time to load.</p><p>Browser support for these APIs vary. Both the <span class="strong"><strong>High Resolution Time API</strong></span>
+and <span class="strong"><strong>Navigation Timing API</strong></span><a class="indexterm" id="id372"/> are supported by modern browsers, but the <span class="strong"><strong>Resource Timing API</strong></span><a class="indexterm" id="id373"/> is not supported by Safari or Safari Mobile, so you need to practice defensive coding in order to avoid <code class="literal">TypeErrors</code> preventing your page from working.</p></div><div class="section" title="The Vibration API"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec56"/>The Vibration API</h2></div></div></div><p>The <a class="indexterm" id="id374"/>Vibration API offers the ability to interact with the mobile device's built-in <a class="indexterm" id="id375"/>vibration hardware component. If the API is not supported, nothing will happen; therefore, it's safe to use on devices that do not support it. </p><p>The API is activated by applying the <code class="literal">navigator.vibrate</code> method. It accepts either a single number to vibrate once or an array of values to alternately vibrate, pause, and then vibrate again. Passing a value of <code class="literal">0</code>, an empty array, or an array containing all zeros will cancel any currently ongoing vibration pattern:</p><div class="informalexample"><pre class="programlisting">// Vibrate for one second
+navigator.vibrate(1000);
+
+// Vibrate for two seconds, wait one second, 
+// then vibrate for two seconds
+navigator.vibrate([2000, 1000, 2000]);
+
+// Any of these will terminate the vibration early
+navigator.vibrate();
+navigator.vibrate(0);
+navigator.vibrate([]);</pre></div><p>The API is targeted against mobile devices and has been around since 2012. Android devices running Chrome or Firefox support the API, but there is no support for the API on Safari or on mobile, and it seems there never will be.</p><p>This is unfortunate because vibration has a number of valid use cases, for instance, to provide tactile feedback when the user interacts with buttons or form controls or to alert the user of a notification. </p><p>You can, of course, also use it for fun, for instance, by playing a popular melody:</p><div class="informalexample"><pre class="programlisting">// Super Mario Theme Intro
+navigator.vibrate([125,75,125,275,200,275,125,75,125,275,200,600,200,600]);
+// The Darth Vader Themenavigator.vibrate([500,110,500,110,450,110,200,110,170,40,450,110,200,110,170,40,500]);
+
+// James Bond 007
+navigator.vibrate([200,100,200,275,425,100,200,100,200,275,425,100,75,25,75,125,75,125,75,25,75,125,100,100]); </pre></div><p>A fun list of Vibration API tunes<a class="indexterm" id="id376"/> can be found at <a class="ulink" href="https://gearside.com/custom-vibration-patterns-mobile-devices/">https://gearside.com/custom-vibration-patterns-mobile-devices/</a>.</p><p>We'll be using the Vibration API in our map app to respond to button clicks. </p></div><div class="section" title="The Battery Status API"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec57"/>The Battery Status API</h2></div></div></div><p>The Battery Status API <a class="indexterm" id="id377"/>lets you inspect the state of a device's battery and fire events <a class="indexterm" id="id378"/>about changes in battery level or status. This can be quite useful because we can use this information to disable battery-draining operations, and hold off on AJAX requests and other network-related traffic when the battery is running low.</p><p>The API exposes four methods and four events. The methods are <code class="literal">charging</code>,<code class="literal"> chargingTime</code>, <code class="literal">dischargingTime</code>, and <code class="literal">level</code> and the events are <code class="literal">chargingchange</code>, <code class="literal">levelchange</code>, <code class="literal">chargingtimechange</code>, and <code class="literal">dischargingtimechange</code>. </p><p>You can add event listeners to your <code class="literal">mount</code> method in order to respond to changes in battery status:</p><div class="informalexample"><pre class="programlisting">componentWillMount() { 
+  if("battery" in navigator) {
+    navigator.getBattery().then( (battery)=&gt; {
+      battery.addEventListener('chargingchange',
+        this.onChargingchange);
+
+      battery.addEventListener('levelchange',
+        this.onLevelchange);
+
+      battery.addEventListener('chargingtimechange',
+        this.onChargingtimechange);
+
+      battery.addEventListener('dischargingtimechange',
+        this.onDischargingtimechange);
+    });
+  }
+}</pre></div><p>There's no need to add the event listeners if the browser doesn't support the Battery API, so it's a good idea to check that the <code class="literal">navigator</code> object contains <code class="literal">battery</code> before adding any event listeners:</p><div class="informalexample"><pre class="programlisting">onChargingchange(){
+  console.log("Battery charging? " + 
+    (navigator.battery.charging ? "Yes" : "No"));
+},
+onLevelchange() {
+  console.log("Battery level: " + 
+    navigator.battery.level * 100 + "%");
+},
+onChargingtimechange() {
+  console.log("Battery charging time: " + 
+    navigator.battery.chargingTime + " seconds");
+},
+onDischargingtimechange() {
+  console.log("Battery discharging time: " + 
+    navigator.battery.dischargingTime + " seconds");
+}</pre></div><p>These functions will fire anytime a change happens with your battery status. </p><p>The Battery API<a class="indexterm" id="id379"/> is supported by Firefox, Chrome, and the Android <a class="indexterm" id="id380"/>browser. Neither Safari nor IE support it.</p><p>We'll use this in our map app to warn users about switching to static maps if the battery is running low.</p></div><div class="section" title="The Page Visibility API"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec58"/>The Page Visibility API</h2></div></div></div><p>The <a class="indexterm" id="id381"/>Page Visibility API lets us detect whether our page is visible or in<a class="indexterm" id="id382"/> focus, hidden, or not in focus (that is, either minimized or tabbed).</p><p>The API doesn't have any methods, but it exposes the <code class="literal">visibilitychange</code> event, which we can use to detect changes in the state of the page's visibility and two read-only properties, <code class="literal">hidden</code> and <code class="literal">visibilityState</code>. When a user minimizes the web page or moves to another tab, the API sends a <code class="literal">visibilitychange</code> event regarding the visibility of the page. </p><p>It can easily be added to your React component in the mount method:</p><div class="informalexample"><pre class="programlisting">componentWillMount(){   
+  document.addEventListener('visibilitychange', 
+    this.onVisibilityChange);
+}</pre></div><p>And then, you can monitor any changes in the page visibility in the <code class="literal">onVisibilityChange</code> function:</p><div class="informalexample"><pre class="programlisting">onVisibilityChange(event){
+    console.log(document.hidden);
+    console.log(document.visibilityState);
+}</pre></div><p>You can use this to halt the execution of any network activity that isn't necessary when the user isn't actively using your page. You may also want to pause the execution if you're showing content, like an image carousel that shouldn't advance to the next slide unless the user is viewing the page, or if you're serving video or game content. When the user revisits your page, you can continue the execution seamlessly. </p><p>We won't be using this API in our map app, but we'll be sure to use it in <a class="link" href="ch09.html" title="Chapter 9. Creating a Shared App">Chapter 9</a>, <span class="emphasis"><em>Creating a Shared App</em></span>, when we make a game that should pause when the player minimizes or tabs the <a class="indexterm" id="id383"/>window.</p><p>Browser support is<a class="indexterm" id="id384"/> excellent. The API is supported by all major browsers.</p></div><div class="section" title="The Geolocation API"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec59"/>The Geolocation API</h2></div></div></div><p>The Geolocation API<a class="indexterm" id="id385"/> defines a high-level interface to locate information, such as<a class="indexterm" id="id386"/> latitude and longitude, which is linked to the device hosting it. </p><p>Knowing where your user is located is a powerful tool and can be used to serve localized content, personalize ads or search results, and draw a map of your surroundings.</p><p>The API doesn't concern itself with the location source, so it is entirely up to the device as to where it gets its information. Common sources are GPS, location inferred from network signals, Wi-Fi, Bluetooth, MAC address, RFID, GSM cell ID, and so on; it includes manual user input as well. Because it can derive its information from so many sources, the API is usable from a number of devices, including cell phones and desktop computers. </p><p>The API exposes three methods that belong to the <code class="literal">navigator.geolocation</code> object: <code class="literal">getCurrentPosition</code>, <code class="literal">watchPosition</code>, and <code class="literal">clearWatch</code>. Both <code class="literal">getCurrentPosition</code> and <code class="literal">watchPosition</code> perform the same task. The difference is that the first method performs a one-time request, while the latter continually monitors the device for changes. </p><p>The coordinates contain these properties: <code class="literal">latitude</code>, <code class="literal">longitude</code>, <code class="literal">altitude</code>, <code class="literal">accuracy</code>, <code class="literal">altitudeAccuracy</code>, <code class="literal">heading</code>, and <code class="literal">speed</code>. Desktop browsers usually won't report any values other than <code class="literal">latitude</code> and <code class="literal">longitude</code>. </p><p>Retrieving a position returns an object with a timestamp and a set of coordinates. The timestamp lets you know when the location was detected, which can be useful if you need to know how fresh the data is: </p><div class="informalexample"><pre class="programlisting">// Retrieves your current location with all options
+var options = {
+  enableHighAccuracy: true,
+  timeout: 1000,
+  maximumAge: 0
+};
+
+var success = (pos) =&gt; {
+  var coords = pos.coords;
+  console.log('Your current position is: ' +
+  '\nLatitude : ' + coords.latitude +
+  '\nLongitude: ' + coords.longitude +
+  '\nAccuracy is more or less ' + coords.accuracy + ' meters.'+
+  '\nLocation detected: '+new Date(pos.timestamp));
+};
+
+var error = (err) =&gt; {
+  console.warn('ERROR(' + err.code + '): ' + err.message);
+};
+
+navigator.geolocation.getCurrentPosition(success, error, options);</pre></div><p>The <code class="literal">clearWatch</code> function <a class="indexterm" id="id387"/>can be called to stop monitoring if you've<a class="indexterm" id="id388"/> started <code class="literal">watchPosition</code>:</p><div class="informalexample"><pre class="programlisting">// Sets up a basic watcher
+let watcher=navigator.geolocation.watchPosition(
+  (pos) =&gt;{console.log(pos.coords)}, 
+  (err)=&gt; {console.warn('ERROR(' + err.code + '): ' + err.message)}, 
+  null);
+
+// Removes the watcher
+navigator.geolocation.clearWatch(watcher)</pre></div><p>This API will be central to our map application. In fact, we won't show the user any content unless we are able to get a current location. Browser support is fortunately excellent, since it's supported by all major applications.</p></div></div></div>
+<div class="section" title="Creating our map app"><div class="titlepage"><div><div><h1 class="title"><a id="ch05lvl1sec24"/>Creating our map app</h1></div></div></div><p>Let's start with the basic setup <a class="indexterm" id="id389"/>from the first chapter. As usual, we'll be extending the scaffold with a few extra packages: </p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>npm install --save-dev classnames@2.2.1 react-bootstrap@0.29.3 reflux@0.4.1 url@0.11.0 lodash.pick@3.1.0 lodash.identiy@3.0.0 leaflet@0.7.7</strong></span>
+</pre></div><p>Most of these packages should be familiar to you. The ones we haven't used in the earlier chapters are <code class="literal">url</code>, <code class="literal">two utility functions from the</code> <code class="literal">lodash</code> library, and the leaflet <code class="literal">map</code> library. We'll use the <code class="literal">url</code> function for URL resolution and parsing. The <code class="literal">lodash</code> functions will come in handy when we need to compose a URL to the map service of our choice. Leaflet is an open source JavaScript library for interactive maps. We'll get back to it when we add an interactive map to our app.</p><p>The <code class="literal">devDependencies</code> section in <code class="literal">package.json</code> should now look like this:</p><div class="informalexample"><pre class="programlisting">
+"devDependencies": {
+   "babel-preset-es2015": "^6.3.13",
+   "babel-preset-react": "^6.3.13",
+   "babelify": "^7.2.0",
+   "browser-sync": "^2.10.0",
+   "browserify": "^13.0.0",
+   "browserify-middleware": "^7.0.0",
+   "classnames": "^2.2.1",
+   "lodash": "^4.11.2",
+   "react": "^15.0.2",
+   "react-bootstrap": "^0.29.3",
+   "react-dom": "^15.0.2",
+   "reactify": "^1.1.1",
+   "reflux": "^0.4.1",
+   "serve-favicon": "^2.3.0",
+   "superagent": "^1.5.0",
+   "url": "^0.11.0",
+   "watchify": "^3.6.1"
+}</pre></div><p>Let's open <code class="literal">public/index.html</code> and <a class="indexterm" id="id390"/>add some code:</p><div class="informalexample"><pre class="programlisting">&lt;link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css"/&gt;
+&lt;link rel="stylesheet" 
+ href="//cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/leaflet.css"/&gt;</pre></div><p>We'll need the Bootstrap CSS and the Leaflet CSS to display our maps properly.</p><p>We'll also need to apply some styles, so open <code class="literal">public/app.css</code> and replace the content with the following style:</p><div class="informalexample"><pre class="programlisting">/** SPINNER **/
+.spinner {
+  width: 40px;
+  height: 40px;
+
+  position: relative;
+  margin: 100px auto;
+}
+
+.double-bounce1, .double-bounce2 {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: #333;
+  opacity: 0.6;
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  -webkit-animation: sk-bounce 2.0s infinite ease-in-out;
+  animation: sk-bounce 2.0s infinite ease-in-out;
+}
+
+.double-bounce2 {
+  -webkit-animation-delay: -1.0s;
+  animation-delay: -1.0s;
+}
+
+@-webkit-keyframes sk-bounce {
+  0%, 100% { -webkit-transform: scale(0.0) }
+  50% { -webkit-transform: scale(1.0) }
+}
+
+@keyframes sk-bounce {
+  0%, 100% {
+    transform: scale(0.0);
+    -webkit-transform: scale(0.0);
+  } 50% {
+    transform: scale(1.0);
+    -webkit-transform: scale(1.0);
+  }
+}</pre></div><p>The first styles we add are a<a class="indexterm" id="id391"/> set of bouncing balls. These will be displayed while we're fetching content on the first load of the app, so it's important that they look good and that they convey to the user that something is happening. This set of code is provided by <a class="ulink" href="http://tobiasahlin.com/spinkit/">http://tobiasahlin.com/spinkit/</a>. On this site, you'll find a few more examples of simple loading spinners animated with hardware-accelerated CSS animations.</p><p>We'll create two different types of maps, one static and one interactive. We're also going to set up zoom and exit buttons and make sure they look okay on smaller devices:</p><div class="informalexample"><pre class="programlisting">/** MAPS **/
+.static-map{
+  margin: 20px 0 0 0;
+}
+
+.map-title {
+  color: #DDD;
+  position: absolute;
+  bottom: 10px;
+  margin: 0;
+  padding: 0;
+  left: 35%;
+  font-size: 18px;
+  text-shadow: 3px 3px 8px rgba(200, 200, 200, 1);
+}
+
+.map-button{
+  height: 100px;
+  margin-bottom: 20px;
+}
+
+.map {
+  position: absolute;
+  left: 15px;
+  right: 0;
+  top: 30px;
+  bottom: 0;
+}
+
+.buttonBack {
+  position: absolute;
+  padding: 10px;
+  width:55px;
+  height:60px;
+  top: -80px;
+  right: 25px;
+  z-index: 10;
+}
+
+.buttonMinus {
+  position: absolute;
+  padding: 10px;
+  width:40px;
+  height:60px;
+  top: 25px;
+  right: 25px;
+}
+
+.buttonPlus {
+  position: absolute;
+  padding: 10px;
+  width:40px;
+  height:60px;
+  top: 100px;
+  right: 25px;
+}</pre></div><p>These buttons let us zoom in and<a class="indexterm" id="id392"/> out when using static maps. They're placed near the upper right-hand side of the screen, and they mimic the functionality of an interactive map:</p><div class="informalexample"><pre class="programlisting">@media screen and (max-width: 600px) {
+  .container {
+    padding: 0;
+    margin: 0
+  }
+  h1{
+    font-size:18px;
+  }
+  .container-fluid{
+    padding: 0;
+    margin: 0 0 0 20px;
+  }
+  .map-title {
+    left: 15%;
+    z-index:10;
+    top: 20px;
+    color: #666;
+  }
+}</pre></div><p>The media query makes some small alterations to the style to make sure the maps are visible and have a proper margin on small devices.</p><p>When you start your server now with <code class="literal">node server.js</code>, you should see a blank screen in your browser. We're ready to get on with our app.</p><div class="section" title="Setting up geolocation"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec60"/>Setting up geolocation</h2></div></div></div><p>We'll start by creating a<a class="indexterm" id="id393"/> service that fetches our reverse geolocation. </p><p>Create a folder called <code class="literal">service</code> in the source folder and call it <code class="literal">geo.js</code>. Add the following content to it:</p><div class="informalexample"><pre class="programlisting">'use strict';
+import config from '../config.json';
+import utils from 'url';
+const lodash = {
+  pick: require('lodash.pick'),
+  identity: require('lodash.identity')
+};
+import request from 'superagent';</pre></div><p>We'll need the utilities we installed as part of the Bootstrap process. The <code class="literal">url utils</code> parameter will create a URL string for us based on a set of keys and properties. <code class="literal">Lodash pick</code> creates an object composed of the picked object properties, while <code class="literal">identity</code> returns the first argument provided to it.</p><p>We'll also need to create a <code class="literal">config.json</code> file holding the parameters that we will use to construct the URL string, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">class Geo {
+  reverseGeo(coords) {
+    const url = utils.format({
+      protocol: config.openstreetmap.protocol,
+      hostname: config.openstreetmap.host,
+      pathname: config.openstreetmap.path,
+      query: lodash.pick({
+        format: config.openstreetmap.format,
+        zoom: config.openstreetmap.zoom,
+        addressdetails: config.openstreetmap.addressdetails,
+        lat: coords.latitude,
+        lon: coords.longitude
+      }, lodash.identity)
+    });
+
+    const req = request.get(url)
+    .timeout(config.timeout)</pre></div><p>We construct our <a class="indexterm" id="id394"/>request with a timeout. Superagent has a few other options you can set, such as accept headers, query parameters, and more, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">    const promise = new Promise(function (resolve, reject) {
+      req.end(function (err, res) {
+        if (err) {
+          reject(err);
+        } else if (res.error) {
+          reject(res.error);</pre></div><p>There is a long-standing bug in Superagent where some errors (4xx and 5xx) aren't set with the <code class="literal">err</code> object as documented, so we need to check both <code class="literal">err</code> and <code class="literal">res.error</code> in order to catch all the errors, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">        }
+        else {
+          try {
+            resolve(res.text);
+          } catch (e) {
+            reject(e);
+          }
+        }
+      });
+    });
+
+    return promise;
+  }
+}
+export default Geo;</pre></div><p>We will return our<a class="indexterm" id="id395"/> request through a <code class="literal">Promise</code> instance. <code class="literal">Promise</code> is an object that is used for deferred and asynchronous computations. It represents an operation that hasn't completed yet, but is expected to in the future.</p><p>Next, create a file called <code class="literal">config.json</code> and place it in your source folder, and add the following content:</p><div class="informalexample"><pre class="programlisting">{
+  timeout: 10000,
+  "openstreetmap": {
+    "name": "OpenStreetMap",
+    "protocol": "https",
+    "host": "nominatim.openstreetmap.org",
+    "path": "reverse",
+    "format": "json",
+    "zoom": "18",
+    "addressdetails": "1"
+  }
+}</pre></div><p>OpenStreetMap is an openly licensed map of the world created by volunteers using local knowledge, GPS tracks, and donated sources. It is reported to have over 2 million users who have collected data using manual survey, GPS devices, aerial photography, and other free sources. </p><p>We'll be using the service to fetch reverse geolocation as well as use it in combination with Leaflet to create an interactive map in the later part of this chapter.</p><p>Let's make sure we can retrieve our current location and the reverse geolocation. Open <code class="literal">app.jsx</code> and replace the content with the following code:</p><div class="informalexample"><pre class="programlisting">'use strict';
+
+import React from 'react';
+import { render } from 'react-dom';
+import { Grid, Row, Col, Button, ButtonGroup,
+  Alert, FormGroup, ControlLabel, FormControl }
+  from 'react-bootstrap';
+import GeoService from './service/geo';
+const Geo = new GeoService();
+
+const App = React.createClass({
+  getInitialState(){
+    return {
+      locationFetched: false,
+      provider: null,
+      providerKey: null,
+      mapType: 'static',
+      lon: false,
+      lat: false,
+      display_name: "",
+      address: {},
+      zoom: 8,
+      serviceStatus:{up:true, e:""},
+      alertVisible: false
+    }
+  },</pre></div><p>We're going to use all <a class="indexterm" id="id396"/>of these state variables in our app eventually, but the ones we'll update and use now are <code class="literal">locationFetched</code>, <code class="literal">lon</code>, and <code class="literal">lat</code>. The state of the first variable will decide whether we'll show a loading animation or a result from the geo lookups, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">  componentDidMount(){
+    if ("mark" in performance) performance.mark('fetch_start');
+    this.fetchLocation();
+  },</pre></div><p>We set up a marker before we call the function that fetches the current position and the reverse geolocation:</p><div class="informalexample"><pre class="programlisting">  fetchLocation(){
+    navigator.geolocation.getCurrentPosition(
+      (res)=&gt; {
+        const coords = res.coords;
+        this.setState({
+          lat: coords.latitude,
+          lon: coords.longitude
+        });
+
+        this.fetchReverseGeo(coords);
+      },
+      (err)=&gt; {
+        console.warn(err)
+      },
+      null);
+  },</pre></div><p>We use the one-time <a class="indexterm" id="id397"/>request from <code class="literal">navigator.geolocation</code> to fetch the user's current position. We then store this in our component state. We also send a call to <code class="literal">fetchReverseGeo</code> with the coordinates:</p><div class="informalexample"><pre class="programlisting">  fetchReverseGeo(coords){
+    Geo.reverseGeo(coords)
+      .then((data)=&gt; {
+        if(data === undefined){
+          this.setState({alertVisible: true})
+        }</pre></div><p>This will be used to display an alert a little bit later:</p><div class="informalexample"><pre class="programlisting">        else {
+          let json = JSON.parse(data);
+          if (json.error) {
+            this.setState({ alertVisible: true })
+          } else {
+            if ("mark" in performance) 
+              performance.mark("fetch_end");
+            if ("measure" in performance) 
+              performance.measure("fetch_geo_time",    
+                "fetch_start","fetch_end");</pre></div><p>We're done with fetching data, so let's measure how long it took. We can fetch the time by using the <code class="literal">fetch_geo_time</code> keyword anytime we want, as it appears in the preceding code. Now, consider this:</p><div class="informalexample"><pre class="programlisting">            this.setState({
+              address: json.address,
+              display_name: json.display_name,
+              lat: json.lat,
+              lon: json.lon,
+              locationFetched: true
+            });
+
+            if ("vibrate" in navigator) navigator.vibrate(500);</pre></div><p>After we receive the position, we store it in our component state, and for the browser and devices that have vibration support, we send off a short vibration to let the user know the app is ready to be used. Refer to the following: </p><div class="informalexample"><pre class="programlisting">          }
+        }
+      }).catch((e) =&gt; {
+        let message;
+        if( e.message ) message = e.message;
+        else message = e;
+        this.setState({
+          serviceStatus: {
+            up: false,
+            error: message}
+          })
+    });
+  },</pre></div><p>When we catch an error, we<a class="indexterm" id="id398"/> store the error message as part of our component state. We will either receive the error as an object with a message property or as a string, so we make sure that we check this before storing it. Moving on to the next part:</p><div class="informalexample"><pre class="programlisting">  renderError(){
+    return (&lt;Row&gt;
+      &lt;Col xs={ 12 }&gt;
+        &lt;h1&gt;Error&lt;/h1&gt;
+        Sorry, but I could not serve any content. 
+       &lt;br/&gt;Error message: &lt;strong&gt; 
+       { this.state.serviceStatus.error }
+       &lt;/strong&gt;
+      &lt;/Col&gt;
+    &lt;/Row&gt;)
+  },</pre></div><p>In the event that any of the third-party services we rely on are down or unavailable, we short circuit the app and display an error message, as shown in the preceding code: </p><div class="informalexample"><pre class="programlisting">  renderBouncingBalls(){
+    return (&lt;Row&gt;
+      &lt;Col xs= { 12 }&gt;
+        &lt;div className = "spinner"&gt;
+          &lt;div className = "double-bounce1"&gt;&lt;/div&gt;
+          &lt;div className = "double-bounce2"&gt;&lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/Col&gt;
+    &lt;/Row&gt;)
+  },</pre></div><p>We present the SpinKit bouncing balls in this block. It is always shown before all necessary data is fully loaded, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">  renderContent(){
+    return (&lt;div&gt;
+      &lt;Row&gt;
+
+        &lt;Col xs = { 12 }&gt;
+          &lt;h1&gt;Your coordinates&lt;/h1&gt;
+        &lt;/Col&gt;
+
+        &lt;Col xs = { 12 }&gt;
+          &lt;small&gt;Longitude:&lt;/small&gt;
+          { " " }{ this.state.lon }
+          { " " }
+          &lt;small&gt;Latitude:&lt;/small&gt;
+          { " " }{ this.state.lat }
+          &lt;/Col&gt;
+
+          &lt;Col xs={12}&gt;
+            &lt;small&gt;Address: &lt;/small&gt;</pre></div><p>We let the user know that <a class="indexterm" id="id399"/>we got a set of coordinates and a real world address:</p><div class="informalexample"><pre class="programlisting">            { this.state.address.county?
+              this.state.address.county + ", " : "" }
+            { this.state.address.state?
+              this.state.address.state + ", " : "" }
+            { this.state.address.country ?
+              this.state.address.country: "" }
+            &lt;/Col&gt;
+        &lt;/Row&gt;
+
+        &lt;Row&gt;
+          &lt;Col xs={12}&gt;
+            {this.state.provider ?
+              this.renderMapView() :
+              this.renderButtons()}</pre></div><p>This <code class="literal">if</code>-<code class="literal">else</code> block will either show a map of the world, static or interactive, depending on the user's choice; alternatively, it will display a set of buttons and the option to select a new location.</p><p>We could also have used routing to toggle between these choices. But this would mean setting up a map route, a home route, and so on. This is often a good idea, but it's not always necessary, and this app shows how you can structure a simple app without the use of routing, let's take a look at the following code snippet:</p><div class="informalexample"><pre class="programlisting">            &lt;/Col&gt;
+        &lt;/Row&gt;
+
+        &lt;Row&gt;
+          &lt;Col xs={12}&gt;
+          {this.state.provider ? &lt;div/&gt; : &lt;div&gt;
+            &lt;h3&gt;Debug information&lt;/h3&gt;
+            {this.debugDNSLookup()}
+            {this.debugConnectionLookup()}
+            {this.debugAPIDelay()}
+            {this.debugPageLoadDelay()}
+            {this.debugFetchTime()}</pre></div><p>We display the debug<a class="indexterm" id="id400"/> information from the High Resolution Time API here. We delegate each section into a function. This is called separation of concerns. The purpose is to encapsulate sections of code to increase modularity and simplify development. When reading the code, it's much easier to understand that when the program asks for {this.debugDNSLookup()}, it returns some information about the DNS lookup time. If we inlined the function, it would be harder to understand the purpose of the code block:  </p><div class="informalexample"><pre class="programlisting">            &lt;/div&gt;}
+          &lt;/Col&gt;
+        &lt;/Row&gt;
+     &lt;/div&gt;);
+  },
+  debugPageLoadDelay(){
+    return "timing" in performance ?
+      &lt;div&gt;Page load delay experienced
+        from page load start to navigation start:{" "}
+        {Math.round(((performance.timing.loadEventEnd -
+          performance.timing.navigationStart) / 1000)
+          * 100) / 100} seconds.&lt;/div&gt; : &lt;div/&gt;
+  },</pre></div><p>In each of the debug functions, we check whether the performance object has support for the method we want to use. Most modern browsers support the High Resolution Time API, but support for the User Timing API is more spotty.</p><p>The math operation converts the time in milliseconds into seconds:</p><div class="informalexample"><pre class="programlisting">  debugAPIDelay(){
+    return "getEntriesByName" in performance ?
+      (&lt;div&gt;Delay experienced fetching reverse geo
+        (after navigation start):{" "}
+        {Math.round((performance.getEntriesByName(
+            "fetch_geo_time")[0].duration / 1000) * 100) / 100}
+        {" seconds"}.&lt;/div&gt;) : &lt;div/&gt;
+  },
+
+  debugFetchTime(){
+    return "timing" in performance ?
+      &lt;div&gt;Fetch Time: {performance.timing.responseEnd -
+      performance.timing.fetchStart} ms.&lt;/div&gt; : null
+  },
+
+  debugDNSLookup(){
+    return "timing" in performance ?
+      &lt;div&gt; DNS lookup: {performance.timing.domainLookupEnd -
+      performance.timing.domainLookupStart} ms.&lt;/div&gt; : null
+  },
+
+  debugConnectionLookup(){
+    return "timing" in performance ?
+      &lt;div&gt;Connection lookup: {performance.timing.connectEnd -
+      performance.timing.connectStart} ms. &lt;/div&gt; : null
+  },
+
+  renderGrid(content){
+    return &lt;Grid&gt;
+      {content}
+      &lt;/Grid&gt;
+  },
+
+  render() {
+    if(!this.state.serviceStatus.up){
+      return this.renderGrid(this.renderError());</pre></div><p>If an error occurs, for<a class="indexterm" id="id401"/> instance, if the SuperAgent request call fails, we display an error message instead of providing any content, let's take a look at the following code:</p><div class="informalexample"><pre class="programlisting">    }
+    else if( !this.state.locationFetched ){
+      return this.renderGrid(this.renderBouncingBalls());</pre></div><p>We'll show a set of bouncing balls until we have a position and a location, let's take a look at the following code:</p><div class="informalexample"><pre class="programlisting">    }
+    else {
+      return this.renderGrid(this.renderContent());</pre></div><p>If everything is good, we render the content:</p><div class="informalexample"><pre class="programlisting">    }
+  }
+});
+
+render(
+  &lt;App greeting="Chapter 5"/&gt;,
+  document.getElementById('app')
+);</pre></div><p>When you've added<a class="indexterm" id="id402"/> this code, you should see the app start with a set of bouncing balls. Then, after it has fetched your location, you should see your coordinates in longitude and latitude values as well as your real location address. Below this, you should see a few lines of debug information.</p><p>One note about the largesse of this component: When writing components or indeed any code, the need to refactor increases roughly in tandem with the time you spend writing it. This component is a prime example because it now contains a lot of different logic. It does geolocation, debugging, as well as rendering. It would be wise to split it up into several different components for separation of concerns, as talked about in the comment to the renderContent() method. Let's take a look at the following screenshot:</p><div class="mediaobject"><img alt="Setting up geolocation" src="graphics/B04943_05_01.jpg"/></div><p>The location should be quite accurate, and thanks to the comprehensive list of real-world addresses in OpenStreetMap, the translation to your current location should also be fairly close to where you are as well.</p><p>The debug information lets you know how much time it takes from when the app is loaded until the view is ready. When running on localhost, <span class="strong"><strong>DNS</strong></span> and <span class="strong"><strong>connection lookup</strong></span> are always loaded in 0 <a class="indexterm" id="id403"/>milliseconds, instantaneously. When you are running your app on an external server, these numbers will go up and reflect how much time it would take to lookup your server and connect to it.</p><p>In the preceding screenshot, you'll notice it doesn't take much time before the page is loaded and ready to be served. The really slow part of it is the amount of time you spend waiting for the app to fetch location data from reverse geolocation. As per the screenshot, it took approximately 1.5 seconds. This number will usually fluctuate between 1-10 seconds, and you won't be able to reduce it unless you find a way to cache the request.</p><p>Now that we know we are able to fetch the user position and address, let's create some maps.</p></div><div class="section" title="Showing static maps"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec61"/>Showing static maps</h2></div></div></div><p>A static map is simply an image snapshot of <a class="indexterm" id="id404"/>your chosen position. Using static maps has many benefits over interactive maps, for instance:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">No overhead. It's a plain image, so it's both fast and lightweight.</li><li class="listitem" style="list-style-type: disc">You can pre-render and cache the map. This means less hits to the map provider and that you might get away with a smaller data plan.</li><li class="listitem" style="list-style-type: disc">Static also means that you have complete control of the map. Using a third-party service often means surrendering some control to the service. </li></ul></div><p>There are a number of map providers that we can use to show maps of the world in addition to OpenStreetMap. Among those are Yahoo! Maps, Bing Maps, Google Maps, MapQuest, and more. </p><p>We'll be setting up our app to connect to a few of these services, so you can compare and decide which one you prefer.</p><p>Let's open <code class="literal">config.json</code> again and add a few more endpoints. Add this just before the closing bracket of the file (make sure to add a comma after <code class="literal">openstreetmap</code>):</p><div class="informalexample"><pre class="programlisting">"google": {
+  "name": "google",
+  "providerKey": "",
+  "url": "http://maps.googleapis.com/maps/api/staticmap",
+  "mapType": "roadmap",
+  "pushpin": false,
+  "query": {
+    "markerColor": "color:purple",
+    "markerLabel": "label:A"
+  },
+  "join": "x"
+},
+
+"bing": {
+  "name": "bing",
+  "providerKey": "",
+  "url": "https://dev.virtualearth.net/REST/V1/Imagery/Map/Road/",
+  "query": {},
+  "pushpin": true,
+  "join": ","
+},
+
+"mapQuest": {
+  "name": "mapQuest",
+  "url": "https://www.mapquestapi.com/staticmap/v4/getmap",
+  "providerKey": "",
+  "mapType": "map",
+  "icon": "red_1-1",
+  "query": {},
+  "pushpin": false
+}</pre></div><p>For <code class="literal">Bing</code> and <code class="literal">mapQuest</code>, you need <a class="indexterm" id="id405"/>to set the <code class="literal">providerKey</code> key before you can use them. For Bing Maps<a class="indexterm" id="id406"/>, go to the <span class="strong"><strong>Bing Maps Dev Center</strong></span><a class="indexterm" id="id407"/> at <a class="ulink" href="https://www.bingmapsportal.com/">https://www.bingmapsportal.com/</a>, sign in, select <span class="strong"><strong>Keys</strong></span> under <span class="strong"><strong>My Account</strong></span>, and add an application to receive a key. </p><p>For<a class="indexterm" id="id408"/> mapQuest, go to <a class="ulink" href="https://developer.mapquest.com/plan_purchase/steps/business_edition/business_edition_free">https://developer.mapquest.com/plan_purchase/steps/business_edition/business_edition_free</a> and create a free account. Create an application and retrieve your key.</p><p>For Google, go to <a class="ulink" href="https://developers.google.com/maps/documentation/static-maps/get-api-key">https://developers.google.com/maps/documentation/static-maps/get-api-key</a> and register a free API key. </p><p>In order to use the endpoints, we'll need to set up a service and a factory. Create <code class="literal">source/service/map-factory.js</code> and add this code:</p><div class="informalexample"><pre class="programlisting">'use strict';
+
+import MapService from './map-service';
+
+const mapService = new MapService();
+
+export default class MapFactory {
+  getMap(params) {
+    return mapService.getMap(params);
+  }
+}</pre></div><p>Then, create <code class="literal">source/service/map-service.js</code> and add this code:</p><div class="informalexample"><pre class="programlisting">'use strict';
+
+import config from '../config.json';
+import utils from 'url';
+
+export default class MapService {
+  getMap( params ) {
+    let url;
+    let c = config[ params.provider ];
+    let size = [ params.width, params.height ].join(c.join);
+    let loc = [ params.lat, params.lon ].join(",");</pre></div><p>We'll send <code class="literal">param</code> in the name of the provider, and we'll fetch the configuration data based on this. </p><p>The map providers have<a class="indexterm" id="id409"/> different requirements for how you should join the size parameter, so we take the width and the height and join them based on the value in the configuration.</p><p>All providers agree that latitude and longitude should be joined by a comma, so we set up a location variable in this format. Refer to the following code:</p><div class="informalexample"><pre class="programlisting">    
+   let markers = Object.keys(c.query).length ? 
+      Object.keys(c.query).map((param)=&gt; {
+      return c.query[param];
+    }).reduce((a, b)=&gt; {
+      return [a, b].join("|") + "|" + loc;
+    }) : "";</pre></div><p>This snippet will add any markers you've configured in <code class="literal">config.json</code>. We'll only use this variable if there are any configured markers:</p><div class="informalexample"><pre class="programlisting">    let key = c.providerKey ? "key=" + c.providerKey : "";
+    let maptype = c.mapType ? "maptype=" + c.mapType : "";
+    let pushpin = c.pushpin ? "pp=" + loc + ";4;A": "";
+    if (markers.length) markers = "markers=" + markers;</pre></div><p>We'll add the key and set the map type from the configuration. Bing calls the markers pushpin, so this variable is only used in Bing Maps:</p><div class="informalexample"><pre class="programlisting">    if(params.provider === "bing"){
+      url = `${c.url}/${loc}/${params.zoom}?${maptype}&amp;center=${loc}&amp;size=${size}&amp;${pushpin}&amp;${markers}&amp;${key}`;
+    }
+    else {
+      url = `${c.url}?${maptype}&amp;center=${loc}&amp;zoom=${params.zoom}&amp;size=${size}&amp;${pushpin}&amp;${markers}&amp;${key}`;
+    }</pre></div><p>We'll set up two different <a class="indexterm" id="id410"/>URLs based on whether we're serving a Bing Map or a map from any other provider. Notice that we're using ES6 template strings to compose our URL. These are composed with backticks and use string substitution with the <code class="literal">${ }</code> syntax. </p><p>It's a different method than the one we used in <code class="literal">source/service/geo.js</code>, and in truth, we could have gone with the same approach here. Finally, we pass along the <code class="literal">id</code> variable from <code class="literal">params</code> and the finished map URL to our return function:</p><div class="informalexample"><pre class="programlisting">    return {
+      id: params.id,
+      data: {
+        mapSrc: url
+      }
+    };
+  }
+}</pre></div><p>Next, we need to create a view for the static maps. What we'll do is create three buttons that will enable us to open a map for our current location with all three map providers. Your app should look something like the one in the following screenshot:</p><div class="mediaobject"><img alt="Showing static maps" src="graphics/B04943_05_02.jpg"/></div><p>Create a folder<a class="indexterm" id="id411"/> called <code class="literal">views</code> under the <code class="literal">source</code> folder, add a file called <code class="literal">static-map.jsx</code>, and add this code: </p><div class="informalexample"><pre class="programlisting">'use strict';
+
+import React from 'react';
+import { render } from 'react-dom';
+import { Button } from 'react-bootstrap';
+
+import Map from '../components/static-map.jsx';
+
+const StaticMapView = React.createClass({
+  propTypes: {
+    provider: React.PropTypes.string.isRequired,
+    providerKey: React.PropTypes.string,
+    mapType: React.PropTypes.string,
+    lon: React.PropTypes.number.isRequired,
+    lat: React.PropTypes.number.isRequired,
+    display_name: React.PropTypes.string,
+    address: React.PropTypes.object.isRequired
+  },
+  getDefaultProps(){
+    return {
+      provider: 'google',
+      providerKey: '',
+      mapType: 'static',
+      lon: 0,
+      lat: 0,
+      display_name: "",
+      address: {}
+    }
+  },
+
+  getInitialState(){
+    return {
+      zoom: 8
+    }
+  },
+
+  lessZoom(){
+    this.setState({
+      zoom: this.state.zoom &gt; 1 ?
+       this.state.zoom -1 : 1
+    });
+  },
+
+  moreZoom(){
+    this.setState({
+      zoom: this.state.zoom &lt; 18 ? 
+       this.state.zoom + 1 : 18
+    });
+  },
+</pre></div><p>As seen in the preceding <a class="indexterm" id="id412"/>code, we'll allow zooming as long as it's between 1 and 18. We'll use the current height and width of the device to set up our map canvas:</p><div class="informalexample"><pre class="programlisting"> getHeightWidth(){
+    const w = window.innerWidth
+      || document.documentElement.clientWidth
+      || document.body.clientWidth;
+
+    const h = window.innerHeight
+      || document.documentElement.clientHeight
+      || document.body.clientHeight;
+    return { w, h };
+  },</pre></div><p>These buttons will allow<a class="indexterm" id="id413"/> us to increase or decrease zoom, or exit back to the main menu:</p><div class="informalexample"><pre class="programlisting">  render: function () {
+    return (&lt;div&gt;
+      &lt;Button
+        onClick = { this.lessZoom }
+        bsStyle = "primary"
+        className = "buttonMinus"&gt;
+      -&lt;/Button&gt;
+      &lt;Button
+        onClick = { this.moreZoom }
+        bsStyle = "primary"
+        className = "buttonPlus"&gt;
+      +&lt;/Button&gt;
+      &lt;Button
+        onClick = { this.props.goBack }
+        bsStyle = "success"
+        className = "buttonBack"&gt;
+      Exit&lt;/Button&gt;</pre></div><p>Refer to the following code:</p><div class="informalexample"><pre class="programlisting">    &lt;div className="map-title" &gt;
+      { this.props.address.road }{ ", " }
+      { this.props.address.county }
+      &lt;/div&gt;
+       &lt;Map provider = { this.props.provider }
+        providerKey = { this.props.providerKey }
+        id = { this.props.provider + "-map" }
+        lon = { this.props.lon }
+        lat = { this.props.lat }
+        zoom = { this.state.zoom }
+        height = { this.getHeightWidth().h-150 }
+        width = { this.getHeightWidth().w-150 }
+        /&gt;
+        &lt;/div&gt;)
+  }
+});
+export default StaticMapView;</pre></div><p>You may wonder if there's <a class="indexterm" id="id414"/>any particular reason why we put this file in a <code class="literal">view</code> folder while the other files went into the <code class="literal">component</code> folder. There's not a programmatic reason for it. All files could be put into the component folder, and React wouldn't bat an eye. The purpose is to provide the programmer with a clue on how the data is meant to be structured, hopefully making it easier to understand when going back and editing the project. </p><p>Next, we need to create a component called <code class="literal">static-map</code> that will take our map properties and serve along a valid image.</p><p>Create a folder called <code class="literal">components</code>, add a new file called <code class="literal">static-map.jsx</code>, and add the following code:</p><div class="informalexample"><pre class="programlisting">'use strict';
+
+import React from 'react';
+import MapFactory from '../service/map-factory';
+
+const factory = new MapFactory();
+const StaticMap = React.createClass({
+  propTypes: {
+    provider: React.PropTypes.string.isRequired,
+    providerKey: React.PropTypes.string,
+    id: React.PropTypes.string.isRequired,
+    lon: React.PropTypes.string.isRequired,
+    lat: React.PropTypes.string.isRequired,
+    height: React.PropTypes.number.isRequired,
+    width: React.PropTypes.number.isRequired,
+    zoom: React.PropTypes.number
+  },
+
+  getDefaultProps(){
+    return {
+      provider: '',
+      providerKey: '',
+      id: 'map',
+      lat: "0",
+      lon: "0",
+      height: 0,
+      width: 0,
+      zoom: 8
+    }
+  },
+
+  getLocation () {
+    return factory.getMap({
+      providerKey: this.props.providerKey,
+      provider: this.props.provider,
+      id: this.props.id,
+      lon: this.props.lon,
+      lat: this.props.lat,
+      height: this.props.height,
+      width: this.props.width,
+      zoom: this.props.zoom
+    });
+  },
+
+  render () {
+    const location = this.getLocation();</pre></div><p>The <code class="literal">location</code> object <a class="indexterm" id="id415"/>contains our map URL and all of the associated data that the <code class="literal">map-factory</code> parameter has produced:</p><div class="informalexample"><pre class="programlisting">    let mapSrc;
+    let style;
+
+    if (!location.data || !location.data.mapSrc) {
+      return null;
+    }
+
+    mapSrc = location.data.mapSrc;
+
+    style = {
+      width: '100%',
+      height: this.props.height
+    };
+
+    return (
+      &lt;div style = { style } 
+        className = "map-container"&gt;
+        &lt;img style={ style } 
+          src={ mapSrc } 
+          className = "static-map" /&gt;
+      &lt;/div&gt;
+    );
+  }
+});
+export default StaticMap;</pre></div><p>This is all the plumbing we need to present our static maps. Let's open up <code class="literal">app.jsx</code> and add the code that will tie these files together.</p><p>In between the two rows in the <code class="literal">render</code> method, add a new row with this code:</p><div class="informalexample"><pre class="programlisting">&lt;Row&gt;
+  &lt;Col xs = { 12 }&gt;
+    { this.state.provider ?
+      this.renderMapView() :
+      this.renderButtons() }
+  &lt;/Col&gt;
+&lt;/Row&gt;</pre></div><p>In our previous apps, we <a class="indexterm" id="id416"/>used routes to navigate back and forth, but this time, we're going to skip routes altogether and use these variables to show different states of our app.</p><p>We're also going to need to add the two referenced functions, so add the following:</p><div class="informalexample"><pre class="programlisting">renderButtons(){
+ return (&lt;div&gt;
+    &lt;h2&gt;Static maps&lt;/h2&gt;
+
+    &lt;ButtonGroup block vertical&gt;
+      &lt;Button 
+        className = "map-button" 
+        bsStyle = "info" 
+        onClick = { this.setProvider.bind(null,'google','static') }&gt;
+        Open static Google Map for { this.state.address.state }
+        { ", " } 
+        { this.state.address.country }&lt;/Button&gt;
+
+      &lt;Button 
+        className = "map-button" 
+        bsStyle = "info" 
+        onClick = { this.setProvider.bind(null,'bing','static') }&gt;
+        Open Bing map for { this.state.address.state }{ ", " }
+        { this.state.address.country }&lt;/Button&gt;
+
+      &lt;Button 
+        className = "map-button" 
+        bsStyle = "info" 
+        onClick = { this.setProvider.bind(null,'mapQuest','static') }&gt;
+        Open MapQuest map for { this.state.address.state }{ ", " }
+        { this.state.address.country }&lt;/Button&gt;
+
+    &lt;/ButtonGroup&gt;
+  &lt;/div&gt;)
+},
+
+setProvider(provider, mapType){
+  let providerKey = "";
+
+  if (hasOwnProperty.call(config[provider], 'providerKey')) {
+    providerKey = config[provider].providerKey;
+  }
+
+  this.setState({
+   provider: provider, 
+   providerKey: providerKey, 
+   mapType: mapType});
+
+  // provide tactile feedback if vibration is supported
+  if ("vibrate" in navigator) navigator.vibrate(50);
+},</pre></div><p>At the top of the file, add <a class="indexterm" id="id417"/>these two imports:</p><div class="informalexample"><pre class="programlisting">import StaticMapView from './views/static-map.jsx';
+import config from './config.json';</pre></div><p>And then finally, add the two functions referenced in the preceding code: </p><div class="informalexample"><pre class="programlisting">renderMapView(){
+  return (&lt;StaticMapView { ...this.state }
+  goBack={ this.goBack }/&gt;);
+},
+
+goBack(){
+  this.setState({ provider: null });
+},</pre></div><p>The <code class="literal">goBack</code> method simply nulls the provider. This will toggle whether we see the buttons or a map in the main view render.</p><p>When you open your app now, you'll see three different buttons enabling you to open a map of your current location with either Google Maps, Bing Maps, or MapQuest. The picture will show the current location in Bing Maps, as in the following screenshot:</p><div class="mediaobject"><img alt="Showing static maps" src="graphics/B04943_05_03.jpg"/></div><p>Without some clever <a class="indexterm" id="id418"/>hardcoding, you can't open any location other than your own. Let's create an input box that lets you select a different location based on longitude and latitude and a select box that will conveniently set the location to any of a predefined number of world cities.</p><p>Add these functions to <code class="literal">app.jsx</code>:</p><div class="informalexample"><pre class="programlisting">  validateLongitude(){
+    const val = this.state.lon;
+    if (val &gt; -180 &amp;&amp; val &lt;= 180) {
+      return "success"
+    } else {
+      return "error";
+    }
+  },
+</pre></div><p>As seen in the preceding code, valid longitude values are between negative <span class="emphasis"><em>180</em></span> and positive <span class="emphasis"><em>180</em></span> degrees. We'll fetch the current values passed to us from the <code class="literal">event</code> handler:</p><div class="informalexample"><pre class="programlisting">handleLongitudeChange(event){
+               this.setState({ lon: event.target.value });
+},</pre></div><p>Valid latitude values are between negative <span class="emphasis"><em>90</em></span> and positive <span class="emphasis"><em>90</em></span> degrees:</p><div class="informalexample"><pre class="programlisting">  validateLatitude(){
+    const val = this.state.lat;
+    if (val &gt; -90 &amp;&amp; val &lt;= 90) {
+      return "success"
+    } else {
+      return "error";
+    }
+  },</pre></div><p>Whenever the user clicks <a class="indexterm" id="id419"/>on the <span class="strong"><strong>Fetch</strong></span> button, we execute a new reverse geolocation search:</p><div class="informalexample"><pre class="programlisting">  handleLatitudeChange(event){
+    this.setState({ lat: event.target.value });
+  },
+
+  handleFetchClick(){
+    this.fetchReverseGeo({
+     latitude: this.state.lat, 
+     longitude: this.state.lon
+    });
+  },</pre></div><p>Here's the new geolocation search:</p><div class="informalexample"><pre class="programlisting">  handleAlertDismiss() {
+    this.setState({
+     alertVisible: false
+    });
+  },
+
+  handleAlertShow() {
+    this.setState({
+      alertVisible: true
+    });
+  },
+
+  handleSelect(e){
+    switch(e.target.value){
+      case "london": 
+         this.fetchReverseGeo({
+           latitude: 51.50722, 
+           longitude:-0.12750
+      });
+      case "dublin": 
+          this.fetchReverseGeo({
+            latitude: 53.347205, 
+            longitude:-6.259113
+          });
+      case "barcelona": 
+          this.fetchReverseGeo({
+             latitude: 41.386964, 
+             longitude: 2.170036
+          });
+      case "newyork": 
+          this.fetchReverseGeo({
+             latitude: 40.723189, 
+             longitude:-74.003340
+          });
+      case "tokyo": 
+          this.fetchReverseGeo({
+             latitude: 35.707743, 
+             longitude:139.733580
+          });
+      case "beijing": 
+          this.fetchReverseGeo({
+            latitude: 39.895591, 
+            longitude:116.413371
+          });
+    }
+  },</pre></div><p>Above the header with<a class="indexterm" id="id420"/> static maps in <code class="literal">render()</code>, add this:</p><div class="informalexample"><pre class="programlisting">&lt;h2&gt;Try a different location&lt;/h2&gt;
+&lt;FormGroup&gt;
+  &lt;ControlLabel&gt;Longitude&lt;/ControlLabel&gt;
+  &lt;FormControl 
+    type="text"
+    onChange={ this.handleLongitudeChange }
+    defaultValue={this.state.lon}
+    placeholder="Enter longitude"
+    label="Longitude"
+    help="Longitude measures how far east or west of the prime
+          meridian a place is located. A valid longitude is
+         between -180 and +180 degrees."
+    validationState={this.validateLongitude()}
+  /&gt;
+  &lt;FormControl.Feedback /&gt;
+ &lt;/FormGroup&gt;
+
+ &lt;FormGroup&gt;
+   &lt;ControlLabel&gt;Latitude&lt;/ControlLabel&gt;
+   &lt;FormControl type="text"
+     onChange={ this.handleLatitudeChange }
+     defaultValue={this.state.lat}
+     placeholder="Enter latitude"
+     label="Latitude"
+     help="Latitude measures how far north or south of the equator
+         a place is located. A valid longitude is between -90 
+         and +90 degrees."
+     validationState={this.validateLongitude()}
+   /&gt;
+   &lt;FormControl.Feedback /&gt;
+ &lt;/FormGroup&gt;
+
+{this.state.alertVisible ?
+   &lt;Alert bsStyle="danger" 
+     onDismiss={this.handleAlertDismiss} 
+     dismissAfter={2500}&gt;
+     &lt;h4&gt;Error!&lt;/h4&gt;
+
+     &lt;p&gt;Couldn't geocode this coordinates...&lt;/p&gt;
+   &lt;/Alert&gt; : &lt;div/&gt;}</pre></div><p>This alert will only be shown if the user tries to fetch a set of invalid coordinates. It will automatically disappear <a class="indexterm" id="id421"/>after 2,500 milliseconds, let's take a look at the following code:</p><div class="informalexample"><pre class="programlisting"> &lt;Button bsStyle="primary"
+         onClick={this.handleFetchClick}&gt;
+   Fetch new geolocation
+ &lt;/Button&gt;
+
+ &lt;p&gt;(note, this will fetch the closest location based on the new
+ input values)&lt;/p&gt;
+
+&lt;FormGroup&gt;
+       &lt;FormControl 
+         componentClass="select"
+         onChange={this.handleSelect}
+         placeholder="select location"&gt;
+           &lt;option defaultSelected value=""&gt;
+             Choose a location
+           &lt;/option&gt;
+           &lt;option value="london"&gt;London&lt;/option&gt;
+           &lt;option value="dublin"&gt;Dublin&lt;/option&gt;
+           &lt;option value="tokyo"&gt;Tokyo&lt;/option&gt;
+           &lt;option value="beijing"&gt;Bejing&lt;/option&gt;
+           &lt;option value="newyork"&gt;New York&lt;/option&gt;
+       &lt;/FormControl&gt;
+     &lt;/FormGroup&gt;</pre></div><p>Let's take a look at the <a class="indexterm" id="id422"/>following screenshot:</p><div class="mediaobject"><img alt="Showing static maps" src="graphics/B04943_05_04.jpg"/></div></div><div class="section" title="Creating an interactive map"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec62"/>Creating an interactive map</h2></div></div></div><p>Interactive maps <a class="indexterm" id="id423"/>offer a level of interactivity that is often expected by users presented with a map on a website. </p><p>There are a number of benefits in displaying an interactive map instead of a plain image:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">You can set markers outside the current viewport. It's perfect when you want to display a small map, but provide information about locations that can be discovered by moving or zooming the map.</li><li class="listitem" style="list-style-type: disc">Interactive maps provide a playground for your users, making it more likely that they'll spend time at your site.</li><li class="listitem" style="list-style-type: disc">Interactive content generally makes the app feel better compared to static content.</li></ul></div><p>For our interactive map, we'll be using a combination of <code class="literal">Leaflet</code> and <code class="literal">OpenStreetMap</code>. They're both open source and free resources, making them an excellent choice for our budding map app.</p><p>Create a new file in <code class="literal">source/views</code> and call it <code class="literal">interactive-map.jsx</code>. Add the following code to it:</p><div class="informalexample"><pre class="programlisting">'use strict';
+
+import React from 'react';
+import {Button} from 'react-bootstrap';
+import L from 'leaflet';
+
+   L.Icon.Default.imagePath =
+     " https://reactjsblueprints-chapter5.herokuapp.com/images";
+
+const DynamicMapView = React.createClass({
+  propTypes: {
+    createMap: React.PropTypes.func,
+    goBack: React.PropTypes.func.isRequired,
+    center: React.PropTypes.array.isRequired,
+    lon: React.PropTypes.string.isRequired,
+    lat: React.PropTypes.string.isRequired,
+    zoom: React.PropTypes.number
+  },
+ map:{},
+  getDefaultProps(){
+    return {
+      center: [0, 0],
+      zoom: 8
+    }
+  },
+  createMap: function (element) {
+    this.map = L.map(element);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {attribution: '&amp;copy; &lt;a href="http://osm.org/copyright"&gt;
+      OpenStreetMap&lt;/a&gt; contributors'}).addTo(this.map);
+    return this.map;
+  },</pre></div><p>The Leaflet package fetches image tiles from <code class="literal">openstreetmap.org</code> with <code class="literal">x</code>, <code class="literal">y</code>, and <code class="literal">zoom</code> parameters. Refer to the following code:</p><div class="informalexample"><pre class="programlisting">  setupMap: function () {
+    this.map.setView([this.props.lat, this.props.lon], 
+    this.props.zoom);
+    this.setMarker(this.props.lat, this.props.lon);
+  },</pre></div><p>This is the function <a class="indexterm" id="id424"/>we use when creating a map. We set the view with our chosen latitude, longitude, and zoom, and add a marker to the middle of the view. </p><p>More markers can be added by passing a <code class="literal">location</code> object to the internal <code class="literal">setMarker</code> function:</p><div class="informalexample"><pre class="programlisting">  setMarker(lat,lon){
+    L.marker([lat, lon]).addTo(this.map);
+  },
+  componentDidMount: function () {
+    if (this.props.createMap) {
+      this.map = this.props.createMap(this.refs.map);
+    } else {
+      this.map = this.createMap(this.refs.map);
+    }
+
+    this.setupMap();
+  },</pre></div><p>On mounting it, we create a map with the internal function <code class="literal">createMap</code>, unless we pass along an external function via <code class="literal">props</code>, such as follows:</p><div class="informalexample"><pre class="programlisting">  getHeightWidth(){
+    const w = window.innerWidth
+      || document.documentElement.clientWidth
+      || document.body.clientWidth;
+
+    const h = window.innerHeight
+      || document.documentElement.clientHeight
+      || document.body.clientHeight;
+    return { w, h };
+  },
+  render: function () {
+    const style = {
+      width: '95%',
+      height: this.getHeightWidth().h - 200
+    };</pre></div><p>We use inline <a class="indexterm" id="id425"/>styles to set the height of the map to 200 pixels less than the height of the viewport: </p><div class="informalexample"><pre class="programlisting">    return (&lt;div&gt;
+      &lt;Button
+      onClick={this.props.goBack}
+      className="buttonBack"&gt;
+      Exit&lt;/Button&gt;
+      &lt;div style={style} ref="map" className="map"&gt;&lt;/div&gt;
+      {navigator.battery ?
+        navigator.battery.level&lt;0.3 ?
+          &lt;div&gt;&lt;strong&gt;
+             Note: Your battery is running low 
+             ({navigator.battery.level*100}% remaining).
+             You may want to exit to the main menu and 
+             use the static maps instead.&lt;/strong&gt;&lt;/div&gt;
+          :&lt;div/&gt;
+        :&lt;div/&gt;
+      }</pre></div><p>We'll notify the user if we notice that the battery is running low on the device. To continually monitor the battery status, we'd need to set up an event listener described earlier in this chapter:</p><div class="informalexample"><pre class="programlisting">    &lt;/div&gt;);
+  }
+});
+export default DynamicMapView;</pre></div><p>Next, open <code class="literal">app.jsx</code> and add the following code snippet at the end of <code class="literal">renderButtons()</code>, just above the closing <code class="literal">&lt;div /&gt;</code>, such as follows:</p><div class="informalexample"><pre class="programlisting">&lt;h1&gt;Interactive maps&lt;/h1&gt;
+&lt;ButtonGroup block vertical&gt;
+  &lt;Button 
+    className="map-button" 
+    bsStyle="primary"
+    onClick={this.setProvider.bind(null,
+      'openstreetmap','interactive')}&gt;
+      Open interactive Open Street Map for 	
+      {this.state.address.state? this.state.address.state+", ":""}
+      {this.state.address.country}
+  &lt;/Button&gt;
+
+&lt;/ButtonGroup&gt;</pre></div><p>Next, replace the code in <code class="literal">renderMapView()</code> with this code:</p><div class="informalexample"><pre class="programlisting">renderMapView(){
+  return this.state.mapType === 'static' ?
+    (&lt;StaticMapView {...this.state} goBack={this.goBack}/&gt;) :
+    &lt;DynamicMapView {...this.state} goBack={this.goBack}/&gt;;
+},</pre></div><p>Finally, add the<a class="indexterm" id="id426"/> interactive-map view to the <code class="literal">import</code> section:</p><div class="informalexample"><pre class="programlisting">import DynamicMapView from './views/interactive-map.jsx';</pre></div><p>Let's take a look at the following screenshot:</p><div class="mediaobject"><img alt="Creating an interactive map" src="graphics/B04943_05_05.jpg"/></div><p>You should now be <a class="indexterm" id="id427"/>able to load the app and click on the <span class="strong"><strong>Interactive Map</strong></span> button and be presented with an interactive map of your location. You can pinch, move, and zoom the map, and it will work on a smartphone or a tablet as well as on your desktop browser.</p><p>You can extend this map with new markers and even different tiles. We've used OpenStreetMap throughout this app, but it's very easy to switch out. Take a look at <a class="ulink" href="https://leaflet-extras.github.io/leaflet-providers/preview/">https://leaflet-extras.github.io/leaflet-providers/preview/</a> for an overview of what kind of tiles you can use.</p><p>There's also a wide array of plugins to choose from, and you'll find those at <a class="ulink" href="http://leafletjs.com/plugins.html">http://leafletjs.com/plugins.html</a>.</p></div></div>
+<div class="section" title="Summary"><div class="titlepage"><div><div><h1 class="title"><a id="ch05lvl1sec25"/>Summary</h1></div></div></div><p>In this chapter, we examined the state of several useful HTML5 APIs. We then put them to good use when creating a map application that serves both static and interactive maps. </p><p>The static maps are set up to use a variety of different proprietary services, while the interactive map is set up to use the free and open maps service, OpenStreepMap, using a popular library called Leaflet.</p><p>You can extend the interactive map by adding markers for a set of queries. For instance, you could use a service such as Google Maps to fetch a list of restaurants (Sushi restaurants, for example), and add a fish marker to each location using the Leaflet library. The possibilities are endless.</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note16"/>Note</h3><p>The finished project can be viewed online at <a class="ulink" href="https://reactjsblueprints-chapter5.herokuapp.com">https://reactjsblueprints-chapter5.herokuapp.com</a>. </p></div></div><p>In the next chapter, we will create an application that requires the user to create an account and log in to take advantage of all the features of the app. </p></div></body></html>

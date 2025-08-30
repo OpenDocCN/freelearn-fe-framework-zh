@@ -1,0 +1,1305 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Extending the Marketplace for Orders and Payments</h1>
+                </header>
+            
+            <article>
+                
+<p>Processing payments from customers when they place orders and allowing sellers to manage these orders are key aspects of e-commerce applications. In this chapter, we'll extend the online marketplace we built in the previous chapter by implementing capabilities for buyers to add products to a shopping cart, a checkout, and place orders, and for sellers to manage these orders and have payments processed from the marketplace application. Once you've gone through this chapter and added these features, besides extending the marketplace application with advanced features, you will be able to utilize browser storage, process payments using Stripe, and <span>integrate other technologies into this stack. </span></p>
+<p class="layoutArea"><span>In this chapter, we will extend the online marketplace by covering the following topics: </span></p>
+<ul>
+<li><span>Introducing a cart, payments, and orders in the MERN Marketplace</span></li>
+<li><span>Implementing a shopping cart</span></li>
+<li>Using Stripe for payments</li>
+<li>Integrating the checkout process</li>
+<li>Creating a new order</li>
+<li>Listing orders for each shop</li>
+<li>Viewing single-order details</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introducing cart, payments, and orders in the MERN Marketplace</h1>
+                </header>
+            
+            <article>
+                
+<p>The MERN Marketplace application we developed in <a href="03fd3b4a-b7fd-4b42-ad7e-5bc34b5612b0.xhtml" target="_blank">Chapter 7</a>, <em><span class="cdp-chapters-widget-post-title">Exercising MERN Skills with an Online Marketplace</span></em>, has very simple features and is missing core e-commerce functionality. In this chapter, we will extend this marketplace application so that it includes a shopping cart feature for the buyer, Stripe integration for processing credit card payments, and a basic order-management flow for the seller. The implementations that follow are kept simple to serve as starting points for developing more complex versions of these features for your own applications.</p>
+<div class="packt_tip"><span>The code for the complete MERN Marketplace application is available on GitHub at</span> <a href="https://github.com/PacktPublishing/Full-Stack-React-Projects-Second-Edition/tree/master/Chapter07%20and%2008/mern-marketplace" target="_blank">https://github.com/PacktPublishing/Full-Stack-React-Projects-Second-Edition/tree/master/Chapter07%20and%2008/mern-marketplace</a><span>.</span><span> </span><span>You can clone this code and run the application as you go through the code explanations in the rest of this chapter. </span><span>To get the code for Stripe payments working, you will need to create your own Stripe account and update the <kbd>config/config.js</kbd> file with your testing values for the Stripe API key, secret key, and Stripe Connect client ID.</span></div>
+<p>The following component tree diagram shows the custom components that make up the MERN Marketplace frontend, including the components for the shopping cart, payments, and order-related features that will be implemented in the rest of this chapter:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-855 image-border" src="assets/385630b6-003e-4ee0-97a9-b4d535d18400.png" style="width:70.25em;height:30.83em;"/></p>
+<p class="CDPAlignLeft CDPAlign"><span>The features that will be discussed in this chapter modify some of the existing components, such as </span><kbd>Profile</kbd><span>, </span><kbd>MyShops</kbd><span>, </span><kbd>Products</kbd><span>, and </span><kbd>Suggestions</kbd><span>, and also add new components, such as </span><kbd>AddToCart</kbd><span>, </span><kbd>MyOrders</kbd><span>, </span><kbd>Cart</kbd><span>, and </span><kbd>ShopOrders</kbd><span>. In the next section, we will begin extending the online marketplace with the implementation of the shopping cart.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing a shopping cart</h1>
+                </header>
+            
+            <article>
+                
+<p>Visitors to the MERN Marketplace can add products they wish to buy to a shopping cart by clicking the <span class="packt_screen">add to cart</span> button on each product. A cart icon on the menu will indicate the number of products that have already been added to their cart as the user continues to browse through the marketplace. They can also update the cart's contents and begin the checkout process by opening the cart view. But to complete the checkout process and place an order, users will be required to sign in.</p>
+<p>The shopping cart is mainly a frontend feature, so the cart details will be stored locally on the client side until the user places the order at checkout. To implement the shopping cart features, we will set up helper methods in <kbd>client/cart/cart-helper.js</kbd> that will help manipulate the cart details from relevant React components.</p>
+<p>In the following sections, we will look at how to add products to the cart, update the menu to indicate the status of the cart, and implement the cart view where users can see and modify all the items that have already been added to their cart before checking out.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Adding to the cart</h1>
+                </header>
+            
+            <article>
+                
+<p>While browsing the products in the marketplace, users will see the option on each product to add it to their cart. This option will be implemented with a React component named <kbd>AddToCart</kbd>. This <kbd>AddToCart</kbd> component in <kbd>client/Cart/AddToCart.js</kbd> takes a <kbd>product</kbd> object and a CSS style object as props from the parent component it is added to. For example, in the MERN Marketplace, it is added to a Product view as follows:</p>
+<pre>&lt;AddToCart cartStyle={classes.addCart} item={product}/&gt;</pre>
+<p>The <kbd>AddToCart</kbd> component, when rendered, displays a cart icon button depending on whether the passed item is in stock or not, as shown in the following screenshot:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-856 image-border" src="assets/f65b6d5b-f1d7-48bb-bdb1-16936df0a3b7.png" style="width:11.58em;height:1.92em;"/></div>
+<p>For example, if the item quantity is more than <kbd>0</kbd>, <kbd>AddCartIcon</kbd> is displayed; otherwise, <kbd>DisabledCartIcon</kbd> is rendered. The appearance of the icon depends on the CSS style object that's passed in the props. The code to render these variations of the <kbd>AddToCart</kbd> button is as follows.</p>
+<p><kbd>mern-marketplace/client/cart/AddToCart.js</kbd>:</p>
+<pre>{ props.item.quantity &gt;= 0 ?<br/>     &lt;IconButton color="secondary" dense="dense" onClick={addToCart}&gt;<br/>        &lt;AddCartIcon className={props.cartStyle || classes.iconButton}/&gt;<br/>     &lt;/IconButton&gt; :<br/>     &lt;IconButton disabled={true} color="secondary" dense="dense"&gt;<br/>        &lt;DisabledCartIcon className={props.cartStyle || classes.disabledIconButton}/&gt;<br/>     &lt;/IconButton&gt;<br/>}</pre>
+<p>The <kbd>AddCartIcon</kbd> button calls an <kbd>addToCart</kbd> method when it is clicked. The <kbd>addToCart</kbd><span> method</span> is defined as follows.</p>
+<p><kbd><span>mern-marketplace/client/cart/AddToCart.js</span></kbd>:</p>
+<pre>const addToCart = () =&gt; {<br/>   cart.addItem(props.item, () =&gt; {<br/>     setRedirect({redirect:true})<br/>   })<br/>}</pre>
+<p>The<span> </span><kbd>addToCart</kbd><span> method invokes t</span>he <kbd>addItem</kbd> helper method defined in <kbd>cart-helper.js</kbd>.<span> </span><span>T</span><span>his </span><kbd>addItem</kbd><span> method </span>takes the <kbd>product</kbd> item and a state-updating <kbd>callback</kbd> function as parameters and stores the updated cart details in <kbd>localStorage</kbd> and executes the callback that was passed, as shown in the following code.</p>
+<p><kbd><span>mern-marketplace/client/cart/cart-helper.js</span></kbd>:</p>
+<pre>addItem(item, cb) {<br/>    let cart = []<br/>    if (typeof window !== "undefined") {<br/>      if (localStorage.getItem('cart')) {<br/>        cart = JSON.parse(localStorage.getItem('cart'))<br/>      }<br/>      cart.push({<br/>        product: item,<br/>        quantity: 1,<br/>        shop: item.shop._id<br/>      })<br/>      localStorage.setItem('cart', JSON.stringify(cart))<br/>      cb()<br/>    }<br/>}</pre>
+<p>The cart data stored in <kbd>localStorage</kbd> contains an array of cart item objects, each containing product details, the quantity of the product that was added to the cart (which is set to <kbd>1</kbd> by default), and the ID of the shop the product belongs to. As products get added to the cart and stored in <kbd>localStorage</kbd>, we will also display the updated item count on the navigation menu, as discussed in the next section. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Cart icon in the menu</h1>
+                </header>
+            
+            <article>
+                
+<p>In the menu, we will add a link to the cart view, as well as a badge that displays the length of the cart array stored in <kbd>localStorage</kbd> in order to visually inform the user of how many items are currently in their cart. The rendered link and badge will look as follows:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-857 image-border" src="assets/597c8a98-0d51-4457-a6ae-a77fd414a97d.png" style="width:4.50em;height:2.25em;"/></div>
+<p>The link for the cart will be similar to the other links in the menu, with the exception of the Material-UI <kbd>Badge</kbd> component, which displays the cart length. It will be added as follows:</p>
+<p><kbd>mern-marketplace/client/core/Menu.js</kbd>:</p>
+<pre>&lt;Link to="/cart"&gt;<br/>    &lt;Button color={isActive(history, "/cart")}&gt;<br/>       Cart<br/>       &lt;Badge invisible={false} color="secondary" <br/>             badgeContent= {cart.itemTotal()}&gt;<br/>           &lt;CartIcon /&gt;<br/>       &lt;/Badge&gt;<br/>    &lt;/Button&gt;<br/>&lt;/Link&gt;</pre>
+<p>The cart length is returned by the <kbd>itemTotal</kbd> helper method in <kbd>cart-helper.js</kbd>, which reads the <kbd>cart</kbd> array stored in <kbd>localStorage</kbd> and returns the length of the array. T<span>he </span><kbd>itemTotal</kbd><span> method is defined as follows.</span></p>
+<p><kbd><span>mern-marketplace/client/cart/cart-helper.js</span></kbd>:</p>
+<pre>itemTotal() {<br/>    if (typeof window !== "undefined") {<br/>      if (localStorage.getItem('cart')) {<br/>        return JSON.parse(localStorage.getItem('cart')).length<br/>      }<br/>    }<br/>    return 0<br/>}</pre>
+<p class="mce-root">Clicking on this cart link, with the item total displayed on the menu, will take the user to the cart view and reveal details of the items that have already been added to the cart. In the next section, we will discuss the implementation of this cart view. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The cart view</h1>
+                </header>
+            
+            <article>
+                
+<p>The cart view will contain the cart items and checkout details. But initially, only the cart details will be displayed until the user is ready to check out. The code to render this cart view will be added as follows.</p>
+<p><kbd>mern-marketplace/client/cart/Cart.js</kbd>:</p>
+<pre>&lt;Grid container spacing={24}&gt;<br/>      &lt;Grid item xs={6} sm={6}&gt;<br/>            <strong>&lt;CartItems checkout={checkout}</strong><br/><strong>                  setCheckout={showCheckout}/&gt;</strong><br/>      &lt;/Grid&gt;<br/> {checkout &amp;&amp; <br/>      &lt;Grid item xs={6} sm={6}&gt;<br/>        &lt;Checkout/&gt;<br/>      &lt;/Grid&gt;}<br/>&lt;/Grid&gt;</pre>
+<p>The <kbd>CartItems</kbd> component, which displays the items in the cart, is passed a <kbd>checkout</kbd> Boolean value and a state update method for this checkout value so that the <kbd>Checkout</kbd> component and its options can be rendered conditionally based on user interaction.</p>
+<p>The <kbd>showCheckout</kbd> method to update the <kbd>checkout</kbd> value is defined as follows.</p>
+<p><kbd><span>mern-marketplace/client/cart/Cart.js</span></kbd>:</p>
+<pre>const showCheckout = val =&gt; {<br/>    setCheckout(val)<br/>}</pre>
+<p>The <kbd>Cart</kbd> component will be accessed at the <kbd>/cart</kbd> route, so we need to add a <kbd>Route</kbd> to the <kbd>MainRouter</kbd> component as follows.</p>
+<p><kbd>mern-marketplace/client/MainRouter.js</kbd>:</p>
+<pre>&lt;Route path="/cart" component={Cart}/&gt;</pre>
+<p>This is the link we use on the Menu to redirect the user to the cart view, which contains cart details. In the next section, we will look at the implementation of the <kbd>CartItems</kbd> component, which will render details of each item in the cart and allow modifications.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The CartItems component</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>CartItems</kbd> component will allow the user to view and update the items currently in their cart. It will also give them the option to start the checkout process if they are signed in, as shown in the following screenshot:</p>
+<div class="mce-root CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-858 image-border" src="assets/8167e3f4-f85d-4fab-8224-314d9b507a28.png" style="width:22.92em;height:21.08em;"/></div>
+<p>If the cart contains items, the <kbd>CartItems</kbd> component iterates over the items and renders the products in the cart. If no items have been added, the cart view just displays a message stating that the cart is empty. The code for this implementation is as follows.</p>
+<p><kbd>mern-marketplace/client/cart/CartItems.js</kbd>:</p>
+<pre>{<strong>cartItems.length &gt; 0</strong> ? &lt;span&gt;<br/>      {cartItems.map((item, i) =&gt; {<br/>          ...          <br/>            … Display product details<br/>              … Edit quantity<br/>              … Remove product option<br/>          ...<br/>        })<br/>      }<br/>     … Show total price and Checkout options … <br/>    &lt;/span&gt; <strong>:</strong> <br/>    &lt;Typography variant="subtitle1" component="h3" color="primary"&gt;<br/>        No items added to your cart.    <br/>    &lt;/Typography&gt;<br/>}</pre>
+<p>For each product item, we show the details of the product and an editable quantity text field, along with a remove item option. Finally, we show the total price of the items in the cart and the option to start the checkout operation. In the following sections, we will look into the implementations of these cart item display and modification options. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Retrieving cart details</h1>
+                </header>
+            
+            <article>
+                
+<p>Before the cart item details can be displayed, we need to retrieve the cart details stored in <kbd>localStorage</kbd>. For this purpose, we implement the <kbd>getCart</kbd> helper method in <kbd>cart-helper.js</kbd>, which retrieves and returns the cart details from <kbd>localStorage</kbd>, as shown in the following code.</p>
+<p><kbd>mern-marketplace/client/cart/cart-helper.js</kbd>:</p>
+<pre>getCart() {<br/>    if (typeof window !== "undefined") {<br/>      if (localStorage.getItem('cart')) {<br/>        return JSON.parse(localStorage.getItem('cart'))<br/>      }<br/>    }<br/>    return []<br/>}</pre>
+<p>In the <kbd>CartItems</kbd> component, we will retrieve the cart items using the <kbd>getCart</kbd> helper method and set it to the state of the initial value of <kbd>cartItems</kbd>, as shown in the following code.</p>
+<p><kbd>mern-marketplace/client/cart/CartItems.js</kbd>:</p>
+<pre>const [cartItems, setCartItems] = useState(cart.getCart())</pre>
+<p>Then, this <kbd>cartItems</kbd> array that was retrieved from <kbd>localStorage</kbd> is iterated over using the <kbd>map</kbd> function to render the details of each item, as shown in the following code.</p>
+<p><kbd>mern-marketplace/client/cart/CartItems.js</kbd>:</p>
+<pre>&lt;span key={i}&gt;<br/>  &lt;Card&gt;<br/>    &lt;CardMedia image={'/api/product/image/'+item.product._id}<br/>         title={item.product.name}/&gt;<br/>         &lt;CardContent&gt;<br/>                &lt;Link to={'/product/'+item.product._id}&gt;<br/>                    &lt;Typography type="title" component="h3" <br/>                    color="primary"&gt;<br/>                      {item.product.name}&lt;/Typography&gt;<br/>                &lt;/Link&gt;<br/>                &lt;Typography type="subheading" component="h3" <br/>               color="primary"&gt;<br/>                      $ {item.product.price}<br/>                &lt;/Typography&gt;<br/>                &lt;span&gt;${item.product.price * item.quantity}&lt;/span&gt;<br/>                &lt;span&gt;Shop: {item.product.shop.name}&lt;/span&gt;<br/>         &lt;/CardContent&gt;<br/>         &lt;div&gt;<br/>          … Editable quantity …<br/>          … Remove item option ...<br/>         &lt;/div&gt;<br/><span>  &lt;/Card&gt;</span><br/>  &lt;Divider/&gt;<br/>&lt;/span&gt; </pre>
+<p>For each rendered cart item, we will also give the user the option to change the quantity, as discussed in the next section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Modifying quantity</h1>
+                </header>
+            
+            <article>
+                
+<p><span>Each cart item displayed in the cart view will contain an </span>editable <kbd>TextField</kbd> that will allow the user to update the quantity for each product they are buying, with a minimum allowed value of <kbd>1</kbd>, as shown in the following code.</p>
+<p><kbd>mern-marketplace/client/cart/CartItems.js</kbd>:</p>
+<pre>Quantity: &lt;TextField<br/>          value={item.quantity}<br/>          onChange={handleChange(i)}<br/>          type="number"<br/>          inputProps={{ min:1 }}<br/>          InputLabelProps={{<br/>            shrink: true,<br/>          }}<br/>        /&gt;</pre>
+<p>When the user updates this value, the <kbd>handleChange</kbd> method is called to enforce the minimum value validation, update the <kbd>cartItems</kbd> in the state, and update the cart in <kbd>localStorage</kbd> using a helper method. T<span>he </span><kbd>handleChange</kbd><span> method is defined as follows.</span></p>
+<p><kbd><span>mern-marketplace/client/cart/CartItems.js</span></kbd>:</p>
+<pre>const handleChange = index =&gt; event =&gt; {<br/>  let updatedCartItems = cartItems<br/>  if(event.target.value == 0){<br/>     updatedCartItems[index].quantity = 1<br/>  }else{<br/>     updatedCartItems[index].quantity = event.target.value<br/>  }<br/>  setCartItems([...updatedCartItems])<br/>  cart.updateCart(index, event.target.value)<br/>}</pre>
+<p>The <kbd>updateCart</kbd> helper method takes the index of the product being updated in the cart array and the new quantity value as parameters and updates the details stored in <kbd>localStorage</kbd>. <span>This </span><kbd>updateCart</kbd><span> helper method is defined as follows.</span></p>
+<p><kbd>mern-marketplace/client/cart/cart-helper.js</kbd>:</p>
+<pre>updateCart(itemIndex, quantity) {<br/>    let cart = []<br/>    if (typeof window !== "undefined") {<br/>      if (localStorage.getItem('cart')) {<br/>        cart = JSON.parse(localStorage.getItem('cart'))<br/>      }<br/>      cart[itemIndex].quantity = quantity<br/>      localStorage.setItem('cart', JSON.stringify(cart))<br/>    }<br/>}</pre>
+<p>Besides updating the item quantity in the cart, users will also have the option to remove the item from the cart, as discussed in the next section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Removing items</h1>
+                </header>
+            
+            <article>
+                
+<p>Each item in the cart will have a remove option next to it. This remove item option is a button that, when clicked, passes the array index of the item to the <kbd>removeItem</kbd> method so that it can be removed from the array. This button is rendered with the following code.</p>
+<p><kbd><span>mern-marketplace/client/cart/CartItems.js</span></kbd>:</p>
+<pre>&lt;Button color="primary" onClick={removeItem(i)}&gt;x Remove&lt;/Button&gt;</pre>
+<p>The <kbd>removeItem</kbd> click handler method uses the <kbd>removeItem</kbd> helper method to remove the item from the cart in <kbd>localStorage</kbd>, then updates the <kbd>cartItems</kbd> in the state. This method also checks whether the cart has been emptied so that checkout can be hidden by using the <kbd>setCheckout</kbd> function passed as a prop from the <kbd>Cart</kbd> component. <span>The </span><kbd>removeItem</kbd><span> click handler method is defined as follows.</span></p>
+<p><kbd><span>mern-marketplace/client/cart/CartItems.js</span></kbd>:</p>
+<pre>const removeItem = index =&gt; event =&gt;{<br/>    let updatedCartItems = cart.removeItem(index)<br/>    if(updatedCartItems.length == 0){<br/>      props.setCheckout(false)<br/>    }<br/>    setCartItems(updatedCartItems)<br/>}</pre>
+<p>The <kbd>removeItem</kbd> helper method in <kbd>cart-helper.js</kbd> takes the index of the product to be removed from the array, splices it out, and updates <kbd>localStorage</kbd> before returning the updated <kbd>cart</kbd> array. <span>This </span><kbd>removeItem</kbd><span> helper method is defined as follows.</span></p>
+<p><kbd>mern-marketplace/client/cart/cart-helper.js</kbd>:</p>
+<pre>removeItem(itemIndex) {<br/>    let cart = []<br/>    if (typeof window !== "undefined") {<br/>      if (localStorage.getItem('cart')) {<br/>        cart = JSON.parse(localStorage.getItem('cart'))<br/>      }<br/>      cart.splice(itemIndex, 1)<br/>      localStorage.setItem('cart', JSON.stringify(cart))<br/>    }<br/>    return cart<br/>}</pre>
+<p>As users modify the items in their cart by either changing the quantity or removing an item, they will also see the updated total price of all the items currently in the cart, as discussed in the next section. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Showing the total price</h1>
+                </header>
+            
+            <article>
+                
+<p>At the bottom of the <kbd>CartItems</kbd> component, we will display the total price of the items in the cart. It will be rendered with the following code.</p>
+<p><kbd><span>mern-marketplace/client/cart/CartItems.js</span></kbd>:</p>
+<pre>&lt;span className={classes.total}&gt;Total: ${getTotal()}&lt;/span&gt;</pre>
+<p>The <kbd>getTotal</kbd> method will calculate the total price while taking the unit price and quantity of each item in the <kbd>cartItems</kbd> array into consideration. <span>This </span><span>method is defined as follows.</span></p>
+<p><kbd><span>mern-marketplace/client/cart/CartItems.js</span></kbd>:</p>
+<pre>const getTotal = () =&gt; {<br/>    return cartItems.reduce((a, b) =&gt; {<br/>        return a + (b.quantity*b.product.price)<br/>    }, 0)<br/>}</pre>
+<p>With this, the users will have an overview of what they are buying and how much it will cost before they are ready to check out and place the order. In the next section, we will look at how to render the checkout option conditionally, depending on the state of the cart and whether the user is signed in. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Option to check out</h1>
+                </header>
+            
+            <article>
+                
+<p>The user will see the option to perform the checkout depending on whether they are signed in and whether the checkout has already been opened, as implemented in the following code.</p>
+<p><kbd><span>mern-marketplace/client/cart/CartItems.js</span></kbd>:</p>
+<pre>{!props.checkout &amp;&amp; (auth.isAuthenticated() ? <br/>    &lt;Button onClick={openCheckout}&gt;<br/>        Checkout<br/>    &lt;/Button&gt; : <br/>    &lt;Link to="/signin"&gt;<br/>        &lt;Button&gt;Sign in to checkout&lt;/Button&gt;<br/>    &lt;/Link&gt;)<br/>}</pre>
+<p>When the checkout button is clicked, the <kbd>openCheckout</kbd> method will use the <kbd>setCheckout</kbd> method passed as a prop to set the checkout value to <kbd>true</kbd> in the <kbd>Cart</kbd> component. T<span>he </span><kbd>openCheckout</kbd><span> method is defined as follows.</span></p>
+<p><kbd><span>mern-marketplace/client/cart/CartItems.js</span></kbd><span>:</span></p>
+<pre>const openCheckout = () =&gt; {<br/>    props.setCheckout(true)<br/>}</pre>
+<p>Once the checkout value is set to <kbd>true</kbd> in the Cart view, the <kbd>Checkout</kbd> component will be rendered to allow the user to enter the checkout details and place an order.</p>
+<p>This will complete the buying process for a user, who is now able to add items to their shopping cart and modify each item until they are ready to checkout. But before getting into the implementation of the checkout functionality, which will involve gathering and processing payment information, in the next section, we will discuss how to use Stripe in our application to add the intended payment-related features.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using Stripe for payments</h1>
+                </header>
+            
+            <article>
+                
+<p>Payment processing is required across implementations of the checkout, order creation, and order management processes. It also involves making updates to both the buyer's and seller's user data. Before we delve into the implementations of the checkout and order features, we will briefly discuss payment processing options and considerations using Stripe and learn how to integrate it in the MERN Marketplace.  </p>
+<p>Stripe provides an extensive set of tools that are necessary to integrate payments in any web application. These tools can be selected and used in different ways, depending on the specific type of application and the payment use case being implemented.</p>
+<p>In the case of the MERN Marketplace setup, the application itself will have a platform on Stripe and will expect sellers to have connected Stripe accounts on the platform so that the application can charge users who enter their credit card details at checkout on behalf of the sellers. In the MERN Marketplace, a user can add products from different shops to their shopping cart so that charges on their cards will only be created by the application for the specific product that was ordered when it is processed by the seller. Additionally, sellers will have complete control over the charges that are created on their behalf from their own Stripe dashboards. We will demonstrate how to use the tools provided by Stripe to get this payment setup working.</p>
+<p>Stripe provides a complete set of documentation and guidelines for each tool and also exposes testing data for accounts and platforms that are set up on Stripe. For the purpose of implementing payments in the MERN Marketplace, we will be using testing keys and leave it up to you to extend the implementation for live payments.</p>
+<p><span>In the following sections, we will discuss how to c</span><span>onnect a Stripe account for each seller, </span>collect credit card details from the user with Stripe Card Elements, use Stripe Customer to record the user's payment information securely, and create a charge <span>with Stripe </span>for processing a payment.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Stripe-connected account for each seller</h1>
+                </header>
+            
+            <article>
+                
+<p>To create charges on behalf of sellers, the application will let a user, who is a seller, connect their Stripe account to their MERN Marketplace user account. In the following sections, we will implement this functionality by updating the user model so that it can store Stripe credentials, add the view components to allow users to connect to Stripe, and add a backend API to complete Stripe OAuth before updating the database with the retrieved credentials from Stripe.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Updating the user model</h1>
+                </header>
+            
+            <article>
+                
+<p>When a seller connects their Stripe account to the marketplace, we will need to store their Stripe credentials with their other user details so that they can be used later for payment processing when they sell products. To store the Stripe OAuth credentials after a user's Stripe account is successfully connected, we will update the user model<span> that we developed in <a href="a9dedbd8-baf6-4ec8-b766-0b370227fbe4.xhtml">Chapter 3</a>, </span><em>Building a Backend with MongoDB, Express, and Node</em><span>,</span> with the following field.</p>
+<p><kbd>mern-marketplace/server/models/user.model.js</kbd>:</p>
+<pre>stripe_seller: {}</pre>
+<p>This <kbd>stripe_seller</kbd> field will store the seller's Stripe account credentials that were received from Stripe on authentication. This will be used when a charge needs to be processed via Stripe for a product they sold from their shop. Next, we will look at the frontend component that will allow the user to connect to Stripe from our application.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Button to connect with Stripe</h1>
+                </header>
+            
+            <article>
+                
+<p>In the user profile page of a seller, if the user has not connected their Stripe account yet, we will show a button that will take the user to Stripe to authenticate and connect their Stripe account. The <span class="packt_screen">Connect with Stripe</span> button will be rendered in the <span class="packt_screen">Profile</span> view as follows:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-859 image-border" src="assets/c1039f7b-256e-4a54-abc2-b38fd6c4aa5a.png" style="width:21.42em;height:5.83em;"/></div>
+<p>If the user has successfully connected their Stripe account already, we will show a disabled <span class="packt_screen">STRIPE CONNECTED</span> button instead, as shown in the following screenshot:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-860 image-border" src="assets/0fba75a1-42fe-436d-991d-a4c9ed08471d.png" style="width:21.50em;height:6.08em;"/></div>
+<p>The code that's added to the <kbd>Profile</kbd> component will check whether the user is a seller before rendering the Stripe-related button. Then, a second check will confirm whether Stripe credentials already exist in the <kbd>stripe_seller</kbd> field for the given user. If Stripe credentials already exist for the user, then the disabled <kbd>STRIPE CONNECTED</kbd> button is shown; otherwise, a link to connect to Stripe using their OAuth link is displayed instead, as implemented in the following code.</p>
+<p><kbd>mern-marketplace/client/user/Profile.js</kbd>:</p>
+<pre>{user.seller &amp;&amp; (user.stripe_seller ? <br/>    (&lt;Button variant="contained" disabled className={classes.stripe_connected}&gt;<br/>                Stripe connected<br/>     &lt;/Button&gt;)<br/>  : (&lt;a href={"https://connect.stripe.com/oauth/authorize?                                 response_type=code&amp;client_id="                                                                                   +config.stripe_connect_test_client_id+"&amp;scope=read_write"} <br/>     className={classes.stripe_connect}&gt;<br/>    &lt;img src={stripeButton}/&gt;<br/>     &lt;/a&gt;)<br/>  )<br/>}  </pre>
+<p>The OAuth link takes the platform's client ID, which we will set in a <kbd>config</kbd> variable, and other option values as query parameters. This link takes the user to Stripe and allows the user to connect an existing Stripe account or create a new one. Once Stripe's auth process has completed, it returns to our application using a redirect URL set in the platform's Connect settings in the dashboard on Stripe. Stripe attaches either an auth code or an error message as query parameters to the redirect URL.</p>
+<p>The MERN Marketplace redirect URI is set to <kbd>/seller/stripe/connect</kbd>, which will render the <kbd>StripeConnect</kbd> component. We will declare this route as follows.</p>
+<p><kbd>mern-marketplace/client/MainRouter.js</kbd>:</p>
+<pre>&lt;Route path="/seller/stripe/connect" component={StripeConnect}/&gt;</pre>
+<p>When Stripe redirects the user to this URL, we will render the <kbd>StripeConnect</kbd> component so that it handles Stripe's response to authentication, as discussed in the next section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The StripeConnect component</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>StripeConnect</kbd> component will basically complete the remaining auth process steps with Stripe and render the relevant messages based on whether the Stripe connection was successful, as shown in the following screenshot:</p>
+<div class="mce-root CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-861 image-border" src="assets/f3eb9b2b-f1ee-4978-bd5e-601c479c23d7.png" style="width:16.75em;height:4.17em;"/></div>
+<p>When the <kbd>StripeConnect</kbd> component loads, we will use a <kbd>useEffect</kbd> hook to parse the query parameters attached to the URL from the Stripe redirect, <span>as shown in the following code</span>. </p>
+<p><kbd>mern-marketplace/client/user/StripeConnect.js</kbd>:</p>
+<pre>  useEffect(() =&gt; {<br/>    const abortController = new AbortController()<br/>    const signal = abortController.signal<br/>    const jwt = auth.isAuthenticated()<br/>    const parsed = <strong>queryString.parse(props.location.search)</strong><br/>    if(parsed.error){<br/>      setValues({...values, error: true})<br/>    }<br/>    if(parsed.code){<br/>      setValues({...values, connecting: true, error: false})<br/>      //post call to stripe, get credentials and update user data<br/>      stripeUpdate({<br/>        userId: jwt.user._id<br/>      }, {<br/>        t: jwt.token<br/>      }, parsed.code, signal).then((data) =&gt; {<br/>        if (data.error) {<br/>          setValues({...values, error: true, connected: false,<br/>             connecting: false})<br/>        } else {<br/>          setValues({...values, connected: true, <br/>             connecting: false, error: false})<br/>        }<br/>      })<br/>    }<br/>    return function cleanup(){<br/>      abortController.abort()<br/>    }<br/>  }, [])</pre>
+<p><span>For parsing, we use the same </span><kbd>query-string</kbd><span> node module that we used previously to implement a product search</span><span>.</span><span> Then, if the URL </span><kbd>query</kbd><span> parameter contains an auth <kbd>code</kbd> and not an <kbd>error</kbd>, we make an API call in order to complete the Stripe OAuth from our server with the <kbd>stripeUpdate</kbd> fetch method.</span></p>
+<p>The <kbd>stripeUpdate</kbd> fetch method is defined in <kbd>api-user.js</kbd> and passes the auth code retrieved from Stripe to an API we will set up in our server at <kbd>'/api/stripe_auth/:userId'</kbd>. <span>This </span><kbd>stripeUpdate</kbd><span> fetch method is defined as follows.</span></p>
+<p><kbd>mern-marketplace/client/user/api-user.js</kbd>:</p>
+<pre>const stripeUpdate = async (params, credentials, auth_code, signal) =&gt; {<br/>  try {<br/>    let response = await fetch ('/api/stripe_auth/'+params.userId, {<br/>      method: 'PUT',<br/>      signal: signal,<br/>      headers: {<br/>        'Accept': 'application/json',<br/>        'Content-Type': 'application/json',<br/>        'Authorization': 'Bearer ' + credentials.t<br/>      },<br/>      body: JSON.stringify({stripe: auth_code})<br/>    })<br/>    return await response.json()<br/>  } catch(err) {<br/>    console.log(err)<br/>  }<br/>}</pre>
+<p>This fetch method is calling a backend API that we have to add on our server to complete the OAuth process and save the retrieved credentials to the database. We will implement this API in the next section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The stripe auth update API</h1>
+                </header>
+            
+            <article>
+                
+<p>Once the Stripe account has been connected, to complete the OAuth process, <span>we need to make a POST API call to Stripe OAuth from our server</span>. We need to send the previously retrieved auth code to Stripe OAuth with the POST API call and receive the credentials to be stored in the seller's user account for processing charges. We will achieve this Stripe auth update by implementing an update API in the backend.  This <span>Stripe auth update API will </span>receive a PUT request at <kbd>/api/stripe_auth/:userId</kbd> and initiate the POST API call to retrieve the credentials from Stripe.</p>
+<p>The route for this Stripe auth update API will be declared on the server in user routes, as follows.</p>
+<p><kbd>mern-marketplace/server/routes/user.routes.js</kbd>:</p>
+<pre>router.route('/api/stripe_auth/:userId')<br/>   .put(authCtrl.requireSignin, authCtrl.hasAuthorization,   <br/>    userCtrl.stripe_auth, userCtrl.update)</pre>
+<p>A request to this route uses the <kbd>stripe_auth</kbd> controller method to retrieve the credentials from Stripe and passes it to the existing user update method so that it can be stored in the database.</p>
+<p>To make a POST request to the Stripe API from our server, we will use the <kbd>request</kbd> node module, which needs to be installed with the following command from the command line:</p>
+<pre><strong>yarn add request </strong></pre>
+<p>The <kbd>stripe_auth</kbd> controller method in the user controller will be defined as follows.</p>
+<p><kbd>mern-marketplace/server/controllers/user.controller.js</kbd>:</p>
+<pre>const stripe_auth = (req, res, next) =&gt; {<br/>  <strong>request</strong>({<br/>    url: "https://connect.stripe.com/oauth/token",<br/>    method: "POST",<br/>    json: true,<br/>    body: { client_secret:config.stripe_test_secret_key,                                                               <br/>            code:req.body.stripe, <br/>            grant_type:'authorization_code'}<br/>  }, (error, response, body) =&gt; {<br/>    if(body.error){<br/>      return res.status('400').json({<br/>        error: body.error_description<br/>      })<br/>    }<br/>    req.body.stripe_seller = body<br/>    next()<br/>  })<br/>}</pre>
+<p>The POST API call to Stripe takes the platform's secret key and the retrieved auth code to complete the authorization. Then, it returns the credentials for the connected account in <kbd>body</kbd>, which is then appended to the request body so that the user's details can be updated in the <kbd>next()</kbd> call to the <kbd>update</kbd> controller method.</p>
+<p>These auth credentials retrieved from Stripe can be used in our application to create charges on customer credit cards on behalf of the seller when they sell products from their shops. In the next section, we will learn how to collect the customer credit card details during checkout using Stripe.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Stripe Card Elements for checkout</h1>
+                </header>
+            
+            <article>
+                
+<p>During checkout, to collect credit card details from the user, we will use Stripe's <kbd>Card Elements</kbd> to add the credit card field to the checkout form. To integrate <kbd>Card Elements</kbd> with our React interface, we will utilize the <kbd>react-stripe-elements</kbd> node module, which can be installed by running the following command from the command line:</p>
+<pre><strong>yarn add react-stripe-elements</strong></pre>
+<p>We will also need to inject the <kbd>Stripe.js</kbd> code into <kbd>template.js</kbd> to access Stripe in the frontend code, as shown here.</p>
+<p><kbd>mern-marketplace/template.js</kbd><span>:</span></p>
+<pre>&lt;script id="stripe-js" src="https://js.stripe.com/v3/"&gt;&lt;/script&gt;</pre>
+<p>For the MERN Marketplace, Stripe will be required in the Cart view, where the <kbd>Checkout</kbd> component needs it to render <kbd>Card Elements</kbd> and process card detail input. We will wrap the <kbd>Checkout</kbd> component we added to <kbd>Cart.js</kbd> with the <kbd>StripeProvider</kbd> component from <kbd>react-stripe-elements</kbd> so that the <kbd>Elements</kbd> component in <kbd>Checkout</kbd> has access to the Stripe instance. </p>
+<p><kbd>mern-marketplace/client/cart/Cart.js</kbd>:</p>
+<pre>&lt;StripeProvider apiKey={config.stripe_test_api_key}&gt; <br/>     &lt;Checkout/&gt;<br/>&lt;/StripeProvider&gt;</pre>
+<p>Then, within the <kbd>Checkout</kbd> component, we will use Stripe's <kbd>Elements</kbd> component. Using <span>Stripe's <kbd>Card Elements</kbd></span> will enable the application to collect the user's credit card details and use the Stripe instance to tokenize card information rather than handle it on our own servers. The implementation details for this part of collecting the card details and generating the card token during the checkout process will be discussed in the <em>Integrating the</em> <em>checkout process</em> and <em>Creating a new order</em> sections. In the next section, we will discuss how to use Stripe to <span>securely </span>record the card details that will be received from a user with <kbd>Card Elements</kbd>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Stripe Customer for recording card details</h1>
+                </header>
+            
+            <article>
+                
+<p>When an order is being placed at the end of the checkout process, the generated card token will be used to create or update a Stripe Customer (<a href="https://stripe.com/docs/api#customers" target="_blank">https://stripe.com/docs/api#customers</a>) representing our user. This is a good way to store credit card information (<a href="https://stripe.com/docs/saving-cards" target="_blank">https://stripe.com/docs/saving-cards</a>) with Stripe for further use, such as for creating charges against specific products in the cart when a seller processes the ordered product from their shop. This eliminates the complications of having to store user credit card details securely on your own server. To integrate Stripe Customer with our application, in the following sections, we will update the user model so that it stores Stripe Customer details and update the user controller methods so that we can create or update Stripe Customer information using the Stripe node module in the backend.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Updating the user model</h1>
+                </header>
+            
+            <article>
+                
+<p>To use Stripe Customer to securely store the credit card information of each user and process payments as needed in the application, we need to store details of the Stripe Customer associated with each user. To keep track of the corresponding Stripe Customer information for a user in our database, we will update the user model with the following field:</p>
+<pre>stripe_customer: {},</pre>
+<p>This field will store a Stripe Customer object that will <span>allow us to create recurring charges and track multiple charges associated with the same user in our platform. To be able to create or update a Stripe Customer, we need to utilize Stripe's Customer API. In the next section, we will update the user controller so that we can integrate and use this Customer API from Stripe. </span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Updating the user controller</h1>
+                </header>
+            
+            <article>
+                
+<p>We will create a new, or update an existing, Stripe Customer when the user places an order after entering their credit card details. To implement this, we will update the user controllers with a <kbd>stripeCustomer</kbd> method that will be called before the order is created when our server receives a request to the create order API (as discussed in the <em>Creating a new order</em> section).</p>
+<p>In the <kbd>stripeCustomer</kbd> controller method, we will need to use the <kbd>stripe</kbd> node module, which can be installed with the following command:</p>
+<pre><strong>yarn add stripe </strong></pre>
+<p>After installing the <kbd>stripe</kbd> module, it needs to be imported into the user controller file. Then, the <kbd>stripe</kbd> instance needs to be initialized with the application's Stripe secret key.</p>
+<p><kbd>mern-marketplace/server/controllers/user.controller.js</kbd>:</p>
+<pre>import stripe from 'stripe'<br/>const myStripe = stripe(config.stripe_test_secret_key)</pre>
+<p>The <kbd>stripeCustomer</kbd> controller method will check whether the current user already has a corresponding Stripe Customer stored in the database, and then use the card token received from the frontend to either create a new Stripe Customer or update the existing one, as discussed in the following sections.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Creating a new Stripe Customer</h1>
+                </header>
+            
+            <article>
+                
+<p>If the current user does not have a corresponding Stripe Customer <span>–</span> in other words, a value is not stored for the <kbd>stripe_customer</kbd> field <span>– </span>we will use the create a customer API (<a href="https://stripe.com/docs/api#create_customer" target="_blank">https://stripe.com/docs/api#create_customer</a>) from Stripe, as follows.</p>
+<p><kbd>mern-marketplace/server/controllers/user.controller.js</kbd>:</p>
+<pre><strong>myStripe.customers.create</strong>({<br/>            email: req.profile.email,<br/>            source: req.body.token<br/>      }).then((customer) =&gt; {<br/>          User.update({'_id':req.profile._id},<br/>            {<strong>'$set': { 'stripe_customer': customer.id }</strong>},<br/>            (err, order) =&gt; {<br/>              if (err) {<br/>                return res.status(400).send({<br/>                  error: errorHandler.getErrorMessage(err)<br/>                })<br/>              }<br/>              <strong>req.body.order.payment_id = customer.id</strong><br/>              next()<br/>        })<br/>})</pre>
+<p>If the Stripe Customer is successfully created, we will update the current user's data by storing the Stripe Customer ID reference in the <kbd>stripe_customer</kbd> field. We will also add this Customer ID to the order being placed so that it is simpler to create a charge related to the order. Once a Stripe Customer has been created, we can update the Stripe Customer the next time a user enters credit card details for a new order, as discussed in the next section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Updating an existing Stripe Customer</h1>
+                </header>
+            
+            <article>
+                
+<p>For an existing Stripe Customer <span>– </span>in other words, where the current user already has a value stored for the <kbd>stripe_customer</kbd> field <span>– </span>we will use the Stripe API to update a <span>Stripe C</span>ustomer, as follows.</p>
+<p><kbd>mern-marketplace/server/controllers/user.controller.js</kbd>:</p>
+<pre><strong>  myStripe.customers.update</strong>(req.profile.stripe_customer, {<br/>       source: req.body.token<br/>     }, <br/>       (err, customer) =&gt; {<br/>         if(err){<br/>           return res.status(400).send({<br/>             error: "Could not update charge details"<br/>           })<br/>         }<br/>         req.body.order.payment_id = customer.id<br/>         next()<br/>       })</pre>
+<p>Once the Stripe Customer has been successfully updated, we will add the Customer ID to the order being created in the <kbd>next()</kbd> call. Though not covered here, the Stripe Customer feature can be used to allow users to store and update their credit card information from the application. With the user's payment information securely stored and accessible, we can look into how to use this information to process a payment when an ordered product is processed by the seller.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Creating a charge for each product that's processed</h1>
+                </header>
+            
+            <article>
+                
+<p>When a seller updates an order by processing the product that was ordered in their shop, the application will create a charge on behalf of the seller on the customer's credit card for the cost of the product ordered.</p>
+<p>To implement this, we will update the <kbd>user.controller.js</kbd> file with a <kbd>createCharge</kbd> controller method that will use Stripe's create a charge API and needs the seller's Stripe account ID, along with the buyer's Stripe Customer ID. The<span> </span><kbd>createCharge</kbd><span> controller method will be defined as follows.</span></p>
+<p><kbd>mern-marketplace/server/controllers/user.controller.js</kbd>:</p>
+<pre>const createCharge = (req, res, next) =&gt; {<br/>  if(!req.profile.stripe_seller){<br/>    return res.status('400').json({<br/>      error: "Please connect your Stripe account"<br/>    })<br/>  }<br/>  <strong>myStripe.tokens.create</strong>({<br/>    customer: req.order.payment_id,<br/>  }, {<br/>    stripeAccount: req.profile.stripe_seller.stripe_user_id,<br/>  }).then((token) =&gt; {<br/>      <strong>myStripe.charges.create</strong>({<br/>        amount: req.body.amount * 100, //amount in cents<br/>        currency: "usd",<br/>        source: token.id,<br/>      }, {<br/>        stripeAccount: req.profile.stripe_seller.stripe_user_id,<br/>      }).then((charge) =&gt; {<br/>        next()<br/>      })<br/>  })<br/>}</pre>
+<p>If the seller has not connected their Stripe account yet, the <kbd>createCharge</kbd> method will return a 400 error response to indicate that a connected Stripe account is required.</p>
+<p>To be able to charge the Stripe Customer on behalf of the seller's Stripe account, we need to generate a Stripe token with the Customer ID and the seller's Stripe account ID and then use that token to create a charge.</p>
+<p>The <kbd>createCharge</kbd> controller method will be called when the server receives a request to update an order with a product status change to <strong>Processing</strong> (the API implementation for this order update request will be discussed in the <em>Listing orders by shop</em> section).</p>
+<p>This covers all the Stripe-related concepts that are relevant to the implementation of payment processing for the specific use cases of the MERN Marketplace. Now, we will continue with our implementations in order to allow a user to complete the checkout process and place their order from their shopping cart.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Integrating the checkout process</h1>
+                </header>
+            
+            <article>
+                
+<p>Users who are signed in and have items added to their cart will be able to start the checkout process. We will add a <span class="packt_screen">Checkout</span> form to collect customer details, delivery address information, and credit card information, as shown in the following screenshot:</p>
+<div class="mce-root CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-862 image-border" src="assets/3b4cc738-154a-4a02-89a4-7f19e310b9a7.png" style="width:22.67em;height:26.17em;"/></div>
+<p>This checkout view will consist of two parts, with the first part for <span>collecting buyer details including name, email, and delivery address, and the second part for entering credit card details and placing the order. In the following sections, we will complete the implementation of the checkout process by initializing the checkout form details and adding the fields for collecting buyer details. Then, we will collect the buyer's credit card details to allow them to place the order and finish the checkout process.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Initializing checkout details</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we will create the checkout view, which contains the form fields and the place order option in a <kbd>Checkout</kbd> component. In this component, we will initialize the <kbd>checkoutDetails</kbd> object in the state before collecting the details from the form. W<span>e will prepopulate the customer details based on the current user's details and add the current cart items to </span><kbd>checkoutDetails</kbd><span>, as shown in the following code.</span></p>
+<p><kbd>mern-marketplace/client/cart/Checkout.js</kbd>:</p>
+<pre> const user = auth.isAuthenticated().user<br/> const [values, setValues] = useState({<br/>    checkoutDetails: {<br/>      products: cart.getCart(),<br/>      customer_name: user.name,<br/>      customer_email:user.email,<br/>      delivery_address: { street: '', city: '', state: '', <br/>          zipcode: '', country:''}<br/>    },<br/>    error: ''<br/>})</pre>
+<p>These customer information values, which are initialized in <kbd>checkoutDetails</kbd>, will be updated when the user interacts with the form fields. In the following sections, we will add the form fields and the change-handling functions for the customer information and delivery address details to be collected in this checkout view.  </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Customer information</h1>
+                </header>
+            
+            <article>
+                
+<p>In the checkout form, we will have fields for collecting the customer's name and email address. To add these text fields to the <kbd>Checkout</kbd> component, we will use the following code.</p>
+<p><kbd><span>mern-marketplace/client/cart/Checkout.js</span></kbd>:</p>
+<pre>&lt;TextField id="name" label="Name" value={values.checkoutDetails.customer_name} onChange={handleCustomerChange('customer_name')}/&gt;<br/>&lt;TextField id="email" type="email" label="Email" value={values.checkoutDetails.customer_email} onChange={handleCustomerChange('customer_email')}/&gt;&lt;br/&gt;  </pre>
+<p>When the user updates the values in these two fields, the <kbd>handleCustomerChange</kbd> method will update the relevant details in the state. T<span>he </span><kbd>handleCustomerChange</kbd><span> method is defined as follows.</span></p>
+<p><kbd><span>mern-marketplace/client/cart/Checkout.js</span></kbd><span>:</span></p>
+<pre>const handleCustomerChange = name =&gt; event =&gt; {<br/>    let checkoutDetails = values.checkoutDetails<br/>    checkoutDetails[name] = event.target.value || undefined<br/>    setValues({...values, checkoutDetails: checkoutDetails})<br/>}</pre>
+<p>This will allow the user to update the name and email of the customer that this order is associated with. Next, we will look at the implementation for collecting the delivery address details for this order.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Delivery address</h1>
+                </header>
+            
+            <article>
+                
+<p>To collect the delivery address from the user, we will add fields to collect address details such as the street address, city, state, zip code, and country name to the checkout form. We will use the following code to add the text fields to allow a user to enter these address details.</p>
+<p><kbd><span>mern-marketplace/client/cart/Checkout.js</span></kbd>:</p>
+<pre>&lt;TextField id="street" label="Street Address" value=          {values.checkoutDetails.delivery_address.street} onChange={handleAddressChange('street')}/&gt;<br/>&lt;TextField id="city" label="City" value={values.checkoutDetails.delivery_address.city} onChange={handleAddressChange('city')}/&gt;<br/>&lt;TextField id="state" label="State" value={values.checkoutDetails.delivery_address.state} onChange={handleAddressChange('state')}/&gt;<br/>&lt;TextField id="zipcode" label="Zip Code" value={values.checkoutDetails.delivery_address.zipcode} onChange={handleAddressChange('zipcode')}/&gt;<br/>&lt;TextField id="country" label="Country" value={values.checkoutDetails.delivery_address.country} onChange={handleAddressChange('country')}/&gt; </pre>
+<p>When the user updates these address fields, the <kbd>handleAddressChange</kbd> method will update the relevant details in the state, as follows.</p>
+<p><kbd><span>mern-marketplace/client/cart/Checkout.js</span></kbd>:</p>
+<pre>const handleAddressChange = name =&gt; event =&gt; {<br/>    let checkoutDetails = values.checkoutDetails<br/>    checkoutDetails.delivery_address[name] = <br/>          event.target.value || undefined<br/>    setValues({...values, checkoutDetails: checkoutDetails})<br/>}</pre>
+<p>With these text fields and handle change functions in place, the <kbd>checkoutDetails</kbd> object in the state will contain the customer information and delivery address that was entered by the user. In the next section, we will collect payment information from the buyer and use it with the other checkout details to complete the checkout process and <span>place the order</span>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Placing an order</h1>
+                </header>
+            
+            <article>
+                
+<p>The remaining steps of the checkout process will involve collecting the user's credit card details securely, thus allowing the user to place the order, emptying the cart from storage, and redirecting the user to a view with the order details. We will implement these steps by building a <kbd>PlaceOrder</kbd> component that consists<span> of the remaining elements in the checkout view, which are the credit card field and the place order button. In the following sections, as we develop this component, we will use Stripe Card Elements to collect credit card details, add a place order button for the user to complete the checkout process, utilize a cart helper method to empty the cart, and redirect the user to an order view.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using Stripe Card Elements</h1>
+                </header>
+            
+            <article>
+                
+<p>In order to use Stripe's <kbd>CardElement</kbd> component from <kbd>react-stripe-elements</kbd> to add the credit card field <span>to the <kbd>PlaceOrder</kbd> component</span>, we need to wrap the <kbd>PlaceOrder</kbd> component using the <kbd>injectStripe</kbd> <strong>higher-order component</strong><span> (</span><strong>HOC</strong><span>) from Stripe.</span></p>
+<p>This is because the <kbd>CardElement</kbd> component needs to be part of a payment form component that is built with <kbd>injectStripe</kbd> and also wrapped with the <kbd>Elements</kbd> component. So, when we create a component called <kbd>PlaceOrder</kbd>, we will wrap it with <kbd>injectStripe</kbd> before exporting it, as shown in the following code. </p>
+<p><kbd>mern-marketplace/client/cart/PlaceOrder.js</kbd>:</p>
+<pre><span>const PlaceOrder = (props) =&gt; { … } <br/>PlaceOrder.propTypes = {<br/>  checkoutDetails: PropTypes.object.isRequired<br/>}<br/></span>export default injectStripe(PlaceOrder)</pre>
+<p>Then, we will add this <kbd>PlaceOrder</kbd> component in the Checkout form, pass it the <kbd>checkoutDetails</kbd> object as a prop, and wrap it with the <kbd>Elements</kbd> component from <kbd>react-stripe-elements</kbd>, as shown here.</p>
+<p><kbd><span>mern-marketplace/client/cart/Checkout.js</span></kbd>:</p>
+<pre>&lt;Elements&gt; &lt;PlaceOrder checkoutDetails={values.checkoutDetails} /&gt; &lt;/Elements&gt;</pre>
+<p>The <kbd>injectStripe</kbd> HOC provides the <kbd>props.stripe</kbd> property that manages the <kbd>Elements</kbd> group. This will allow us to call <kbd>props.stripe.createToken</kbd> within <kbd>PlaceOrder</kbd> to submit card details to Stripe and get back the card token. Next, we will learn how to use the Stripe <kbd>CardElement</kbd> component to collect credit card details from within the <kbd>PlaceOrder</kbd> component.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The CardElement component</h1>
+                </header>
+            
+            <article>
+                
+<p>Stripe's <kbd>CardElement</kbd> is self-contained, so we can just add it to the <kbd>PlaceOrder</kbd> component, then incorporate styles as desired, and the card detail input will be taken care of. We will add the <kbd>CardElement</kbd> component to <kbd>PlaceOrder</kbd> as follows.</p>
+<p><kbd>mern-marketplace/client/cart/PlaceOrder.js</kbd>:</p>
+<pre>&lt;CardElement className={classes.StripeElement}<br/>      {...{style: {<br/>      base: {<br/>        color: '#424770',<br/>        letterSpacing: '0.025em',<br/>        '::placeholder': {<br/>          color: '#aab7c4',<br/>        },<br/>      },<br/>      invalid: {<br/>        color: '#9e2146',<br/>      },<br/>    }}}/&gt;</pre>
+<p>This will render the credit card details field in the checkout form view. In the next section, we will learn how to securely validate and store the credit card details that are entered in this field when the user clicks on a button to place an order and complete the checkout process.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Adding a button to place an order</h1>
+                </header>
+            
+            <article>
+                
+<p>The final element in the checkout view is the <span class="packt_screen">Place Order</span> button, which will complete the checkout process if all the details are entered correctly. We will add this button to the <kbd>PlaceOrder</kbd> component after <kbd>CardElement</kbd>, as shown in the following code.</p>
+<p><kbd>mern-marketplace/client/cart/PlaceOrder.js</kbd>:</p>
+<pre>&lt;Button color="secondary" variant="raised" onClick={placeOrder}&gt;Place Order&lt;/Button&gt;</pre>
+<p>Clicking on the <span class="packt_screen">Place Order</span> button will call the <kbd>placeOrder</kbd> method, which will attempt to tokenize the card details using <kbd>stripe.createToken</kbd>. If this is unsuccessful, the user will be informed of the error, but if this is successful, then the checkout details and generated card token will be sent to our server's create order API (covered in the next section). The <kbd>placeOrder</kbd> method is defined as follows.</p>
+<p><kbd><span>mern-marketplace/client/cart/PlaceOrder.js</span></kbd>:</p>
+<pre>const placeOrder = ()=&gt;{<br/>    props.stripe.createToken().then(payload =&gt; {<br/>      if(payload.error){<br/>        setValues({...values, error: payload.error.message})<br/>      }else{<br/>        const jwt = auth.isAuthenticated()<br/>        create({userId:jwt.user._id}, {<br/>          t: jwt.token<br/>        }, props.checkoutDetails, payload.token.id).then((data) =&gt; {<br/>          if (data.error) {<br/>            setValues({...values, error: data.error})<br/>          } else {<br/>            cart.emptyCart(()=&gt; {<br/>              setValues({...values, 'orderId':data._id,'redirect': true})<br/>            })<br/>          }<br/>        })<br/>      }<br/>  })<br/>}</pre>
+<p>The <kbd>create</kbd> fetch method that we invoked here to make a POST request to the create order API in the backend is defined in <kbd>client/order/api-order.js</kbd>. It takes the checkout details, the card token, and user credentials as parameters and sends them to the API, as seen in previous API implementations. When the new order is successfully created, we will also empty the cart in <kbd>localStorage</kbd>, as discussed in the next section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Empty cart</h1>
+                </header>
+            
+            <article>
+                
+<p>If the request to the create order API is successful, we will empty the cart in <kbd>localStorage</kbd> so that the user can add new items to the cart and place a new order if desired. To empty the cart in browser storage, we will use the <kbd>emptyCart</kbd> helper method in <kbd>cart-helper.js</kbd>, which is defined as follows.</p>
+<p><kbd>mern-marketplace/client/cart/cart-helper.js</kbd>:</p>
+<pre>emptyCart(cb) {<br/>  if(typeof window !== "undefined"){<br/>     localStorage.removeItem('cart')<br/>     cb()<br/>  }<br/>}</pre>
+<p>The <kbd>emptyCart</kbd> method removes the cart object from <kbd>localStorage</kbd> and updates the state of the view by executing the callback passed to it from the <kbd>placeOrder</kbd> method, where it is invoked. With the checkout process completed, we can now redirect the user out of the cart and checkout view, as discussed in the next section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Redirecting to the order view</h1>
+                </header>
+            
+            <article>
+                
+<p>With the order placed and the cart emptied, we can redirect the user to the order view, which will show them the details of the order that was just placed. To implement this redirect, we can use the Redirect component from React Router, as shown in the following code.</p>
+<p><kbd><span>mern-marketplace/client/cart/PlaceOrder.js</span></kbd>:</p>
+<pre>if (values.redirect) {<br/>      return (&lt;Redirect to={'/order/' + values.orderId}/&gt;)<br/>}</pre>
+<p>This redirection also works as an indication to the user that the checkout process has been completed. A completed checkout process will also result in a new order being created in the application's backend. In the next section, we will look into the implementation of creating and storing these new orders in the database.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Creating a new order</h1>
+                </header>
+            
+            <article>
+                
+<p>When a user places an order, the details of the order that were confirmed at checkout will be used to create a new order record in the database, update or create a Stripe Customer for the user, and decrease the stock quantities of products ordered. In the following sections, we will add an order model to define the details of the orders to be stored in the database and discuss the implementation of the backend API that will be called from the frontend to create the new order record.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Defining an Order model</h1>
+                </header>
+            
+            <article>
+                
+<p>To store the orders in the backend, we will define a Schema for the order model that will record order details including the customer details, payment information, <span>and an array of the products ordered. The structure of eac</span><span>h product in this array of products ordered will be defined in a separate subschema called</span><span> </span><kbd>CartItemSchema</kbd><span>.</span> In the following sections, we will define these schemas so that we can store orders and cart items in the database.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The Order schema</h1>
+                </header>
+            
+            <article>
+                
+<p><span>The Order schema defined in</span><span> </span><kbd>server/models/course.model.js</kbd><span> </span><span>will contain fields for storing the customer's name and email, along with their user account reference, delivery address information, payment reference, created and updated-at timestamps, and an array of products ordered. The pieces of code for defining the order fields are as follows:</span></p>
+<ul>
+<li><strong>Customer name and email</strong>: To record the details of the customer who the order is meant for, we will add the <kbd>customer_name</kbd> <span>and</span> <kbd>customer_email</kbd> <span>fields to the</span> <kbd>Order</kbd> <span>schema:</span></li>
+</ul>
+<pre style="padding-left: 60px">customer_name: { <span>type: String, </span><span> trim: true, </span><span>required: 'Name is required' </span><span>},<br/>customer_email: { type: String, trim: true,<br/>    match: [/.+\@.+\..+/, 'Please fill a valid email address'],<br/>    required: 'Email is required' }</span></pre>
+<ul>
+<li><span><strong>User who placed the order</strong>: </span>To reference the signed-in user who placed the order, we will add an <kbd>ordered_by</kbd> field:</li>
+</ul>
+<pre style="padding-left: 60px">ordered_by: {type: mongoose.Schema.ObjectId, ref: 'User'}</pre>
+<ul>
+<li><strong>Delivery address</strong>: The delivery address information for the order will be stored in the delivery address subdocument with the <kbd>street</kbd><span>,</span> <kbd>city</kbd><span>,</span> <kbd>state</kbd><span>,</span> <kbd>zipcode</kbd><span>, and</span> <kbd>country</kbd> <span>fields:</span></li>
+</ul>
+<pre style="padding-left: 60px">delivery_address: {<br/>    street: {type: String, required: 'Street is required'},<br/>    city: {type: String, required: 'City is required'},<br/>    state: {type: String},<br/>    zipcode: {type: String, required: 'Zip Code is required'},<br/>    country: {type: String, required: 'Country is required'}<br/>  },</pre>
+<ul>
+<li><strong>Payment reference</strong>: The payment information will be relevant when the order is updated and a charge needs to be created after an ordered product has been processed by the seller. We will record the Stripe Customer ID that's relevant to the credit card details in a <kbd>payment_id</kbd> <span>field as a reference to the payment information for this order:</span></li>
+</ul>
+<pre style="padding-left: 60px">payment_id: {},</pre>
+<ul>
+<li><strong>Products ordered</strong>: The main content of the order will be the list of products ordered, along with details such as the quantity of each. We will record this list in a field called <kbd>products</kbd> <span>in the</span> <kbd>Order</kbd> <span>schema. The structure of each product will be defined separately in </span><kbd>CartItemSchema</kbd><span>.</span></li>
+</ul>
+<p style="padding-left: 60px"><kbd><span>mern-marketplace/server/models/order.model.js</span></kbd>:</p>
+<pre style="padding-left: 60px">products: [CartItemSchema],</pre>
+<p><span>The fields in this schema definition will enable us to store the necessary details for each order. <kbd>CartItemSchema</kbd>, which is used to record the details of each product that was ordered, will be discussed in the next section.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The CartItem schema</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>CartItem</kbd> schema will represent each product that was ordered when an order was placed. It will contain a reference to the product, the quantity of the product that was ordered by the user, a reference to the shop the product belongs to, and its status, as shown in the following code.</p>
+<p><kbd><span>mern-marketplace/server/models/order.model.js</span></kbd>:</p>
+<pre>const CartItemSchema = new mongoose.Schema({<br/>  product: {type: mongoose.Schema.ObjectId, ref: 'Product'},<br/>  quantity: Number,<br/>  shop: {type: mongoose.Schema.ObjectId, ref: 'Shop'},<br/>  status: {type: String,<br/>    default: 'Not processed',<br/>    enum: ['Not processed' , 'Processing', 'Shipped', 'Delivered', <br/>   'Cancelled']}<br/>}) <br/>const CartItem = mongoose.model('CartItem', CartItemSchema)</pre>
+<p>The <kbd>status</kbd> of the product can only have the values defined in the <kbd>enums</kbd>, with the default value set to "Not Processed". This represents the current state of the product order, as updated by the seller.</p>
+<p>The <kbd>Order</kbd> schema and <kbd>CartItem</kbd> schema defined here will allow us to record details about the customer and products that were ordered as required to complete the purchase steps for the products that were bought by a user. Next, we will discuss the backend API implementation that allows the frontend to create an order document in the Orders collection in the database.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Create order API</h1>
+                </header>
+            
+            <article>
+                
+<p>The create order API in the backend will take a POST request from the frontend to create the order in the database. The API route will be declared in <kbd>server/routes/order.routes.js</kbd>, along with the other order routes. These order routes will be very similar to the user routes. To load the order routes in the Express app, we need to mount the routes in <kbd>express.js</kbd>, just like we did for the auth and user routes.</p>
+<p><kbd>mern-marketplace/server/express.js</kbd>:</p>
+<pre>app.use('/', orderRoutes)</pre>
+<p>A number of actions, in the following sequence, take place when the create order API receives a POST request at <kbd>/api/orders/:userId</kbd>:</p>
+<ul>
+<li style="font-weight: 400">It is ensured that the current user is signed in.</li>
+<li style="font-weight: 400">A Stripe <kbd>Customer</kbd> is either created or updated using the <kbd>stripeCustomer</kbd> user controller method, which we discussed earlier in the <em>Stripe Customer to record card details</em> section.</li>
+<li style="font-weight: 400">The stock quantities are updated for all the ordered products using the <kbd>decreaseQuanity</kbd> product controller method.</li>
+<li style="font-weight: 400">The order is created in the Order collection with the <kbd>create</kbd> order controller method.</li>
+</ul>
+<p>The route for this create order API is defined as follows.</p>
+<p><kbd>mern-marketplace/server/routes/order.routes.js</kbd>:</p>
+<pre>router.route('/api/orders/:userId') <br/>    .post(authCtrl.requireSignin, userCtrl.stripeCustomer, <br/>          productCtrl.decreaseQuantity, orderCtrl.create)</pre>
+<p>To retrieve the user associated with the <kbd>:userId</kbd> parameter in the route, we will use the <kbd>userByID</kbd> user controller method. We will write the code to handle this parameter in the route URL, along with the other order route declaration.</p>
+<p><kbd><span>mern-marketplace/server/routes/order.routes.js</span></kbd>:</p>
+<pre>router.param('userId', userCtrl.userByID)</pre>
+<p><span>The <kbd>userByID</kbd> method gets the user from the User collection and attaches it to the request object so that it can be accessed by the next few methods. Among the next few methods that are invoked when this API receives a request includes the product controller method to decrease stock quantities and the order controller method to save a new order to the database. We will discuss the implementation of these two methods in the following sections. </span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Decrease product stock quantity</h1>
+                </header>
+            
+            <article>
+                
+<p>When an order is placed, we will decrease the stock quantity of each product ordered according to the quantity ordered by the user. This will automatically reflect the updated quantities of the products in the associated shops after an order is placed. We will implement this decrease product quantity update in the <kbd>decreaseQuantity</kbd><span> controller method, which will be added with the other product controller methods, as follows.</span> </p>
+<p><kbd>mern-marketplace/server/controllers/product.controller.js</kbd>:</p>
+<pre>const decreaseQuantity = async (req, res, next) =&gt; {<br/>  let bulkOps = req.body.order.products.map((item) =&gt; {<br/>    return {<br/>        "updateOne": {<br/>            "filter": { "_id": item.product._id } ,<br/>            "update": { "$inc": {"quantity": -item.quantity} }<br/>        }<br/>    }<br/>   })<br/>   try {<br/>     await Product.bulkWrite(bulkOps, {})<br/>     next()<br/>   } catch (err){<br/>      return res.status(400).json({<br/>        error: "Could not update product"<br/>      })<br/>   }<br/>}</pre>
+<p>Since the update operation, in this case, involves a bulk update of multiple products in the collection after matching with an array of products ordered, we use the <kbd>bulkWrite</kbd> method in MongoDB to send multiple <kbd>updateOne</kbd> operations <span>to the MongoDB server with one command. The </span>multiple <kbd>updateOne</kbd> operations that are required are listed in <kbd>bulkOps</kbd> using the <kbd>map</kbd> function. This will be faster than sending multiple independent save or update operations because with <kbd>bulkWrite()</kbd>, there is only one round trip to MongoDB.</p>
+<p>Once the product quantities have been updated by this method, the next method is invoked to save the new order in the database. In the next section, we will see the implementation of this method, which creates this new order.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Create controller method</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>create</kbd> controller method, defined in the order controllers, is the last method that's invoked when the create order API receives a request. This method takes the order details, creates a new order, and saves it to the Order collection in MongoDB. <span>The </span><kbd>create</kbd><span> controller method is implemented as follows.</span></p>
+<p><kbd>mern-marketplace/server/controllers/order.controller.js</kbd>:</p>
+<pre>const create = async (req, res) =&gt; {<br/>  try {<br/>    req.body.order.user = req.profile<br/>    let order = new Order(req.body.order)<br/>    let result = await order.save()<br/>    res.status(200).json(result)<br/>  } catch (err){<br/>    return res.status(400).json({<br/>      error: errorHandler.getErrorMessage(err)<br/>    })<br/>  }<br/>}</pre>
+<p>With this implemented, orders can be created and stored in the backend by any signed-in user on the MERN Marketplace. Now, we can set up APIs to fetch lists of orders by user, orders by shop, or read an individual order and display the fetched data to views in the frontend. In the next section, we will learn how to list the orders per shop so that shop owners can process and manage the orders they receive for their products.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Listing orders by shop</h1>
+                </header>
+            
+            <article>
+                
+<p>An important feature of the marketplace is allowing sellers to see and update the status of orders they've received for products in their shops. To implement this, we will set up backend APIs to list orders by shop and update an order as a seller changes the status of a purchased product. Then, we will add some frontend views that will display the orders and allow the seller to interact with each order.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The list by shop API</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we will implement an API to get orders for a specific shop so that authenticated sellers can view the orders for each of their shops in one place. The request for this API will be received at <kbd>/api/orders/shop/:shopId</kbd>, with the route defined in <kbd>order.routes.js</kbd>, as follows.</p>
+<p><kbd><span>mern-marketplace/server/routes/order.routes.js</span></kbd>:</p>
+<pre>router.route('/api/orders/shop/:shopId') <br/>    .get(authCtrl.requireSignin, shopCtrl.isOwner, orderCtrl.listByShop)<br/>router.param('shopId', shopCtrl.shopByID)</pre>
+<p>To retrieve the shop associated with the <kbd>:shopId</kbd> parameter in the route, we will use the <kbd>shopByID</kbd> shop controller method, which gets the shop from the Shop collection and attaches it to the request object so that it can be accessed by the next methods. </p>
+<p>The <kbd>listByShop</kbd> controller method will retrieve the orders that have products purchased with the matching shop ID, then populate the ID, name, and price fields for each product, with orders sorted by date from most recent to oldest. <span>The </span><kbd>listByShop</kbd><span> controller method is defined as follows.</span></p>
+<p><kbd><span>mern-marketplace/server/controllers/order.controller.js</span></kbd>:</p>
+<pre>const listByShop = async (req, res) =&gt; {<br/>  try {<br/>    let orders = await Order.find({"products.shop": req.shop._id})<br/>      .populate({path: 'products.product', select: '_id name price'})<br/>      .sort('-created')<br/>      .exec()<br/>    res.json(orders)<br/>  } catch (err){<br/>    return res.status(400).json({<br/>      error: errorHandler.getErrorMessage(err)<br/>    })<br/>  }<br/>}</pre>
+<p>To fetch this API in the frontend, we will add a corresponding <kbd>listByShop</kbd> method in <kbd>api-order.js</kbd>, similar to our other API implementations. This fetch method will be used in the <kbd>ShopOrders</kbd> component to show the orders for each shop. We will look at the implementation of the <kbd>ShopOrders</kbd> component in the next section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The ShopOrders component</h1>
+                </header>
+            
+            <article>
+                
+<p><span>The </span><kbd>ShopOrders</kbd><span> component will be the view where s</span>ellers will be able to see the list of orders that have been received for a given shop. In this view, each order will only show the purchased products that are relevant to the shop and allow the seller to change the status of the ordered product with a dropdown of possible status values, as shown in the following screenshot:</p>
+<div class="mce-root CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-863 image-border" src="assets/c4ba0b05-968e-43a5-9d43-cc9184572afb.png" style="width:28.83em;height:23.33em;"/></div>
+<p>To render this view at a frontend route, we will update <kbd>MainRouter</kbd> with a <kbd>PrivateRoute</kbd> in order to load the <span><kbd>ShopOrders</kbd> component </span>at the <kbd>/seller/orders/:shop/:shopId</kbd> route, as shown in the following code.</p>
+<p><kbd>mern-marketplace/client/MainRouter.js</kbd>:</p>
+<pre>&lt;PrivateRoute path="/seller/orders/:shop/:shopId" component={ShopOrders}/&gt;</pre>
+<p class="mce-root">Going to this link will load the <kbd>ShopOrders</kbd> component in the view. In the <kbd>ShopOrders</kbd> component, we will fetch and list the orders for the given shop, and for each order, we'll render the order details along with the list of products that were ordered in a React component named <kbd>ProductOrderEdit</kbd>. In the following sections, we will learn how to load the list of orders and discuss the implementation of the <kbd>ProductOrderEdit</kbd> component. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">List orders</h1>
+                </header>
+            
+            <article>
+                
+<p>When the <kbd>ShopOrders</kbd> component mounts in the view, we will retrieve the list of orders for the provided shop ID from the database and set it to the state to be rendered in the view. We will make a request to the backend API to list orders by shop using the <kbd>listByShop</kbd> fetch method and set the retrieved orders to the state in a <kbd>useEffect</kbd> hook, as shown in the following code.</p>
+<p><kbd>mern-marketplace/client/order/ShopOrders.js</kbd>:</p>
+<pre>useEffect(() =&gt; {<br/>  const jwt = auth.isAuthenticated()<br/>  const abortController = new AbortController()<br/>  const signal = abortController.signal<br/>  listByShop({<br/>    shopId: match.params.shopId<br/>  }, {t: jwt.token}, signal).then((data) =&gt; {<br/>     if (data.error) {<br/>       console.log(data)<br/>     } else {<br/>       setOrders(data)<br/>     }<br/>  })<br/>    return function cleanup(){<br/>       abortController.abort()<br/>    }<br/>}, [])</pre>
+<p>In the view, we will iterate through the list of orders and render each order in a collapsible list from <kbd>Material-UI</kbd>, which will expand when it's clicked. The code for this view will be added as follows.</p>
+<p><kbd>mern-marketplace/client/order/ShopOrders.js</kbd>:</p>
+<pre>&lt;Typography type="title"&gt; Orders in {match.params.shop} &lt;/Typography&gt;<br/>&lt;List dense&gt; {orders.map((order, index) =&gt; { return <br/>    &lt;span key={index}&gt;<br/>        &lt;ListItem button onClick={handleClick(index)}&gt;<br/>           &lt;ListItemText primary={'Order # '+order._id} <br/>                 secondary={(new Date(order.created)).toDateString()}/&gt;<br/>           {open == index ? &lt;ExpandLess /&gt; : &lt;ExpandMore /&gt;}<br/>        &lt;/ListItem&gt;<br/>        &lt;Collapse component="li" in={open == index} <br/>       timeout="auto" unmountOnExit&gt;<br/>           <strong>&lt;ProductOrderEdit shopId={match.params.shopId} <br/>           order={order} </strong><strong>orderIndex={index} <br/>           updateOrders={updateOrders}/&gt;</strong><br/>           &lt;Typography type="subheading"&gt; Deliver to:&lt;/Typography&gt;<br/>           &lt;Typography type="subheading" color="primary"&gt;<br/>               {order.customer_name} ({order.customer_email})<br/>          &lt;/Typography&gt;<br/>           &lt;Typography type="subheading" color="primary"&gt;<br/>               {order.delivery_address.street}&lt;/Typography&gt;<br/>           &lt;Typography type="subheading" color="primary"&gt;<br/>               {order.delivery_address.city}, <br/>           {order.delivery_address.state}<br/>               {order.delivery_address.zipcode}&lt;/Typography&gt;<br/>           &lt;Typography type="subheading" color="primary"&gt;<br/>               {order.delivery_address.country}&lt;/Typography&gt;<br/>        &lt;/Collapse&gt;<br/>    &lt;/span&gt;})}<br/>&lt;/List&gt;</pre>
+<p>Each expanded order will show the order details and the <kbd>ProductOrderEdit</kbd> component. The <kbd>ProductOrderEdit</kbd> component will display the purchased products and allow the seller to edit the status of each product. The <kbd>updateOrders</kbd> method is passed as a prop to the <kbd>ProductOrderEdit</kbd> component so that the status can be updated when a product status is changed. <span>The </span><kbd>updateOrders</kbd><span> method is defined as follows.</span></p>
+<p><kbd>mern-marketplace/client/order/ShopOrders.js</kbd>:</p>
+<pre>  const updateOrders = (index, updatedOrder) =&gt; {<br/>    let updatedOrders = orders<br/>    updatedOrders[index] = updatedOrder<br/>    setOrders([...updatedOrders])<br/>  }</pre>
+<p>In the <kbd>ProductOrderEdit</kbd> component, we will invoke this <kbd>updateOrders</kbd> method when the seller interacts with the <span>status update dropdown for any</span> product that will be rendered in the <kbd>ProductOrderEdit</kbd> component. In the next section, we will look into the implementation of this <kbd>ProductOrderEdit</kbd> component.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The ProductOrderEdit component</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we will implement a <kbd>ProductOrderEdit</kbd><span> component to render all the products in the order with an edit status option. </span>This <kbd>ProductOrderEdit</kbd> component will take an order object as a prop and iterate through the order's <kbd>products</kbd> array to display only the products that have been purchased from the current shop, along with a dropdown to change the status value of each product. The code for this view, which renders the products for each order, will be added as follows.</p>
+<p><kbd>mern-marketplace/client/order/ProductOrderEdit.js</kbd>:</p>
+<pre>{props.order.products.map((item, index) =&gt; { return &lt;span key={index}&gt; <br/>     { item.shop == props.shopId &amp;&amp; <br/>          &lt;ListItem button&gt;<br/>              &lt;ListItemText primary={ &lt;div&gt;<br/>                     &lt;img src=<br/>                    {'/api/product/image/'+item.product._id}/&gt; <br/>                     {item.product.name}<br/>                     &lt;p&gt;{"Quantity: "+item.quantity}&lt;/p&gt;<br/>              &lt;/div&gt;}/&gt;<br/>              &lt;TextField id="select-status" select<br/>                   label="Update Status" value={item.status}<br/>                   onChange={handleStatusChange(index)}<br/>                   SelectProps={{<br/>                       MenuProps: { className: classes.menu },<br/>                   }}&gt;<br/>                      {statusValues.map(option =&gt; (<br/>                          &lt;MenuItem key={option} value={option}&gt;<br/>                            {option}<br/>                          &lt;/MenuItem&gt;<br/>                      ))}<br/>              &lt;/TextField&gt;<br/>          &lt;/ListItem&gt;}</pre>
+<p>To be able to list the valid status values in the dropdown option for updating an ordered product's status, we will retrieve the list of possible status values from the server in a <kbd>useEffect</kbd> hook in the <kbd>ProductOrderEdit</kbd> component, as shown in the following code.</p>
+<p><kbd>mern-marketplace/client/order/ProductOrderEdit.js</kbd>:</p>
+<pre>  useEffect(() =&gt; {<br/>    const abortController = new AbortController()<br/>    const signal = abortController.signal<br/>    getStatusValues(signal).then((data) =&gt; {<br/>      if (data.error) {<br/>        setValues({...values, error: "Could not get status"})<br/>      } else {<br/>        setValues({...values, statusValues: data, error: ''})<br/>      }<br/>    })<br/>    return function cleanup(){<br/>      abortController.abort()<br/>    }<br/>  }, [])</pre>
+<p>The status values that are <span>retrieved </span>from the server are<span> set to state and</span><span> rendered in the dropdown as a </span><kbd>MenuItem</kbd><span>. </span>When an option is selected from the possible status values in the dropdown, the <kbd>handleStatusChange</kbd> method is called to update the orders in the state, as well as to send a request to the appropriate backend API based on the value that's selected. The <kbd>handleStatusChange</kbd><span> method will be structured as follows, with a different backend API invoked, depending on the selected status value.</span></p>
+<p><kbd><span>mern-marketplace/client/order/ProductOrderEdit.js</span></kbd>:</p>
+<pre>const handleStatusChange = productIndex =&gt; event =&gt; {<br/>    let order = props.order<br/>    order.products[productIndex].status = event.target.value<br/>    let product = order.products[productIndex]<br/><br/>    if (event.target.value == "Cancelled") {<br/>      // 1. ... call the cancel product API ..<br/>    } else if (event.target.value == "Processing") {<br/>      // 2. ... call the process charge API ...<br/>    } else {<br/>      // 3. ... call the order update API ...<br/>  }</pre>
+<p>Updating the status of an ordered product will have different implications, depending on the value that's selected from the dropdown. Selecting to cancel or process a product order will invoke separate APIs in the backend rather than the API called when selecting any of the other status values. In the following sections, we will learn how each of these actions is handled in the <kbd>handleStatusChange</kbd><span> method </span>when a user interacts with the dropdown and selects a status value.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Handling actions to cancel a product order</h1>
+                </header>
+            
+            <article>
+                
+<p>If the seller wishes to cancel the order for a product and selects <span class="packt_screen">Cancelled</span> from the status values dropdown for a specific product in the order, we will call the <kbd>cancelProduct</kbd> fetch method inside t<span>he </span><kbd>handleStatusChange</kbd><span> method, </span>as shown in the following code.</p>
+<p><kbd><span>mern-marketplace/client/order/ProductOrderEdit.js</span></kbd><span>:</span></p>
+<pre>cancelProduct({<br/>          shopId: props.shopId,<br/>          productId: product.product._id<br/>        }, {<br/>          t: jwt.token<br/>        }, {<br/>          cartItemId: product._id,<br/>          status: event.target.value,<br/>          quantity: product.quantity<br/>        })<br/>        .then((data) =&gt; {<br/>          if (data.error) {<br/>            setValues({<br/>              ...values,<br/>              error: "Status not updated, try again"<br/>            })<br/>          } else {<br/>            props.updateOrders(props.orderIndex, order)<br/>            setValues({<br/>              ...values,<br/>              error: ''<br/>            })<br/>          }<br/>        })</pre>
+<p><span>The <kbd>cancelProduct</kbd> fetch method will take the corresponding shop ID, product ID, cartItem ID, selected status value, ordered quantity for the product, and user credentials to send, along with the request to the cancel product API in the backend. On a successful response from the backend, we will update the orders in the view.</span></p>
+<p><span>This cancel product API will update the database for the order and the product affected by this action. Before getting into the implementation for this cancel product order API, next, we will look at how the process charge API is invoked if the seller chooses to process a product order instead of canceling it.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Handling the action to process charge for a product</h1>
+                </header>
+            
+            <article>
+                
+<p>If a seller chooses to process the order for a product, we will need to invoke an API that will charge the customer for the total cost of the product ordered. So, when a seller selects <span class="packt_screen">Processing</span> from the status values dropdown for a specific product in the order, we will call the <kbd>processCharge</kbd> fetch method inside the <kbd>handleStatusChange</kbd> method, as shown in the following code.</p>
+<p><kbd><span>mern-marketplace/client/order/ProductOrderEdit.js</span></kbd><span>:</span></p>
+<pre>processCharge({<br/>          userId: jwt.user._id,<br/>          shopId: props.shopId,<br/>          orderId: order._id<br/>        }, {<br/>          t: jwt.token<br/>        }, {<br/>          cartItemId: product._id,<br/>          status: event.target.value,<br/>          amount: (product.quantity * product.product.price)<br/>        })<br/>        .then((data) =&gt; {<br/>          if (data.error) {<br/>            setValues({<br/>              ...values,<br/>              error: "Status not updated, try again"<br/>            })<br/>          } else {<br/>            props.updateOrders(props.orderIndex, order)<br/>            setValues({<br/>              ...values,<br/>              error: ''<br/>            })<br/>          }<br/>        })</pre>
+<p><span>T</span><span>he</span><span> </span><kbd>processCharge</kbd><span> fetch method will take the corresponding order ID, shop ID, customer's user ID, cartItem ID, selected status value, total cost for the ordered product, and user credentials to send, along with the request to the process charge API in the backend. On a successful response from the backend, we will update the orders in the view accordingly. </span></p>
+<p><span>This process charge API will update the database for the order and the user affected by this action. Before getting into the implementation for this API, next, we will look at how the update order API is invoked if the seller chooses to update the status of a product that's been ordered to any value other than <span class="packt_screen">Cancelled</span> or <span class="packt_screen">Processing</span>.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Handling the action to update the status of a product</h1>
+                </header>
+            
+            <article>
+                
+<p>If a seller chooses to update the status of an ordered product so that it has a value other than <span class="packt_screen">Cancelled</span> or <span class="packt_screen">Processing</span>, we will need to invoke an API that will update the order in the database with this changed product status. So, when a seller selects other status values from the dropdown for a specific product in the order, we will call the <kbd>update</kbd> fetch method inside the <kbd>handleStatusChange</kbd> method, as shown in the following code.</p>
+<p><kbd><span>mern-marketplace/client/order/ProductOrderEdit.js</span></kbd><span>:</span></p>
+<pre>update({<br/>          shopId: props.shopId<br/>        }, {<br/>          t: jwt.token<br/>        }, {<br/>          cartItemId: product._id,<br/>          status: event.target.value<br/>        })<br/>        .then((data) =&gt; {<br/>          if (data.error) {<br/>            setValues({<br/>              ...values,<br/>              error: "Status not updated, try again"<br/>            })<br/>          } else {<br/>            props.updateOrders(props.orderIndex, order)<br/>            setValues({<br/>              ...values,<br/>              error: ''<br/>            })<br/>          }<br/>      })</pre>
+<p><span>T</span><span>he</span><span> </span><kbd>update</kbd><span> fetch method will take the corresponding shop ID, cartItem ID, selected status value, and user credentials to send, along with the request to the update order API in the backend. On a successful response from the backend, we will update the orders in the view.</span></p>
+<p>The <kbd>cancelProduct</kbd>, <kbd>processCharge</kbd>, and <kbd>update</kbd> fetch methods are defined in <kbd>api-order.js</kbd> so that they can call the corresponding APIs in the backend to update a canceled product's stock quantity, to create a charge on the customer's credit card when the order for a product is processing, and to update the order with the product status change, respectively. We will look at the implementation of these APIs in the following section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">APIs for products ordered</h1>
+                </header>
+            
+            <article>
+                
+<p>Allowing sellers to update the status of a product will require having to set up four different APIs, including an API to retrieve the possible status values. Then, the actual status update actions will need APIs to handle updates to the order itself as the status is changed in order to initiate related actions, such as increasing the stock quantity of a canceled product, and to create a charge on the customer's credit card when a product is being processed. In the following sections, we will look at the API implementations for retrieving possible status values, updating an order status, canceling a product order, and processing a charge for an ordered product.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Get status values</h1>
+                </header>
+            
+            <article>
+                
+<p>The possible status values of an ordered product are set as enums in the <kbd>CartItem</kbd> schema. To show these values as options in the dropdown view, we will set up a GET API route at <kbd>/api/order/status_values</kbd> that retrieves these values. This API route will be declared as follows.</p>
+<p><kbd><span>mern-marketplace/server/routes/order.routes.js</span></kbd>:</p>
+<pre>router.route('/api/order/status_values')<br/>    .get(orderCtrl.getStatusValues)</pre>
+<p>The <kbd>getStatusValues</kbd> controller method will return the enum values for the <kbd>status</kbd> field from the <kbd>CartItem</kbd> schema. <span>The </span><kbd>getStatusValues</kbd><span> controller method is defined as follows.</span></p>
+<p><kbd><span>mern-marketplace/server/controllers/order.controller.js</span></kbd>:</p>
+<pre>const getStatusValues = (req, res) =&gt; {<br/>  res.json(CartItem.schema.path('status').enumValues)<br/>}</pre>
+<p>We will also need to set up a corresponding <kbd>fetch</kbd> method in <kbd>api-order.js</kbd>, which is used in the view, in the <span><kbd>ProductOrderEdit</kbd></span> component, to make a request to this API, retrieve the status values, and render these as options in the dropdown. In the next section, we will look at the update order API endpoint, which needs to be called when the seller selects a relevant status value from the dropdown.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Update order status</h1>
+                </header>
+            
+            <article>
+                
+<p>When a product's status is changed to any value other than <span class="packt_screen"><strong>Processing</strong></span> or <strong><span class="packt_screen">Cancelled</span></strong>, a PUT request to <kbd>'/api/order/status/:shopId'</kbd> will directly update the order in the database, given that the current user is the verified owner of the shop with the ordered product. We will declare the route for this update API like so.</p>
+<p><kbd><span>mern-marketplace/server/routes/order.routes.js</span></kbd>:</p>
+<pre>router.route('/api/order/status/:shopId')<br/>    .put(authCtrl.requireSignin, shopCtrl.isOwner, orderCtrl.update)</pre>
+<p>The <kbd>update</kbd> controller method will query the Order collection and find the order with the <kbd>CartItem</kbd> object that matches the updated product and set the <kbd>status</kbd> value of this matched <kbd>CartItem</kbd> in the <kbd>products</kbd> array of the order. The<span> </span><kbd>update</kbd><span> controller method is defined as follows.</span></p>
+<p><kbd><span>mern-marketplace/server/controllers/order.controller.js</span></kbd>:</p>
+<pre>const update = async (req, res) =&gt; {<br/>  try {<br/>    let order = await Order.updateOne({'products._id': req.body.cartItemId}, {<br/>        'products.$.status': req.body.status<br/>    })<br/>      res.json(order)<br/>  } catch (err){<br/>    return res.status(400).json({<br/>      error: errorHandler.getErrorMessage(err)<br/>    })<br/>  }<br/>}</pre>
+<p>To access this API from the frontend, we will add an <kbd>update</kbd> fetch method i<span>n </span><kbd>api-order.js</kbd><span> </span>to make a call to this update API with the required parameters passed from the view. The <kbd>update</kbd><span> fetch method will be defined as follows.</span></p>
+<p><kbd><span>mern-marketplace/client/order/api-order.js</span></kbd>:</p>
+<pre>const update = async (params, credentials, product) =&gt; {<br/>  try {<br/>    let response = await fetch('/api/order/status/' + params.shopId, {<br/>      method: 'PUT',<br/>      headers: {<br/>        'Accept': 'application/json',<br/>        'Content-Type': 'application/json',<br/>        'Authorization': 'Bearer ' + credentials.t<br/>      },<br/>      body: JSON.stringify(product)<br/>    })<br/>    return response.json()<br/>  } catch(err){<br/>    console.log(err)<br/>  }<br/>}</pre>
+<p>This <kbd>update</kbd> fetch method is called in the <span><kbd>ProductOrderEdit</kbd> view when the seller selects any value other than <span class="packt_screen">Processing</span> or <span class="packt_screen">Cancelled</span> from the options in the dropdown for an ordered product. In the next section, we will look at the cancel product order API, which is invoked if the seller selects <span class="packt_screen">Cancelled</span> as a value instead.<strong> </strong></span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Cancel product order</h1>
+                </header>
+            
+            <article>
+                
+<p>When a seller decides to cancel the order for a product, a PUT request will be sent to <kbd>/api/order/:shopId/cancel/:productId</kbd> so that the product's stock quantity can be increased and the order can be updated in the database. To implement this cancel product order API, we will declare the API route as follows.</p>
+<p><kbd><span>mern-marketplace/server/routes/order.routes.js</span></kbd>:</p>
+<pre>router.route('/api/order/:shopId/cancel/:productId')<br/>       .put(authCtrl.requireSignin, shopCtrl.isOwner,<br/>            productCtrl.increaseQuantity, orderCtrl.update)<br/>router.param('productId', productCtrl.productByID)</pre>
+<p><span>To retrieve the product associated with the <kbd>productId</kbd> parameter in the route, we will also use the <kbd>productByID</kbd> product controller method. This will retrieve the product and attach it to the request object for the <kbd>next</kbd> methods. </span></p>
+<p>To update the product's stock quantity when this API receives a request, we will use the <kbd>increaseQuantity</kbd> controller method, which is added to <kbd>product.controller.js</kbd>, as follows. </p>
+<p><kbd>mern-marketplace/server/controllers/product.controller.js</kbd>:</p>
+<pre>const increaseQuantity = async (req, res, next) =&gt; {<br/>  try {<br/>    await Product.findByIdAndUpdate(req.product._id, <br/>       {$inc: {"quantity": req.body.quantity}}, {new: true})<br/>    .exec()<br/>      next()<br/>  } catch (err){<br/>    return res.status(400).json({<br/>      error: errorHandler.getErrorMessage(err)<br/>    })<br/>  }<br/>}</pre>
+<p><span>The <kbd>increaseQuantity</kbd> controller method finds the product by the matching ID in the Product collection and increases the quantity value by the quantity that was ordered by the customer. It does this now that the order for this product has been canceled. </span></p>
+<p>From the view, we will use the corresponding fetch method, which is added in <kbd>api-order.js</kbd>, to call this cancel product order API. The <kbd>cancelProduct</kbd> fetch method is defined as follows.</p>
+<p><kbd><span>mern-marketplace/client/order/api-order.js</span></kbd>:</p>
+<pre>const cancelProduct = async (params, credentials, product) =&gt; {<br/>  try {<br/>    let response = await fetch('/api/order/'+params.shopId+'/cancel/'+params.productId, {<br/>      method: 'PUT',<br/>      headers: {<br/>        'Accept': 'application/json',<br/>        'Content-Type': 'application/json',<br/>        'Authorization': 'Bearer ' + credentials.t<br/>      },<br/>      body: JSON.stringify(product)<br/>    })<br/>    return response.json()<br/>  }catch(err){<br/>    console.log(err)<br/>  }<br/>}</pre>
+<p><span>This <kbd>cancelProduct</kbd> fetch method is called in the <kbd>ProductOrderEdit</kbd> view when the seller selects </span><span class="packt_screen">Cancelled</span><span> from the dropdown for an ordered product. In the next section, we will look at the process charge API, which is invoked if the seller selects <span class="packt_screen">Processing</span> as a status value instead.<strong> </strong></span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Process charge for a product</h1>
+                </header>
+            
+            <article>
+                
+<p>When a seller changes the status of an ordered product to <strong><span class="packt_screen">Processing</span></strong>, we will set up a backend API to not only update the order but to also create a charge on the customer's credit card for the price of the product multiplied by the quantity ordered. The route for this API will be declared as follows.</p>
+<p><kbd><span>mern-marketplace/server/routes/order.routes.js</span></kbd>:</p>
+<pre>router.route('/api/order/:orderId/charge/:userId/:shopId')<br/>            .put(authCtrl.requireSignin, shopCtrl.isOwner,     <br/>            userCtrl.createCharge, orderCtrl.update)<br/>router.param('orderId', orderCtrl.orderByID)</pre>
+<p><span>To retrieve the order associated with the <kbd>orderId</kbd> parameter in the route, we will use the <kbd>orderByID</kbd> order controller method, which gets the order from the Order collection and attaches it to the request object so that it can be accessed by the <kbd>next</kbd> methods. This <kbd>orderByID</kbd> method is defined as follows.</span></p>
+<p><kbd>mern-marketplace/server/controllers/order.controller.js:</kbd></p>
+<pre>const orderByID = async (req, res, next, id) =&gt; {<br/>  try {<br/>    let order = await Order.findById(id)<br/>                .populate('products.product', 'name price')<br/>                .populate('products.shop', 'name').exec()<br/>    if (!order)<br/>      return res.status('400').json({<br/>        error: "Order not found"<br/>      })<br/>    req.order = order<br/>    next()<br/>  } catch (err){<br/>    return res.status(400).json({<br/>      error: errorHandler.getErrorMessage(err)<br/>    })<br/>  }<br/>}</pre>
+<p>The process charge API will receive a PUT request at <kbd>/api/order/:orderId/charge/:userId/:shopId</kbd>. After successfully authenticating the user, it will create the charge by calling the <kbd>createCharge</kbd> user controller, as we discussed in the <em>Using Stripe for payments</em> section. Finally, the corresponding order will be updated with the <kbd>update</kbd> controller method, as discussed in the <em>Update order status</em> section.</p>
+<p>From the view, we will use the <kbd>processCharge</kbd> fetch method in <kbd>api-order.js</kbd> and provide the required route parameter values, credentials, and product details, including the amount to charge. T<span>he </span><kbd>processCharge</kbd><span> fetch method is defined as follows.</span></p>
+<p><kbd><span>mern-marketplace/client/order/api-order.js</span></kbd>:</p>
+<pre>const processCharge = async (params, credentials, product) =&gt; {<br/>  try {<br/>    let response = await  fetch('/api/order/'+params.orderId+<br/>        '/charge/'+params.userId+'/'+params.shopId, {<br/>      method: 'PUT',<br/>      headers: {<br/>        'Accept': 'application/json',<br/>        'Content-Type': 'application/json',<br/>        'Authorization': 'Bearer ' + credentials.t<br/>      },<br/>      body: JSON.stringify(product)<br/>    })<br/>    return response.json()<br/>  } catch(err) {<br/>    console.log(err)<br/>  }<br/>}</pre>
+<p><span>This <kbd>processCharge</kbd> fetch method is called in the <kbd>ProductOrderEdit</kbd> view when the seller selects </span><span class="packt_screen">Processing</span><span> from the dropdown for an ordered product. </span></p>
+<p>With these implementations in place, sellers can view orders that have been received for their products in each of their shops and easily update the status of each product ordered while the application takes care of additional tasks, such as <span>updating</span> stock quantity and initiating payment. This covers the basic order management features for the MERN Marketplace application, which can be extended further as required. In the next section, we will discuss how the current implementations can be easily extended to implement other views for displaying order details. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Viewing single-order details</h1>
+                </header>
+            
+            <article>
+                
+<p>With the Order collection and the database access all set up, moving forward, it is easy to add the features of listing orders for each user and showing details of a single order in a separate view where the user can track the status of each <span>ordered </span>product. A view to render the details of a single order to the customer can be designed and implemented to look as follows:</p>
+<div class="mce-root CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-864 image-border" src="assets/3884bce0-19cf-4591-9af9-24ebd2f47884.png" style="width:41.33em;height:29.00em;"/></div>
+<p>Following the steps that have been repeated throughout this book to set up backend APIs to retrieve data and use it in the frontend to construct frontend views, you can develop order-related views as desired. For example, a view to display the orders that have been placed by a single user can be rendered as follows:</p>
+<div class="mce-root CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-865 image-border" src="assets/8bd10d42-8a7e-4d4a-94b2-281cc8e207a8.png" style="width:20.75em;height:16.75em;"/></div>
+<p><span>You can apply the lessons you learned while building out the full-stack features of the MERN Marketplace application to implement these order detail views, taking inspiration from the snapshots of these sample views from the MERN Marketplace application.</span></p>
+<p>The MERN Marketplace application that we developed in this chapter and <a href="03fd3b4a-b7fd-4b42-ad7e-5bc34b5612b0.xhtml" target="_blank">Chapter 7</a>, <em>Exercising MERN Skills with an Online Marketplace</em>, by building on the MERN skeleton application covered the crucial features for a standard online marketplace application. This, in turn, demonstrated how the MERN stack can be extended to incorporate complex features.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, we extended the MERN Marketplace application and explored how to add a shopping cart for buyers, a checkout process with credit card payments, and order management for the sellers in an online marketplace application.</p>
+<p>We discovered how the MERN stack technologies can work well with third-party integrations as we implemented the cart checkout flow and processed credit card charges on ordered products using the <span>tools provided by Stripe for managing online payments. </span></p>
+<p>We also unlocked more of what is possible with MERN, such as optimized bulk write operations in MongoDB for updating multiple documents in response to a single API call. This allowed us to decrease the stock quantities of multiple products in one go, such as when a user placed an order for multiple products from different stores.</p>
+<p>With these new approaches and implementations that we explored, you can easily integrate payment processing, use offline storage in browsers, and perform bulk <span>database </span>operations for any MERN-based application you choose to build. </p>
+<p>The marketplace features that you developed in the MERN Marketplace application revealed how this stack and structure can be utilized to design and build growing applications by adding features that may be simple or more complex in nature.</p>
+<p>In the next chapter, we will take the lessons we've learned so far in this book and explore more advanced possibilities with this stack by extending this MERN Marketplace application so that it incorporates real-time bidding capabilities.</p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

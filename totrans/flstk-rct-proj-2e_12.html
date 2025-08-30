@@ -1,0 +1,766 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Adding Real-Time Bidding Capabilities to the Marketplace</h1>
+                </header>
+            
+            <article>
+                
+<p>In a world more connected than ever before, instant communication and real-time updates are expected behaviors in any application that enables interaction between users. Adding real-time features to your application can keep your users engaged, and because of that, they will be spending more time on your platform. In this chapter, we will learn how to use the MERN stack technologies, along with Socket.IO, to easily integrate real-time behavior in a full-stack application. We will do this by <span>incorporating an auctioning feature with real-time bidding capabilities</span> in t<span>he MERN Marketplace application</span> <span>that we developed in </span><a href="03fd3b4a-b7fd-4b42-ad7e-5bc34b5612b0.xhtml">Chapter 7</a><span>, </span><em><span class="cdp-chapters-widget-post-title">Exercising MERN Skills with an Online Marketplace</span></em><span class="cdp-chapters-widget-post-title">, and <a href="03fd3b4a-b7fd-4b42-ad7e-5bc34b5612b0.xhtml" target="_blank">Chapter 8</a>, <em>Extending the Marketplace for Orders and Payments</em>. After going through the implementation of this auction and bidding feature, you will know how to utilize sockets in a MERN stack application to add real-time features of your choice.</span></p>
+<p class="layoutArea"><span>In this chapter, we will extend the online marketplace application by covering the following topics: </span></p>
+<ul>
+<li><span>Introducing real-time bidding in the MERN Marketplace</span></li>
+<li><span>Adding auctions to the marketplace</span></li>
+<li>Displaying the auction view</li>
+<li>Implementing real-time bidding with Socket.IO</li>
+</ul>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introducing real-time bidding in the MERN Marketplace</h1>
+                </header>
+            
+            <article>
+                
+<p><span>The MERN Marketplace application already allows its users to become sellers and maintain shops with products that can be bought by regular users. In this chapter, we will extend these functionalities to allow sellers to create auctions for items that other users can place bids on in a fixed duration of time. The auction view will describe the item for sale and let signed in users place bids when the auction is live. Different users can place their own bids, and also see other users placing bids in real-time, with the view updating accordingly. The completed auction view, with an auction in a live state, will render as follows:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-867 image-border" src="assets/189a06af-d342-43f7-904d-83e8c9bd52cd.png" style="width:85.42em;height:63.17em;"/></p>
+<div class="packt_tip"><span>The code for the complete MERN Marketplace application is available on GitHub at</span> <a href="https://github.com/PacktPublishing/Full-Stack-React-Projects-Second-Edition/tree/master/Chapter09/mern-marketplace-bidding" target="_blank">https://github.com/PacktPublishing/Full-Stack-React-Projects-Second-Edition/tree/master/Chapter09/mern-marketplace-bidding</a><span>.</span><span> The implementations discussed in this chapter can be accessed in the <em>bidding</em> branch of the repository. You can</span><span> clone this code and run the application as you go through the code explanations in the rest of this chapter. </span></div>
+<p><span>The following component tree diagram shows the custom components that make up the entire MERN Marketplace frontend, including components for the auction and bidding-related features that will be implemented in the rest of this chapter:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-868 image-border" src="assets/3fb0636e-bf13-40b3-afeb-d2f4b2e6a46a.png" style="width:171.75em;height:67.42em;"/></p>
+<p class="mce-root"><span>The features that will be discussed in this chapter modify some of the existing components, such as </span><kbd>Profile</kbd><span> and </span><kbd>Menu</kbd><span>,</span><span> and also add new components, such as </span><kbd>NewAuction</kbd><span>, </span><kbd>MyAuctions</kbd><span>, </span><kbd>Auction</kbd><span>, and </span><kbd>Bidding</kbd><span>. In the next section, we will begin extending this online marketplace by integrating the option to add auctions to the platform.</span></p>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Adding auctions to the marketplace</h1>
+                </header>
+            
+            <article>
+                
+<p><span>In the MERN Marketplace, we will allow a</span><span> user who is signed in and has an active seller account to create auctions for items that they want other users to place bids on. To enable the features of adding and managing auctions, we will need to define how to store auction details and implement the full-stack slices that will let users create, access and update auctions on the platform. </span>In the following sections, we will build out this auction module for the application. First, we will define the auction model with a Mongoose Schema for storing details about each auction. Then, we will discuss<span> implementations for the backend APIs and frontend views that are needed to create new auctions, list auctions that are ongoing, created by the same seller and bid on by the same user, and modify existing auctions by either editing details of, or deleting an auction from the application. </span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Defining an Auction model</h1>
+                </header>
+            
+            <article>
+                
+<p><span>We will implement a Mongoose model that will define an Auction model for storing the details of each auction. This model will be defined in </span><kbd>server/models/auction.model.js</kbd><span>, and the implementation will be similar to</span><span> other Mongoose model implementations we've covered in previous chapters, such as the Shop model we defined in <a href="03fd3b4a-b7fd-4b42-ad7e-5bc34b5612b0.xhtml" target="_blank">Chapter 7</a>, <em>Exercising MERN Skills with an Online Marketplace</em></span><span>. The Auction Schema in this model </span><span>will have fields to store auction details such as the name and description of the item being auctioned, along with an image and a reference to the seller creating this auction. It will also have fields that specify the start and end time for bidding on this auction, a starting value for bids, and the list of bids that have been placed for this auction. </span><span>The code for defining these auction fields is as follows:</span></p>
+<ul>
+<li><strong>Item name and description</strong>: The auction item n<span>ame and description fields will be string types, with <kbd>itemName</kbd> as a required field:</span></li>
+</ul>
+<pre style="padding-left: 60px">itemName: {<br/>    type: String,<br/>    trim: true,<br/>    required: 'Item name is required'<br/>},<br/>description: {<br/>    type: String,<br/>    trim: true<br/>},</pre>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p class="mceNonEditable"/>
+<ul>
+<li><strong>Item image</strong>: <span>The <kbd>image</kbd> field will store the image file representing the auction item so that it can be uploaded by the user and stored as data in the MongoDB database:</span></li>
+</ul>
+<pre style="padding-left: 60px">image: { <br/>    data: Buffer, <br/>    contentType: String <br/>},</pre>
+<ul>
+<li><strong>Seller</strong>: The <kbd>seller</kbd> field will reference the user who is creating the auction:</li>
+</ul>
+<pre style="padding-left: 60px">seller: {<br/>    type: mongoose.Schema.ObjectId, <br/>    ref: 'User'<br/>},</pre>
+<ul>
+<li><strong>Created and updated at times</strong>: <span>The</span><span> </span><kbd>created</kbd><span> </span><span>and</span><span> </span><kbd>updated</kbd><span> </span><span>fields will be <kbd>Date</kbd> types, with</span><span> </span><kbd>created</kbd><span> </span><span>generated when a new auction is added, and</span><span> </span><kbd>updated</kbd><span> </span><span>changed when any auction details are modified:</span></li>
+</ul>
+<pre style="padding-left: 60px">updated: Date,<br/>created: { <br/>    type: Date, <br/>    default: Date.now <br/>},</pre>
+<ul>
+<li><strong>Bidding start time</strong>: The <kbd>bidStart</kbd> field will be a <kbd>Date</kbd> type that will specify when the auction goes live so that users can start placing bids:</li>
+</ul>
+<pre style="padding-left: 60px">bidStart: {<br/>    type: Date,<br/>    default: Date.now<br/>},</pre>
+<ul>
+<li><strong>Bidding end time</strong>: T<span>he </span><kbd>bidEnd</kbd><span> field will be a </span><kbd>Date</kbd><span> type that will specify when the auction ends, after which the users cannot place bids on this auction:</span></li>
+</ul>
+<pre style="padding-left: 60px">bidEnd: {<br/>   type: Date,<br/>   required: "Auction end time is required"<br/>},</pre>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p class="mceNonEditable"/>
+<p class="mceNonEditable"/>
+<ul>
+<li><strong>Starting bid</strong>: The <kbd>startingBid</kbd> field will store values of the <kbd>Number</kbd> type, and it will specify the starting price for this auction:</li>
+</ul>
+<pre style="padding-left: 60px">startingBid: { <br/>    type: Number, <br/>    default: 0 <br/>},</pre>
+<ul>
+<li><strong>List of bids</strong>: The <kbd>bids</kbd> field will be an array containing details of each bid placed against the auction. <span>When we store bids in this array, we will push the latest bid to the beginning of the array. </span>Each bid will contain a reference to the user placing the bid, the bid amount the user offered, and the timestamp when the bid was placed:</li>
+</ul>
+<pre style="padding-left: 60px">bids: [{<br/>    bidder: {type: mongoose.Schema.ObjectId, ref: 'User'},<br/>    bid: Number,<br/>    time: Date<br/>}]</pre>
+<p>These auction-related fields will allow us to implement auction and bidding-related features for the MERN Marketplace application. <span>I</span><span>n the next section, we will start developing these features by implementing the full-stack slice, which will allow sellers to create new auctions.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Creating a new auction</h1>
+                </header>
+            
+            <article>
+                
+<p>For a seller to be able to create a new auction on the platform, we will need to integrate a full-stack slice that allows the user to fill out a form view in the frontend, and then save the entered details to a new auction document in the database in the backend. <span>To implement this feature, in the following sections, we will add a create auction API in the backend, along with a way to fetch this API in the frontend, and a create new auction form view that takes user input for auction fields.</span></p>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The create auction API</h1>
+                </header>
+            
+            <article>
+                
+<p>For <span>the implementation of the backend API, which will allow us to create a new auction in the database</span>, we will declare a POST route, as shown in the following code. </p>
+<p><kbd>mern-marketplace/server/routes/auction.routes.js</kbd>:</p>
+<pre><br/>router.route('/api/auctions/by/:userId')<br/>  .post(authCtrl.requireSignin, authCtrl.hasAuthorization, <br/>        userCtrl.isSeller, auctionCtrl.create)</pre>
+<p><span>A POST request to this route at </span><kbd>/api/auctions/by/:userId</kbd> will ensure the requesting user is signed in and is also authorized. In other words, it is the same user associated with the <kbd>:userId</kbd><span> </span>specified in the route param. Then, <span>before creating the auction</span>, it is checked if this given user is a seller using the <kbd>isSeller</kbd> method that's defined in the user controller methods.</p>
+<p>To process the <kbd>:userId</kbd><span> </span>parameter and retrieve the associated user from the database, we will utilize the<span> </span><kbd>userByID</kbd><span> </span>method from the user controller methods. We will add the following to the<span> </span><kbd>Auction</kbd><span> </span>routes in<span> </span><kbd>auction.routes.js</kbd> so that the user is available in the<span> </span><kbd>request</kbd><span> </span>object as<span> </span><kbd>profile</kbd>.</p>
+<p><kbd><span>mern-marketplace/server/routes/auction.routes.js</span></kbd>:</p>
+<pre>router.param('userId', userCtrl.userByID) </pre>
+<p>The<span> </span><kbd>auction.routes.js</kbd><span> </span>file, which contains the auction routes, will be very similar to the<span> </span><kbd>user.routes</kbd><span> </span>file. To load these new auction routes in the Express app, we need to mount the auction routes in<span> </span><kbd>express.js</kbd>, as we did for the auth and user routes. </p>
+<p><kbd>mern-marketplace/server/express.js</kbd>:</p>
+<pre>app.use('/', auctionRoutes)</pre>
+<p>The<span> </span><kbd>create</kbd><span> </span>method in the auction controller, which is invoked after a seller is verified, uses the<span> </span><kbd>formidable</kbd> node module to parse the multipart request that may contain an image file uploaded by the user for the item image. If there is a file,<span> </span><kbd>formidable</kbd><span> </span>will store it temporarily in the filesystem, and we will read it using the<span> </span><kbd>fs</kbd><span> </span>module to retrieve the file type and data so that we can store it in the <kbd>image</kbd><span> </span>field in the auction document.</p>
+<p class="mce-root"/>
+<p><span>The <kbd>create</kbd> controller method will look as follows.</span></p>
+<p><kbd>mern-marketplace/server/controllers/auction.controller.js</kbd>:</p>
+<pre>const create = (req, res) =&gt; {<br/>  let form = new formidable.IncomingForm()<br/>  form.keepExtensions = true<br/>  form.parse(req, async (err, fields, files) =&gt; {<br/>    if (err) {<br/>      res.status(400).json({<br/>        message: "Image could not be uploaded"<br/>      })<br/>    }<br/>    let auction = new Auction(fields)<br/>    auction.seller= req.profile<br/>    if(files.image){<br/>      auction.image.data = fs.readFileSync(files.image.path)<br/>      auction.image.contentType = files.image.type<br/>    }<br/>    try {<br/>      let result = await auction.save()<br/>      res.status(200).json(result)<br/>    }catch (err){<br/>      return res.status(400).json({<br/>        error: errorHandler.getErrorMessage(err)<br/>      })<br/>    }<br/>  })<br/>}</pre>
+<p class="mce-root"><span>The item image file for the auction is uploaded by the user and stored in MongoDB as data. Then, in order to be shown in the views, it is retrieved from the database as an image file at a separate GET API. The GET API is set up as an Express route at <kbd>/api/auctions/image/:auctionId</kbd>, which gets the image data from MongoDB and sends it as a file in the response. The implementation steps for file upload, storage, and retrieval are outlined in detail in the <em>Upload profile photo</em> section in</span><span> </span><a href="" target="_blank">Chapter 5</a><span>,</span><span> <em>Growing the Skeleton into a Social Media Application</em></span>.</p>
+<div class="page">
+<div class="layoutArea">
+<div class="column">
+<p><span>This create auction API endpoint can now be used in the frontend to make a POST request. Next, we will add a fetch method on the client-side to make this request from the application's client interface.</span></p>
+</div>
+</div>
+</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Fetching the create API in the view</h1>
+                </header>
+            
+            <article>
+                
+<p><span>In the frontend, to make a request to</span> this cre<span>ate API, we will set up a <kbd>fetch</kbd> method on the client-side to make a POST request to the API route and pass it the multipart form data containing details of the new auction in the <kbd>body</kbd>. This fetch method will be defined as follows.</span></p>
+<p><span><kbd>mern-marketplace/client/auction/api-auction.js</kbd></span>:</p>
+<pre>const create = (params, credentials, auction) =&gt; {<br/>  return fetch('/api/auctions/by/'+ params.userId, {<br/>      method: 'POST',<br/>      headers: {<br/>        'Accept': 'application/json',<br/>        'Authorization': 'Bearer ' + credentials.t<br/>      },<br/>      body: auction<br/>    })<br/>    .then((response) =&gt; {<br/>      return response.json()<br/>    }).catch((err) =&gt; console.log(err))<br/>}</pre>
+<div class="page">
+<div class="layoutArea">
+<div class="column">
+<p><span>The response that's received from the server will be returned to the component calling this fetch method. We will use this method in the new auction form view to send the user-entered auction details to the backend and create a new auction in the database. In the next section, we will implement this new auction form view in a React component.</span></p>
+</div>
+</div>
+</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The NewAuction component</h1>
+                </header>
+            
+            <article>
+                
+<p><span>Sellers in the marketplace application will interact with a form view to enter details of a new auction and create the new auction. We will render this form in the </span><kbd>NewAuction</kbd><span> component, which will allow a seller to create an auction by entering an item name and description, uploading an image file from their local filesystem, specifying the starting bid value, and creating date-time values for starting and ending bidding on this auction.</span></p>
+<p><span>This form view will render as follows:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-869 image-border" src="assets/19aea77e-b908-4f59-96a4-9bde18416c82.png" style="width:20.33em;height:29.67em;"/></p>
+<p>The implementation for this <kbd>NewAuction</kbd> component is similar to other create form implementations that we have discussed previously, such as the <kbd>NewShop</kbd> component implementation from <a href="03fd3b4a-b7fd-4b42-ad7e-5bc34b5612b0.xhtml" target="_blank">Chapter 7</a>, <em><span class="cdp-chapters-widget-post-title">Exercising MERN Skills with an Online Marketplace</span></em><span class="cdp-chapters-widget-post-title">. The fields that are different in this form component are the date-time input options for the auction start and end timings. To add these fields, we'll use Material-UI <kbd>TextField</kbd> components with <kbd>type</kbd> set to <kbd>datetime-local</kbd>, as shown in the following code.</span></p>
+<p><kbd>mern-marketplace/client/auction/NewAuction.js</kbd><span>:</span></p>
+<pre>&lt;TextField<br/>   label="Auction Start Time"<br/>   type="datetime-local"<br/>   defaultValue={defaultStartTime}<br/>   onChange={handleChange('bidStart')}<br/>/&gt;<br/>&lt;TextField<br/>   label="Auction End Time"<br/>   type="datetime-local"<br/>   defaultValue={defaultEndTime}<br/>   onChange={handleChange('bidEnd')}<br/>/&gt;</pre>
+<p>We also assign default date-time values for these fields in the format expected by this input component. We set the default start time to the current date-time and the default end time to an hour after the current date-time, as shown here.</p>
+<p><kbd>mern-marketplace/client/auction/NewAuction.js</kbd><span>:</span></p>
+<pre>const currentDate = new Date()<br/>const defaultStartTime = getDateString(currentDate)<br/>const defaultEndTime = getDateString(new Date(currentDate.setHours(currentDate.getHours()+1)))</pre>
+<p><span>The <kbd>TextField</kbd> with the type as <kbd>datetime-local</kbd> takes dates in the format <kbd>yyyy-mm-ddThh:mm</kbd>. So, we define a <kbd>getDateString</kbd> method that takes a JavaScript date object and formats it accordingly. The <kbd>getDateString</kbd> method is implemented as follows.</span></p>
+<p><kbd>mern-marketplace/client/auction/NewAuction.js</kbd><span>:</span></p>
+<pre>const getDateString = (date) =&gt; {<br/>  let year = date.getFullYear()<br/>  let day = date.getDate().toString().length === 1 ? '0' + date.getDate() : date.getDate()<br/>  let month = date.getMonth().toString().length === 1 ? '0' + (date.getMonth()+1) : date.getMonth() + 1<br/>  let hours = date.getHours().toString().length === 1 ? '0' + date.getHours() : date.getHours()<br/>  let minutes = date.getMinutes().toString().length === 1 ? '0' + date.getMinutes() : date.getMinutes()<br/>  let dateString = `${year}-${month}-${day}T${hours}:${minutes}`<br/>  return dateString<br/>}</pre>
+<p>In order to ensure the user has entered the dates correctly, with the start time set to a value before the end time, we need to add a check before submitting the form details to the backend. The validation of the date combination can be confirmed with the following code.</p>
+<p><kbd>mern-marketplace/client/auction/NewAuction.js</kbd><span>:</span></p>
+<pre>if(values.bidEnd &lt; values.bidStart){<br/>   setValues({...values, error: "Auction cannot end before it starts"})<br/>}</pre>
+<p>If the date combination is found to be invalid, then <span>the user will be informed and form data will not be sent to the backend. </span></p>
+<p>This<span> </span><kbd>NewAuction</kbd><span> </span>component can only be viewed by a signed-in user who is also a seller. Therefore, we will add a<span> </span><kbd>PrivateRoute</kbd><span> </span>in the<span> </span><kbd>MainRouter</kbd><span> </span>component. This will render this form for authenticated users at<span> </span><kbd>/auction/new</kbd>.</p>
+<p><kbd>mern-marketplace/client/MainRouter.js</kbd>:</p>
+<pre>&lt;PrivateRoute path="/auction/new" component={NewAuction}/&gt;</pre>
+<p>This link can be added to any of the view components that may be accessed by the seller, for example, in a view where a seller manages their auctions in the marketplace. Now that it is possible to add new auctions in the marketplace, in the next section, we will discuss how to fetch these auctions from the database in the backend so that they can be listed in the views in the frontend. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Listing auctions </h1>
+                </header>
+            
+            <article>
+                
+<p>In the MERN Marketplace application, we will display three different lists of auctions to the users. All users browsing through the platform will be able to view the currently open auctions, in other words, auctions that are live or are going to start at a future date. The sellers will be able to view a list of auctions that they created, while signed in users will be able to view the list of auctions they placed bids in. The list displaying the open auctions to all the users will render as follows, providing a summary of each auction, along with an option so that the user can view further details in a separate view:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-870 image-border" src="assets/2f829cd9-fb7b-4971-bb87-2a068bd76d3c.png" style="width:27.17em;height:24.58em;"/></p>
+<p><span>In the following sections, </span>in order to implement these different auction lists so that they're displayed in the application, we will define the three separate backend APIs to retrieve open auctions, auctions by a seller, and auctions by a bidder, respectively. Then, we will implement a reusable React component that will take any list of auctions provided to it as a prop and render it to the view. This will allow us to display all three lists of auctions while utilizing the same component.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The open Auctions API</h1>
+                </header>
+            
+            <article>
+                
+<p>To retrieve the list of open auctions from the database, we will define a backend API that accepts a GET request and queries the Auction collection to return the open auctions that are found in the response. To implement this open auctions API, we will declare a route, as shown here.</p>
+<p><span> </span><kbd>mern-marketplace/server/routes/auction.routes.js:</kbd></p>
+<pre>router.route('/api/auctions')<br/>  .get(auctionCtrl.listOpen)</pre>
+<p><span>A GET request that's received at the <kbd>/api/auctions</kbd> route will invoke the <kbd>listOpen</kbd> controller method, which will query the Auction collection in the database so that it returns all the auctions with ending dates greater than the current date. The <kbd>listOpen</kbd> method is defined as follows.</span></p>
+<p><kbd><span>m</span>ern-marketplace/server/controllers/auction.controller.js</kbd><span>:</span></p>
+<pre>const listOpen = async (req, res) =&gt; {<br/>  try {<br/>    let auctions = await Auction.find(<strong>{ bidEnd: { $gt: new Date() }}</strong>)<br/>                                .sort('bidStart')<br/>                                .populate('seller', '_id name')<br/>                                .populate('bids.bidder', '_id name')<br/>    res.json(auctions)<br/>  } catch (err){<br/>    return res.status(400).json({<br/>      error: errorHandler.getErrorMessage(err)<br/>    })<br/>  }<br/>}</pre>
+<p>The auctions that are returned by the query in this <kbd>listOpen</kbd> method will be sorted by the starting date, with auctions that start earlier shown first. These auctions will also contain the ID and name details of the seller and each bidder. The resulting array of auctions will be sent back in the response to the requesting client. </p>
+<p><span>To fetch this API in the frontend, we will add a corresponding </span><kbd>listOpen</kbd><span> method in </span><kbd>api-auction.js</kbd><span>, similar to other API implementations. This fetch method will be used in the frontend </span><span>component that displays the open auctions to the user. </span><span>Next, we will implement another API to list all the auctions that a specific user placed bids in. </span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The Auctions by bidder API</h1>
+                </header>
+            
+            <article>
+                
+<p>To be able to display all the auctions that a given user placed bids in, we will define a backend API that <span>accepts a GET request and queries the Auction collection so that it returns the relevant auctions in the response. To implement this auctions by bidder API, we will declare a route, as shown here.</span></p>
+<p><span> </span><kbd>mern-marketplace/server/routes/auction.routes.js</kbd></p>
+<pre>router.route('/api/auctions/bid/:userId')<br/>  .get(auctionCtrl.listByBidder)</pre>
+<p><span>A GET request, when received at the </span><kbd>/api/auctions/bid/:userId</kbd><span> route, will invoke the </span><kbd>listByBidder</kbd><span> controller method, which will query the Auction collection in the database so that it returns all the auctions that contain bids with a bidder matching the user specified by the <kbd>userId</kbd> parameter in the route. The </span><kbd>listByBidder</kbd><span> method is defined as follows.</span></p>
+<p><kbd>mern-marketplace/server/controllers/auction.controller.js</kbd><span>:</span></p>
+<pre>const listByBidder = async (req, res) =&gt; {<br/>  try {<br/>    let auctions = await Auction.find({'bids.bidder': req.profile._id})<br/>                                .populate('seller', '_id name')<br/>                                .populate('bids.bidder', '_id name')<br/>    res.json(auctions)<br/>  } catch (err){<br/>    return res.status(400).json({<br/>      error: errorHandler.getErrorMessage(err)<br/>    })<br/>  }<br/>}</pre>
+<p><span>This method will return the resulting auctions in response to the requesting client, and each </span><span>auction will also contain the ID and name details of the seller and each bidder. </span><span>To fetch this API in the frontend, we will add a corresponding </span><kbd>listByBidder</kbd><span> method in </span><kbd>api-auction.js</kbd><span>, similar to other API implementations. This fetch method will be used in the frontend </span><span>component that displays the auctions related to a specific bidder.</span><span> </span><span>Next, we will implement an API that will list all the auctions that a specific seller created in the marketplace. </span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The Auctions by seller API</h1>
+                </header>
+            
+            <article>
+                
+<p>Sellers in the marketplace will see a list of auctions that they created. To retrieve these auctions from the database, we will <span>define a backend API that </span><span>accepts a GET request and queries the Auction collection so that it returns the auctions by a specific seller. To implement this auctions by seller API, we will declare a route, as shown here.</span></p>
+<p><span><kbd>mern-marketplace/server/routes/auction.routes.js</kbd>:</span></p>
+<pre>router.route('/api/auctions/by/:userId')<br/>  .get(authCtrl.requireSignin, authCtrl.hasAuthorization, <br/>       auctionCtrl.listBySeller)</pre>
+<p><span>A GET request, when received at the </span><kbd>/api/auctions/by/:userId</kbd><span> route, will invoke the </span><kbd>listBySeller</kbd><span> controller method, which will query the Auction collection in the database so that it returns all the auctions with sellers matching the user specified by the <kbd>userId</kbd> parameter in the route. The </span><kbd>listBySeller</kbd><span> method is defined as follows.</span></p>
+<p><kbd>mern-marketplace/server/controllers/auction.controller.js</kbd><span>:</span></p>
+<pre>const listBySeller = async (req, res) =&gt; {<br/>  try {<br/>    let auctions = await Auction.find({seller: req.profile._id})<br/>                                .populate('seller', '_id name')<br/>                                .populate('bids.bidder', '_id name')<br/>    res.json(auctions)<br/>  } catch (err){<br/>    return res.status(400).json({<br/>      error: errorHandler.getErrorMessage(err)<br/>    })<br/>  }<br/>}</pre>
+<p><span>This method will return the auctions for the specified seller in response to the requesting client, and each </span><span>auction will also contain the ID and name details of the seller and each bidder. </span></p>
+<p><span>To fetch this API in the frontend, we will add a corresponding </span><kbd>listBySeller</kbd><span> method in </span><kbd>api-auction.js</kbd><span>, similar to other API implementations. This fetch method will be used in the frontend </span><span>component that displays the auctions related to a specific seller. In the next section, we will look at the implementation of the Auctions component, which will take any of these lists of auctions and display it to the end user.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The Auctions component</h1>
+                </header>
+            
+            <article>
+                
+<p>The different auction lists in the application will be rendered using a React component that takes an array of auction objects as props. We will implement this reusable <kbd>Auctions</kbd> component and add it to the views that will retrieve and display either the open auctions, auctions by a bidder, or auctions by a seller. The view that retrieves and renders the list of auctions created by a specific seller using the <kbd>Auctions</kbd> component will look as follows:</p>
+<p class="mce-root"/>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-871 image-border" src="assets/0400d64d-72a2-4491-8200-def898660ab8.png" style="width:25.17em;height:16.50em;"/></p>
+<p>The <kbd>Auctions</kbd> component will iterate over the array of auctions <span>received as a prop </span>and display each auction in a Material-UI <kbd>ListItem</kbd> component, as shown in the following code.</p>
+<p><kbd>mern-marketplace/client/auction/Auctions.js</kbd><span>:</span></p>
+<pre>export default function Auctions(props){<br/>    return (<br/>     &lt;List dense&gt;<br/>        {props.auctions.map((auction, i) =&gt; {<br/>            return &lt;span key={i}&gt;<br/>              &lt;ListItem button&gt;<br/>                &lt;ListItemAvatar&gt;<br/>                  &lt;Avatar src={'/api/auctions/image/'+auction._id+"?" <br/>                                        + new Date().getTime()}/&gt;<br/>                &lt;/ListItemAvatar&gt;<br/>                &lt;ListItemText primary={auction.itemName} <br/>                  secondary={auctionState(auction}/&gt;<br/>                &lt;ListItemSecondaryAction&gt;<br/>                    &lt;Link to={"/auction/" + auction._id}&gt;<br/>                      &lt;IconButton aria-label="View" color="primary"&gt;<br/>                        &lt;ViewIcon/&gt;<br/>                      &lt;/IconButton&gt;<br/>                    &lt;/Link&gt;<br/>                &lt;/ListItemSecondaryAction&gt;<br/>              &lt;/ListItem&gt;<br/>              &lt;Divider/&gt;<br/>            &lt;/span&gt;})}<br/>        &lt;/List&gt;<br/>    )<br/>}</pre>
+<p>For each auction item, besides <span>displaying some basic auction details, </span>we give the users an option to open each auction in a separate link. We also conditionally render details such as when an auction will start, whether bidding has started or ended, how much time is left, and what the latest bid is. These details of each auction's state are determined and rendered with the following code.</p>
+<p><kbd>mern-marketplace/client/auction/Auctions.js</kbd><span>:</span></p>
+<pre>const currentDate = new Date()  <br/>const auctionState = (auction)=&gt;{<br/>    return ( &lt;span&gt;<br/>      {currentDate &lt; new Date(auction.bidStart) &amp;&amp; <br/>        `Auction Starts at ${new Date(auction.bidStart).toLocaleString()}`}<br/>      {currentDate &gt; new Date(auction.bidStart) &amp;&amp; <br/>        currentDate &lt; new Date(auction.bidEnd) &amp;&amp; &lt;&gt; <br/>            {`Auction is live | ${auction.bids.length} bids |`} <br/>            {showTimeLeft(new Date(auction.bidEnd))}<br/>          &lt;/&gt;}<br/>      {currentDate &gt; new Date(auction.bidEnd) &amp;&amp; <br/>            `Auction Ended | ${auction.bids.length} bids `} <br/>      {currentDate &gt; new Date(auction.bidStart) &amp;&amp; auction.bids.length&gt; 0 &amp;&amp; ` <br/>        | Last bid: $ ${auction.bids[0].bid}`}<br/>      &lt;/span&gt;<br/>    )<br/>}</pre>
+<p>To calculate and render the time left for auctions that have already started, we define a <kbd>showTimeLeft</kbd> method, which takes the end date as an argument and uses the <kbd>calculateTimeLeft</kbd> method to construct the time string rendered in the view. The<span> </span><kbd>showTimeLeft</kbd><span> method is defined as follows.</span></p>
+<p><kbd>mern-marketplace/client/auction/Auctions.js</kbd><span>:</span></p>
+<pre>const showTimeLeft = (date) =&gt; {<br/>    let timeLeft = calculateTimeLeft(date)<br/>    return !timeLeft.timeEnd &amp;&amp; &lt;span&gt;<br/>      {timeLeft.days != 0 &amp;&amp; `${timeLeft.days} d `} <br/>      {timeLeft.hours != 0 &amp;&amp; `${timeLeft.hours} h `} <br/>      {timeLeft.minutes != 0 &amp;&amp; `${timeLeft.minutes} m `} <br/>      {timeLeft.seconds != 0 &amp;&amp; `${timeLeft.seconds} s`} left<br/>    &lt;/span&gt;<br/>}</pre>
+<p>This method uses the <kbd>calculateTimeLeft</kbd> method to determine the breakdown of the time left in days, hours, minutes, and seconds.</p>
+<p>The <kbd>calculateTimeLeft</kbd><span> method takes the end date and compares it with the current date to calculate the difference and makes a <kbd>timeLeft</kbd> object that records the remaining days, hours, minutes, and seconds, as well as a <kbd>timeEnd</kbd> state. If the time has ended, the <kbd>timeEnd</kbd> state is set to true. The <kbd>calculateTimeLeft</kbd> method is defined as follows.</span></p>
+<p><kbd>mern-marketplace/client/auction/Auctions.js</kbd><span>:</span></p>
+<pre>const calculateTimeLeft = (date) =&gt; {<br/>  const difference = date - new Date()<br/>  let timeLeft = {}<br/><br/>  if (difference &gt; 0) {<br/>    timeLeft = {<br/>      days: Math.floor(difference / (1000 * 60 * 60 * 24)),<br/>      hours: Math.floor((difference / (1000 * 60 * 60)) % 24),<br/>      minutes: Math.floor((difference / 1000 / 60) % 60),<br/>      seconds: Math.floor((difference / 1000) % 60),<br/>      timeEnd: false<br/>    }<br/>  } else {<br/>      timeLeft = {timeEnd: true}<br/>  }<br/>  return timeLeft<br/>}</pre>
+<p>This <kbd>Auctions</kbd> component, which renders a list of auctions with the details and a status of each, can be added to other views that will display different auction lists. If the user who's currently viewing an auction list happens to be a seller for a given auction in the list, we also want to render the option to edit or delete the auction to this user. In the next section, we will learn how to incorporate these options to edit or delete an auction from the marketplace.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Editing and deleting auctions</h1>
+                </header>
+            
+            <article>
+                
+<p>A seller in the marketplace will be able to manage their auctions by either editing or deleting an auction that they've created. The implementations of the edit and delete features will require building backend APIs that save changes to the database and remove an auction from the collection. These APIs will be used in frontend views to allow users to edit auction details using a form and initiate delete with a button click. In the following sections, we will learn how to add these options conditionally to the auction list and discuss the full-stack implementation to complete these edit and delete functions. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Updating the list view</h1>
+                </header>
+            
+            <article>
+                
+<p><span>We will update the code for the auctions list view to conditionally show the edit and delete options to the seller. In the <kbd>Auctions</kbd> component, which is where a list of auctions is iterated over to render each item in <kbd>ListItem</kbd>, we will add two more options in the</span> <span><kbd>ListItemSecondaryAction</kbd> component, as shown in the following code.</span></p>
+<p><kbd>mern-marketplace/client/auction/Auctions.js</kbd><span>:</span></p>
+<pre>&lt;ListItemSecondaryAction&gt;<br/>    &lt;Link to={"/auction/" + auction._id}&gt;<br/>       &lt;IconButton aria-label="View" color="primary"&gt;<br/>          &lt;ViewIcon/&gt;<br/>       &lt;/IconButton&gt;<br/>    &lt;/Link&gt;<br/><strong>    { auth.isAuthenticated().user &amp;&amp; <br/>         auth.isAuthenticated().user._id == auction.seller._id &amp;&amp;</strong><br/><strong>      (&lt;&gt;</strong><br/><strong>         &lt;Link to={"/auction/edit/" + auction._id}&gt;</strong><br/><strong>            &lt;IconButton aria-label="Edit" color="primary"&gt;</strong><br/><strong>               &lt;Edit/&gt;</strong><br/><strong>            &lt;/IconButton&gt;</strong><br/><strong>         &lt;/Link&gt;}</strong><br/><strong>        &lt;DeleteAuction auction={auction} onRemove={props.removeAuction}/&gt;</strong><br/><strong>      &lt;/&gt;)</strong><br/><strong>    }</strong><br/>&lt;/ListItemSecondaryAction&gt;</pre>
+<p>The link to the edit view and the delete component are rendered conditionally if the currently signed in user's ID matches the ID of the auction seller. The implementation for the Edit view component and Delete component is similar to the <kbd>EditShop</kbd> component and <kbd>DeleteShop</kbd> component we discussed in <span> </span><a href="7514f26d-29e1-46e2-ac46-7515b2c3a6d0.xhtml" target="_blank">Chapter 7</a><span>, </span><em><span class="cdp-chapters-widget-post-title">Exercising MERN Skills with an Online Marketplace</span></em><span class="cdp-chapters-widget-post-title">. These same components will call backend APIs to complete the edit and delete actions. We will look at the required backend APIs in the next section.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Edit and delete auction APIs </h1>
+                </header>
+            
+            <article>
+                
+<p>To complete the edit auction and delete auction operations initiated by sellers from the frontend, we need to have the corresponding APIs in the backend. The route for these API endpoints, which will accept the update and delete requests, can be declared as follows.</p>
+<p><span> </span><kbd>mern-marketplace/server/routes/auction.routes.js:</kbd></p>
+<pre>router.route('/api/auctions/:auctionId')<br/>  .put(authCtrl.requireSignin, auctionCtrl.isSeller, auctionCtrl.update)<br/>  .delete(authCtrl.requireSignin, auctionCtrl.isSeller, auctionCtrl.remove)<br/>router.param('auctionId', auctionCtrl.auctionByID)</pre>
+<p>The <kbd>:auctionId</kbd><span> </span>param in the <kbd>/api/auctions/:auctionId</kbd> route URL will invoke the<span> </span><kbd>auctionByID</kbd><span> </span>controller method, which is similar to the<span> </span><kbd>userByID</kbd><span> </span>controller method. It retrieves the auction from the database and attaches it to the request object so that it can be used in the<span> </span><kbd>next</kbd><span> </span>method. The<span> </span><kbd>auctionByID</kbd><span> </span>method is defined as follows.</p>
+<p><kbd><span>mern-marketplace/server/controllers/auction.controller.js</span></kbd>:</p>
+<pre>const auctionByID = async (req, res, next, id) =&gt; {<br/>  try {<br/>    let auction = await Auction.findById(id)<br/>                               .populate('seller', '_id name')<br/>                               .populate('bids.bidder', '_id name').exec()<br/>    if (!auction)<br/>      return res.status('400').json({<br/>        error: "Auction not found"<br/>      })<br/>    req.auction = auction<br/>    next()<br/>  } catch (err) {<br/>    return res.status('400').json({<br/>      error: "Could not retrieve auction"<br/>    })<br/>  }<br/>}</pre>
+<div class="page">
+<div class="layoutArea">
+<div class="column">
+<p><span>The auction object that's retrieved from the database will also contain the name and ID details of the seller and bidders, as we specified in the</span><span> </span><kbd><span>populate()</span></kbd><span> </span><span>methods. For these API endpoints, the <kbd>auction</kbd> object is used next to verify that the currently signed-in user is the seller who created this given auction by invoking the <kbd>isSeller</kbd> method, which is defined in the auction controller as follows.</span></p>
+</div>
+</div>
+</div>
+<p><kbd><span>mern-marketplace/server/controllers/auction.controller.js</span></kbd>:</p>
+<pre class="mce-root">const isSeller = (req, res, next) =&gt; {<br/>  const isSeller = req.auction &amp;&amp; req.auth &amp;&amp; req.auction.seller._id == req.auth._id<br/>  if(!isSeller){<br/>    return res.status('403').json({<br/>      error: "User is not authorized"<br/>    })<br/>  }<br/>  next()<br/>}</pre>
+<p>Once the seller has been verified, the <kbd>next</kbd> method is invoked to either update or delete the auction, depending on whether a PUT or DELETE request was received. The controller methods for updating and deleting auctions are similar to the previous implementations for update and delete, as we discussed for the edit shop API and delete shop API in <a href="03fd3b4a-b7fd-4b42-ad7e-5bc34b5612b0.xhtml" target="_blank">Chapter 7</a><span>, </span><em><span class="cdp-chapters-widget-post-title">Exercising MERN Skills with an Online Marketplace</span></em><span class="cdp-chapters-widget-post-title">.</span></p>
+<p><span>We have the auction module for the marketplace ready with an Auction model for storing auction and bidding data and backend APIs and frontend views for creating new auctions, displaying different auction lists, and modifying an existing auction. In the next section, we will extend this module further and implement a view for individual auctions where, besides learning more about the auction, users will also be able to see live bidding updates.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Displaying the auction view</h1>
+                </header>
+            
+            <article>
+                
+<p> The view for displaying a single auction will contain the core functionality of the real-time auction and bidding features for the marketplace. Before getting into the implementation of real-time bidding, we will set up the full-stack slice for retrieving details of a single auction and display these details in a React component that will house the auction display, timer, and bidding capabilities. In the following sections, we will start by discussing the backend API for fetching a single auction. Then, we <span>will look at the implementation of</span> an Auction component, which will use this API to retrieve and display the auction details, along with the state of the auction. To give users a real-time update of the state of the auction, we will also implement a timer in this view to indicate the time left until a live auction ends. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The read auction API</h1>
+                </header>
+            
+            <article>
+                
+<div class="page">
+<div class="layoutArea">
+<div class="column">
+<p><span>To display the details of an existing auction in a view of its own, we need to add a backend API that will receive a request for the auction from the client and return its details in the response. Therefore, we will implement a read auction API in the backend that will accept a GET request with a specified auction ID and return the corresponding auction document from the <kbd>Auction</kbd> collection in the database. We will start adding this API endpoint by declaring a GET route</span><span>, as shown in the following code. </span></p>
+</div>
+</div>
+</div>
+<p><kbd>mern-marketplace/server/routes/auction.routes.js</kbd>:</p>
+<pre>router.route('/api/auction/:auctionId')<br/>  .get(auctionCtrl.read)</pre>
+<p><span>The <kbd>:auctionId</kbd> param in the route URL invokes the <kbd>auctionByID</kbd> controller method when a GET request is received at this route. The <kbd>auctionByID</kbd> controller method retrieves the auction from the database and attaches it to the request object to be accessed in the</span><span> </span><kbd>read</kbd><span> </span><span>controller method, which is called next</span><span>. </span><span>The</span><span> </span><kbd>read</kbd><span> </span><span>controller method, which returns this auction object in response to the client, is defined as follows.</span></p>
+<p><kbd>mern-marketplace/server/controllers/auction.controller.js</kbd>:</p>
+<pre>const read = (req, res) =&gt; {<br/>  req.auction.image = undefined<br/>  return res.json(req.auction)<br/>}</pre>
+<p><span>We are removing the image field before sending the response, since images will be retrieved as files in separate routes. With this API ready in the backend, we can now add the implementation to call it in the frontend by adding a fetch method in</span><span> </span><kbd><span>api-auction.js</span></kbd><span>, similar to the other fetch methods we've discussed for completing API implementations. We will use the fetch method to call the read auction API in a React component that will render the retrieved auction details. The implementation of this React component is discussed in the next section.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The Auction component</h1>
+                </header>
+            
+            <article>
+                
+<p>We will implement an Auction component to fetch and display the details of a single auction to the end user. This view will also have real-time update functionalities that will render based on the current state of the auction and on whether the user viewing the page is signed in. For example, the following screenshot shows how the Auction component renders to a visitor when a given auction has not started yet. It only displays the description details of the auction and specifies when the auction will start:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-872 image-border" src="assets/3b1f16e6-a054-48b3-94c3-d170299cc18a.png" style="width:28.50em;height:20.33em;"/></p>
+<p>The implementation of the <kbd>Auction</kbd> component will retrieve the auction details by calling the read auction API in a <kbd>useEffect</kbd> hook. This part of the component implementation is similar to the <kbd>Shop</kbd> component we discussed in<span> </span><a href="03fd3b4a-b7fd-4b42-ad7e-5bc34b5612b0.xhtml" target="_blank">Chapter 7</a><span>, </span><em><span class="cdp-chapters-widget-post-title">Exercising MERN Skills with an Online Marketplace</span></em>.</p>
+<p>The completed<span> </span><kbd>Auction</kbd><span> </span>component will be accessed in the browser at the<span> </span><kbd>/auction/:auctionId</kbd><span> </span>route, which is defined in<span> </span><kbd>MainRouter</kbd><span> </span>as follows.</p>
+<p><kbd>mern-marketplace/client/MainRouter.js</kbd>:</p>
+<pre>&lt;Route path="/auction/:auctionId" component={Auction}/&gt;</pre>
+<div class="page">
+<div class="layoutArea">
+<div class="column">
+<p><span>This route can be used in any component to link to a specific auction, as we did in the auction lists. This link will take the user to the corresponding Auction view with the auction details loaded. </span></p>
+</div>
+</div>
+</div>
+<p>In the component view, we will render the auction state by considering the current date and the given auction's bidding start and end timings. The code to generate these states, which will be shown in the view, can be added as follows.</p>
+<p><kbd>mern-marketplace/client/auction/Auction.js</kbd><span>:</span></p>
+<pre>const currentDate = new Date()<br/>...<br/>&lt;span&gt;<br/>    {currentDate &lt; new Date(auction.bidStart) &amp;&amp; 'Auction Not Started'}<br/>    {currentDate &gt; new Date(auction.bidStart) &amp;&amp; currentDate &lt; new Date(auction.bidEnd) &amp;&amp; 'Auction Live'}<br/>    {currentDate &gt; new Date(auction.bidEnd) &amp;&amp; 'Auction Ended'}<br/>&lt;/span&gt;</pre>
+<p>In the preceding code, if the current date is before the <kbd>bidStart</kbd> date, we show a message indicating that the auction has not started yet. If the current date is between the <kbd>bidStart</kbd> and <kbd>bidEnd</kbd> dates, then the auction is live. If the current date is after the <kbd>bidEnd</kbd> date, then the auction has ended. </p>
+<p>The <kbd>Auction</kbd> component will also conditionally render a timer and a bidding section, depending on whether the current user is signed in, and also on the state of the auction at the moment. The code to render this part of the view will be as follows.</p>
+<p><kbd>mern-marketplace/client/auction/Auction.js</kbd><span>:</span></p>
+<pre>&lt;Grid item xs={7} sm={7}&gt;<br/>    {currentDate &gt; new Date(auction.bidStart) <br/>    ? (&lt;&gt;<br/>        &lt;Timer endTime={auction.bidEnd} update={update}/&gt; <br/>        { auction.bids.length &gt; 0 &amp;&amp; <br/>            &lt;Typography component="p" variant="subtitle1"&gt;<br/>                {` Last bid: $ ${auction.bids[0].bid}`}<br/>            &lt;/Typography&gt;<br/>        }<br/>        { !auth.isAuthenticated() &amp;&amp; <br/>            &lt;Typography&gt;<br/>                Please, &lt;Link to='/signin'&gt;<br/>                    sign in&lt;/Link&gt; to place your  bid.<br/>            &lt;/Typography&gt; <br/>        }<br/>        { auth.isAuthenticated() &amp;&amp; <br/>            &lt;Bidding auction={auction} justEnded=<br/>                 {justEnded} updateBids={updateBids}/&gt; <br/>        }<br/>      &lt;/&gt;)<br/>    : &lt;Typography component="p" variant="h6"&gt; <br/>        {`Auction Starts at ${new Date(auction.bidStart).toLocaleString()}`}<br/>      &lt;/Typography&gt;<br/>    }<br/>&lt;/Grid&gt;</pre>
+<p>If the current date happens to be after the bid starting time, instead of showing the start time, we render the <kbd>Timer</kbd> component to show the time <span>remaining </span>until bidding ends. Then, we show the last bid amount, which will be the first item in the auction <kbd>bids</kbd> array if some bids were already placed. I<span>f the current user is signed in when the auction is in this state, w</span>e also render a <kbd>Bidding</kbd> component, which will allow them to bid and see the bidding history. In the next section, we will learn how to implement the Timer component we added in this view to show the remaining time for the auction.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Adding the Timer component</h1>
+                </header>
+            
+            <article>
+                
+<p>When the auction is live, we will give the users a real-time update of how long they have before bidding ends on this given auction. We will implement a <kbd>Timer</kbd> component and conditionally render it in the <kbd>Auction</kbd> component to achieve this feature. The timer will count down the seconds and show how much time is left to the users viewing the live auction. The following screenshot shows what the Auction component looks like when it renders a live auction to a user who is not signed in yet:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-873 image-border" src="assets/c7822370-cdcb-491a-853a-ffc36f126acf.png" style="width:25.75em;height:13.67em;"/></p>
+<p>The remaining time decreases per second as the user is viewing the live auction. We will implement this countdown feature in the <kbd>Timer</kbd> component, which is added to the <kbd>Auction</kbd> component. The <kbd>Auction</kbd> component provides it with props containing the auction end time value, as well as a function to update the auction view when the time ends, as shown in the following code.</p>
+<p><kbd>mern-marketplace/client/auction/Auction.js</kbd><span>:</span></p>
+<pre>&lt;Timer endTime={auction.bidEnd} update={update}/&gt; </pre>
+<p>The <kbd>update</kbd> function that's provided to the <kbd>Timer</kbd> component will help set the value of the <kbd>justEnded</kbd> variable from <kbd>false</kbd> to <kbd>true</kbd>. This <kbd>justEnded</kbd> value is passed to the <kbd>Bidding</kbd> component so that it can be used to disable the option to place bids when the time ends. The <kbd>justEnded</kbd> value is initialized and the <kbd>update</kbd> function is defined as follows.</p>
+<p><kbd>mern-marketplace/client/auction/Auction.js</kbd><span>:</span></p>
+<pre>const [justEnded, setJustEnded] = useState(false)<br/>const updateBids = () =&gt; {<br/>    setJustEnded(true)<br/>}</pre>
+<p>These props will be used in the <kbd>Timer</kbd> component to calculate time left and to update the view when time is up.</p>
+<p>In the <kbd>Timer</kbd> component definition, we will initialize the <kbd>timeLeft</kbd> variable in the state, using the end time value sent in the props from the <kbd>Auction</kbd> component, as shown in the following code. </p>
+<p><kbd>mern-marketplace/client/auction/Timer.js</kbd><span>:</span></p>
+<pre>export default function Timer (props) {<br/>    const [timeLeft, setTimeLeft] = useState(calculateTimeLeft(new Date(props.endTime)))<br/>    ...<br/>}</pre>
+<p><span>To calculate the time left until the auction ends, we utilize the <kbd>calculateTimeLeft</kbd> method we discussed previously in the <em>The Auctions component</em> section of this chapter.</span></p>
+<p><span>To implement the time countdown functionality,  we will use <kbd>setTimeout</kbd> in a <kbd>useEffect</kbd> hook in the <kbd>Timer</kbd> component, as shown in the following code.</span></p>
+<p><kbd>mern-marketplace/client/auction/Timer.js</kbd><span>:</span></p>
+<pre>useEffect(() =&gt; {<br/>     let timer = null<br/>     if(!timeLeft.timeEnd){<br/>         timer = setTimeout(() =&gt; {<br/>                     setTimeLeft(calculateTimeLeft(new Date(props.endTime)))<br/>                 }, 1000)<br/>     }else{<br/>         props.update()<br/>     }<br/>     return () =&gt; {<br/>         clearTimeout(timer)<br/>    }<br/>})</pre>
+<p><span>If the time has not ended already, w</span>e will use <kbd>setTimeout</kbd> to update the <kbd>timeLeft</kbd> value after 1 second has passed. This <kbd>useEffect</kbd> hook will run after every render caused by the state update with <kbd>setTimeLeft</kbd>.</p>
+<p>As a result, the <kbd>timeLeft</kbd> value will keep updating every second until the <kbd>timeEnd</kbd> value is <kbd>true</kbd>. When the <kbd>timeEnd</kbd> value does become <kbd>true</kbd> as the time is up, we will execute the <kbd>update</kbd> function that's sent in the props from the <kbd>Auctions</kbd> component.</p>
+<p>To avoid a memory leak and to clean up in the <kbd>useEffect</kbd> hook, we will use <kbd>clearTimeout</kbd> to stop any pending <kbd>setTimeout</kbd> calls. To show this updating <kbd>timeLeft</kbd> value, we just need to render it in the view, as shown in the following code.</p>
+<p><kbd>mern-marketplace/client/auction/Timer.js</kbd><span>:</span></p>
+<pre>    return (&lt;div className={props.style}&gt;<br/>        {!timeLeft.timeEnd ? <br/>            &lt;Typography component="p" variant="h6" &gt;<br/>              {timeLeft.days != 0 &amp;&amp; `${timeLeft.days} d `} <br/>              {timeLeft.hours != 0 &amp;&amp; `${timeLeft.hours} h `} <br/>              {timeLeft.minutes != 0 &amp;&amp; `${timeLeft.minutes} m `} <br/>              {timeLeft.seconds != 0 &amp;&amp; `${timeLeft.seconds} s`} left <br/>              &lt;span style={{fontSize:'0.8em'}}&gt;<br/>                {`(ends at ${new Date(props.endTime).toLocaleString()})`}<br/>              &lt;/span&gt;<br/>            &lt;/Typography&gt; : <br/>            &lt;Typography component="p" variant="h6"&gt;Auction ended&lt;/Typography&gt;<br/>        }<br/>        &lt;/div&gt;<br/>    )</pre>
+<p>If there is time left, we render the days, hours, minutes, and seconds remaining until the auction ends u<span>sing the </span><kbd>timeLeft</kbd><span> object. We</span> also indicate the exact date and time when the auction ends. If the time is up, we just indicate that the auction ended.  </p>
+<p>In the <kbd>Auction</kbd> component we've implemented so far, we are able to fetch the auction details from the backend and render it along with the state of the auction. If an auction is in a live state, we are able to indicate the time left until it ends. When an auction is in this live state, users will also be able to place bids against the auction and see the bids being placed by other users on the platform from within this view in real-time. In the next section, we will discuss how to use Socket.IO to integrate this real-time bidding feature for all live auctions on the platform. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing real-time bidding with Socket.IO</h1>
+                </header>
+            
+            <article>
+                
+<p>Users who are signed in to the marketplace platform will be able to take part in live auctions. They will be able to place their bids and get real-time updates in the same view while other users on the platform are countering their bids. To implement this functionality, we will integrate Socket.IO with our full-stack MERN application before implementing the frontend interface to allow users to place their bids and see the changing bidding history.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Integrating Socket.IO</h1>
+                </header>
+            
+            <article>
+                
+<p>Socket.IO will allow us to add the real-time bidding feature to auctions in the marketplace application. <span>Socket.IO</span> is a JavaScript library with a client-side module that runs in the browser and a server-side module that integrates with Node.js. Integrating these modules with our MERN-based application will enable bidirectional and real-time communication between the clients and the server.</p>
+<div class="packt_tip">The client-side part of Socket.IO is available as the Node module <kbd>socket.io-client</kbd>, while the server-side part is available as the Node module <kbd>socket.io</kbd>. You can learn more about Socket.IO and try their getting started tutorials at <a href="https://socket.io">https://socket.io</a>. </div>
+<p>Before we can start using <kbd>socket.io</kbd> in our code, we will install the client and server libraries with Yarn by running the following command from the command line:</p>
+<pre>yarn add socket.io <span>socket.io-client</span></pre>
+<p>With the Socket.IO libraries added to the project, we will update our backend to integrate Socket.IO with the server code. We need to initialize a new instance of <kbd>socket.io</kbd> using the same HTTP server that we are using for our application.</p>
+<p>In our backend code, we are using Express to start the server. Therefore, we will update the code in <kbd>server.js</kbd> to get a reference to the HTTP server that our Express app is using to listen for requests from clients, as shown in the following code.</p>
+<p><kbd>mern-marketplace/server/server.js</kbd><span>:</span></p>
+<pre><strong>import bidding from './controllers/bidding.controller'</strong><br/><br/><strong>const server</strong> <strong>=</strong> app.listen(config.port, (err) =&gt; {<br/>  if (err) {<br/>    console.log(err)<br/>  }<br/>  console.info('Server started on port %s.', config.port)<br/>})<br/><br/><strong>bidding(server)</strong></pre>
+<p>Then, we will pass the reference for this server to a bidding controller function. This <kbd>bidding.controller</kbd> function will contain the Socket.IO code that's needed on the server-side to implement real-time features. The <kbd>bidding.controller</kbd> function will initialize <kbd>socket.io</kbd> and then listen on the <kbd>connection</kbd> event for incoming socket messages from clients, as shown in the following code.</p>
+<p><kbd>mern-marketplace/server/controllers/bidding.controller.js</kbd><span>:</span></p>
+<pre>export default (server) =&gt; {<br/>    const io = require('socket.io').listen(server)<br/>    io.on('connection', function(socket){<br/>        socket.on('join auction room', data =&gt; {<br/>            socket.join(data.room);<br/>        })<br/>        socket.on('leave auction room', data =&gt; {<br/>            socket.leave(data.room)<br/>        })<br/>    })<br/>}</pre>
+<p>When a new client first connects and then disconnects to the socket connection, we will subscribe and unsubscribe the client socket to a given channel. The channel will be identified by the auction ID that will be passed in the <kbd>data.room</kbd> property from the client. This way, we will have a different channel or room for each auction. </p>
+<p>With this code, the backend is ready to receive communication from clients over sockets, and we can now add the Socket.IO integration to our frontend. In the frontend, only the auction view <span>–</span> specifically, the bidding section <span>–</span> will be using sockets for real-time communication. Therefore, we will only integrate Socket.IO in the <kbd>Bidding</kbd> component that we add to the Auction component in the frontend, as shown in the following code.</p>
+<p><kbd>mern-marketplace/client/auction/Auction.js</kbd><span>:</span></p>
+<div>
+<pre><span>&lt;</span><span>Bidding</span><span> </span><span>auction</span><span>=</span><span>{</span><span>auction</span><span>}</span><span> justE</span><span>nded</span><span>=</span><span>{</span><span>justEnded</span><span>}</span><span> </span><span>updateBids</span><span>=</span><span>{</span><span>updateBids</span><span>}</span><span>/&gt;</span></pre></div>
+<p>The Bidding component takes the <kbd>auction</kbd> object, the <kbd>justEnded</kbd> value, and an <kbd>updateBids</kbd> function as props from the Auction component, and uses these in the bidding process. To start implementing the Bidding component, we will integrate sockets using the Socket.IO client-side library, as shown in the following code.</p>
+<p><kbd>mern-marketplace/client/auction/Bidding.js</kbd><span>:</span></p>
+<pre>const io = require('socket.io-client')<br/>const socket = io() <br/><br/>export default function Bidding (props) {<br/>    useEffect(() =&gt; {<br/>        socket.emit('join auction room', {room: props.auction._id})<br/>        return () =&gt; {<br/>            socket.emit('leave auction room', {<br/>                room: props.auction._id<br/>            })<br/>        }<br/>    }, [])<br/>    ...<br/>}</pre>
+<p>In the preceding code, we require the <kbd>socket.io-client</kbd> library and initialize the <kbd>socket</kbd> for this client. Then, in our <kbd>Bidding</kbd> component definition, we utilize the <kbd>useEffect</kbd> hook and the initialized <kbd>socket</kbd> to emit the <em>auction room joining</em> and <em>auction room leaving</em> socket events<span> </span>when the component mounts and unmounts, respectively. We <span>pass the curre</span><span>nt auction's ID as the </span><kbd>data.room</kbd><span> value with these emitted socket events. </span></p>
+<p>These events will be received by the server socket connection, resulting in subscription or unsubscription of the client to the given auction room. Now that the clients and the server are able to communicate in real-time over sockets, in the next section, we will learn how to use this capability to let users place instant bids on the auction. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Placing bids</h1>
+                </header>
+            
+            <article>
+                
+<p>When a user on the platform is signed in and viewing an auction that is currently live, they will see an option to place their own bid. This option will be rendered within the <kbd>Bidding</kbd> component, as shown in the following screenshot:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-874 image-border" src="assets/c00aa8b9-2ec8-4744-bcae-260ac078a652.png" style="width:43.50em;height:22.92em;"/></p>
+<p>To allow users to place their bids, in the following sections, we will add a form that lets them enter a value more than the last bid and submit it to the server using socket communication. Then, on the server, we will handle this new bid that's been sent over the socket so that the changed auction bids can be saved in the database and the view can be updated instantly for all connected users when the server accepts this bid.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Adding a form to enter a bid</h1>
+                </header>
+            
+            <article>
+                
+<p>We will add the form to place a bid for an auction in the <kbd>Bidding</kbd> component that we started building in the previous section. Before we add the form elements in the view, we will initialize the <kbd>bid</kbd> value in the state, add a change handling function for the form input, and keep track of the minimum bid amount allowed, as shown in the following code.</p>
+<p><kbd>mern-marketplace/client/auction/Bidding.js</kbd><span>:</span></p>
+<pre>const [bid, setBid] = useState('')<br/><br/>const handleChange = event =&gt; {<br/>        setBid(event.target.value)<br/>}<br/>const minBid = props.auction.bids &amp;&amp; props.auction.bids.length&gt; 0 <br/>                ? props.auction.bids[0].bid <br/>                : props.auction.startingBid</pre>
+<p>The minimum bid amount is determined by checking the latest bid placed. If any bids were placed, the minimum bid needs to be higher than the latest bid; otherwise, it needs to be higher than the starting bid that was set by the auction seller.</p>
+<p>The form elements for placing a bid will only render if the current date is before the auction end date. We also check if the <kbd>justEnded</kbd> value is <kbd>false</kbd> so that the form can be hidden when the time ends in real-time as the timer counts down to 0. The form elements will contain an input field, a hint at what minimum amount should be entered, and a submit button, which will remain disabled unless a valid bid amount is entered. These elements will be added to the <kbd>Bidding</kbd> component view as follows.</p>
+<p><kbd>mern-marketplace/client/auction/Bidding.js</kbd><span>:</span></p>
+<pre>{!props.justEnded &amp;&amp; new Date() &lt; new Date(props.auction.bidEnd) &amp;&amp; &lt;&gt;<br/>    &lt;TextField label="Your Bid ($)" <br/>               value={bid} onChange={handleChange} <br/>               type="number" margin="normal"<br/>               helperText={`Enter $${Number(minBid)+1} or more`}/&gt;&lt;br/&gt;<br/>    &lt;Button variant="contained" color="secondary" <br/>            disabled={bid &lt; (minBid + 1)} <br/>            onClick={placeBid}&gt;Place Bid<br/>    &lt;/Button&gt;&lt;br/&gt;<br/>&lt;/&gt;}</pre>
+<p>When the user clicks on the submit button, the <kbd>placeBid</kbd> function will be called. In this function, we construct a bid object containing the new bid's details, including the bid amount, bid time, and the bidder's user reference. This new bid is emitted to the server over the socket communication that's already been established for this auction room, as shown in the following code:</p>
+<pre>const placeBid = () =&gt; {<br/>    const jwt = auth.isAuthenticated()    <br/>      let newBid = {<br/>            bid: bid,<br/>            time: new Date(),<br/>            bidder: jwt.user<br/>      }<br/>      socket.emit('new bid', {<br/>            room: props.auction._id,<br/>            bidInfo: newBid<br/>      })<br/>      setBid('')<br/>}</pre>
+<p>Once the message has been emitted over the socket, we will empty the input field with <kbd>setBid('')</kbd>. Then, we need to update the bidding controller in the backend to receive and handle this new bid message that's been sent from the client. In the next section, we will add the socket event handling code to complete this process to place a bid.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Receiving a bid on the server</h1>
+                </header>
+            
+            <article>
+                
+<p>When a new bid is placed by a user and emitted over a socket connection, it will be handled on the server so that it's stored in the corresponding auction in the database.</p>
+<p>In the bidding controller, we will update the socket event handlers in the socket connection listener code in order to add a handler for the <em>new bid</em> socket message, as shown in the following code.</p>
+<p><kbd>mern-marketplace/server/controllers/bidding.controller.js</kbd><span>:</span></p>
+<pre>io.on('connection', function(socket){<br/>    ...<br/>    socket.on('new bid', data =&gt; {<br/>        bid(data.bidInfo, data.room)<br/>    })<br/>})</pre>
+<p>In the preceding code, when the socket receives the emitted <em>new bid</em> message, we use the attached data to update the specified auction with the new bid information in a function called <kbd>bid</kbd>. The bid function is defined as follows.</p>
+<p><kbd>mern-marketplace/server/controllers/bidding.controller.js</kbd><span>:</span></p>
+<pre>const bid = async (bid, auction) =&gt; {<br/>   try {<br/>     let result = await Auction.findOneAndUpdate({_id:auction, $or: [{'bids.0.bid':{$lt:bid.bid}},{bids:{$eq:[]}} ]}, <br/>                            {$push: {bids: {$each:[bid], $position: 0}}}, <br/>                            {new: true})<br/>                            .populate('bids.bidder', '_id name')<br/>                            .populate('seller', '_id name')<br/>                            .exec()<br/>     io.to(auction).emit('new bid', result)<br/>   } catch(err) {<br/>     console.log(err)<br/>   }<br/>}</pre>
+<p>The bid function takes the new bid details and the auction ID as arguments and performs a <kbd>findOneAndUpdate</kbd> operation on the Auction collection. To find the auction to be updated, besides querying with the auction ID, we also ensure that the new bid amount is larger than the last bid placed at position <kbd>0</kbd> of the <kbd>bids</kbd> array in this auction document. If an auction is found that matches the provided ID and also meets this condition of the last bid being smaller than the new bid, then this auction is updated by pushing the new bid into the first position of the <kbd>bids</kbd> array.</p>
+<p>After the update to the auction in the database, we emit the <em>new bid</em> message over the <kbd>socket.io</kbd> connection to all the clients currently connected to the corresponding auction room. On the client-side, we need to capture this message in a socket event handler code and update the view with the latest bids. In the next section, we will learn how to handle and display this updated list of bids for all the clients viewing the live auction.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Displaying the changing bidding history</h1>
+                </header>
+            
+            <article>
+                
+<p>After a new bid is accepted on the server and stored in the database, the new array of bids will be updated in the view for all the clients currently on the auctions page. In the following sections, we will extend the <kbd>Bidding</kbd> component so that it handles the updated bids and displays the complete bidding history for the given auction. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Updating the view state with a new bid</h1>
+                </header>
+            
+            <article>
+                
+<p>Once the placed bid has been handled on the server, the updated auction containing the modified array of bids is sent to all the clients connected to the auction room. To handle this new data on the client-side, we need to update the <kbd>Bidding</kbd> component to add a listener for this specific socket message. </p>
+<p>We will use an <kbd>useEffect</kbd> hook to add this socket listener to the <kbd>Bidding</kbd> component when it loads and renders. We will also remove the listener with <kbd>socket.off()</kbd> in the <span><kbd>useEffect</kbd> </span>cleanup when the component unloads. This <kbd>useEffect</kbd> hook with the socket listener for receiving the new bid data will be added as follows.</p>
+<p><kbd>mern-marketplace/client/auction/Bidding.js</kbd><span>:</span></p>
+<pre>useEffect(() =&gt; {<br/>   socket.on('new bid', payload =&gt; {<br/>     props.updateBids(payload)<br/>   })<br/>   return () =&gt; {<br/>     socket.off('new bid')<br/>   }<br/>})</pre>
+<p>When the new auction with updated bids is received from the server in the socket event, we execute the <kbd>updateBids</kbd> function that was sent as a prop from the <kbd>Auction</kbd> component. The <kbd>updateBids</kbd> function is defined in the <kbd>Auction</kbd> component as follows:</p>
+<pre>const updateBids = (updatedAuction) =&gt; {<br/>    setAuction(updatedAuction)<br/>}</pre>
+<p><span>This will update the auction data that was set in the state of the Auction component and, as a result, rerender the complete auction view with the updated auction data.</span> This view will also include the bidding history table, which we'll discuss in the next section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Rendering the bidding history</h1>
+                </header>
+            
+            <article>
+                
+<p>In the <kbd>Bidding</kbd> component, we will render a table that displays the details of all the bids that were placed for the given auction. This will inform the user of the bids that were already placed and are being placed in real-time as they are viewing a live auction. The bidding history for an auction will render in the view as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-875 image-border" src="assets/eab51643-f372-448f-886f-02dccfbd046e.png" style="width:17.08em;height:10.17em;"/></p>
+<p>This bidding history view will basically iterate over the <kbd>bids</kbd> array for the auction and display the bid amount, bid time, and bidder name for each bid object that's found in the array. The code for rendering this table view will be added as follows:</p>
+<pre>&lt;div&gt;<br/>   &lt;Typography variant="h6"&gt; All bids &lt;/Typography&gt;<br/>   &lt;Grid container spacing={4}&gt;<br/>       &lt;Grid item xs={3} sm={3}&gt;<br/>            &lt;Typography variant="subtitle1" <br/>               color="primary"&gt;Bid Amount&lt;/Typography&gt;<br/>       &lt;/Grid&gt;<br/>       &lt;Grid item xs={5} sm={5}&gt;<br/>            &lt;Typography variant="subtitle1" <br/>                color="primary"&gt;Bid Time&lt;/Typography&gt;<br/>       &lt;/Grid&gt;<br/>       &lt;Grid item xs={4} sm={4}&gt;<br/>          &lt;Typography variant="subtitle1"<br/>             color="primary"&gt;Bidder&lt;/Typography&gt;<br/>       &lt;/Grid&gt;<br/>   &lt;/Grid&gt; <br/>   {props.auction.bids.map((item, index) =&gt; {<br/>       return &lt;Grid container spacing={4} key={index}&gt;<br/>                 &lt;Grid item xs={3} sm={3}&gt;<br/>                    &lt;Typography variant="body2"&gt;${item.bid}  &lt;/Typography&gt;<br/>                 &lt;/Grid&gt;<br/>                 &lt;Grid item xs={5} sm={5}&gt;<br/>                    &lt;Typography variant="body2"&gt;<br/>                        {new Date(item.time).toLocaleString()}<br/>                    &lt;/Typography&gt;&lt;/Grid&gt;<br/>                 &lt;Grid item xs={4} sm={4}&gt;<br/>                    &lt;Typography variant="body2"&gt;{item.bidder.name} &lt;/Typography&gt;<br/>                 &lt;/Grid&gt;<br/>              &lt;/Grid&gt;<br/>   })}<br/>&lt;/div&gt;</pre>
+<p>We added table headers using Material-UI <kbd>Grid</kbd> components, before iterating over the <kbd>bids</kbd> array to generate the table rows with individual bid details.</p>
+<p>When a new bid is placed by any user viewing this auction and the updated auction is received in the socket and set to state, this table containing the bidding history will update for all its viewers and show the latest bid at the top of the table. By doing this, it gives all the users in the auction room a real-time update of bidding. With that, we have a complete auction and real-time bidding feature integrated with the MERN Marketplace application.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, we extended the MERN Marketplace application and added an auctioning feature with real-time bidding capabilities. We designed an auction model for storing auction and bidding details and implemented the full-stack CRUD functionalities that allow users to create new auctions, edit and delete auctions, and see different lists of auctions, along with individual auctions. </p>
+<p>We added an auction view representing a single auction where users can watch and participate in the auction. In the view, we calculated and rendered the current state of the given auction, along with a countdown timer for live auctions. While implementing this <span>timer that counts down seconds, we</span> learned how to use <kbd>setTimeout</kbd> in a React component with the <kbd>useEffect</kbd> hook.</p>
+<p>For each auction, we implemented real-time bidding capabilities using Socket.IO. We discussed how to integrate Socket.IO on both the client-side and the server-side of the application to establish real-time and bidirectional communication between clients and servers. <span>With these approaches for extending the MERN stack to incorporate real-time communication functionalities, you can implement even more exciting real-time features </span><span>using sockets </span><span>in your own full-stack applications.</span></p>
+<p>Using the experiences you've gained here building out the different features for the MERN Marketplace application, y<span>ou can also grow the auctioning feature that was covered in this chapter and integrate it with the existing order management and payment processing functionalities in this application. </span> </p>
+<p>In the next chapter, we will expand our options with the MERN stack technologies by building an expense tracking application with data visualization features by extending the MERN skeleton.</p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

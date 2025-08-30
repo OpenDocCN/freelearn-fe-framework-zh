@@ -1,0 +1,209 @@
+<html><head></head><body>
+		<div id="_idContainer036">
+			<h1 id="_idParaDest-91"><em class="italic"><a id="_idTextAnchor090"/>Chapter 8</em>: Using a Custom Server</h1>
+			<p>Next.js is an incredibly powerful framework. In the first seven chapters of this book, we've been able to create some nice server-side rendered web applications without really caring about tweaking and customizing the web server. Of course, there are few chances for us to discuss implementing a Next.js application inside an Express.js or Fastify server in a real-life scenario, but knowing how to do so is likely to be handy on many occasions.</p>
+			<p>Talking for myself, in the past years, I've created dozens of large-scale web applications using Next.js, and I rarely needed to use a custom server. However, in some cases, it is inevitable.</p>
+			<p>We will look at the following topics in detail:</p>
+			<ul>
+				<li>What using a "custom server" means, when we might need to use it, and what are the options.</li>
+				<li>How to use Express.js and Next.js together</li>
+				<li>How to use Fastify and Next.js together</li>
+				<li>What are the requirements for deploying a custom server?</li>
+			</ul>
+			<p>By the end of this chapter, you'll be able to determine when to use a custom server, what its advantages and downsides are, and what problems it can solve.</p>
+			<h1 id="_idParaDest-92"><a id="_idTextAnchor091"/>Technical requirements</h1>
+			<p>To run the code examples in this chapter, you need to have both Node.js and <strong class="source-inline">npm</strong> installed on your local machine.</p>
+			<p>If you prefer, you can use an online IDE such as <a href="https://repl.it">https://repl.it</a> or <a href="https://codesandbox.io">https://codesandbox.io</a>; they both support Next.js, and you don't need to install any dependency on your computer. As with the other chapters, you can find the codebase for this chapter on GitHub: https://github.com/PacktPublishing/Real-World-Next.js.</p>
+			<h1 id="_idParaDest-93"><a id="_idTextAnchor092"/>About using a custom server</h1>
+			<p>As we've already<a id="_idIndexMarker476"/> seen, Next.js ships with its own server, so we don't need to configure a custom one to get started with writing web applications with this framework. Still, there are some cases where we may want to serve a Next.js app from a custom web server, such as Express.js or Fastify, and the framework makes this possible by exposing some straightforward APIs that we'll be looking into in just one moment. But before looking at the implementation, let's answer an important question: <em class="italic">do we really need a custom server?</em></p>
+			<p>The short answer is, most of the time, <em class="italic">no</em>. Next.js is such a complete framework that we rarely need to customize the server-side logic via Express.js, Fastify, or any other server-side framework. But sometimes, it is just inevitable, as it can solve specific problems.</p>
+			<p>Some common use cases for a custom server are as follows:</p>
+			<ul>
+				<li><strong class="bold">Integrating Next.js into an existing server</strong>: Suppose you're refactoring an existing web <a id="_idIndexMarker477"/>application to adopt Next.js; you may want to maintain as much server-side logic as possible, your middlewares, and routes. In that case, you can progressively add Next.js by choosing which pages of your websites will be served from the framework and which ones will be rendered by something else.</li>
+				<li><strong class="bold">Multi-tenancy</strong>: Even though Next.js supports multiple domains and conditional rendering depending on the current hostname (look at <a href="https://github.com/leerob/nextjs-multiple-domains">https://github.com/leerob/nextjs-multiple-domains</a> if you're interested in a native solution), there are cases where you may need more control and a simplified workflow for handling up to thousands of different domains. If you're interested in an Express.js/Fastify multi-tenant middleware for Next.js, you can take a look at <a href="https://github.com/micheleriva/krabs">https://github.com/micheleriva/krabs</a>. </li>
+				<li><strong class="bold">You want more control</strong>: Even though Next.js provides everything you need for creating a robust and complete user experience, there are cases where your app is growing in complexity and you want to organize the backend code using different approaches, such as adopting the MVC philosophy, where Next.js is just the "view" part of the process.</li>
+			</ul>
+			<p>While a custom server could solve some problems, it also has some downsides. For instance, you cannot deploy a custom server to Vercel, the platform created by the Next.js authors, which is highly optimized for the framework. Also, you'll need to write and maintain more code, which can be a significant downside if you're working on a side project, in a small <a id="_idIndexMarker478"/>team, or for a small company.</p>
+			<p>In the next section, we'll see how to write a custom server for Next.js using one of the most popular web frameworks for Node.js: Express.js.</p>
+			<h1 id="_idParaDest-94"><a id="_idTextAnchor093"/>Using a custom Express.js server</h1>
+			<p>Writing a custom <a id="_idIndexMarker479"/>Express.js server to render Next.js pages is easier than you might think. Let's create a new project and install the following dependencies:</p>
+			<p class="source-code">yarn add express react react-dom next</p>
+			<p>Once we've installed these four packages, we can start writing a custom Express.js server. Let's create an <strong class="source-inline">index.js</strong> file inside the project root and start by importing the required dependencies:</p>
+			<p class="source-code">const { parse } = require('url');</p>
+			<p class="source-code">const express = require('express');</p>
+			<p class="source-code">const next = require('next');</p>
+			<p>We now need to instantiate the Next.js app, and we can do that by adding the following code right after the import statements:</p>
+			<p class="source-code">const dev = process.env.NODE_ENV !== 'production';</p>
+			<p class="source-code">const app = next({ dev });</p>
+			<p>Let's complete our server by writing the <strong class="source-inline">main</strong> function, which takes every incoming <strong class="source-inline">GET</strong> request and passes it to Next.js for server-side rendering:</p>
+			<p class="source-code">async function main() {</p>
+			<p class="source-code">  try {</p>
+			<p class="source-code"><strong class="bold">    await app.prepare();</strong></p>
+			<p class="source-code"><strong class="bold">    const handle = app.getRequestHandler();</strong></p>
+			<p class="source-code"><strong class="bold">    const server = express();</strong></p>
+			<p class="source-code"><strong class="bold">    server</strong></p>
+			<p class="source-code"><strong class="bold">      .get('*', (req, res) =&gt; {</strong></p>
+			<p class="source-code"><strong class="bold">        const url = parse(req.url, true);</strong></p>
+			<p class="source-code"><strong class="bold">        handle(req, res, url);</strong></p>
+			<p class="source-code"><strong class="bold">      })</strong></p>
+			<p class="source-code"><strong class="bold">      .listen(3000, () =&gt; console.log('server ready'));</strong></p>
+			<p class="source-code">  } catch (err) {</p>
+			<p class="source-code">    console.log(err.stack);</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">}</p>
+			<p class="source-code">main();</p>
+			<p>Let's focus <a id="_idIndexMarker480"/>on the <strong class="source-inline">main</strong> function body and see what's going on.</p>
+			<p>First of all, we wait for the Next.js app to be ready for rendering. Then, we instantiate a <strong class="source-inline">handle</strong> constant, which will handle the incoming requests on behalf of Next.js. We then create the Express.js server and ask it to handle all the <strong class="source-inline">GET</strong> requests using the Next.js request handler.</p>
+			<p>We can now create a home page by creating a new <strong class="source-inline">pages/</strong> directory and a <strong class="source-inline">pages/index.js</strong> file with the following content:</p>
+			<p class="source-code">export default function Homepage() {</p>
+			<p class="source-code">  return &lt;div&gt; Homepage &lt;/div&gt;;</p>
+			<p class="source-code">}</p>
+			<p>If we try to run <strong class="source-inline">node index.js</strong>, and then go to <strong class="source-inline">http://localhost:3000</strong>, we will see the <strong class="bold">Homepage</strong> text displayed on the screen. We did it!</p>
+			<p>We can also test dynamic routes by creating a new <strong class="source-inline">pages/greet/[user].js</strong> file with the following <a id="_idIndexMarker481"/>content:</p>
+			<p class="source-code">export function getServerSideProps(req) {</p>
+			<p class="source-code">  return {</p>
+			<p class="source-code">    props: {</p>
+			<p class="source-code">      user: req.params.user,</p>
+			<p class="source-code">    },</p>
+			<p class="source-code">  };</p>
+			<p class="source-code">}</p>
+			<p class="source-code">export default function GreetUser({ user }) {</p>
+			<p class="source-code">  return (</p>
+			<p class="source-code">    &lt;div&gt;</p>
+			<p class="source-code">      &lt;h1&gt;Hello {user}!&lt;/h1&gt;</p>
+			<p class="source-code">    &lt;/div&gt;</p>
+			<p class="source-code">  );</p>
+			<p class="source-code">}</p>
+			<p>Going to <strong class="source-inline">http://localhost:3000/greet/Mitch</strong>, we will see a friendly <strong class="bold">Hello Mitch! </strong>message printed on the screen. As you can see, implementing dynamic routes is incredibly easy!</p>
+			<p>From this point, we can continue working on Next.js as we always did. There aren't many differences compared to what we did in the previous chapters, but what would be the point of having a custom server if we did not exploit its full potential?</p>
+			<p>We've seen that a custom server may be helpful when we have an existing web application that we wish to progressively migrate to Next.js.</p>
+			<p>Start adding some more functionality by refactoring the server as follows:</p>
+			<p class="source-code">    server</p>
+			<p class="source-code"><strong class="bold">      .get('/', (req, res) =&gt; {</strong></p>
+			<p class="source-code"><strong class="bold">        res.send('Hello World!');</strong></p>
+			<p class="source-code"><strong class="bold">      })</strong></p>
+			<p class="source-code"><strong class="bold">      .get('/api/greet', (req, res) =&gt; {</strong></p>
+			<p class="source-code"><strong class="bold">        res.json({ name: req.query?.name ?? 'unknown' });</strong></p>
+			<p class="source-code"><strong class="bold">      })</strong></p>
+			<p class="source-code">      .listen(3000, () =&gt; console.log('server ready'));</p>
+			<p>As you can tell, we're<a id="_idIndexMarker482"/> not serving any page with Next.js right now. So instead, we just serve a home page, and a fake API at <strong class="source-inline">/api/greet</strong>.</p>
+			<p>We now want to create a new <strong class="source-inline">/about</strong> page and serve it using Next.js. But first, we need to create the Next.js-powered page under the <strong class="source-inline">/pages/about</strong> route:</p>
+			<p class="source-code">export default function About() {</p>
+			<p class="source-code">  return &lt;div&gt; This about page is served from Next.js &lt;/div&gt;;</p>
+			<p class="source-code">}</p>
+			<p>Now, we can go back to our <strong class="source-inline">index.js</strong> file and edit the <strong class="source-inline">main</strong> function, as follows:</p>
+			<p class="source-code">server</p>
+			<p class="source-code">  .get('/', (req, res) =&gt; {</p>
+			<p class="source-code">    res.send('Hello World!');</p>
+			<p class="source-code">  })</p>
+			<p class="source-code"><strong class="bold">  .get('/about', (req, res) =&gt; {</strong></p>
+			<p class="source-code"><strong class="bold">    const { query } = parse(req.url, true);</strong></p>
+			<p class="source-code"><strong class="bold">    app.render(req, res, '/about', query);</strong></p>
+			<p class="source-code"><strong class="bold">  })</strong></p>
+			<p class="source-code">  .get('/api/greet', (req, res) =&gt; {</p>
+			<p class="source-code">    res.json({ name: req.query?.name ?? 'unknown' });</p>
+			<p class="source-code">  })</p>
+			<p class="source-code">  .listen(3000, () =&gt; console.log('server ready'));</p>
+			<p>We're now using a different function for rendering a Next.js page: <strong class="source-inline">app.render</strong>.</p>
+			<p>This function takes the following arguments: Express.js' <strong class="source-inline">request</strong> and <strong class="source-inline">response</strong>, the page to render, and the parsed query string.</p>
+			<p>But as soon as we start the server and head over to <strong class="source-inline">http://localhost:3000/about</strong>, we will notice a blank page. If we inspect the network call for <a id="_idIndexMarker483"/>this page, we will see the following situation:</p>
+			<div>
+				<div id="_idContainer035" class="IMG---Figure">
+					<img src="image/Figure_8.01_B16985.jpg" alt="Figure 8.1 – Next.js scripts are not found&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 8.1 – Next.js scripts are not found</p>
+			<p>What's happening here? Next.js renders the page properly, as you can tell by inspecting the HTML output, but the page is entirely white!</p>
+			<p>We forgot to tell Express.js that every static asset whose path starts with <strong class="source-inline">_next/</strong> needs to be handled by Next.js itself. This is because all those static assets (typically JavaScript files) are responsible for importing React into the browser, handling hydration, and managing all the Next.js frontend-specific features.</p>
+			<p>We can quickly fix that by adding the following route:</p>
+			<p class="source-code"><strong class="bold">// ...</strong></p>
+			<p class="source-code"><strong class="bold">await app.prepare();</strong></p>
+			<p class="source-code"><strong class="bold">const handle = app.getRequestHandler();</strong></p>
+			<p class="source-code"><strong class="bold">const server = express();</strong></p>
+			<p class="source-code">server</p>
+			<p class="source-code">  .get('/', (req, res) =&gt; {</p>
+			<p class="source-code">    res.send('Hello World!');</p>
+			<p class="source-code">  })</p>
+			<p class="source-code">  .get('/about', (req, res) =&gt; {</p>
+			<p class="source-code">    const { query } = parse(req.url, true);</p>
+			<p class="source-code">    app.render(req, res, '/about', query);</p>
+			<p class="source-code">  })</p>
+			<p class="source-code">  .get('/api/greet', (req, res) =&gt; {</p>
+			<p class="source-code">    res.json({ name: req.query?.name ?? 'unknown' });</p>
+			<p class="source-code">  })</p>
+			<p class="source-code"><strong class="bold">  .get(/_next\/.+/, (req, res) =&gt; {</strong></p>
+			<p class="source-code"><strong class="bold">    const parsedUrl = parse(req.url, true);</strong></p>
+			<p class="source-code"><strong class="bold">    handle(req, res, parsedUrl);</strong></p>
+			<p class="source-code"><strong class="bold">  })</strong></p>
+			<p class="source-code">  .listen(3000, () =&gt; console.log('server ready'));</p>
+			<p>Given that we cannot<a id="_idIndexMarker484"/> predict Next.js static asset names, we will use a regular expression (<strong class="source-inline">/_next\/.+/</strong>) matching every file whose path starts with <strong class="source-inline">_next/</strong>. We then use the Next.js handle method for serving those files.</p>
+			<p>We can now start our server and see that it is working as expected.</p>
+			<p>As we've seen before, from now, the developer experience will remain the same while developing Next.js-powered pages. We still have access to both the <strong class="source-inline">_app.js</strong> and <strong class="source-inline">_document.js</strong> files, we can still use the built-in <strong class="source-inline">Link</strong> component, and so on.</p>
+			<p>In the next section, we will see how to integrate Next.js with another incredibly popular Node.js web <a id="_idIndexMarker485"/>framework: Fastify.</p>
+			<h1 id="_idParaDest-95"><a id="_idTextAnchor094"/>Using a custom Fastify server</h1>
+			<p>Fastify is an<a id="_idIndexMarker486"/> incredible web framework for Node.js. As the name suggests, it can be attractive as it is really, really fast when compared to other web frameworks, such as Express.js, Koa, and Hapi. If you're interested in learning more about its performance, you can find the official benchmarks in the following repository: <a href="https://github.com/fastify/benchmarks">https://github.com/fastify/benchmarks</a>.</p>
+			<p>This web framework is developed and maintained by some of Node.js' core developers, such as Matteo Collina (Node.js technical steering committee member). So, as you can imagine, the people behind Fastify perfectly know how the runtime works and have made the framework as optimized as possible.</p>
+			<p>But Fastify is not just about the performance: it also enforces excellent best practices to keep the developer experience as good as possible. It also has a robust plugin system that allows everyone to write their own plugin or middleware with ease. If you haven't already, I highly recommend checking it out at https://github.com/fastify/fastify.</p>
+			<p>Fastify provides an official plugin for managing Next.js-rendered routes: <strong class="source-inline">fastify-nextjs</strong>. You can find its source code here: https://github.com/fastify/fastify-nextjs.</p>
+			<p>Let's create a new empty project and install the following dependencies to see it in action:</p>
+			<p class="source-code">yarn add react react-dom fastify fastify-nextjs next</p>
+			<p>We can now create the same three pages we made in the past section.</p>
+			<p>A simple home page under <strong class="source-inline">/pages/index.js</strong> can be implemented as follows:</p>
+			<p class="source-code">export default function Homepage() {</p>
+			<p class="source-code">  return &lt;div&gt; Homepage &lt;/div&gt;;</p>
+			<p class="source-code">}</p>
+			<p>An "about" page under <strong class="source-inline">/pages/about.js</strong> can be implemented as follows:</p>
+			<p class="source-code">export default function About() {</p>
+			<p class="source-code">  return &lt;div&gt; This about page is served from Next.js &lt;/div&gt;;</p>
+			<p class="source-code">}</p>
+			<p>Lastly, a dynamic page used for greeting a user under <strong class="source-inline">/pages/greet/[user].js</strong> can be<a id="_idIndexMarker487"/> implemented as follows:</p>
+			<p class="source-code">export function getServerSideProps(req) {</p>
+			<p class="source-code">  return {</p>
+			<p class="source-code">    props: {</p>
+			<p class="source-code">      user: req.params.user,</p>
+			<p class="source-code">    },</p>
+			<p class="source-code">  };</p>
+			<p class="source-code">}</p>
+			<p class="source-code">export default function GreetUser({ user }) {</p>
+			<p class="source-code">  return (</p>
+			<p class="source-code">    &lt;div&gt;</p>
+			<p class="source-code">      &lt;h1&gt;Hello {user}!&lt;/h1&gt;</p>
+			<p class="source-code">    &lt;/div&gt;</p>
+			<p class="source-code">  );</p>
+			<p class="source-code">}</p>
+			<p>We can finally code our Fastify server, and it will be straightforward compared to the Express.js one. Let's create an <strong class="source-inline">index.js</strong> file inside of the project's root and add the following content:</p>
+			<p class="source-code">const fastify = require('fastify')();</p>
+			<p class="source-code">fastify</p>
+			<p class="source-code">  .register(require('fastify-nextjs'))</p>
+			<p class="source-code">  .after(() =&gt; {</p>
+			<p class="source-code"><strong class="bold">    fastify.next('/');</strong></p>
+			<p class="source-code"><strong class="bold">    fastify.next('/about');</strong></p>
+			<p class="source-code"><strong class="bold">    fastify.next('/greet/:user');</strong></p>
+			<p class="source-code">  });</p>
+			<p class="source-code">fastify.listen(3000, () =&gt; {</p>
+			<p class="source-code">  console.log('Server listening on http://localhost:3000');</p>
+			<p class="source-code">});</p>
+			<p>Starting the server, we will be able to render all the pages we specified in our <strong class="source-inline">index.js</strong> file! As you <a id="_idIndexMarker488"/>can notice, this implementation is even easier than the Express.js one. We just invoke the <strong class="source-inline">fastify.next</strong> function to render a Next.js page, and we don't even need to worry about Next.js' static assets; Fastify will take care of them on our behalf.</p>
+			<p>From this point, we can start writing different routes serving different contents, such as JSON responses, HTML pages, and static files:</p>
+			<p class="source-code">fastify.register(require('fastify-nextjs')).after(() =&gt; {</p>
+			<p class="source-code">  fastify.next('/');</p>
+			<p class="source-code">  fastify.next('/about');</p>
+			<p class="source-code">  fastify.next('/greet/:user');</p>
+			<p class="source-code"><strong class="bold">  fastify.get('/contacts', (req, reply) =&gt; {</strong></p>
+			<p class="source-code"><strong class="bold">    reply</strong></p>
+			<p class="source-code"><strong class="bold">      .type('html')</strong></p>
+			<p class="source-code"><strong class="bold">      .send('&lt;h1&gt;Contacts page&lt;/h1&gt;');</strong></p>
+			<p class="source-code"><strong class="bold">  });</strong></p>
+			<p class="source-code">});</p>
+			<p>As you can see, integrating Next.js with Fastify is incredibly easy. From this point, just like with Express.js, we can do whatever we want, just like we're writing a common Next.js web application.</p>
+			<p>We can create both <strong class="source-inline">_app.js</strong> and <strong class="source-inline">_document.js</strong> files to customize our Next.js pages' behavior, integrate any <a id="_idIndexMarker489"/>UI library, and do all the things we've already seen in the previous chapters.</p>
+			<h1 id="_idParaDest-96"><a id="_idTextAnchor095"/>Summary</h1>
+			<p>In this chapter, we've seen how to integrate Next.js with two of the most popular web frameworks for Node.js: Express.js and Fastify. It is possible to integrate Next.js with other web frameworks, and the implementation won't be different from what we've seen in the previous sections.</p>
+			<p>One thing to consider when using a custom server of any kind (be it Express.js, Fastify, or any other framework) is that we cannot deploy it to some providers, such as Vercel or Netlify.</p>
+			<p>Technically speaking, many providers (Vercel, Netlify, Cloudflare, and so on) provide a great way to serve Node.js-powered applications: serverless functions. However, since this is quite an advanced topic, we will discuss it in depth in <a href="B16985_11_Final_SB_epub.xhtml#_idTextAnchor113"><em class="italic">Chapter 11</em></a>, <em class="italic">Different Deployment Platforms</em>.</p>
+			<p>As we'll see in <a href="B16985_11_Final_SB_epub.xhtml#_idTextAnchor113"><em class="italic">Chapter 11</em></a>, <em class="italic">Different Deployment Platforms</em>, Next.js is a framework highly optimized to run on Vercel, the infrastructure provided by the company behind the creation (and maintenance) of the framework. Using a custom server, we lose the ability to deploy to this infrastructure, making things a bit less optimized and integrated.</p>
+			<p>Still, there are other awesome options out there, such as DigitalOcean, Heroku, AWS, and Azure. From this point, we can deploy our custom Next.js server on all of those services that support a Node.js environment.</p>
+			<p>Starting from <a href="B16985_11_Final_SB_epub.xhtml#_idTextAnchor113"><em class="italic">Chapter 11</em></a>, <em class="italic">Different Deployment Platforms</em>, we will discuss Next.js deployments in more depth. But for now, we just want to concentrate on its features and integrations.</p>
+			<p>Talking about its integrations specifically, once we write a page, some middleware, or a component for our Next.js application, we want to test whether it works properly before deploying it to production. In the next chapter, we'll discuss implementing unit and end-to-end tests using two of the most commonly used testing libraries out there: Jest and Cypress.</p>
+		</div>
+	</body></html>

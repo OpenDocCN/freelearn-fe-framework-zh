@@ -1,0 +1,292 @@
+<html><head></head><body><div class="chapter" title="Chapter&#xA0;9.&#xA0;React Router and Data Models"><div class="titlepage"><div><div><h1 class="title"><a id="ch09"/>Chapter 9. React Router and Data Models</h1></div></div></div><p>In the previous chapter, we took a look at the React performance tools that can improve performance of our React apps. We explored using the PERF add-on, PureRenderMixin, and so on and took a look at some of the gotchas related to the performance tools provided by React.</p><p>In this chapter, we will take a closer look at react-router and perform routing at different levels. We will take a look at nested routing and passing around parameters, as well as see how react-router maintains history when performing routing tasks. We will also take a look at passing and using context to render React Components. Finally, we will explore data-models and mix and match them with other frameworks to use as data models in React, Backbone in this case.</p><p>In this chapter, we will cover the following topics:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">React in your apps</li><li class="listitem" style="list-style-type: disc">Routing with react-router</li><li class="listitem" style="list-style-type: disc">Different routing mechanism</li><li class="listitem" style="list-style-type: disc">Setting up routing and passing around the routing context</li><li class="listitem" style="list-style-type: disc">React and data stores/models</li><li class="listitem" style="list-style-type: disc">Using Backbone models/collections as data stores</li></ul></div><p>At the end of chapter, we will be able to start using the react-router and different routing patterns and start passing around context data in routing. We will also be able to replace parts of plain data models with the likes of Backbone.js.</p><div class="section" title="A new adventure"><div class="titlepage"><div><div><h1 class="title"><a id="ch09lvl1sec70"/>A new adventure</h1></div></div></div><p>"Hi Shawn and Mike!" exclaimed Carla.</p><p>Shawn and Mike were startled. They had just got in and were about to start their day. The past few days had been a lot of React exploration for them.</p><p>"I have some good news for you guys. We got a new project, where we need to build a cat-based interest site. Something like say – Pinterest? Users can like images and profiles of cats. They can then see and like related articles for sale, as well," continued Carla.</p><p>"Oh, nice," replied Shawn.</p><p>Shawn and Mike regrouped and started a conversation about the new project that they just heard from Carla.</p><p>"This is nice. So, I guess, we want to display a small Pinterest-style gallery of images in panel shapes?" inquired Shawn.</p><p>"Correct," continued Mike. "We also want to display the images in large scale, maybe in a modal after a user clicks on the image. Carla said she wants random cats to be featured in the footer, which should take us to a full-fledged cat display page."</p><p>"You know what, I know the perfect thing that we are going use. Let's take a look at react-router today! I also know the perfect example to start with. We are going to look at the <a id="id252" class="indexterm"/>Pinterest example from react-router at <a class="ulink" href="https://github.com/rackt/react-router/tree/master/examples/pinterest">https://github.com/rackt/react-router/tree/master/examples/pinterest</a>. We will then build our app on top of it."</p><p>"Nice," said Shawn. "I can see the existing example has some of the things that we discussed, such as the modal display. Let me see how the example looks."</p><p>Shawn looked at the example, which was as follows:</p><div class="informalexample"><pre class="programlisting">import React from 'react'
+import { render } from 'react-dom'
+import { browserHistory, Router, Route, IndexRoute, Link } from 'react-router'
+…
+const PICTURES = [
+  { id: 0, src: 'http://placekitten.com/601/601' },
+  { id: 1, src: 'http://placekitten.com/610/610' },
+  { id: 2, src: 'http://placekitten.com/620/620' }
+]
+const Modal = React.createClass({
+… // Modal Class implementation
+ })
+
+const App = React.createClass({
+  componentWillReceiveProps(nextProps) {
+// takes care of context in case of Modals
+  },
+  render() {
+// Main render for Modal or Cat Pages
+ }
+})
+
+const Index = React.createClass({
+  render() {
+// Index page render 
+..
+        &lt;div&gt;
+          {PICTURES.map(picture =&gt; (
+            &lt;Link key={picture.id}
+              to={{
+                pathname: `/pictures/${picture.id}`,
+                state: { modal: true, returnTo: this.props.location.pathname }
+              }}
+            &gt;
+              &lt;img style={{ margin: 10 }} src={picture.src} height="100" /&gt;
+            &lt;/Link&gt;
+          ))}
+        &lt;/div&gt;
+.. // Usage of React Router Links
+        &lt;p&gt;&lt;Link to="/some/123/deep/456/route"&gt;Go to some deep route&lt;/Link&gt;&lt;/p&gt;
+      &lt;/div&gt;
+    )
+  }
+})
+
+const Deep = React.createClass({
+  render() {
+// Render handler for some deep link
+   )
+  }
+})
+
+const Picture = React.createClass({
+  render() {
+    return (
+      &lt;div&gt;
+// Pictures display
+        &lt;img src={PICTURES[this.props.params.id].src} style={{ height: '80%' }} /&gt;
+      &lt;/div&gt;
+    )
+  }
+})
+
+// The actual Routing logic using Router Library.
+render((
+  &lt;Router history={browserHistory}&gt;
+    &lt;Route path="/" component={App}&gt;
+      &lt;IndexRoute component={Index}/&gt;
+      &lt;Route path="/pictures/:id" component={Picture}/&gt;
+      &lt;Route path="/some/:one/deep/:two/route" component={Deep}/&gt;
+    &lt;/Route&gt;
+  &lt;/Router&gt;
+), document.getElementById('example'))</pre></div><p>"Looks interesting," said Shawn.</p><p>"Yeah, let's go through the components that we need to create one by one. To begin with, let's see how we are going to store our data and display the cat data across the system. Currently, the images are stored in the <code class="literal">PICTURES</code> constant. We would like to store more than that."</p></div></div>
+<div class="section" title="Creating Backbone models"><div class="titlepage"><div><div><h1 class="title"><a id="ch09lvl1sec71"/>Creating Backbone models</h1></div></div></div><p>"So, Shawn, let's go <a id="id253" class="indexterm"/>ahead and build out our cats' collection that we want to display. For the purpose of development, we are going to use cat images from <a id="id254" class="indexterm"/>lorempixel service, for example, <a class="ulink" href="http://lorempixel.com/600/600/cats/">http://lorempixel.com/600/600/cats/</a>. This will give us a random cat image of 600 x 600 pixels."</p><p>"Next, we are going to create a store of data using different-than-normal objects. We want to explore how to embed different model flows with our React app here. In our case, let's make use of Backbone models, instead of the PICTURES constant. I know that you have already used Backbone."</p><p>"Yup, I have used it in my previous projects."</p><p>"Alright then, let's define our <code class="literal">Cat</code> model."</p><div class="informalexample"><pre class="programlisting">const PictureModel = Backbone.Model.extend({
+  defaults: {
+    src: 'http://lorempixel.com/601/600/cats/',
+    name: 'Pusheen',
+    details: 'Pusheen is a Cat'
+  }
+});</pre></div><p>"Here we store the <code class="literal">src</code> for the image of a cat, its name, and some details about it. As you can see, we have provided some default values for these attributes."</p><p>"Next, let's define our <code class="literal">Cats</code> collection to all the <code class="literal">Cat</code> records."</p><div class="informalexample"><pre class="programlisting">const Cats = new Backbone.Collection;
+Cats.add(new PictureModel({src: "http://lorempixel.com/601/600/cats/", 
+                                              name: Faker.Name.findName(), 
+                                              details: Faker.Lorem.paragraph()}));
+
+Cats.add(new PictureModel({src: "http://lorempixel.com/602/600/cats/", 
+                                              name: Faker.Name.findName(), 
+                                              details: Faker.Lorem.paragraph()}));
+…</pre></div><p>"Here, we making use of the <code class="literal">Faker</code> module to create random names for the cats using <code class="literal">Faker.Name.findName()</code>, adding random description using <code class="literal">Faker.Lorem.paragraph()</code> and passing the source as needed."</p><p>"Cool," said Shawn. "Let <a id="id255" class="indexterm"/>me see how this looks now."</p><div class="informalexample"><pre class="programlisting">//models.js
+import Backbone from 'backbone';
+import Faker from 'faker';
+
+const PictureModel = Backbone.Model.extend({
+  defaults: {
+    src: 'http://lorempixel.com/601/600/cats/',
+    name: 'Pusheen',
+    details: 'Pusheen is a Cat'
+  }
+});
+
+const Cats = new Backbone.Collection;
+Cats.add(new PictureModel({src: "http://lorempixel.com/601/600/cats/", name: Faker.Name.findName(), details: Faker.Lorem.paragraph()}));
+…
+Cats.add(new PictureModel({src: "http://lorempixel.com/606/600/cats/", name: Faker.Name.findName(), details: Faker.Lorem.paragraph()}));
+
+module.exports = {Cats, PictureModel};</pre></div></div>
+<div class="section" title="Incorporating defined Backbone models"><div class="titlepage"><div><div><h1 class="title"><a id="ch09lvl1sec72"/>Incorporating defined Backbone models</h1></div></div></div><p>"Next, let's <a id="id256" class="indexterm"/>define our index with how we need the routing to be and what paths should the routing respond to. From there, we will go ahead with building our components."</p><p>"Got it."</p><div class="informalexample"><pre class="programlisting">import React from 'react'
+import { render } from 'react-dom'
+import { createHistory, useBasename } from 'history'
+import { Router, Route, IndexRoute, Link } from 'react-router'
+import Backbone from 'backbone';
+import Modal from './Modal'
+import App from './App'
+import { Cats, PictureModel } from './models';
+import Picture from './Picture'
+import Sample from './Sample'
+import Home from './Home'
+
+const history = useBasename(createHistory)({
+  basename: '/pinterest'
+});
+
+
+render((
+  &lt;Router history={history}&gt;
+    &lt;Route path="/" component={App}&gt;
+      &lt;IndexRoute component={Home}/&gt;
+      &lt;Route path="/pictures/:id" component={Picture}/&gt;
+      &lt;Route path="/this/:cid/is/:randomId/sampleroute" component={Sample}/&gt;
+    &lt;/Route&gt;
+  &lt;/Router&gt;
+), document.getElementById('rootElement'));</pre></div><p>"So, the first thing I see is that we are creating a session history?"</p><p>"Correct, we are creating a session history over here. We will use it for our router."</p><p>"Here, we are using the history module's <code class="literal">useBasename</code> method, which provides support for running an app under a <code class="literal">base</code> URL, which in our case is <code class="literal">/pinterest</code>."</p><p>"Got it."</p><p>"Next, we are laying out how we actually want the routing to be. We wrap our router into the <code class="literal">&lt;Router/&gt;</code> component and specify different <code class="literal">&lt;Route/&gt;</code> as paths."</p><p>"This is called the <span class="strong"><strong>Route Configuration</strong></span>, which is basically a set of rules or instructions on how to match the URLs to some React Component in order to be displayed."</p><p>"Oh, can we discuss more about this configuration, it looks intriguing."</p><p>"It sure is. First, let's see what <code class="literal">&lt;IndexRoute component={Home}/&gt;</code> does. When we land on the <code class="literal">/</code> page for the application, which in our case would be <code class="literal">/pinterest</code>, the component defined by <code class="literal">IndexRoute</code> gets rendered. As you might have guessed, the component to be rendered is passed in the component argument of the route. Note that this is displayed in the <code class="literal">App</code> component that is the base component for all."</p><p>Similar to the <code class="literal">IndexRoute</code>, we have different <code class="literal">&lt;Route/&gt;</code> definitions. In our example, if you see <code class="literal">&lt;Route path="/pictures/:id" component={Picture}/&gt;</code>, it shows how route is getting used, and how we are passing attributes for the same. "Here, the path attribute is a matcher expression and component attribute specifies the component that is to be displayed after the route is matched."</p><p>"Notice how the path is defined over here, it is specified as an expression."</p><p>The matching for a route based on a URL is done on the basis of three components:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">Nesting of route</li><li class="listitem" style="list-style-type: disc">Path attribute</li><li class="listitem" style="list-style-type: disc">Precedence of the route</li></ul></div><p>Shawn began, "I got the nesting part. I see that we have arranged our routes in a nested fashion, like a tree. The route matching and building is being done on the basis of this tree-like matching structure."</p><p>"Right. Secondly, we have the path attribute. We can see examples for these:"</p><div class="informalexample"><pre class="programlisting">      &lt;Route path="/pictures/:id" component={Picture}/&gt;
+      &lt;Route path="/this/:cid/is/:randomId/sampleroute" component={Sample}/&gt;</pre></div><p>"The path value is a string that acts as a regex, which can consist of the following parts:"</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc"><code class="literal">:paramName</code>: For example, ID, which is the param passed in the URL such as <code class="literal">/pictures/12</code>. <code class="literal">12</code> gets parsed as <code class="literal">param id</code>.</li><li class="listitem" style="list-style-type: disc"><code class="literal">()</code>: This can be used to specify an optional path, such as <code class="literal">/pictures(/:id)</code>, this will match <code class="literal">/pictures</code> as well as <code class="literal">/pictures/12</code>.</li><li class="listitem" style="list-style-type: disc"><code class="literal">*</code>: As in case of regular expressions, <code class="literal">*</code> can be used to match any part of the expression, until the next <code class="literal">/</code>, <code class="literal">?</code>, or <code class="literal">#</code> occurs. For example, to match all the JPEG images, we can use <code class="literal">/pictures/*.jpg</code>.</li><li class="listitem" style="list-style-type: disc"><code class="literal">**</code>: Greedy matching, similar to *, but it matches greedily. For example, <code class="literal">/**/*.jpg</code> will match <code class="literal">/pictures/8.jpg</code> as well as <code class="literal">/photos/10.jpg</code>.</li></ul></div><p>"Got it. Finally, what remains is the precedence? Most probably, it should use the first route that is defined in the file and satisfy the condition used to match the path?"</p><p>"Exactly," Mike exclaimed.</p><p>"Oh, before I forget, we also have a <code class="literal">&lt;Redirect&gt;</code> route. This can be used to match some routes to other route actions. For example, we want <code class="literal">/photos/12</code> to match <code class="literal">/pictures/12</code> instead, we can define it as code."</p><div class="informalexample"><pre class="programlisting">&lt;Redirect from="/photos/:id" to="/pictures/:id" /&gt;</pre></div><p>"Awesome."</p><p>"Next, let's take a look at all the things that we are importing and using, which we will define as components."</p><div class="informalexample"><pre class="programlisting">import React from 'react'
+…
+import Modal from './Modal'
+import App from './App'
+import { Cats, PictureModel } from './models';
+import Picture from './Picture'
+import Sample from './Sample'
+import Home from './Home'</pre></div><p>"Let's define our <code class="literal">App</code> component first, which is going to act as the container:"</p><div class="informalexample"><pre class="programlisting">..
+import { Router, Route, IndexRoute, Link } from 'react-router'
+import Modal from './Modal'
+
+const App = React.createClass({
+  componentWillReceiveProps(nextProps) {
+    if ((
+            nextProps.location.key !== this.props.location.key &amp;&amp;
+            nextProps.location.state &amp;&amp;
+            nextProps.location.state.modal
+        )) {
+      this.previousChildren = this.props.children
+    }
+  },
+
+  render() {
+    let { location } = this.props;
+    let isModal = ( location.state &amp;&amp; location.state.modal &amp;&amp; this.previousChildren );
+    return (
+        &lt;div&gt;
+          &lt;h1&gt;Cats Pinterest&lt;/h1&gt;
+          &lt;div&gt;
+            {isModal ?
+                this.previousChildren :
+                this.props.children
+            }
+            {isModal &amp;&amp; (
+                &lt;Modal isOpen={true} returnTo={location.state.returnTo}&gt;
+                  {this.props.children}
+                &lt;/Modal&gt;
+            )}
+          &lt;/div&gt;
+        &lt;/div&gt;
+    )
+  }
+});
+
+export {App as default}</pre></div><p>"We aren't going to change much here, this is from the example that we have already seen."</p><p>"I see the use of location here. Is this from react-router?"</p><p>"As we saw, our <code class="literal">App</code> is wrapped into the router. The router passes in the location object from the props. The location object is actually similar to <code class="literal">window.location</code> and it is something the history module that we use defines. The <code class="literal">Location</code> object has various special attributes defined on top of it, which we are going to make use of, as follows:"</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc"><code class="literal">pathname</code>: The actual pathname of the URL</li><li class="listitem" style="list-style-type: disc"><code class="literal">search</code>: The query string</li><li class="listitem" style="list-style-type: disc"><code class="literal">state</code>: A state passed on from the react-router and tied as an object to the location</li><li class="listitem" style="list-style-type: disc"><code class="literal">action</code>: One of the <code class="literal">PUSH</code>, <code class="literal">REPLACE</code>, or <code class="literal">POP</code> operations</li><li class="listitem" style="list-style-type: disc"><code class="literal">key</code>: The unique identifier for the location</li></ul></div><p>"Got it. I can see that we are making use of <code class="literal">props.children</code> we had seen before."</p><div class="informalexample"><pre class="programlisting">  componentWillReceiveProps(nextProps) {
+    if ((
+            nextProps.location.key !== this.props.location.key &amp;&amp;
+            nextProps.location.state &amp;&amp;
+            nextProps.location.state.modal
+        )) {
+      this.previousChildren = this.props.children
+    }
+  }</pre></div><p>"We are storing the children and the previous screen onto the <code class="literal">App</code> object when the Modal is displayed, I guess," queried Shawn.</p><p>"Yup. We are first checking whether we are displaying a different Component by matching the key attribute of location. We then check whether the state attribute was passed on the location and whether the modal was set to true on state. We will be doing that in case of Modal display. Here's how we will pass the state onto a link:"</p><div class="informalexample"><pre class="programlisting">&lt;Link … state={{ modal: true .. }}.. /&gt;</pre></div><p>" We will take a look at the <code class="literal">Link</code> object when we use it for the images."</p><p>"Got it," said Shawn.</p><p>"Then I see that we are passing around the children props or rendering the previous layout, and then, displaying <code class="literal">Modal</code> on top of it if modal is clicked:"</p><div class="informalexample"><pre class="programlisting">           {isModal ?
+                this.previousChildren :
+                this.props.children
+            }
+            {isModal &amp;&amp; (
+                &lt;Modal isOpen={true} returnTo={location.state.returnTo}&gt;
+                  {this.props.children}
+                &lt;/Modal&gt;
+            )}</pre></div><p>"Exactly! You are getting pretty good at this," Mike exclaimed.</p><p>"Now, let's see our main index page component, shall we?"</p><div class="informalexample"><pre class="programlisting">// home.js
+import React from 'react'
+import { Cats, PictureModel } from './models';
+import { createHistory, useBasename } from 'history'
+import { Router, Route, IndexRoute, Link } from 'react-router'
+
+const Home = React.createClass({
+  render() {
+    let sampleCat = Cats.sample();
+    return (
+        &lt;div&gt;
+          &lt;div&gt;
+            {Cats.map(cat =&gt; (
+                &lt;Link key={cat.cid} to={`/pictures/${cat.cid}`} state={{ modal: true, returnTo: this.props.location.pathname }}&gt;
+                  &lt;img style={{ margin: 10 }} src={cat.get('src')} height="100" /&gt;
+                &lt;/Link&gt;
+            ))}
+          &lt;/div&gt;
+          &lt;p&gt;&lt;Link to={`/this/${sampleCat.cid}/is/456/sampleroute`}&gt;{`Interesting Details about ${sampleCat.get('name')}`}&lt;/Link&gt;&lt;/p&gt;
+        &lt;/div&gt;
+    )
+  }
+});
+
+export {Home as default}</pre></div><p>"So Shawn, we are first importing all the data that we generate in the <code class="literal">Cats</code> collection. We are going to loop over them and display the images with links to Modals. You can see this happening here:"</p><div class="informalexample"><pre class="programlisting">            {Cats.map(cat =&gt; (
+                &lt;Link key={cat.cid} to={`/pictures/${cat.cid}`} state={{ modal: true, returnTo: this.props.location.pathname }}&gt;
+                  &lt;img style={{ margin: 10 }} src={cat.get('src')} height="100" /&gt;
+                &lt;/Link&gt;
+            ))}</pre></div><p>"Yup, I see that we are setting the key using <code class="literal">cat</code> object's <code class="literal">cid</code> from the backbone object. We had to attribute for the link, which is path to where it should be linked, I guess?"</p><p>"That's right. For every cat displayed, we have a unique dynamic route generated, such as <code class="literal">/pictures/121</code> and so on. Now, as we want to display the enlarged cat when we click on it, we are passing <code class="literal">modal: true</code> to state on <code class="literal">&lt;Link/&gt;</code>."</p><p>"We are also passing a <code class="literal">returnTo</code> attribute that is related to the current path that we obtain from the current <code class="literal">location.pathname</code>. We will be using this <code class="literal">returnTo</code> attribute from state to set up back links on components. We will display one on the Modal so that we can get back to the home page when it's clicked and the Modal will be closed."</p><p>"Got it. I see we are also defining a link for the sample cat display page here:"</p><div class="informalexample"><pre class="programlisting">    let sampleCat = Cats.sample();
+…
+render(
+…
+          &lt;p&gt;&lt;Link to={`/this/${sampleCat.cid}/is/456/sampleroute`}&gt;{`Interesting Details about ${sampleCat.get('name')}`}&lt;/Link&gt;&lt;/p&gt;
+…
+);</pre></div><p>"Yup, we are going to randomly feature a cat here. We will display the details about the cat on the sample page. Now, I want to show you how we are creating the link here:"</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>`/this/${sampleCat.cid}/is/456/sampleroute`</strong></span>
+</pre></div><p>"Here, we are creating a nested random route, for example, this can match a URL, as follows:"</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>/this/123/is/456/sampleroute</strong></span>
+</pre></div><p>"The <code class="literal">123</code> and <code class="literal">456</code> act as params for the location."</p><p>"Nice," followed Shawn. "Let me define the Modal? Let me reuse the one from the example."</p><div class="informalexample"><pre class="programlisting">import React from 'react'
+import { Router, Route, IndexRoute, Link } from 'react-router'
+
+const Modal = React.createClass({
+  styles: {
+    position: 'fixed',
+    top: '20%',
+    right: '20%',
+    bottom: '20%',
+    left: '20%',
+    padding: 20,
+    boxShadow: '0px 0px 150px 130px rgba(0, 0, 0, 0.5)',
+    overflow: 'auto',
+    background: '#fff'
+  },
+
+  render() {
+    return (
+      &lt;div style={this.styles}&gt;
+        &lt;p&gt;&lt;Link to={this.props.returnTo}&gt;Back&lt;/Link&gt;&lt;/p&gt;
+        {this.props.children}
+      &lt;/div&gt;
+    )
+  }
+})
+
+export {Modal as default}</pre></div><p>"That's simple and straightforward, Shawn. We also need to define how we display the pictures. Let's define that."</p><div class="informalexample"><pre class="programlisting">import React from 'react'
+import { Cats, PictureModel } from './models';
+
+const Picture = React.createClass({
+  render() {
+    return (
+        &lt;div&gt;
+          &lt;img src={Cats.get(this.props.params.id).get('src')} style={{ height: '80%' }} /&gt;
+        &lt;/div&gt;
+    )
+  }
+});
+
+export {Picture as default}</pre></div><p>"To display the cat and fetch details about it, we are using the ID that we receive from params. These are sent to us on the params prop. We are then fetching the ID from the <code class="literal">Cats</code> collection."</p><div class="informalexample"><pre class="programlisting">Cats.get(this.props.params.id)</pre></div><p>"Using the <code class="literal">id</code> prop, recall how we were sending the ID on the cat link that we defined as follows"</p><div class="informalexample"><pre class="programlisting">&lt;Route path="/pictures/:id" component={Picture}/&gt;</pre></div><p>"Finally, let's take a look at how the sample component is used to display the cat information from the example:"</p><div class="informalexample"><pre class="programlisting">import React from 'react'
+import { Cats, PictureModel } from './models';
+import { createHistory, useBasename } from 'history'
+import { Router, Route, IndexRoute, Link } from 'react-router'
+
+const Sample = React.createClass({
+  render() {
+    let cat = Cats.get(this.props.params.cid);
+    return (
+        &lt;div&gt;
+          &lt;p&gt;CID for the Cat: {this.props.params.cid}, and Random ID: {this.props.params.randomId}&lt;/p&gt;
+          &lt;p&gt;Name of this Cat is: {cat.get('name')}&lt;/p&gt;
+          &lt;p&gt;Some interesting details about this Cat:&lt;/p&gt;
+          &lt;p&gt; {cat.get('details')} &lt;/p&gt;
+          &lt;/p&gt;
+        &lt;/div&gt;
+    )
+  }
+});
+
+
+export {Sample as default};</pre></div><p>"With this, it looks like we are done! Let's see how it looks, shall we?"</p><p>"The index page looks neat."</p><div class="mediaobject"><img src="graphics/4730_09_01.jpg" alt="Incorporating defined Backbone models"/></div><p>"Next, let's see how the Modal and the links look with the URL."</p><p>"The cat sure looks nice," chuckled Shawn.</p><div class="mediaobject"><img src="graphics/4730_09_02.jpg" alt="Incorporating defined Backbone models"/></div><p>"Haha, yes."</p><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note15"/>Note</h3><p>Notice the URL. On clicking, the modal link changed to the one on the anchor tag. We are on the same page and the modal is displayed.</p></div></div><p>"Finally, we have the sample page, where we display details of the cat. Let's see how it looks:"</p><div class="mediaobject"><img src="graphics/4730_09_03.jpg" alt="Incorporating defined Backbone models"/></div><p>"Awesome!"</p></div>
+<div class="section" title="Data models and Backbone"><div class="titlepage"><div><div><h1 class="title"><a id="ch09lvl1sec73"/>Data models and Backbone</h1></div></div></div><p>"Shawn, I <a id="id257" class="indexterm"/>wanted to discuss how we used Backbone <a id="id258" class="indexterm"/>models here or how we are storing the data. We moved from the following code to make use of Backbone collections. This helped us to define our data in a better way:"</p><div class="informalexample"><pre class="programlisting">PICTURES =[{array of objects}]</pre></div><p>"However, if you notice, we ended up defining a static collection of objects. Along with that, this collection was global and required to be passed around."</p><p>"That is true. I also noticed that we had a fixed <code class="literal">state</code> in a global fashion for the data. I believe, we could have not done much there. If we updated, the <code class="literal">Views</code> would still remain the same?"</p><p>"Exactly! What's happening in our case is that we are sending and using/modifying the data in a fixed fashion, globally. Any updates to this data in a different part of the application would not affect how our views were displayed or even the data that was already being accessed in different components would not change. For example, consider that the <code class="literal">Home</code> component changed the <code class="literal">Cats</code> constant. First of all, it would not sync the changes with Sample, Modal, or other components."</p><p>"Secondly, the change in the <code class="literal">Home</code> component to the <code class="literal">Cats</code> collection would not even change the <code class="literal">Home</code> component's display!"</p><p>"Ah, this is pretty tricky. I guess, we would end up storing all of this collection state in a global component state, such as the <code class="literal">App</code> component, which is rendered only once," followed Shawn.</p><p>"Yes, we could do that. The problem in that case would be that we would need to manually maintain the state and update the state from the children components to the <code class="literal">App</code> components, and so forth. Imagine having to change the state for a cat on click, for example, someone faves an image of a cat. The event would take place on the <code class="literal">Picture</code> component and we would need to manually propagate the event to <code class="literal">Home</code> or <code class="literal">Modal</code> first and then to <code class="literal">App</code> in order to actually update the global collection."</p><p>"That would not <a id="id259" class="indexterm"/>be good. I believe this would be hard to track <a id="id260" class="indexterm"/>and debug as well."</p><p>"That's right. In our next refactoring, we will try to change this approach and limit it to, say, the <code class="literal">App</code>. In the longer run, we would try out Flux."</p><p>"Oh, right, I have heard about it. It's for passing around or accessing data and managing changes in data via events or something?"</p><p>"Umm, not exactly, it helps us to streamline the data flow in a unidirectional flow. The state maintained is propagated to the components and they update as required. Events, such as having a cat, may change the data store, which in turn changes the components."</p><p>"Anyway, I just wanted to give you an idea about this and why we will explore Flux later. For now, our solution works as expected."</p><p>The day was coming to an end. It has been another interesting day at Adequate LLC. Shawn and Mike had collaborated and build a simple app using react-router and mixing Backbone models with it.</p></div>
+<div class="section" title="Summary"><div class="titlepage"><div><div><h1 class="title"><a id="ch09lvl1sec74"/>Summary</h1></div></div></div><p>In this chapter, we built a simple Pinterest-like app, making use of react-router and taking a closer look at it while performing routing at different levels. We also took a look at nested routing, passing around parameters, how the react-router maintains history, and so on, when performing the routing tasks. We took a look at how to pass and use the context to render the React components and mix Backbone models to maintain the Cats display data.</p><p>In the next chapter, we will explore adding animation to content and some other display goodies on top of the existing app.</p></div></body></html>

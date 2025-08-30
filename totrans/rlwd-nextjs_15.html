@@ -1,0 +1,611 @@
+<html><head></head><body>
+		<div id="_idContainer052">
+			<h1 id="_idParaDest-124"><em class="italic"><a id="_idTextAnchor123"/>Chapter 12</em>: Managing Authentication and User Sessions</h1>
+			<p>In the previous chapters, we've seen how to work with some of the fundamental Next.js features. We learned how to choose between rendering strategies and how those can influence SEO and performance. We also learned how to style our application using built-in and external styling methods and libraries, managing the application state, integrating with external APIs, and many other valuable things.</p>
+			<p>Starting with this chapter, we will begin to learn and develop real-world applications by combining the lessons learned in the past sections with industry-standard strategies to keep our applications secure, performant, and highly optimized in every aspect. </p>
+			<p>In this chapter, we will see how to manage user session and authentication, an essential part of every highly dynamic web application. </p>
+			<p>We will cover the following topics in detail:</p>
+			<ul>
+				<li>How to integrate our application with a custom authentication service</li>
+				<li>How to use industry-standard service providers such as Auth0, NextAuth.js, and Firebase</li>
+				<li>How to keep sessions between page changes</li>
+				<li>How to keep user data secure and private </li>
+			</ul>
+			<p>By the end of this chapter, you will be able to authenticate users and manage their sessions on any Next.js app, be aware of the differences between different authentication strategies, and even adopt a custom one. </p>
+			<h1 id="_idParaDest-125"><a id="_idTextAnchor124"/>Technical requirements</h1>
+			<p>To run the code examples in this chapter, you need to have both Node.js and npm installed on your local machine. If you prefer, you can use an online IDE such as <a href="https://repl.it">https://repl.it</a> or <a href="https://codesandbox.io">https://codesandbox.io</a>; they both support Next.js, and you don't need to install any dependency on your computer. As for the other chapters, you can find the code base for this chapter on GitHub: <a href="https://github.com/PacktPublishing/Real-World-Next.js">https://github.com/PacktPublishing/Real-World-Next.js</a>.</p>
+			<h1 id="_idParaDest-126"><a id="_idTextAnchor125"/>A brief introduction to user sessions and authentication</h1>
+			<p>When talking about <a id="_idIndexMarker617"/>user authentication, we refer to that process that identifies a specific user, letting them read, write, update, or delete any protected content, depending on their authorization level.</p>
+			<p>A typical example could be a simple blogging system: we can publish, edit, or even delete content only after authenticating ourselves.</p>
+			<p>There are many different authentication strategies, but the most common are:</p>
+			<ul>
+				<li><strong class="bold">Credentials-based authentication</strong>: This <a id="_idIndexMarker618"/>method allows us to log in to a system using personal credentials, commonly, an email address and a password.</li>
+				<li><strong class="bold">Social login</strong>: We <a id="_idIndexMarker619"/>can log in to a system using our social accounts (Facebook, Twitter, LinkedIn, and so on).</li>
+				<li><strong class="bold">Passwordless login</strong>: Over recent <a id="_idIndexMarker620"/>years, this has become a pretty popular authentication method. Platforms such as Medium and Slack will send you what's called a "magic link" to your email address, letting you enter your account without typing any password.</li>
+				<li><strong class="bold">Single sign-on (SSO)</strong>: If you've <a id="_idIndexMarker621"/>worked in a big company, you may have experienced this. Services such as Okta provide a way of using unique credentials for many different services, centralizing user authentication over their own service. Once you log in to an SSO system, it will redirect you to the desired website, granting your identity.</li>
+			</ul>
+			<p>But once we log in to a system, we want it to remember us, so we don't have to authenticate ourselves on every page change during our navigation. This is where session management kicks in.</p>
+			<p>Again, there are many ways to<a id="_idIndexMarker622"/> manage user sessions. If you're familiar with PHP, you may know that it provides a built-in method for controlling the user session. Let's look at the following code snippet:</p>
+			<p class="source-code">&lt;?php</p>
+			<p class="source-code">  session_start();</p>
+			<p class="source-code">  $_SESSION["first_name"] = "John";</p>
+			<p class="source-code">  $_SESSION["last_name"]  = "Doe";</p>
+			<p class="source-code">?&gt;</p>
+			<p>This is a typical <a id="_idIndexMarker623"/>example of server-side session management.</p>
+			<p>It creates a session cookie and keeps track of all the properties linked to that session. So, for example, we could associate a logged-in user email or username with that session, and every time we render a page, we can do it depending on the authenticated user data.</p>
+			<p>We can refer to this strategy<a id="_idIndexMarker624"/> as a <em class="italic">stateful session</em> as the user state is kept on the server side and linked to the client via a specific session cookie.</p>
+			<p>While managing stateful sessions is relatively easy during the prototyping phase, things tend to get a bit more complex once you begin to scale in production.</p>
+			<p>In the previous chapter, we talked about deploying our application to Vercel, AWS, or any other managed hosting platform. Let's take Vercel as an example, as it is the most straightforward (yet optimized) one for hosting our Next.js web app. We've seen how every API and SSR page gets rendered on a serverless function, right? Now imagine, in that scenario, how is it possible to keep a server-side stateful session when we don't even have a server to manage?</p>
+			<p>Let's pretend we're rendering a welcome page for our users after they sign in. We can set a session cookie, but every instance of server-side stateful data will be canceled after the Lambda function terminates its execution. So how do we keep the session? What will happen once the users exit this page? The server-side session will be lost, and they will need to re-authenticate again.</p>
+			<p>This is where the<a id="_idIndexMarker625"/> concept of <em class="italic">stateless sessions</em> can really help.</p>
+			<p>Instead of setting a session cookie that links a server-side session to the frontend, we want to release some information that identifies the user on every new request. Every time the authenticated user sends a request to the backend, they must follow an authorization mechanism, such as passing a specific cookie or an HTTP header. On every new request, the server will take this information, validate it, recognize the user (if the passed cookie or header is valid), and then serve the desired content.</p>
+			<p>An industry-standard approach that follows this pattern is <em class="italic">JWT-based</em> authentication, but we will discuss this in the next section.</p>
+			<h1 id="_idParaDest-127"><a id="_idTextAnchor126"/>Understanding JSON web tokens</h1>
+			<p>As <a id="_idIndexMarker626"/>written on<a id="_idIndexMarker627"/> the <a href="https://jwt.io">https://jwt.io</a> website, a <strong class="bold">JWT</strong> (short for <strong class="bold">JSON Web Token</strong>) is an open, industry-standard <em class="italic">RFC 7519</em> method for representing claims securely between two parties.</p>
+			<p>To keep it simple, we can think of JWTs as three distinct base64-encoded JSON chunks of data.</p>
+			<p>Let's take the following <a id="_idIndexMarker628"/>JWT as an example:</p>
+			<p class="source-code">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9<strong class="bold">.</strong>eyJzdWIiOiI5MDhlYWZhNy03MWJkLTQyMDMtOGY3Ni1iNjA3MmNkMTFlODciLCJuYW1lIjoiSmFuZSBEb2UiLCJpYXQiOjE1MTYyMzkwMjJ9<strong class="bold">.</strong>HCl73CTg8960TvLP7i5mV2hKQlSJLaLAlmvHk38kL8o</p>
+			<p>If we pay enough attention, we can see three different chunks of data separated by periods.</p>
+			<p>The first part represents the <a id="_idIndexMarker629"/>JWT header. It contains two essential pieces of information: the token type and the algorithm used for signing it (we will talk more about that in just a second).</p>
+			<p>The second part is the <a id="_idIndexMarker630"/>payload. Here is where we put all the non-sensitive data that can help us identify our users. <em class="italic">Never store data such as passwords and bank details inside a JWT payload</em>.</p>
+			<p>The third and last part of a<a id="_idIndexMarker631"/> JWT token is its signature. This is what makes JWTs secure, and we will talk about that in detail later in this section.</p>
+			<p>If we decode our JWT token with any client library or a dedicated website such as <a href="https://jwt.io">https://jwt.io</a>, we will see the following JSON data:</p>
+			<p class="source-code">// First chunk</p>
+			<p class="source-code">{</p>
+			<p class="source-code">  "alg": "HS256", // Algorithm used to sign the token</p>
+			<p class="source-code">  "typ": "JWT"    // Token type</p>
+			<p class="source-code">}</p>
+			<p class="source-code">// Second chunk</p>
+			<p class="source-code">{</p>
+			<p class="source-code">  "sub": "908eafa7-71bd-4203-8f76-b6072cd11e87", // JWT subject</p>
+			<p class="source-code">  "name": "Jane Doe",                            // User name</p>
+			<p class="source-code">  "iat": 1516239022                              // Issued at</p>
+			<p class="source-code">}</p>
+			<p>The first chunk tells us that the given token is a JWT signed using the HS256 algorithm.</p>
+			<p>The second chunk gives us some helpful information about the user, such as the JWT subject (typically the user ID), the username, and the timestamp of when we issued the token.</p>
+			<p class="callout-heading">JWT Payload Best Practices</p>
+			<p class="callout">The official <em class="italic">RFC7519</em> specifies<a id="_idIndexMarker632"/> some optional payload properties, such as <strong class="source-inline">"sub"</strong> (subject), <strong class="source-inline">"aud"</strong> (audience), <strong class="source-inline">"exp"</strong> (expiration time), and more. Even though they are optional, it is best practice to implement them in accordance with the official RFC specification, which can be found at <a href="https://datatracker.ietf.org/doc/html/rfc7519#section-4">https://datatracker.ietf.org/doc/html/rfc7519#section-4</a>.</p>
+			<p>Once we need personal user data, we can set this JWT as a cookie or use it as a bearer token inside an HTTP authorization header. Once the server gets this data, it will verify the token, and here is where the third token section becomes essential.</p>
+			<p>As we have already seen, the third part of<a id="_idIndexMarker633"/> any JWT is its signature. Let's keep things easy again and make an elementary example of why (and how) we want to sign our JWT tokens.</p>
+			<p>It is pretty easy for anyone to decode a JWT token; it is just a base64-encoded JSON, so we can use JavaScript built-in functions to decode it, manipulate it (by adding an <strong class="source-inline">"admin": true</strong> property, for example), and then encode it again in the required format.</p>
+			<p>It would be tremendous if it were so easy to hack a JWT token, right? The good news is: decoding, manipulating, and then encoding the token again is not enough. We also need to sign it using the same secret code used on the server that issued the JWT.</p>
+			<p>For instance, we could use the <strong class="source-inline">jsonwebtoken</strong> library to generate a token for our user as follows:</p>
+			<p class="source-code">const jwt = require('jsonwebtoken');</p>
+			<p class="source-code">const myToken = jwt.sign(</p>
+			<p class="source-code">  {</p>
+			<p class="source-code">    name: 'Jane Doe',</p>
+			<p class="source-code">    admin: false,</p>
+			<p class="source-code">  },</p>
+			<p class="source-code">  '<strong class="bold">secretpassword</strong>',</p>
+			<p class="source-code">);</p>
+			<p>We would end up with the following JWT token:</p>
+			<p class="source-code">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiSmFuZSBEb2UiLCJhZG1pbiI6ZmFsc2UsImlhdCI6MTYzNDEzMTI2OH0.AxLW0CwWpsIUk71WNbbZS9jTPpab8z4LVfJH6rsa4Nk</p>
+			<p>We now want to verify it, just to make sure that it works as expected:</p>
+			<p class="source-code">const jwt = require('jsonwebtoken');</p>
+			<p class="source-code">const myToken = jwt.sign(</p>
+			<p class="source-code">  {</p>
+			<p class="source-code">    name: 'Jane Doe',</p>
+			<p class="source-code">    admin: false,</p>
+			<p class="source-code">  },</p>
+			<p class="source-code">  'secretpassword',</p>
+			<p class="source-code">);</p>
+			<p class="source-code"><strong class="bold">const tokenValue = jwt.verify(myToken, 'secretpassword');</strong></p>
+			<p class="source-code"><strong class="bold">console.log(tokenValue);</strong></p>
+			<p class="source-code"><strong class="bold">// =&gt; { name: 'Jane Doe', admin: false, iat: 1634131396 }</strong></p>
+			<p>In that library, the <strong class="source-inline">jwt.verify</strong> method returns the decoded payload once the signature has been verified. If <a id="_idIndexMarker634"/>the verification fails, it will throw an error.</p>
+			<p>We can test this by copying and pasting the preceding JWT on the <a href="https://jwt.io">https://jwt.io</a> home page. It will allow us to edit it freely, so we can try to set the <strong class="source-inline">"admin": true</strong> claim to our JWT:</p>
+			<div>
+				<div id="_idContainer046" class="IMG---Figure">
+					<img src="image/Figure_12.01_B16985.jpg" alt="Figure 12.1 – Editing the JWT token on https://jwt.io&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 12.1 – Editing the JWT token on https://jwt.io</p>
+			<p>As you may notice, the web app will update the JWT token as soon as we type something in the header or payload section. Once we're done with our edits, we can finally test it with<a id="_idIndexMarker635"/> our script:</p>
+			<p class="source-code">const tokenValue = jwt.verify(</p>
+			<p class="source-code"><strong class="bold">'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiSmFuZSBEb2UiLCJhZG1pbiI6dHJ1ZSwiaWF0IjoxNjM0MTMxMjY4fQ.SAv6UDKdlb3CokrC8o3e_pZs_Fk0JyY2oDpYJ0bDUyU'</strong>,</p>
+			<p class="source-code">  'secretpassword',</p>
+			<p class="source-code">);</p>
+			<p>Once we try to verify this token, we will see the following error to be thrown in the console:</p>
+			<p class="source-code">JsonWebTokenError: invalid signature</p>
+			<p>And that's what makes a JWT secure: everyone could potentially read and manipulate it. But once you do it, you're not able to sign it using a valid signature as it remains secret and hidden on the server side.</p>
+			<p>In the next section, we will see a practical example of integrating JWT authentication into a Next.js app.</p>
+			<h1 id="_idParaDest-128"><a id="_idTextAnchor127"/>Custom authentication – the good, the bad, and the ugly</h1>
+			<p>Let's make this clear from the outset: when possible, we should avoid implementing custom authentication strategies. There are several great providers (including Auth0, Firebase, AWS Cognito, and Magic.link, just to name a few) that are putting a lot of effort into making authentication secure, reliable, and optimized for many different situations. When investigating authentication strategies for a web app, I'd highly recommend looking into a well-established service provider as this is possibly one of the most critical aspects of a dynamic web application.</p>
+			<p>In this section, we're looking into creating a<a id="_idIndexMarker636"/> custom authentication mechanism for a simple reason: we just want to understand at a high level how authentication works, how to make it as secure as possible, and what the critical factors of a custom auth system are.</p>
+			<p>As we'll find out during this section, there will be several limitations when implementing custom authentication mechanisms. For instance, I'd highly discourage implementing client-side authentication on statically generated websites as it forces us to authenticate users on the client side exclusively, possibly exposing sensitive data to the network.</p>
+			<p>For that reason, we will create a new Next.js web application that will use the API routes for communicating with a data source (typically a database) and retrieving the user data.</p>
+			<p>So, let's start by creating a new, empty Next.js app:</p>
+			<p class="source-code">npx create-next-app with-custom-auth</p>
+			<p>Once the <a id="_idIndexMarker637"/>boilerplate code is ready, we can start writing the login API. Please keep in mind that the following code is not meant to go to production; we're just taking a simplified, high-level overview of how authentication works.</p>
+			<p>Let's start by creating a <strong class="source-inline">/pages/api/login.js</strong> file by exporting the following function:</p>
+			<p class="source-code">export default (req, res) =&gt; {}</p>
+			<p>This is where we will handle the user input and authenticate it.</p>
+			<p>The first thing we can do is to take the user input and filter the request method to accept POST requests only:</p>
+			<p class="source-code">export default (req, res) =&gt; {</p>
+			<p class="source-code"><strong class="bold">  const { method } = req;</strong></p>
+			<p class="source-code"><strong class="bold">  const { email, password } = req.body;</strong></p>
+			<p class="source-code"><strong class="bold">  if (method !== 'POST') {</strong></p>
+			<p class="source-code"><strong class="bold">    return res.status(404).end();</strong></p>
+			<p class="source-code"><strong class="bold">  }</strong></p>
+			<p class="source-code">}</p>
+			<p class="callout-heading">Why Do We Need to Filter POST Requests?</p>
+			<p class="callout">By default, all the Next.js API routes accept any HTTP method. By the way, it is best practice to allow only specific methods on certain routes, for example, enabling <strong class="source-inline">POST</strong> requests when creating new content, <strong class="source-inline">GET</strong> when reading data, <strong class="source-inline">PUT</strong> when modifying something, or <strong class="source-inline">DELETE</strong> for deleting data.</p>
+			<p>We can now validate the user input. When validating an email and password, for example, we could check that the passed email is in a valid format and that the password is following a particular policy. That way, if any of the given data is not valid, we can just reply with a <strong class="source-inline">401</strong> status code (unauthorized) as we won't find any occurrence in the database for that email and password combination. That would also help us to avoid useless database calls.</p>
+			<p>Right now, we don't have a database, and we will rely on hardcoded values as we only want to understand authentication at a high level. That said, we will only check whether the <a id="_idIndexMarker638"/>request body contains an email and a password, so we can keep it simple:</p>
+			<p class="source-code">export default (req, res) =&gt; {</p>
+			<p class="source-code">  const { method } = req;</p>
+			<p class="source-code">  const { email, password } = req.body;</p>
+			<p class="source-code">  if (method !== 'POST') {</p>
+			<p class="source-code">    return res.status(404).end();</p>
+			<p class="source-code">  }</p>
+			<p class="source-code"><strong class="bold">  if (!email || !password) {</strong></p>
+			<p class="source-code"><strong class="bold">    return res.status(400).json({</strong></p>
+			<p class="source-code"><strong class="bold">      error: 'Missing required params',</strong></p>
+			<p class="source-code"><strong class="bold">    });</strong></p>
+			<p class="source-code"><strong class="bold">  }</strong></p>
+			<p class="source-code">}</p>
+			<p>If the email or password doesn't exist in the request body, we will return a <strong class="source-inline">400</strong> status code (bad request) with an error message explaining why the request failed.</p>
+			<p>If the request is sent using the HTTP POST method and provides both an email and password, we can process them using any authentication mechanism. For example, we could look up a user with that specific email in the database, retrieve their password, and then verify it on the server side or ask for an external authentication service to do that for us.</p>
+			<p>Right now, given that we're just taking an overview of custom authentication strategies, we will use an elementary function that checks the combination of email and password against two fixed strings. Again, this is not meant for production usage.</p>
+			<p>Inside the same <strong class="source-inline">pages/api/login.js</strong> file, we can create a very elementary function that can do that for us:</p>
+			<p class="source-code">function authenticateUser(email, password) {</p>
+			<p class="source-code">  const validEmail = 'johndoe@somecompany.com';</p>
+			<p class="source-code">  const validPassword = 'strongpassword';</p>
+			<p class="source-code">  if (email === validEmail &amp;&amp; password === validPassword) {</p>
+			<p class="source-code">    return {</p>
+			<p class="source-code">      id: 'f678f078-fcfe-43ca-9d20-e8c9a95209b6',</p>
+			<p class="source-code">      name: 'John Doe',</p>
+			<p class="source-code">      email: 'johndoe@somecompany.com',</p>
+			<p class="source-code">    };</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  return null;</p>
+			<p class="source-code">}</p>
+			<p>In a production<a id="_idIndexMarker639"/> environment, we will never use such an authentication function. Instead, we will communicate with a database or external service to dynamically retrieve the user data.</p>
+			<p>We can finally combine the preceding function with our API handler. If the passed data is correct, we will get some user data back and send it to the client. Otherwise, we'll just send a <strong class="source-inline">401</strong> status code (unauthorized) with an error explaining that the passed data is incorrect:</p>
+			<p class="source-code">export default (req, res) =&gt; {</p>
+			<p class="source-code">  const { method } = req;</p>
+			<p class="source-code">  const { email, password } = req.body;</p>
+			<p class="source-code">  if (method !== 'POST') {</p>
+			<p class="source-code">    return res.status(404).end();</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  if (!email || !password) {</p>
+			<p class="source-code">    return res.status(400).json({</p>
+			<p class="source-code">      error: 'Missing required params',</p>
+			<p class="source-code">    });</p>
+			<p class="source-code">  }</p>
+			<p class="source-code"><strong class="bold">  const user = authenticateUser(email, password);</strong></p>
+			<p class="source-code"><strong class="bold">  if (user) {</strong></p>
+			<p class="source-code"><strong class="bold">    return res.json({ user });</strong></p>
+			<p class="source-code"><strong class="bold">  } else {</strong></p>
+			<p class="source-code"><strong class="bold">    return res.status(401).json({</strong></p>
+			<p class="source-code"><strong class="bold">      error: 'Wrong email of password',</strong></p>
+			<p class="source-code"><strong class="bold">    });</strong></p>
+			<p class="source-code"><strong class="bold">  }</strong></p>
+			<p class="source-code">};</p>
+			<p>At this point, we could start analyzing the risks of this approach. Let's pretend for a moment that we will log in from the frontend, the server will reply with such information, and we will store it in a cookie. Once we need to get more data about (let's say) our user, we could just submit a request to the server, which will read the cookie, get the current user ID, and then query the database for their data.</p>
+			<p>Can you see the point <a id="_idIndexMarker640"/>of failure of such a solution?</p>
+			<p>Everyone could potentially edit their cookies by just using the developer tools built into every modern web browser. This means that everyone could just read the cookie, change it, and impersonate another user without even logging in.</p>
+			<p class="callout-heading">Why Are We Talking about Cookies?</p>
+			<p class="callout">Cookies are a<a id="_idIndexMarker641"/> good solution for storing session data. We could use different browser features, such as <strong class="source-inline">localStorage</strong>, <strong class="source-inline">sessionStorage</strong>, or even <strong class="source-inline">indexedDB</strong>. The problem is, everyone could steal this data by just injecting a malicious script into your web page. When dealing with cookies, we can (and we should) set an <strong class="source-inline">httpOnly</strong> flag to <strong class="source-inline">true</strong> to make cookies available on the server side only. That adds an extra layer of security when storing this data. Even though we should be aware that every user can have access to cookies by inspecting them using the dev tools provided by modern browsers, we should never share sensitive information there.</p>
+			<p>This is where JWTs can help. We can simply edit our login handler to make it a bit more secure by setting a cookie containing a JWT before returning any data.</p>
+			<p>Let's start by installing the <strong class="source-inline">jsonwebtoken</strong> npm package:</p>
+			<p class="source-code">yarn add jsonwebtoken</p>
+			<p>Let's create a new file, <strong class="source-inline">lib/jwt.js</strong>, and add the following content:</p>
+			<p class="source-code">import jwt from 'jsonwebtoken';</p>
+			<p class="source-code">const JWT_SECRET = 'my_jwt_password';</p>
+			<p class="source-code">export function encode(payload) {</p>
+			<p class="source-code">  return jwt.sign(payload, JWT_SECRET);</p>
+			<p class="source-code">}</p>
+			<p class="source-code">export function decode(token) {</p>
+			<p class="source-code">  return jwt.verify(token, JWT_SECRET);</p>
+			<p class="source-code">}</p>
+			<p>Now, going <a id="_idIndexMarker642"/>back to our <strong class="source-inline">pages/api/login.js</strong> file, we can edit it by encoding the user payload into a JWT:</p>
+			<p class="source-code"><strong class="bold">import { encode } from '../../lib/jwt';</strong></p>
+			<p class="source-code">function authenticateUser(email, password) {</p>
+			<p class="source-code">  const validEmail = 'johndoe@somecompany.com';</p>
+			<p class="source-code">  const validPassword = 'strongpassword';</p>
+			<p class="source-code">  if (email === validEmail &amp;&amp; password === validPassword) {</p>
+			<p class="source-code"><strong class="bold">    return encode({</strong></p>
+			<p class="source-code"><strong class="bold">      id: 'f678f078-fcfe-43ca-9d20-e8c9a95209b6',</strong></p>
+			<p class="source-code"><strong class="bold">      name: 'John Doe',</strong></p>
+			<p class="source-code"><strong class="bold">      email: 'johndoe@somecompany.com',</strong></p>
+			<p class="source-code"><strong class="bold">    });</strong></p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  return null;</p>
+			<p class="source-code">}</p>
+			<p>One last thing: we said we wanted to set a cookie containing the JWT we just created. We can install a handy library that can help us achieve that:</p>
+			<p class="source-code">yarn add cookie</p>
+			<p>Once installed, we can edit our <strong class="source-inline">pages/api/login.js</strong> file by setting the session cookie:</p>
+			<p class="source-code"><strong class="bold">import { serialize } from 'cookie';</strong></p>
+			<p class="source-code">// ...</p>
+			<p class="source-code">export default (req, res) =&gt; {</p>
+			<p class="source-code">  const { method } = req;</p>
+			<p class="source-code">  const { email, password } = req.body;</p>
+			<p class="source-code">  if (method !== 'POST') {</p>
+			<p class="source-code">    return res.status(404).end();</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  if (!email || !password) {</p>
+			<p class="source-code">    return res.status(400).json({</p>
+			<p class="source-code">      error: 'Missing required params',</p>
+			<p class="source-code">    });</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  const user = authenticateUser(email, password);</p>
+			<p class="source-code">  if (user) {</p>
+			<p class="source-code"><strong class="bold">    res.setHeader('Set-Cookie',</strong></p>
+			<p class="source-code"><strong class="bold">        serialize('my_auth', user, { path: '/', httpOnly:                   true })</strong></p>
+			<p class="source-code"><strong class="bold">    );</strong></p>
+			<p class="source-code"><strong class="bold">    return res.json({ success: true });</strong></p>
+			<p class="source-code">  } else {</p>
+			<p class="source-code">    return res.status(401).json({</p>
+			<p class="source-code"><strong class="bold">      success: false,</strong></p>
+			<p class="source-code">      error: 'Wrong email of password',</p>
+			<p class="source-code">    });</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">};</p>
+			<p>As you can see, we're<a id="_idIndexMarker643"/> creating a cookie named <strong class="source-inline">my_auth</strong>, which will contain the user JWT. We won't pass the JWT to the client directly as we want to keep it hidden from any potential malicious script running on the client side.</p>
+			<p>We can inspect whether the <a id="_idIndexMarker644"/>procedure is working as expected by testing it with useful HTTP clients such as Postman or Insomnia (you can download Insomnia<a id="_idIndexMarker645"/> for free here: <a href="https://insomnia.rest">https://insomnia.rest</a>):</p>
+			<div>
+				<div id="_idContainer047" class="IMG---Figure">
+					<img src="image/Figure_12.02_B16985.jpg" alt="Figure 12.2 – The login API response in Insomnia&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 12.2 – The login API response in Insomnia</p>
+			<p>If we move to the <strong class="bold">Cookie</strong> tab in the <a id="_idIndexMarker646"/>response section of our tool of choice (in my case, Insomnia), we can eventually see the authentication cookie:</p>
+			<div>
+				<div id="_idContainer048" class="IMG---Figure">
+					<img src="image/Figure_12.03_B16985.jpg" alt="Figure 12.3 – The authentication cookie in Insomnia&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 12.3 – The authentication cookie in Insomnia</p>
+			<p>It's finally time to <a id="_idIndexMarker647"/>manage the authentication on the client side by creating a login form and a protected route, only visible after the login. So, let's start from there: let's create a new <strong class="source-inline">/pages/protected-route.js</strong> file with the following content:</p>
+			<p class="source-code">import styles from '../styles/app.module.css';</p>
+			<p class="source-code">export default function ProtectedRoute() {</p>
+			<p class="source-code">  return (</p>
+			<p class="source-code">    &lt;div className={styles.container}&gt;</p>
+			<p class="source-code">      &lt;h1&gt;Protected Route&lt;/h1&gt;</p>
+			<p class="source-code">      &lt;p&gt;You can't see me if not logged-in!&lt;/p&gt;</p>
+			<p class="source-code">    &lt;/div&gt;</p>
+			<p class="source-code">  );</p>
+			<p class="source-code">}</p>
+			<p>As you can tell by looking at the <strong class="source-inline">ProtectedRoute</strong> function, we're not preventing anonymous users from browsing that page; we'll get there in a moment, right after creating the login page.</p>
+			<p>Let's also<a id="_idIndexMarker648"/> create the <strong class="source-inline">/styles/app.module.css</strong> file, where we'll put all the styling for our app; we're not aiming to make an award-winning UI, so we'll just create a couple of simple styles there:</p>
+			<p class="source-code">.container {</p>
+			<p class="source-code">  min-height: 100vh;</p>
+			<p class="source-code">  padding: 0 0.5rem;</p>
+			<p class="source-code">  display: flex;</p>
+			<p class="source-code">  flex-direction: column;</p>
+			<p class="source-code">  justify-content: center;</p>
+			<p class="source-code">  align-items: center;</p>
+			<p class="source-code">  height: 100vh;</p>
+			<p class="source-code">}</p>
+			<p>Now we can start concentrating on the login. Let's create a new page, <strong class="source-inline">/pages/login.js</strong>, and start writing the login UI:</p>
+			<p class="source-code">import { useState } from 'react';</p>
+			<p class="source-code">import { useRouter } from 'next/router';</p>
+			<p class="source-code">import styles from '../styles/app.module.css';</p>
+			<p class="source-code">export default function Home() {</p>
+			<p class="source-code">  const [loginError, setLoginError] = useState(null);</p>
+			<p class="source-code">  return (</p>
+			<p class="source-code">    &lt;div className={styles.container}&gt;</p>
+			<p class="source-code">      &lt;h1&gt;Login&lt;/h1&gt;</p>
+			<p class="source-code">      &lt;form className={styles.form} </p>
+			<p class="source-code">        onSubmit={handleSubmit}&gt;</p>
+			<p class="source-code">        &lt;label htmlFor="email"&gt;Email&lt;/label&gt;</p>
+			<p class="source-code">        &lt;input type="email" id="email" /&gt;</p>
+			<p class="source-code">        &lt;label htmlFor="password"&gt;Password&lt;/label&gt;</p>
+			<p class="source-code">        &lt;input type="password" id="password" /&gt;</p>
+			<p class="source-code">        &lt;button type="submit"&gt;Login&lt;/button&gt;</p>
+			<p class="source-code">        {loginError &amp;&amp; (</p>
+			<p class="source-code">          &lt;div className={styles.formError}&gt; </p>
+			<p class="source-code">            {loginError} &lt;/div&gt;</p>
+			<p class="source-code">      )}</p>
+			<p class="source-code">      &lt;/form&gt;</p>
+			<p class="source-code">    &lt;/div&gt;</p>
+			<p class="source-code">  );</p>
+			<p class="source-code">}</p>
+			<p>Before creating the<a id="_idIndexMarker649"/> missing <strong class="source-inline">handleSubmit</strong> function, let's add a couple of styles to the <strong class="source-inline">styles/app.module.css</strong> file:</p>
+			<p class="source-code">.form {</p>
+			<p class="source-code">  display: flex;</p>
+			<p class="source-code">  flex-direction: column;</p>
+			<p class="source-code">}</p>
+			<p class="source-code">.form input {</p>
+			<p class="source-code">  padding: 0.5rem;</p>
+			<p class="source-code">  margin: 0.5rem;</p>
+			<p class="source-code">  border: 1px solid #ccc;</p>
+			<p class="source-code">  border-radius: 4px;</p>
+			<p class="source-code">  width: 15rem;</p>
+			<p class="source-code">}</p>
+			<p class="source-code">.form label {</p>
+			<p class="source-code">  margin: 0 0.5rem;</p>
+			<p class="source-code">}</p>
+			<p class="source-code">.form button {</p>
+			<p class="source-code">  padding: 0.5rem;</p>
+			<p class="source-code">  margin: 0.5rem;</p>
+			<p class="source-code">  border: 1px solid #ccc;</p>
+			<p class="source-code">  border-radius: 4px;</p>
+			<p class="source-code">  width: 15rem;</p>
+			<p class="source-code">  cursor: pointer;</p>
+			<p class="source-code">}</p>
+			<p class="source-code">.formError {</p>
+			<p class="source-code">  color: red;</p>
+			<p class="source-code">  font-size: 0.8rem;</p>
+			<p class="source-code">  text-align: center;</p>
+			<p class="source-code">}</p>
+			<p>We can now <a id="_idIndexMarker650"/>write the <strong class="source-inline">handleSubmit</strong> function. Here, we will catch the form submit event, prevent the browser's default behavior (to submit a request to a remote API), and handle the two possible cases for our login: success and failure. If the login succeeds, we will redirect the user to our protected page. If it fails, we'll set an error inside our <strong class="source-inline">loginError</strong> state:</p>
+			<p class="source-code">export default function Home() {</p>
+			<p class="source-code">  const router = useRouter();</p>
+			<p class="source-code">  const [loginError, setLoginError] = useState(null);</p>
+			<p class="source-code"><strong class="bold">  const handleSubmit = (event) =&gt; {</strong></p>
+			<p class="source-code"><strong class="bold">    event.preventDefault();</strong></p>
+			<p class="source-code"><strong class="bold">    const { email, password } = event.target.elements;</strong></p>
+			<p class="source-code"><strong class="bold">    setLoginError(null);</strong></p>
+			<p class="source-code"><strong class="bold">    handleLogin(email.value, password.value)</strong></p>
+			<p class="source-code"><strong class="bold">      .then(() =&gt; router.push('/protected-route'))</strong></p>
+			<p class="source-code"><strong class="bold">      .catch((err) =&gt; setLoginError(err.message));</strong></p>
+			<p class="source-code"><strong class="bold">  };</strong></p>
+			<p class="source-code">  // ...</p>
+			<p>We're now missing one last function, the one that is responsible for making the login API request. We can create it outside the <strong class="source-inline">Home</strong> component since, during the testing phase, we may want to test it individually:</p>
+			<p class="source-code">// ...</p>
+			<p class="source-code">async function handleLogin(email, password) {</p>
+			<p class="source-code">  const resp = await fetch('/api/login', {</p>
+			<p class="source-code">    method: 'POST',</p>
+			<p class="source-code">    headers: {</p>
+			<p class="source-code">      'Content-Type': 'application/json',</p>
+			<p class="source-code">    },</p>
+			<p class="source-code">    body: JSON.stringify({</p>
+			<p class="source-code">      email,</p>
+			<p class="source-code">      password,</p>
+			<p class="source-code">    }),</p>
+			<p class="source-code">  });</p>
+			<p class="source-code">  const data = await resp.json();</p>
+			<p class="source-code">  if (data.success) {</p>
+			<p class="source-code">    return;</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  throw new Error('Wrong email or password');</p>
+			<p class="source-code">}</p>
+			<p class="source-code">// ...</p>
+			<p>We can finally test our<a id="_idIndexMarker651"/> login page and see whether it's working correctly! If it does, we should get redirected to our private route; otherwise, we should see a friendly error message displayed under the form submit button.</p>
+			<p>Now it's time to protect our private page. If we aren't logged in, we shouldn't be able to see it. A similar thing should apply to the login page: once we're logged in, we shouldn't be able to see it.</p>
+			<p>Before proceeding any further with the implementation, we should decide how to implement authentication in our app.</p>
+			<p>We could render our pages on the server side to check the cookies on each request (remember? We don't want to access auth cookies on the client side!), or we could just render a loader on the frontend and wait for a hook to check whether we're logged in before rendering the actual page content.</p>
+			<p>What should we consider before making such a choice?</p>
+			<p>There are several scenarios where this choice could have an impact. For example, let's think of SEO; if we're building a blog where only logged-in users can (for example) post comments, that's not a big deal. We can send a statically generated page and wait for a hook to tell us whether the user is authenticated. Meanwhile, we could just render the public content (such as the article body, author, and tags), so the SEO wouldn't be impacted. The user will be able to comment as soon as the client knows that they're logged in.</p>
+			<p>Also, the performances would be great, as we could serve a statically generated page with dynamic data rendered on the client side exclusively.</p>
+			<p>As an alternative, we could simply get the user cookie on the server side, validate the JWT, and then render the page depending on the user authentication status; that might be a bit easier to implement (we can do that inside the <strong class="source-inline">getServerSideProps</strong> built-in function), but will undoubtedly add some delay, and will force us to render all the pages on the server side.</p>
+			<p>We will implement the first solution, where we'll need to create a custom hook to determine whether the user is logged in.</p>
+			<p>To do that, we'll first <a id="_idIndexMarker652"/>need to implement an API that parses our cookies and replies with the bare minimum information about our session. Let's do that by creating a <strong class="source-inline">pages/api/get-session.js</strong> file: </p>
+			<p class="source-code">import { parse } from 'cookie';</p>
+			<p class="source-code">import { decode } from '../../lib/jwt';</p>
+			<p class="source-code">export default (req, res) =&gt; {</p>
+			<p class="source-code">  if (req.method !== 'GET') {</p>
+			<p class="source-code">    return res.status(404).end();</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  const { my_auth } = parse(req.headers.cookie || '');</p>
+			<p class="source-code">  if (!my_auth) {</p>
+			<p class="source-code">    return res.json({ loggedIn: false });</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  return res.json({</p>
+			<p class="source-code">    loggedIn: true,</p>
+			<p class="source-code">    user: decode(my_auth),</p>
+			<p class="source-code">  });</p>
+			<p class="source-code">};</p>
+			<p>We can now log in using the form we just created and then call the API over <strong class="source-inline">http://localhost:3000/api/get-session</strong>. We will see a result similar to the following:</p>
+			<p class="source-code">{</p>
+			<p class="source-code">  "loggedIn": true,</p>
+			<p class="source-code">  "user": {</p>
+			<p class="source-code">    "id": "f678f078-fcfe-43ca-9d20-e8c9a95209b6",</p>
+			<p class="source-code">    "name": "John Doe",</p>
+			<p class="source-code">    "email": "johndoe@somecompany.com",</p>
+			<p class="source-code">    "iat": 1635085226</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">}</p>
+			<p>If we call the same API within an incognito session, we would only get a <strong class="source-inline">{ "loggedIn": false }</strong> response.</p>
+			<p>We can use this API to <a id="_idIndexMarker653"/>determine whether the user is logged in by creating a custom hook. Let's do that by creating a <strong class="source-inline">lib/hooks/auth.js</strong> file with the following content:</p>
+			<p class="source-code">import { useState, useEffect } from 'react';</p>
+			<p class="source-code">export function useAuth() {</p>
+			<p class="source-code">  const [loggedIn, setLoggedIn] = useState(false);</p>
+			<p class="source-code">  const [user, setUser]         = useState(null);</p>
+			<p class="source-code">  const [loading, setLoading]   = useState(true);</p>
+			<p class="source-code">  const [error, setError]       = useState(null);</p>
+			<p class="source-code">  useEffect(() =&gt; {</p>
+			<p class="source-code">    setLoading(true);</p>
+			<p class="source-code">    fetch('/api/get-session')</p>
+			<p class="source-code">      .then((res) =&gt; res.json())</p>
+			<p class="source-code">      .then((data) =&gt; {</p>
+			<p class="source-code">        if (data.loggedIn) {</p>
+			<p class="source-code">          setLoggedIn(true);</p>
+			<p class="source-code">          setUser(data.user);</p>
+			<p class="source-code">        }</p>
+			<p class="source-code">      })</p>
+			<p class="source-code">      .catch((err) =&gt; setError(err))</p>
+			<p class="source-code">      .finally(() =&gt; setLoading(false));</p>
+			<p class="source-code">  }, []);</p>
+			<p class="source-code">  return {</p>
+			<p class="source-code">    user,</p>
+			<p class="source-code">    loggedIn,</p>
+			<p class="source-code">    loading,</p>
+			<p class="source-code">    error,</p>
+			<p class="source-code">  };</p>
+			<p class="source-code">}</p>
+			<p>The hook itself is pretty<a id="_idIndexMarker654"/> simple. As soon as it's loaded (so, when the <strong class="source-inline">useEffect</strong> React hook is triggered), it will make an HTTP call to our <strong class="source-inline">/api/get-session</strong> API. Once the API succeeds (or fails), it will return the user status, errors (if any), and set the <strong class="source-inline">loading</strong> status to <strong class="source-inline">false</strong>, so we will know that it's time to re-render the UI.</p>
+			<p>We can finally implement this hook in our protected page by just importing it and displaying the private content depending on the authentication status:</p>
+			<p class="source-code"><strong class="bold">import { useRouter } from 'next/router';</strong></p>
+			<p class="source-code"><strong class="bold">import { useAuth } from '../lib/hooks/auth';</strong></p>
+			<p class="source-code">import styles from '../styles/app.module.css';</p>
+			<p class="source-code">export default function ProtectedRoute() {</p>
+			<p class="source-code"><strong class="bold">  const router = useRouter();</strong></p>
+			<p class="source-code"><strong class="bold">  const { loading, error, loggedIn } = useAuth();</strong></p>
+			<p class="source-code"><strong class="bold">  if (!loading &amp;&amp; !loggedIn) {</strong></p>
+			<p class="source-code"><strong class="bold">    router.push('/login');</strong></p>
+			<p class="source-code"><strong class="bold">  }</strong></p>
+			<p class="source-code">  return (</p>
+			<p class="source-code"><strong class="bold">    &lt;div className={styles.container}&gt;</strong></p>
+			<p class="source-code"><strong class="bold">      {loading &amp;&amp; &lt;p&gt;Loading...&lt;/p&gt;}</strong></p>
+			<p class="source-code"><strong class="bold">      {error &amp;&amp; &lt;p&gt; An error occurred. &lt;/p&gt;}</strong></p>
+			<p class="source-code"><strong class="bold">      {loggedIn &amp;&amp; (</strong></p>
+			<p class="source-code"><strong class="bold">        &lt;&gt;</strong></p>
+			<p class="source-code"><strong class="bold">          &lt;h1&gt;Protected Route&lt;/h1&gt;</strong></p>
+			<p class="source-code"><strong class="bold">          &lt;p&gt;You can't see me if not logged-in!&lt;/p&gt;</strong></p>
+			<p class="source-code"><strong class="bold">        &lt;/&gt;</strong></p>
+			<p class="source-code"><strong class="bold">      )}</strong></p>
+			<p class="source-code"><strong class="bold">    &lt;/div&gt;</strong></p>
+			<p class="source-code">  );</p>
+			<p class="source-code">}</p>
+			<p>We can now try to reach our private page and see whether it is working correctly once logged in! First, there should be a little moment where we can spot the "loading" text; then, we should see the protected route content.</p>
+			<p>We could adopt a similar <a id="_idIndexMarker655"/>approach for hiding the login page from a logged-in user; let's open the <strong class="source-inline">pages/login.js</strong> file and edit it as follows:</p>
+			<p class="source-code">import { useState } from 'react';</p>
+			<p class="source-code">import { useRouter } from 'next/router';</p>
+			<p class="source-code"><strong class="bold">import { useAuth } from '../lib/hooks/auth';</strong></p>
+			<p class="source-code">import styles from '../styles/app.module.css';</p>
+			<p class="source-code">// ...</p>
+			<p>Once we import the <strong class="source-inline">useAuth</strong> hook, we can start writing the component logic. We won't render the login form until we know whether the user is logged in:</p>
+			<p class="source-code">// ...</p>
+			<p class="source-code">export default function Home() {</p>
+			<p class="source-code">  const router = useRouter();</p>
+			<p class="source-code">  const [loginError, setLoginError] = useState(null);</p>
+			<p class="source-code"><strong class="bold">  const { loading, loggedIn } = useAuth();</strong></p>
+			<p class="source-code"><strong class="bold">  if (loading) {</strong></p>
+			<p class="source-code"><strong class="bold">    return &lt;p&gt;Loading...&lt;/p&gt;;</strong></p>
+			<p class="source-code"><strong class="bold">  }</strong></p>
+			<p class="source-code"><strong class="bold">  if (!loading &amp;&amp; loggedIn) {</strong></p>
+			<p class="source-code"><strong class="bold">    router.push('/protected-route');</strong></p>
+			<p class="source-code"><strong class="bold">    return null;</strong></p>
+			<p class="source-code"><strong class="bold">  }</strong></p>
+			<p class="source-code">// ...</p>
+			<p>Here, we're telling our login page to behave the other way around when compared to the protected route page. We will wait for the hook to complete the loading phase, and when it ends, we will check whether the user is logged in. If they're logged in, we will simply redirect them to the protect page using the Next.js <strong class="source-inline">useRouter</strong> hook.</p>
+			<p>We successfully implemented a very simple (and not ready for production, by any means) login strategy for our web page, but what did we miss? What are the problems that come next? Should we pursue writing custom authentication strategies?</p>
+			<p>Well, I think it is not worth it unless we're working in a big and expert team.</p>
+			<p>This section of the book is entitled <em class="italic">Custom authentication – the good, the bad, and the ugly</em>, so let's divide some considerations into those three categories:</p>
+			<p><em class="italic">The good</em>: We may all appreciate writing a custom authentication system because it teaches us a lot about security and gives us complete control over the whole authentication workflow.</p>
+			<p><em class="italic">The bad</em>: We would take <a id="_idIndexMarker656"/>a considerable risk. Writing robust authentication mechanisms is not easy, and companies invest a lot in providing secure authentication strategies. It's hard for a company working outside this business to meet the same security levels as Auth0, Okta, Google, or Amazon AWS.</p>
+			<p><em class="italic">The ugly</em>: Even if we could create a robust authentication system, we would have to implement many custom processes manually – resetting the password and user registration workflows, two-factor authentication, and transactional emails, just to name a few. It would require a lot of extra jobs and will lead to replicating an existing service without meeting the same level of security and reliability, as it is tough to match Auth0, Google, or AWS standards.</p>
+			<p>In the next section, we will see how to implement authentication for any Next.js app using an industry-standard, well-known authentication provider: Auth0.</p>
+			<h1 id="_idParaDest-129"><a id="_idTextAnchor128"/>Implementing authentication using Auth0</h1>
+			<p>In the <a id="_idIndexMarker657"/>previous section, we've seen how to implement an elementary and straightforward authentication method. I won't repeat this enough: what we saw was just a high-level overview and shouldn't be used for any production-ready product.</p>
+			<p>When building production-ready web apps, we're likely to adopt external authentication methods, which are secure and reliable.</p>
+			<p>There are many different auth providers (AWS Cognito, Firebase, Magic.link, and so on), and I believe they're all doing a fantastic job protecting their users. In this chapter, we will be using a popular, secure, and affordable authentication provider, taking advantage of its generous free plan: Auth0.</p>
+			<p>If you want to follow along <a id="_idIndexMarker658"/>with this chapter, you can create a free account on <a href="https://auth0.com">https://auth0.com</a> (no credit card is required for free plan users).</p>
+			<p>Auth0 will manage the most complex steps of any authentication strategy and will give us some friendly APIs to play with.</p>
+			<p>Thanks to this <a id="_idIndexMarker659"/>authentication provider, we don't have to worry about any of the following:</p>
+			<ul>
+				<li>User registration</li>
+				<li>User login</li>
+				<li>Email verification</li>
+				<li>Forgot password flow</li>
+				<li>Reset password flow</li>
+			</ul>
+			<p>Nor will we have to worry about many other critical parts of any authentication strategy.</p>
+			<p>So, let's start by creating a new Next.js app:</p>
+			<p class="source-code">npx create-next-app with-auth0</p>
+			<p>Now, log in to Auth0 and create a new application:</p>
+			<div>
+				<div id="_idContainer049" class="IMG---Figure">
+					<img src="image/Figure_12.04_B16985.jpg" alt="Figure 12.4 – Creating a new Auth0 application&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 12.4 – Creating a new Auth0 application</p>
+			<p>Once we <a id="_idIndexMarker660"/>create our application, Auth0 will ask us which technology are we going to use. We can select <strong class="bold">Next.js</strong> and Auth0 will redirect us to an excellent tutorial on how to adopt their authentication mechanism in this framework.</p>
+			<p>If we go to <strong class="bold">Settings</strong>, we will be able to set up our callback URLs. Those URLs represent the pages to which our users will be redirected once they complete specific actions, such as login, logout, and registration.</p>
+			<p>At this point, we need to set the <em class="italic">Allowed Callback URLs</em> by adding http://localhost:3000/api/auth/callback, and the <em class="italic">Allowed Logout URLs</em> by setting <strong class="source-inline">http://localhost:3000/</strong>.</p>
+			<p>This will authorize us to adopt Auth0 for local development after every Auth0-related operation (such as login, registration, and password reset), as Auth0 will redirect us to the URL where the action originated.</p>
+			<p>So, for example, if we want to log in on <a href="https://example.com">https://example.com</a>, after the login action, Auth0 will automatically redirect us to <a href="https://example.com/api/auth/callback">https://example.com/api/auth/callback</a>, which needs to be authorized in the section we just saw.</p>
+			<p>Given that our<a id="_idIndexMarker661"/> local development URL is likely to be http://localhost:3000 (which is the default for Next.js), we may need to authorize other staging or production URLs inside the <em class="italic">Allowed Callback URLs</em> and <em class="italic">Allowed Logout URLs</em> sections. Of course, we can always do that by adding more URLs and separating them with a comma.</p>
+			<p>Once we're done setting up the redirect URLs, we can start setting up our local environment.</p>
+			<p>First of all, we will need to create an environment file for the local environment. So, let's create it and name it <strong class="source-inline">.env.local</strong>, and then add the following content:</p>
+			<p class="source-code">AUTH0_SECRET=f915324d4e18d45318179e733fc25d7aed95ee6d6734c8786c03 AUTH0_BASE_URL='http://localhost:3000'AUTH0_ISSUER_BASE_URL='https://YOUR_AUTH0_DOMAIN.auth0.com'AUTH0_CLIENT_ID='YOUR_AUTH0_CLIENT_ID'AUTH0_CLIENT_SECRET='YOUR_AUTH0_CLIENT_SECRET'</p>
+			<p>Remember that we should never commit the environment file as it contains sensitive data that could compromise our application's security.</p>
+			<p>As you can see, we're setting five essential environment variables:</p>
+			<ul>
+				<li><strong class="source-inline">AUTH0_SECRET</strong>: A randomly generated string used by Auth0 as a secret key to encrypt the session cookie. You can generate a new, secure, random secret by running <strong class="source-inline">openssl rand -hex 32</strong> in the terminal.</li>
+				<li><strong class="source-inline">AUTH0_BASE_URL</strong>: The base URL of our application. For the local development environment, it will be <strong class="source-inline">http://localhost:3000</strong>. If you want to start the application on a different port, make sure to update the <strong class="source-inline">.env.local</strong> file to reflect this change.</li>
+				<li><strong class="source-inline">AUTH0_ISSUER_BASE_URL</strong>: The URL of your Auth0 app. You can find it at the beginning of the <strong class="bold">Settings</strong> section we just visited for setting the callback URLs (labeled as <strong class="bold">domain</strong> in the Auth0 dashboard).</li>
+				<li><strong class="source-inline">AUTH0_CLIENT_ID</strong>: The client ID for the Auth0 application. You can find yours right under the <strong class="bold">Domain</strong> setting.</li>
+				<li><strong class="source-inline">AUTH0_CLIENT_SECRET</strong>: The client secret for the Auth0 application. You can find it under the <strong class="bold">client ID</strong> setting in the Auth0 dashboard.</li>
+			</ul>
+			<p>Once we've<a id="_idIndexMarker662"/> set all those environment variables, we can create an API route for Auth0 in our Next.js application. Remember when we talked about how many things we should implement when writing down a custom authentication strategy? Login, logout, password reset, user registration... Auth0 handles everything for us, and it does it by asking us to create just a straightforward API route under <strong class="source-inline">/pages/api/auth/[...auth0].js</strong>.</p>
+			<p>Once we have created this page, we can add the following content to it:</p>
+			<p class="source-code">import { handleAuth } from '@auth0/nextjs-auth0';</p>
+			<p class="source-code">export default handleAuth();</p>
+			<p>If you haven't already done so, you can install the official Auth0 Next.js SDK by running the following command:</p>
+			<p class="source-code">yarn add @auth0/nextjs-auth0</p>
+			<p>Once we start our Next.js server, the <strong class="source-inline">handleAuth()</strong> method will create the following routes for us:</p>
+			<ul>
+				<li><strong class="source-inline">/api/auth/login</strong>, the route that will allow us to log in to our application</li>
+				<li><strong class="source-inline">/api/auth/callback</strong>, the callback URL where Auth0 will redirect us right after logging in successfully</li>
+				<li><strong class="source-inline">/api/auth/logout</strong>, where we can log out from our web application</li>
+				<li><strong class="source-inline">/api/auth/me</strong>, an endpoint where we can fetch our own information in JSON format once we log in</li>
+			</ul>
+			<p>To make our session persistent among all the web application pages, we can wrap our components in the official Auth0 <strong class="source-inline">UserProvider</strong> context. We can do that by opening our <strong class="source-inline">pages/_app.js</strong> file and adding the following content:</p>
+			<p class="source-code">import { UserProvider } from '@auth0/nextjs-auth0';</p>
+			<p class="source-code">export default function App({ Component, pageProps }) {</p>
+			<p class="source-code">  return (</p>
+			<p class="source-code">    &lt;UserProvider&gt;</p>
+			<p class="source-code">      &lt;Component {...pageProps} /&gt;</p>
+			<p class="source-code">    &lt;/UserProvider&gt;</p>
+			<p class="source-code">  );</p>
+			<p class="source-code">}</p>
+			<p>We can now<a id="_idIndexMarker663"/> try to visit our application login page by browsing http://localhost:3000/api/auth/login. We should eventually see the following page:</p>
+			<div>
+				<div id="_idContainer050" class="IMG---Figure">
+					<img src="image/Figure_12.05_B16985.jpg" alt="Figure 12.5 – The default Auth0 login page&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 12.5 – The default Auth0 login page</p>
+			<p>We don't have an account yet, as this is the first time we access the login page. We can click on <strong class="bold">Sign up</strong> and create a new account.</p>
+			<p>Once we create it, we will get redirected to the application home page and receive an email to confirm our mail address.</p>
+			<p>Now that we're logged in, we can display some helpful information on our frontend depending on the logged-in user; let's start from something straightforward and just show a greeting message.</p>
+			<p>We can do <a id="_idIndexMarker664"/>that by opening the <strong class="source-inline">/pages/index.js</strong> file and adding the following content:</p>
+			<p class="source-code">import { useUser } from '@auth0/nextjs-auth0';</p>
+			<p class="source-code">export default function Index() {</p>
+			<p class="source-code">  const { user, error, isLoading } = useUser();</p>
+			<p class="source-code">  if (isLoading) {</p>
+			<p class="source-code">    return &lt;div&gt;Loading...&lt;/div&gt;;</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  if (error) {</p>
+			<p class="source-code">    return &lt;div&gt;{error.message}&lt;/div&gt;;</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  if (user) {</p>
+			<p class="source-code">    return (</p>
+			<p class="source-code">      &lt;div&gt;</p>
+			<p class="source-code">        &lt;h1&gt; Welcome back! &lt;/h1&gt;</p>
+			<p class="source-code">        &lt;p&gt;</p>
+			<p class="source-code">          You're logged in with the following email    </p>
+			<p class="source-code">            address:</p>
+			<p class="source-code">          {user.email}!</p>
+			<p class="source-code">        &lt;/p&gt;</p>
+			<p class="source-code">        &lt;a href="/api/auth/logout"&gt;Logout&lt;/a&gt;</p>
+			<p class="source-code">      &lt;/div&gt;</p>
+			<p class="source-code">    );</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  return (</p>
+			<p class="source-code">    &lt;div&gt;</p>
+			<p class="source-code">      &lt;h1&gt; Welcome, stranger! &lt;/h1&gt;</p>
+			<p class="source-code">      &lt;p&gt;Please &lt;a href="/api/auth/login"&gt;Login&lt;/a&gt;.&lt;/p&gt;</p>
+			<p class="source-code">    &lt;/div&gt;</p>
+			<p class="source-code">  );</p>
+			<p class="source-code">}</p>
+			<p>As you can see, this pattern is quite similar to the one we used while implementing our custom authentication mechanism. We statically generate the page, then wait for the client to fetch the user information, and once we have it, we print the private content on screen.</p>
+			<p>You can <a id="_idIndexMarker665"/>now try to log in and out from the application to test that it's working correctly.</p>
+			<p>Once we log in and out, we might wonder: how can we customize the authentication form? What if we want to keep the data on our own database? We'll discuss this in the next section.</p>
+			<h2 id="_idParaDest-130"><a id="_idTextAnchor129"/>Customizing Auth0</h2>
+			<p>So far, we have built a<a id="_idIndexMarker666"/> straightforward authentication mechanism using Auth0. However, when compared to the custom one, it is clear how many advantages it could bring: secure authentication flow, fully featured auth management, and suchlike, to name just a few.</p>
+			<p>One thing that we might be missing is how much control we had when building the custom authentication strategy; we could control every authentication step, the look and feel of the form, and the required data needed to create a new account... how can we do that with Auth0?</p>
+			<p>Talking about the login/registration form aspect, we can customize it by navigating to the <strong class="bold">Branding</strong> section in our Auth0 dashboard:</p>
+			<div>
+				<div id="_idContainer051" class="IMG---Figure">
+					<img src="image/Figure_12.06_B16985.jpg" alt="Figure 12.6 – The Auth0 branding section&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 12.6 – The Auth0 branding section</p>
+			<p>Here, we can edit the HTML form directly to follow our application style. We can also customize the email templates to be consistent with our web application look and feel.</p>
+			<p>Another important <a id="_idIndexMarker667"/>topic is how Auth0 stores the user data. By default, it keeps all the login data on their own databases, but once inside the Auth0 dashboard, we can go to the authentication/database/custom database page and set up some custom scripts to grant access to an external database, where we have complete control over data ownership.</p>
+			<p>We could also set up a series of webhooks so that every time a new user registers, logs in, deletes their account, and so on, an external REST API (managed by us) gets notified, and we can replicate the data changes on external services and databases.</p>
+			<p>Auth0 gives us a lot of possibilities to customize the whole authentication experience, and it's one of the most complete providers out there. It also grants a generous free plan, where we can test a lot of its features for free before deciding whether it fits all our needs. So, if you're willing to build a production-ready app, I'd highly recommend looking into Auth0 for managing authentication safely.</p>
+			<h1 id="_idParaDest-131"><a id="_idTextAnchor130"/>Summary</h1>
+			<p>In this chapter, we've seen how using a third-party authentication provider can save us from many issues when dealing with complex and sensitive topics such as private data management and user sessions.</p>
+			<p>So, the final question could be: when does it make sense to implement a custom authentication strategy? In my humble opinion, we should avoid writing custom authentication mechanisms in almost any scenario, unless we're working with an expert team capable of detecting security flaws and identifying vulnerabilities in the whole authentication flow.</p>
+			<p>There are many good alternatives to Auth0 (NextAuth.js, Firebase, AWS Cognito, and so on), and it is just too risky to replicate their battle-tested features.</p>
+			<p>If you're not comfortable working with external providers, you can also use any web framework and its built-in authentication strategies. For example, suppose you feel comfortable using Ruby on Rails, Laravel, or Spring Boot. In that case, these are all excellent alternatives over external authentication providers. They will also give you all the flexibility and security you may need with a lot of support from the community and constant security releases and fixes.</p>
+			<p>Another option could be to use a headless CMS for managing users and their data; open source CMSs such as Strapi, for example, handle authentication natively and allow us to take advantage of their own authentication mechanisms supported by the community and the company that is developing the CMS.</p>
+			<p>In any case, implementing custom authentication is a very instructive task as it teaches you a lot about how security mechanisms work and how you should protect against malicious users. For example, in the next chapter, we will be building an e-commerce website using GraphCMS; imagine that we're implementing a custom authentication mechanism here, letting malicious users exploit a vulnerability and access users' private data. Would it be worth the risk?</p>
+		</div>
+	</body></html>

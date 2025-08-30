@@ -1,193 +1,270 @@
 - en: '11'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '11'
 - en: Optimistic UI
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 乐观 UI
 - en: Optimistic UI makes your app feel snappy by giving immediate feedback, even
     when actions take a bit longer. This is especially useful when you’re waiting
     for a network response. Optimistic updates can make a UI feel more responsive
     and improve the user experience. In this chapter, you will learn how to add optimistic
     UI updates with Remix.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 乐观 UI 通过提供即时反馈，即使在操作需要一点时间的情况下也能让您的应用感觉更加敏捷。这在等待网络响应时尤其有用。乐观更新可以使 UI 感觉更加响应迅速，并改善用户体验。在本章中，您将学习如何使用
+    Remix 添加乐观 UI 更新。
 - en: 'This chapter is split into two sections:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章分为两个部分：
 - en: Considering optimistic UI
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 考虑乐观 UI
 - en: Adding optimistic UI updates in Remix
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在 Remix 中添加乐观 UI 更新
 - en: First, we will discuss the trade-offs of using optimistic UI updates and investigate
     the complexity and risks of client/server state synchronizations and rollbacks.
     Next, we will review the current state of BeeRich and investigate which mutations
     to enhance with optimistic UI updates. We will then add optimistic UI updates
     where it makes sense using Remix’s primitives.
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们将讨论使用乐观 UI 更新的权衡，并调查客户端/服务器状态同步和回滚的复杂性和风险。接下来，我们将回顾 BeeRich 的当前状态，并调查哪些突变可以通过乐观
+    UI 更新来增强。然后，我们将使用 Remix 的原语在合适的地方添加乐观 UI 更新。
 - en: After reading this chapter, you will know how to evaluate the usage of optimistic
     UIs. You will have also practiced implementing optimistic UIs with Remix’s primitives,
     such as `useNavigation` and `useFetcher`. Finally, you will understand how Remix
     eases the implementation of optimistic UIs by providing a resilient baseline for
     your application.
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 阅读本章后，您将了解如何评估乐观 UI 的使用。您还将练习使用 Remix 的原语，如 `useNavigation` 和 `useFetcher`，来实现乐观
+    UI。最后，您将理解 Remix 如何通过提供一个有弹性的基线来简化乐观 UI 的实现。
 - en: Technical requirements
+  id: totrans-8
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: 'You can find the code for this chapter here: [https://github.com/PacktPublishing/Full-Stack-Web-Development-with-Remix/tree/main/11-optimistic-ui](https://github.com/PacktPublishing/Full-Stack-Web-Development-with-Remix/tree/main/11-optimistic-ui).'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在此处找到本章的代码：[https://github.com/PacktPublishing/Full-Stack-Web-Development-with-Remix/tree/main/11-optimistic-ui](https://github.com/PacktPublishing/Full-Stack-Web-Development-with-Remix/tree/main/11-optimistic-ui)。
 - en: BeeRich has grown quite a bit. Now is a good time to refactor the code. Before
     starting with this chapter, we want to update the current code. We will also enhance
     our form validation and parsing using `zod`. Follow the step-by-step guide in
     the `README.md` file to prepare BeeRich for the upcoming advanced topics.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: BeeRich 已经成长了很多。现在是重构代码的好时机。在开始本章之前，我们希望更新当前代码。我们还将使用 `zod` 增强我们的表单验证和解析。按照
+    `README.md` 文件中的逐步指南准备 BeeRich 以迎接即将到来的高级主题。
 - en: Considering optimistic UI
+  id: totrans-11
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 考虑乐观 UI
 - en: The source of truth of a web application is usually stored remotely in a database.
     We can only be sure that a mutation succeeded after updating the database and
     receiving confirmation from the server. The UI response to a mutation is thereby
     delayed until we hear back from the server.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 网络应用程序的真相来源通常存储在远程数据库中。我们只能在更新数据库并从服务器收到确认后才能确定突变是否成功。因此，UI 对突变的响应将被延迟，直到我们从服务器得到回复。
 - en: Optimistic UI is a pattern that’s used to provide instant feedback to users
     while waiting for an execution to resolve. When updating the UI optimistically,
     we apply a UI update before receiving the definitive response from the server.
     Most of the time, our mutations succeed, so why wait for a server response? In
     this section, we will discuss some trade-offs of optimistic UI updates.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 乐观 UI 是一种用于在等待执行解决时向用户提供即时反馈的模式。在乐观地更新 UI 时，我们在收到来自服务器的最终响应之前就应用 UI 更新。大多数时候，我们的突变都成功了，那么为什么还要等待服务器响应呢？在本节中，我们将讨论乐观
+    UI 更新的某些权衡。
 - en: Communicating rollbacks
+  id: totrans-14
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 传达回滚
 - en: Updating the UI optimistically speeds up the perceived response time when the
     optimistic state aligns with the server response. When the optimistic update does
     not align with the server response, then optimistic updates need to be rolled
     back or corrected. This is where the optimistic UI pattern starts to become more
     complicated.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 乐观地更新 UI 可以加快当乐观状态与服务器响应一致时的感知响应时间。当乐观更新与服务器响应不一致时，则需要回滚或纠正乐观更新。这就是乐观 UI 模式开始变得复杂的地方。
 - en: When something goes wrong with an optimistic mutation, we must communicate the
     error and highlight the rollback to the user. Otherwise, we risk losing the user’s
     trust and confidence in our application. For instance, after attempting to delete
     an item, we might have to revert to the optimistic removal of the item and tell
     the user why the item reappeared again – “*I just deleted that item; why is* *it
     back?*”
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 当乐观突变出现问题时，我们必须向用户传达错误并突出显示回滚。否则，我们可能会失去用户对我们应用程序的信任和信心。例如，在尝试删除一个项目后，我们可能需要回滚到乐观删除该项目，并告诉用户为什么项目再次出现——“*我刚刚删除了那个项目；为什么*
+    *它又回来了*？”
 - en: When considering optimistic UI, it is a good idea to investigate the error rate
     of a mutation. If the error rate is high, then the number of rollbacks might degrade
     the user experience more than the increased response times are worth. As always,
     it depends on the use case, type of application, and user.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 在考虑乐观UI时，调查突变的错误率是一个好主意。如果错误率很高，那么回滚的数量可能会比增加的响应时间更有害于用户体验。像往常一样，这取决于用例、应用程序类型和用户。
 - en: We can summarize that error handling with optimistic UI becomes harder to implement
     as rollbacks have to be communicated correctly. On top of that, optimistic UIs
     also require re-synchronizing client and server states, leading to more complicated
     client-side code.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以总结说，随着回滚操作需要正确沟通，使用乐观UI的错误处理变得更加难以实现。此外，乐观UI还需要重新同步客户端和服务器状态，导致客户端代码更加复杂。
 - en: Synchronizing client and server states
+  id: totrans-19
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 同步客户端和服务器状态
 - en: One of the biggest risks of optimistic UI is introducing stale states in the
     UI. When applying optimistic updates, it can become quite challenging to synchronize
     the UI state with the server response consistently. The resulting logic might
     be complex and introduce bugs where part of the application’s UI is out of sync
     with the server state.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 乐观UI的最大风险之一是在UI中引入过时状态。在应用乐观更新时，与服务器响应一致地同步UI状态可能变得相当具有挑战性。结果逻辑可能很复杂，并可能导致应用程序UI的一部分与服务器状态不同步的bug。
 - en: When adding optimistic updates, we may allow users to submit several updates
     subsequently. We optimistically update the UI each time. Then, we must deal with
     the synchronization of the UI with the server responses. When several updates
     happen simultaneously, this may lead to race conditions and other hard problems
     that require thorough synchronization logic and error handling.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 当添加乐观更新时，我们可能允许用户连续提交几个更新。我们每次都乐观地更新UI。然后，我们必须处理UI与服务器响应的同步。当几个更新同时发生时，这可能会导致竞争条件和其他需要彻底同步逻辑和错误处理的难题。
 - en: Optimistic UI updates are optional. When implemented correctly, they may improve
     the user experience by speeding up the perceived response time. However, there
     is also the risk that optimistic UI updates may increase the complexity of our
     application’s state management disproportionally and degrade the user experience
     if not implemented thoroughly.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 乐观UI更新是可选的。如果正确实现，它们可能会通过加快感知响应时间来改善用户体验。然而，也存在风险，即如果未彻底实现，乐观UI更新可能会不成比例地增加我们应用程序状态管理的复杂性，并降低用户体验。
 - en: Optimistic UI updates can lead to stale states, complex client-server state
     synchronization logic, and a worse user experience if rollbacks aren’t communicated
     properly. Conclusively, we must cautiously evaluate whether a certain mutation
     would profit from the addition of optimistic UI updates or whether it would disproportionally
     increase the complexity.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果回滚操作没有正确沟通，乐观UI更新可能会导致状态过时、复杂的客户端-服务器状态同步逻辑，以及更差的用户体验。总之，我们必须谨慎评估某个突变是否因添加乐观UI更新而受益，或者它是否会不成比例地增加复杂性。
 - en: Luckily, Remix provides a great foundation for implementing optimistic UI updates
     and allows us to implement optimistic UI updates through additive changes to our
     existing pending UI. Let’s remind ourselves of Remix’s `loader` revalidation feature.
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 幸运的是，Remix为实施乐观UI更新提供了一个很好的基础，并允许我们通过对我们现有的挂起UI进行增量更改来实现乐观UI更新。让我们再次提醒自己Remix的`loader`重新验证功能。
 - en: Synchronizing client and server states in Remix
+  id: totrans-25
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 在Remix中同步客户端和服务器状态
 - en: Remix manages the complexity of optimistic UI out of the box by providing a
     data revalidation flow. Let’s quickly review Remix’s built-in `loader` revalidation
     before jumping into the code.
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: Remix通过提供数据重新验证流程，开箱即用地管理了乐观UI的复杂性。在深入代码之前，让我们快速回顾一下Remix内置的`loader`重新验证功能。
 - en: Whenever we submit a form in Remix and execute an `action` function, Remix will
     automatically re-fetch the data from all active `loader` functions. This ensures
     that we always update all data on the page after every data mutation.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 无论何时我们在 Remix 中提交表单并执行 `action` 函数，Remix 都会自动从所有活动的 `loader` 函数重新获取数据。这确保了在每次数据突变后，我们总是更新页面上的所有数据。
 - en: When utilizing Remix’s `loader` and `action` functions for data reads and writes,
     we avoid introducing stale data in our UIs and eliminate the main concern of degrading
     the user experience when implementing optimistic UI updates.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 当使用 Remix 的 `loader` 和 `action` 函数进行数据读取和写入时，我们避免了在 UI 中引入过时数据，并消除了在实现乐观用户界面更新时降低用户体验的主要担忧。
 - en: Additionally, Remix’s primitives, such as `useNavigation` and `useFetcher`,
     allow us to read pending submission data without adding custom React states, which
     keeps the complexity increase of adding optimistic UI at a low. Let’s see for
     ourselves by adding optimistic UI to BeeRich. First, let’s review the current
     mutations in our BeeRich application and investigate whether adding an optimistic
     UI would improve the user experience.
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，Remix 的原语，如 `useNavigation` 和 `useFetcher`，允许我们在不添加自定义 React 状态的情况下读取挂起的提交数据，这有助于将添加乐观用户界面时的复杂性保持在较低水平。让我们通过向
+    BeeRich 添加乐观用户界面来看看这一点。首先，让我们回顾 BeeRich 应用程序中的当前突变，并调查添加乐观用户界面是否会改善用户体验。
 - en: Adding optimistic UI updates in Remix
+  id: totrans-30
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在 Remix 中添加乐观用户界面更新
 - en: In this section, we will review our BeeRich application and discuss which user
     actions would profit the most from adding optimistic UI updates. Then, we will
     go ahead and make the required code changes.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将回顾我们的 BeeRich 应用程序，并讨论哪些用户操作通过添加乐观的用户界面更新将获得最大的收益。然后，我们将继续进行必要的代码更改。
 - en: Creating an expense
+  id: totrans-32
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 创建费用
 - en: Run BeeRich locally by executing `npm run dev` in the project’s root and navigate
     to the expense overview page ([http://localhost:3000/dashboard/expenses](http://localhost:3000/dashboard/expenses)).
     Now, create a new expense.
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过在项目的根目录中执行 `npm run dev` 来在本地运行 BeeRich，并导航到费用概览页面（[http://localhost:3000/dashboard/expenses](http://localhost:3000/dashboard/expenses)）。现在，创建一个新的费用。
 - en: Notice that after submitting the expense creation form, we are redirected to
     the expense details page. The URL now includes the new expense identifier. After
     the redirect, we have access to the newly created expense loader data, including
     the expense identifier. All further updates to the expense require the expense
     identifier.
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，在提交费用创建表单后，我们将被重定向到费用详情页面。现在，URL 包含新的费用标识符。在重定向后，我们可以访问新创建的费用加载器数据，包括费用标识符。所有对费用的进一步更新都需要费用标识符。
 - en: Adding optimistic UI updates to the expense creation form may become quite complicated.
     One way to achieve this would be to optimistically update the look and feel of
     the creation form so that it looks like the expense update form before redirecting
@@ -197,45 +274,63 @@
     the server response, or we could queue subsequent submissions and submit an update
     programmatically with the latest changes the user tried to submit. This could
     become quite complicated.
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 在费用创建表单中添加乐观的用户界面更新可能会变得相当复杂。实现这一目标的一种方法是在将用户重定向到实际详情页面之前，乐观地更新创建表单的外观和感觉，使其看起来像费用更新表单。然而，在我们从费用创建提交中接收到费用
+    `id` 参数之前，我们无法执行任何后续的费用更新提交。我们可以禁用所有提交按钮，直到我们收到服务器响应，或者我们可以排队后续提交，并使用用户尝试提交的最新更改以编程方式提交更新。这可能会变得相当复杂。
 - en: Things become even more complicated when thinking about the attachment logic.
     What if we are still waiting on the `id` parameter when the user wants to remove
     the attached file or tries to upload a new attachment? We could prevent all subsequent
     changes to the attachment by disabling the attachment actions until we get the
     expense `id` parameter from the server.
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 当考虑附件逻辑时，事情变得更加复杂。如果我们仍在等待 `id` 参数，而用户想要删除附加文件或尝试上传新的附件怎么办？我们可以通过禁用附件操作直到我们从服务器获取费用
+    `id` 参数来防止对附件的所有后续更改。
 - en: As always, it comes down to trade-offs. How much could we increase the response
     time and enhance the experience by adding optimistic updates? Is it worth the
     complexity? Since our application is quite fast, we decided not to add optimistic
     updates to the expense creation form. Instead, let’s move on and investigate the
     expense update form.
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 和往常一样，这归结为权衡。通过添加乐观更新，我们能够增加多少响应时间并提升用户体验？这是否值得增加的复杂性？由于我们的应用程序相当快，我们决定不在费用创建表单中添加乐观更新。相反，让我们继续并调查费用更新表单。
 - en: Updating an expense
+  id: totrans-38
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 更新费用
 - en: 'Navigate to the expense overview page ([http://localhost:3000/dashboard/expenses](http://localhost:3000/dashboard/expenses))
     and select an expense. This will navigate us to the expense details page, which
     renders the expense update form. Now, make some changes to the existing expense
     and click `id` parameter. Instead, we display a success message: **Changes saved!**.'
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 导航到费用概览页面([http://localhost:3000/dashboard/expenses](http://localhost:3000/dashboard/expenses))并选择一个费用。这将带我们到费用详情页面，该页面渲染费用更新表单。现在，对现有的费用进行一些修改并点击`id`参数。相反，我们显示一个成功消息：**更改已保存**。
 - en: 'Technically, the UI already displays optimistic updates as we always show the
     latest input values to the user. Let’s also update the `dashboard.expenses.$id._index.tsx`
     route module:'
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 技术上，UI已经显示了乐观更新，因为我们总是向用户显示最新的输入值。让我们也更新`dashboard.expenses.$id._index.tsx`路由模块：
 - en: 'Remove the `disabled` property and pending “Save…” UI state:'
+  id: totrans-41
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 移除`disabled`属性和待处理的“保存…”UI状态：
 - en: '[PRE0]'
+  id: totrans-42
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: It might feel odd at first to remove the pending UI. Let’s think this through.
     The form now supports subsequent updates as we no longer disable the submit button
     on pending submissions. Since we always show the user-inputted values in the update
@@ -243,253 +338,356 @@
     transition animation and expense details pulse animation on pending navigation,
     we still communicate that updates are in progress. Additionally, we still display
     the success message on successful update. This might be a good compromise.
+  id: totrans-43
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 刚开始移除待处理的UI可能会感觉有些奇怪。让我们仔细思考一下。现在表单支持后续更新，因为我们不再在待处理提交时禁用提交按钮。由于我们总是显示用户输入的值在更新表单中，输入状态本身已经是乐观的。由于我们仍然在待处理导航时显示全局过渡动画和费用详情脉冲动画，我们仍然传达更新正在进行的信息。此外，我们还在成功更新时显示成功消息。这可能是一个不错的折衷方案。
 - en: But what about the attachment? Adding an attachment creates a new `expense.attachment`
     value. We require the attachment filename value for the view and delete attachment
     actions of the `Attachment` component.
+  id: totrans-44
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 但附件怎么办？添加附件会创建一个新的`expense.attachment`值。我们需要附件文件名值来执行视图和删除附件操作。
 - en: One solution is to add the attachment optimistically but disable the attachment
     link and the delete button until we receive the server response, which includes
     the newly added attachment value. Let’s make it happen!
+  id: totrans-45
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 一种解决方案是在乐观地添加附件的同时禁用附件链接和删除按钮，直到我们收到包含新添加的附件值的服务器响应。让我们实现它！
 - en: 'In the `dashboard.expenses.$id._index.tsx` route module component, use Remix’s
     global navigation object to derive whether an attachment is currently being uploaded:'
+  id: totrans-46
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在`dashboard.expenses.$id._index.tsx`路由模块组件中，使用Remix的全局导航对象来确定附件是否正在上传：
 - en: '[PRE1]'
+  id: totrans-47
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'Next, update the conditional render clause for the `Attachment` component to
     render if an attachment is currently being uploaded. Further, pass `disabled`
     to the `Attachment` component:'
+  id: totrans-48
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，更新`Attachment`组件的条件渲染语句，以便在附件正在上传时进行渲染。此外，将`disabled`属性传递给`Attachment`组件：
 - en: '[PRE2]'
+  id: totrans-49
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: Remix’s `useNavigation` hook and its `formData` property allow us to conditionally
     update the UI without creating additional custom React states. This is great as
     we avoid the need for synchronization logic altogether. Remix’s `ErrorBoundary`
     components further ensure a resilient baseline if an error occurs.
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: Remix的`useNavigation`钩子和其`formData`属性允许我们有条件地更新UI，而无需创建额外的自定义React状态。这很好，因为我们完全避免了同步逻辑的需要。Remix的`ErrorBoundary`组件进一步确保在发生错误时有一个健壮的基线。
 - en: Great! Just like that, we added optimistic UI updates when attaching a file
     and updating an expense. Users can now make multiple updates without having to
     wait for a response from the server. If an issue arises, Remix will display our
     `ErrorBoundary`, letting the user know about the error.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 太好了！就这样，我们在附加文件和更新费用时添加了乐观UI更新。现在，用户可以在不等待服务器响应的情况下进行多次更新。如果出现问题，Remix将显示我们的`ErrorBoundary`，让用户知道错误信息。
 - en: As always, implement the same experience for the income routes. This ensures
     that you revisit the lessons learned before moving on.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 就像往常一样，为收入路由实现相同的功能。这确保你在继续前进之前重新回顾所学的内容。
 - en: Next, let’s investigate the expense deletion form for an opportunity to add
     optimistic UI updates.
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，让我们调查机会删除表单，以便添加乐观的UI更新。
 - en: Deleting an expense
+  id: totrans-54
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 删除支出
 - en: On the expense overview page, we render a `ListLinkItem` component for every
     expense. The `ListLinkItem` component in `app/components/links.tsx` uses `useFetcher.Form`
     to submit the delete mutation. Optimistically removing or adding elements to a
     list is a great way to provide instant feedback. Let’s see how we can add an optimistic
     UI to our expense deletion forms.
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 在支出概览页面上，我们为每个支出渲染一个`ListLinkItem`组件。`app/components/links.tsx`中的`ListLinkItem`组件使用`useFetcher.Form`提交删除突变。在列表中乐观地删除或添加元素是提供即时反馈的好方法。让我们看看我们如何将乐观UI添加到我们的支出删除表单中。
 - en: 'One way to implement optimistic updates on deletion is to hide the list item
     immediately after entering the pending state. Update the `ListLinkItem` component
     in `app/components/links.tsx`, as follows:'
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 在删除时实现乐观更新的方法之一是在进入挂起状态后立即隐藏列表项。按照以下方式更新`app/components/links.tsx`中的`ListLinkItem`组件：
 - en: '[PRE3]'
+  id: totrans-57
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: You already know that the `useFetcher` hook manages its transition life cycle.
     When trying to implement pending and optimistic UIs with `useFetcher.Form`, we
     don’t use `useNavigation`; instead, we use the `useFetcher` hook’s `state` and
     `formData` properties.
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 你已经知道`useFetcher`钩子管理其转换生命周期。当尝试使用`useFetcher.Form`实现挂起和乐观UI时，我们不使用`useNavigation`；相反，我们使用`useFetcher`钩子的`state`和`formData`属性。
 - en: Just like that, we remove the expense item from the list when a submission is
     pending. Once the `action` function finishes, Remix refreshes the loader data
     and sets the navigation state back to `idle`. If the mutation was successful,
     then the updated loader data no longer contains the deleted expense, and our UI
     update persists. But what happens if an error occurs?
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 就这样，当提交挂起时，我们从列表中删除支出项。一旦`action`函数完成，Remix刷新加载器数据并将导航状态设置回`idle`。如果突变成功，则更新的加载器数据不再包含已删除的支出，并且我们的UI更新持续存在。但如果发生错误呢？
 - en: Take a look at the `handleDelete` function in the `dashboard.expenses.$id._index.tsx`
     route module. Right now, we throw a 404 `Response` if deleting an expense doesn’t
     work. This triggers the `ErrorBoundary`. Let’s improve this by giving the user
     direct feedback in the UI if the delete action fails.
+  id: totrans-60
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 查看位于`dashboard.expenses.$id._index.tsx`路由模块中的`handleDelete`函数。目前，如果删除支出失败，我们抛出一个404`Response`。这触发了`ErrorBoundary`。让我们通过在UI中为用户提供直接反馈来改进这一点，如果删除操作失败。
 - en: 'Update `handleDelete` to return a JSON `Response` if the delete action fails:'
+  id: totrans-61
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将`handleDelete`更新为在删除操作失败时返回一个JSON`Response`：
 - en: '[PRE4]'
+  id: totrans-62
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: data property. If the action data is present and success is false, we know that
     the expense’s deletion failed.
+  id: totrans-63
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 如果操作数据存在且成功为false，我们知道支出的删除失败了。
 - en: '[PRE5]'
+  id: totrans-64
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: Finally, update the `className` property on the list element conditionally to
     style the list item text red in case `hasFailed` is `true`.
+  id: totrans-65
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，有条件地更新列表元素的`className`属性，以便在`hasFailed`为`true`时将列表项文本样式设置为红色。
 - en: '[PRE6]'
+  id: totrans-66
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'Test the changes by throwing an error inside the try-case in `handleDelete`
     in `dashboard.expenses.$id._index.tsx`:'
+  id: totrans-67
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过在`dashboard.expenses.$id._index.tsx`中的`handleDelete`的try-case内部抛出错误来测试更改：
 - en: '[PRE7]'
+  id: totrans-68
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: Remix provides a great foundation for optimistic UI
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: Remix为乐观UI提供了一个很好的基础
 - en: Remix automatically updates loader data after a mutation, keeping the client
     and server in sync. This greatly simplifies the process of creating optimistic
     UIs.
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: Remix在突变后自动更新加载器数据，以保持客户端和服务器同步。这极大地简化了创建乐观UI的过程。
 - en: Great work! As always, make sure to also update the income routes with the latest
     changes in this section. This ensures that you practice what you learned before
     moving on to the next section.
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 干得好！一如既往，确保也要更新本节中的收入路由，以反映最新的更改。这确保了你在进入下一节之前已经练习了所学的内容。
 - en: In this part, we added optimistic UI updates for deleting expenses. We also
     used the fetcher’s `data` property to signal when an action fails and needs to
     be rolled back. Next, let’s investigate if we can optimistically remove expense
     and income attachments.
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这部分中，我们为删除支出添加了乐观UI更新。我们还使用了fetcher的`data`属性来表示操作失败并需要回滚。接下来，让我们调查我们是否可以乐观地删除支出和收入附件。
 - en: Removing an attachment
+  id: totrans-73
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 移除附件
 - en: We already optimistically display the `Attachment` component on pending uploads.
     We should also consider optimistically removing an attachment when clicking the
     attachment deletion button.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经乐观地显示了待上传文件中的`附件`组件。当点击附件删除按钮时，我们也应考虑乐观地删除附件。
 - en: This time, we don’t want to display the `Attachment` component on pending removal
     but instead display the file input. However, we also want to prevent race conditions
     and we should make sure we disable the input until the server confirms the removal.
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 这次，我们不想在待删除的附件上显示`附件`组件，而是显示文件输入。然而，我们还想防止竞争条件，并应确保在服务器确认删除之前禁用输入。
 - en: 'Since the attachment deletion form submission uses a `Form` component (instead
     of `useFetcher.Form`), we know the submission is handled via the global navigation
     object. Hence, we can detect whether the user deletes an attachment by checking
     the `formData` property on the global navigation object:'
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于附件删除表单提交使用的是`Form`组件（而不是`useFetcher.Form`），我们知道提交是通过全局导航对象处理的。因此，我们可以通过检查全局导航对象上的`formData`属性来检测用户是否删除了附件：
 - en: 'Add the following Boolean flag to the `dashboard.expenses.$id._index.tsx` route
     module component:'
+  id: totrans-77
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将以下布尔标志添加到`dashboard.expenses.$id._index.tsx`路由模块组件中：
 - en: '[PRE8]'
+  id: totrans-78
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: '{(isUploadingAttachment || expense.attachment) && !isRemovingAttachment ? (  <Attachment    label="Current
     Attachment"    attachmentUrl={`/dashboard/expenses/${expense.id}/attachments/${expense.attachment}`}    disabled={isUploadingAttachment}  />)
     : (  <Input label="New Attachment" type="file" name="attachment" disabled={isSubmitting}
     />)}'
+  id: totrans-79
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: '{(isUploadingAttachment || expense.attachment) && !isRemovingAttachment ? (  <Attachment    label="当前附件"    attachmentUrl={`/dashboard/expenses/${expense.id}/attachments/${expense.attachment}`}    disabled={isUploadingAttachment}  />)
+    : (  <Input label="新附件" type="file" name="attachment" disabled={isSubmitting}
+    />)}'
 - en: '[PRE9]'
+  id: totrans-80
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: Try out the implementation to verify that everything works as expected. As always,
     use the **Network** tab to throttle the connection to inspect pending states.
+  id: totrans-81
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 尝试运行实现以验证一切是否按预期工作。一如既往，使用**网络**选项卡来限制连接以检查待处理状态。
 - en: Great! We added optimistic UI updates to the attachment deletion form and the
     expense update form. You learned that Remix’s `useFetcher` and `useNavigation`
     primitives contain the `formData` property of the form currently being submitted.
     We can use the `formData` property to optimistically update the UI until the `loader`
     revalidation synchronizes the UI with the server state.
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 太好了！我们向附件删除表单和费用更新表单添加了乐观UI更新。你了解到Remix的`useFetcher`和`useNavigation`原始功能包含当前正在提交的表单的`formData`属性。我们可以使用`formData`属性来乐观地更新UI，直到`loader`重新验证将UI与服务器状态同步。
 - en: Summary
+  id: totrans-83
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 摘要
 - en: In this chapter, you learned how to add optimistic UI updates in Remix. You
     were introduced to the trade offs of optimistic UI, such as the increased complexity
     of client-side logic and the necessity of user feedback in case of rollbacks.
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，你学习了如何在Remix中添加乐观UI更新。你了解了乐观UI的权衡，例如客户端逻辑的复杂性增加以及在回滚情况下用户反馈的必要性。
 - en: Remix’s `loader` revalidation is a great starting point for synchronizing the
     UI with the server state. You now understand that Remix’s `loader` revalidation
     enables us to avoid custom client-server state synchronization and lets us avoid
     stale states. When relying on the loader data, we get rollbacks out of the box.
     After each mutation, we receive the latest loader data, and our UI updates automatically.
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: Remix的`loader`重新验证是同步UI与服务器状态的一个很好的起点。你现在明白，Remix的`loader`重新验证使我们能够避免自定义客户端-服务器状态同步，并让我们避免过时的状态。在依赖加载器数据时，我们能够自动获得回滚。每次突变后，我们都会收到最新的加载器数据，并且我们的UI会自动更新。
 - en: It is still worth communicating why a mutation failed. With or without optimistic
     updates, it is important to display an error message to the user. For optimistic
     updates, it might also make sense to highlight the rolled-back data visually.
     Remix’s `ErrorBoundary` component is a great starting point for recovering from
     errors. However, if we want more granular feedback, we must add custom error messages
     and utilize Remix’s primitives to highlight rolled-back data.
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 仍然值得说明为什么突变失败。无论是否有乐观更新，向用户显示错误消息都很重要。对于乐观更新，也可能有突出显示回滚数据的视觉意义。Remix的`ErrorBoundary`组件是恢复错误的一个很好的起点。然而，如果我们想要更精细的反馈，我们必须添加自定义错误消息并利用Remix的原始功能来突出显示回滚数据。
 - en: When implementing optimistic UIs, we usually start by removing pending UIs.
     Adding and removing pending entities to and from lists is an easy way to show
     instant feedback.
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 当实现乐观式用户界面时，我们通常首先从移除挂起的用户界面开始。在列表中添加和移除挂起实体是一种显示即时反馈的简单方法。
 - en: You also learned how to implement optimistic UI updates using Remix’s primitives
     such as `useNavigation` and `useFetcher`. We can use the `formData` property on
     the client to display user data before the final response is returned from the
     server.
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 你还学习了如何使用 Remix 的原语，如 `useNavigation` 和 `useFetcher` 来实现乐观式用户界面更新。我们可以在客户端使用
+    `formData` 属性在服务器返回最终响应之前显示用户数据。
 - en: In the next chapter, we will learn about different caching strategies to further
     improve the response times and performance of Remix applications.
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一章中，我们将学习不同的缓存策略，以进一步提高 Remix 应用程序的反应时间和性能。
 - en: Further reading
+  id: totrans-90
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 进一步阅读
 - en: 'You can find more information about how to implement optimistic UI in the Remix
     documentation: [https://remix.run/docs/en/2/discussion/pending-ui](https://remix.run/docs/en/2/discussion/pending-ui).'
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可以在 Remix 文档中找到更多关于如何实现乐观式用户界面的信息：[https://remix.run/docs/en/2/discussion/pending-ui](https://remix.run/docs/en/2/discussion/pending-ui)。
 - en: 'There is also a great Remix Single video about optimistic UI on the Remix YouTube
     channel: [https://www.youtube.com/watch?v=EdB_nj01C80](https://www.youtube.com/watch?v=EdB_nj01C80).'
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 Remix 的 YouTube 频道上还有一个关于乐观式用户界面的精彩 Remix 单视频：[https://www.youtube.com/watch?v=EdB_nj01C80](https://www.youtube.com/watch?v=EdB_nj01C80)。

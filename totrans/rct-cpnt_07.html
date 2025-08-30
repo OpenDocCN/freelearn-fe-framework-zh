@@ -1,0 +1,130 @@
+<html><head></head><body><div class="chapter" title="Chapter&#xA0;7.&#xA0;Rendering on the Server"><div class="titlepage"><div><div><h1 class="title"><a id="ch07"/>Chapter 7. Rendering on the Server</h1></div></div></div><p>In the last chapter, you learned how to render different sections of our CMS without reloading the page. We even created a way to see the public pages of our website, using the same routing techniques.</p><p>So far, we did everything in the browser. We stored pages in local storage. We used the website and CMS as if they were hosted on the Internet, but we're the only ones who can see it. If we want to share our creations with others, we need some kind of server-side technology.</p><p>In this chapter, we will take a brief look at some aspects of server-side JavaScript and React programming. We'll see how React works outside of the browser, and how we can persist and share data with many people in real-time.</p><div class="section" title="Rendering components to strings"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec41"/>Rendering components to strings</h1></div></div></div><p>One of the<a id="id158" class="indexterm"/> beautiful things about React is that it works in many places. It is aimed at rendering interfaces efficiently, but those interfaces can extend outside of the DOM and the browser.</p><p>You can use React to<a id="id159" class="indexterm"/> render native mobile interfaces (<a class="ulink" href="https://facebook.github.io/react-native">https://facebook.github.io/react-native</a>), or even plain HTML strings. This becomes useful when we want to reuse the component code in different places.</p><p>We can, for instance, build an intricate data table component for our CMS. We can ship that component to an iPad application or even render it from the web server as a way of minimizing page load time.</p><p>It's the latter example that we will try in this chapter. To begin, we need to install the source versions of React and React DOM libraries:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>$ npm install --save babel-cli babel-preset-react babel-preset-es2015 react react-dom</strong></span>
+</pre></div><p>We've already seen examples of the React libraries, but these new ones (from BabelJS) will give us a way of using ES6 and JSX on the server. They even provide an alternative to running our code directly through Node.js. Normally, we would run server-side JavaScript code using the following command:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>$ node server.js</strong></span>
+</pre></div><p>But, we can now use a BabelJS version, as follows:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>$ node_modules/.bin/babel-node server.js</strong></span>
+</pre></div><p>We need to tell BabelJS which code presets to apply to our code. By default, it will apply a select few ES6 transformations, but not all of them. It also won't handle JSX, unless we load that preset as well. We do this by creating a file called <code class="literal">.babelrc</code>:</p><div class="informalexample"><pre class="programlisting">{
+  "presets": ["react", "es2015"]
+}</pre></div><p>We're used to seeing ES6 <code class="literal">import</code> statements, but perhaps not the RequireJS <code class="literal">require</code> statements. These<a id="id160" class="indexterm"/> are similar in function, and Node.js uses them as a means of importing code from external scripts.</p><p>We also require a file called <code class="literal">hello-world.js</code>:</p><div class="informalexample"><pre class="programlisting">var React = require("react");
+var ReactDOMServer = require("react-dom/server");
+
+console.log(
+    ReactDOMServer.renderToString(&lt;div&gt;hello world&lt;/div&gt;)
+);</pre></div><p>There's something new again! We have loaded a new React library, called <code class="literal">ReactDOMServer</code> and render a string from a <code class="literal">div</code> component. Usually we would use something like <code class="literal">React.render(component, element)</code> in the browser. But, here we're only interested in the HTML string the component generates. Consider running the following:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>$ babel-node examples/server.js</strong></span>
+</pre></div><p>When we run the preceding command, we will see something resembling this:</p><div class="informalexample"><pre class="programlisting">&lt;div data-reactid=".yt0g9w8kxs" data-react-checksum="-1395650246"&gt;hello world&lt;/div&gt;</pre></div><p>Perhaps not exactly what we expect, but it looks like valid HTML. We can use this!</p></div></div>
+<div class="section" title="Creating a simple server"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec42"/>Creating a simple server</h1></div></div></div><p>Now that we can<a id="id161" class="indexterm"/> render components to HTML strings, it would serve us better to have a way to respond to HTTP requests with HTML responses.</p><p>Fortunately, Node.js also includes a neat little HTTP server library. We can use the following code, in the <code class="literal">server.js</code> file, to respond to HTTP requests:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>var http = require("http");</strong></span>
+
+<span class="strong"><strong>var server = http.createServer(</strong></span>
+    <span class="strong"><strong>function (request, response) {</strong></span>
+        <span class="strong"><strong>response.writeHead(200, {</strong></span>
+            <span class="strong"><strong>"Content-Type": "text/html"</strong></span>
+        <span class="strong"><strong>});</strong></span>
+
+        <span class="strong"><strong>response.end(</strong></span>
+            <span class="strong"><strong>require("./hello-world")</strong></span>
+        <span class="strong"><strong>);</strong></span>
+    <span class="strong"><strong>}</strong></span>
+<span class="strong"><strong>);</strong></span>
+
+<span class="strong"><strong>server.listen(3000, "127.0.0.1");</strong></span>
+</pre></div><p>To use the HTTP server library, we need to require/import it. We create a new server, and in the callback parameter, respond to individual HTTP requests.</p><p>For each request, we set a content type and respond with the HTML value of our <code class="literal">hello-world.js</code> file. The server listens on port <code class="literal">3000</code>, which means you'll need to open <code class="literal">http://127.0.0.1:3000</code> to see this message.</p><p>Before we can do that, we also need to adjust <code class="literal">hello-world.js</code> slightly:</p><div class="informalexample"><pre class="programlisting">var React = require("react");
+var ReactDOMServer = require("react-dom/server");
+
+<span class="strong"><strong>module.exports = ReactDOMServer.renderToString(</strong></span>
+    <span class="strong"><strong>&lt;div&gt;hello world&lt;/div&gt;</strong></span>
+<span class="strong"><strong>);</strong></span>
+</pre></div><p>The<code class="literal"> module.exports = ...</code> statement is the RequireJS equivalent of the <code class="literal">export default ...</code> statement that we're used to seeing. The result is that this file will return the component HTML string whenever it is required by another.</p><p>If we open the URL (<code class="literal">http://127.0.0.1:3000</code>) in the browser, we should see a <code class="literal">hello world</code> message, and inspecting it will show similar React HTML for the component:</p><div class="mediaobject"><img src="graphics/5268_07_01.jpg" alt="Creating a simple server"/></div><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note29"/>Note</h3><p>You can learn more<a id="id162" class="indexterm"/> about the Node.js HTTP server at <a class="ulink" href="https://nodejs.org/api/http.html">https://nodejs.org/api/http.html</a>.</p></div></div></div>
+<div class="section" title="Creating a server backend"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec43"/>Creating a server backend</h1></div></div></div><p>One of the things our CMS is still missing is public, persistent pages. So far, we stored them in local storage, and that's OK while we build up our CMS components. But a time will come when we would want to share our data with the world.</p><p>For this to work, we<a id="id163" class="indexterm"/> need some storage mechanism. Even if that storage is only in memory for as long as the server is running. Sure, we could use a relational database or an object store to persist our CMS pages. For now, let's keep things simple. An in-memory store (pages variable) should do for now.</p><p>So, how should we structure this data store? Whatever storage medium we choose, the interface will need to reach out to the server to store and retrieve data. There are two mainstream options I want to explore...</p></div>
+<div class="section" title="Communicating through Ajax requests"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec44"/>Communicating through Ajax requests</h1></div></div></div><p>Ajax is a loaded word. For the purposes of this chapter, I want you to think of it only as a means to fetch data from a server and send data to it using HTTP requests.</p><p>We've just seen <a id="id164" class="indexterm"/>how we can respond to HTTP requests, so we're half-way there! At this point, we can inspect requests to determine the URL and method of each HTTP request. A browser may be requesting something like <code class="literal">GET http://127.0.0.1:3000/pages</code> to get all the pages. So, if the method matches <code class="literal">POST</code> and the path matches <code class="literal">/pages</code>, then we can respond with the appropriate pages.</p><p>Luckily for us, others have been down this path before. Projects such as ExpressJS have sprung up to provide some scaffolding for us. Let's install ExpressJS:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>$ npm install --save express</strong></span>
+</pre></div><p>Now, we can convert our simple HTTP server to be based on ExpressJS:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>var app = require("express")();</strong></span>
+<span class="strong"><strong>var server = require("http").Server(app);</strong></span>
+
+<span class="strong"><strong>app.get("/", function (request, response) {</strong></span>
+    <span class="strong"><strong>response.send(</strong></span>
+        <span class="strong"><strong>require("./hello-world")</strong></span>
+    <span class="strong"><strong>);</strong></span>
+<span class="strong"><strong>});</strong></span>
+
+server.listen(3000);</pre></div><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note30"/>Note</h3><p>Remember that you'll need to restart the <code class="literal">node server.js</code> command after each change to these JavaScript files.</p></div></div><p>This should render exactly the same in a browser. However, it's a lot easier to define application endpoints for new things:</p><div class="informalexample"><pre class="programlisting">app.get("/", function (request, response) {
+    response.send(
+        require("./hello-world")
+    );
+});
+
+app.get<span class="strong"><strong>("/pages"</strong></span>, function (request, response) {
+    response.send(
+        <span class="strong"><strong>JSON.stringify([ /* ... */ ])</strong></span>
+    );
+});</pre></div><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note31"/>Note</h3><p>The<code class="literal"> JSON.stringify</code> statement converts a JavaScript variable to a string representation, which is a useful format for communicating over a network.</p></div></div><p>We also have access to methods such as <code class="literal">app.post</code> for handling <code class="literal">POST</code> requests. It's really easy to start designing HTTP endpoints for our backend data.</p><p>Then, in the <a id="id165" class="indexterm"/>browser, we need a way to make these requests. One common solution is to use a library such as jQuery. Sometimes that's a good idea, but usually only when you need more than just the Ajax functionality jQuery provides.</p><p>If you're looking for a lean solution, try <a id="id166" class="indexterm"/>something such as SuperAgent (<a class="ulink" href="https://github.com/visionmedia/superagent">https://github.com/visionmedia/superagent</a>) or even the new<a id="id167" class="indexterm"/> Fetch API (<a class="ulink" href="https://developer.mozilla.org/en/docs/Web/API/Fetch_API">https://developer.mozilla.org/en/docs/Web/API/Fetch_API</a>):</p><div class="informalexample"><pre class="programlisting">var options = {
+    "method": "GET"
+};
+
+fetch("http://127.0.0.1/pages", options).then(
+    function(response) {
+        console.log(response);
+    }
+);</pre></div><p>Using this approach, we can slowly replace the local storage parts of our backend with calls to the server. There, we can store page data in an array, a relational database, or an object store.</p><p> Ajax is a time-tested approach to communicate between the browser and the server. It's a well-supported technique with many kinds of shims for older browsers (from iframes to flash).</p><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note32"/>Note</h3><p>You can learn more <a id="id168" class="indexterm"/>about ExpressJS at <a class="ulink" href="http://expressjs.com">http://expressjs.com</a>.</p></div></div></div>
+<div class="section" title="Communicating through web sockets"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec45"/>Communicating through web sockets</h1></div></div></div><p>Sometimes, it's better to have fast, <a id="id169" class="indexterm"/>bi-directional communication between the browser and the server.</p><p>At such a time, you can try web sockets. They're an upgrade to the traditional HTTP communication seen in Ajax. To work with them easily, we need the help of Socket.IO:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>npm install --save socket.io</strong></span>
+</pre></div><p>Now we can access a new object, which we'll call <code class="literal">io</code>:</p><div class="informalexample"><pre class="programlisting">// ...enable JSX/ES6 compilation
+
+var app = require("express")();
+var server = require("http").Server(app);
+<span class="strong"><strong>var io = require("socket.io")(server);</strong></span>
+
+app.get("/", function (request, response) {
+    response.send(
+        require("./hello-world")
+    );
+});
+
+// ...define other endpoints
+
+<span class="strong"><strong>io.on("connection", function (socket) {</strong></span>
+<span class="strong"><strong>    console.log("connection");</strong></span>
+
+<span class="strong"><strong>    socket.on("message", function (message) {</strong></span>
+<span class="strong"><strong>        console.log("message: " + message);</strong></span>
+
+<span class="strong"><strong>        io.emit("message", message);</strong></span>
+<span class="strong"><strong>    });</strong></span>
+<span class="strong"><strong>});</strong></span>
+
+server.listen(3000);</pre></div><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note33"/>Note</h3><p>The <code class="literal">"message"</code> can be anything. You can send messages of different types simply by changing this to something else. If you send a message with <code class="literal">"chat message"</code> or <code class="literal">"page command"</code>, then you need to add event listeners for the same message type.</p></div></div><p>We create a new <code class="literal">io</code> instance with a reference to the HTTP server. Web socket connections begin with an HTTP request, so that's a good place to listen for them.</p><p>When new web<a id="id170" class="indexterm"/> socket connections are made, we can start to listen for messages. For now, we can just send the messages back. Socket.IO provides the web socket client script, but we do still need to connect and send messages. Let's update <code class="literal">hello-world.js</code>:</p><div class="informalexample"><pre class="programlisting">var React = require("react");
+var ReactDOMServer = require("react-dom/server");
+
+<span class="strong"><strong>var script = {</strong></span>
+<span class="strong"><strong>    "__html": `</strong></span>
+<span class="strong"><strong>        var socket = io();</strong></span>
+
+<span class="strong"><strong>        socket.on("message", function (message) {</strong></span>
+<span class="strong"><strong>            console.log(message);</strong></span>
+<span class="strong"><strong>        });</strong></span>
+
+<span class="strong"><strong>        socket.emit("message", "hello world");</strong></span>
+<span class="strong"><strong>    `</strong></span>
+<span class="strong"><strong>};</strong></span>
+
+module.exports = ReactDOMServer.renderToString(
+    &lt;div&gt;
+        &lt;script src="/socket.io/socket.io.js"&gt;&lt;/script&gt;
+        <span class="strong"><strong>&lt;script dangerouslySetInnerHTML={script}&gt;&lt;/script&gt;</strong></span>
+    &lt;/div&gt;
+);</pre></div><p>There are two important things to note in this block of code:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">We can use multiline strings as part of the ES6 syntax. Instead of single or double quotes, we can use backticks for strings that we want to span over multiple lines.</li><li class="listitem" style="list-style-type: disc">We can set the innerHTML (which is something we need to do to get JavaScript to render on the browser through this HTTP response) via the <code class="literal">dangerouslySetInnerHTML</code> attribute.<div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note34"/>Note</h3><p>You can learn more<a id="id171" class="indexterm"/> about <code class="literal">dangerouslySetInnerHTML</code> at <a class="ulink" href="https://facebook.github.io/react/tips/dangerously-set-inner-html.html">https://facebook.github.io/react/tips/dangerously-set-inner-html.html</a>.</p></div></div></li></ul></div><p>In our web socket examples, the flow of data resembles the following:</p><div class="orderedlist"><ol class="orderedlist arabic"><li class="listitem">An HTTP and web socket server listen on <code class="literal">http://127.0.0.1:3000</code>.</li><li class="listitem">Requests to <code class="literal">/</code> return some browser scripts.</li><li class="listitem">These scripts begin a connection request to the server.</li><li class="listitem">The server picks up these connection requests and adds event listeners for new messages after the connections are successfully opened.</li><li class="listitem">The <a id="id172" class="indexterm"/>browser scripts add event listeners for new messages and immediately a send message to the server.</li><li class="listitem">The server's event listeners are triggered and the messages are re-sent to all open sockets.</li><li class="listitem">The browser's event listeners are triggered and the messages are written to the console.<div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note35"/>Note</h3><p>In this example, we broadcast the messages (from the server) to all open sockets. You can limit the messages to specific socket connections using something such as <code class="literal">socket.emit("message", message)</code>. Check the Socket.IO documentation for examples.</p></div></div></li></ol></div><p>You should see the <code class="literal">hello world</code> message in the console:</p><div class="mediaobject"><img src="graphics/5268_07_02.jpg" alt="Communicating through web sockets"/></div><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note36"/>Note</h3><p>You can learn <a id="id173" class="indexterm"/>more about Socket.IO at <a class="ulink" href="http://socket.io">http://socket.io</a>.</p></div></div></div>
+<div class="section" title="Structuring server-side applications"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec46"/>Structuring server-side applications</h1></div></div></div><p>When it comes to HTTP and web socket servers, it's usually a good idea to separate the endpoint code from the server initialization code. Some folks like to create separate routes files, which <a id="id174" class="indexterm"/>can then be required by the <code class="literal">server.js</code> file. Still others like to have each endpoint as a separate file and define routes as glue between <code class="literal">server.js</code> and these "handler" files.</p><p>Perhaps that's enough for the kinds of applications <a id="id175" class="indexterm"/>you will build, or perhaps you like a more prescriptive structure to your applications, something such as AdonisJS (<a class="ulink" href="http://adonisjs.com">http://adonisjs.com</a>), for example.</p><p>Adonis is a beautifully structured MVC framework for Node.js applications. It uses many cool tricks (such as generators) to enable a clean API for defining templates, request handlers, and database code.</p><p>A typical request can be handled in the following way:</p><div class="informalexample"><pre class="programlisting">class HomeController {
+    * indexAction (request, response) {
+        response.send("hello world");
+    }
+}
+
+module.exports = HomeController</pre></div><p>You would define this class in a file called <code class="literal">app/Http/Controllers/HomeController.js</code>. To have this file rendered, when browsers go to the home page of your website, you can define a route in <code class="literal">app/Http/routes.js</code>:</p><div class="informalexample"><pre class="programlisting">const Route = use("Route");
+
+Route.get("/", "HomeController.indexAction");</pre></div><p>You can couple this with some persistent, relational database storage:</p><div class="informalexample"><pre class="programlisting">const Database = use("Database");
+
+const users = yield Database.table("users").select("*");</pre></div><p>All in all, AdonisJS provides<a id="id176" class="indexterm"/> a lot of structure to an otherwise open and interpretive landscape. It reminds me a lot of the popular PHP framework—Laravel, which itself draws queues from the popular Ruby on Rails framework.</p><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note37"/>Note</h3><p>You can learn more<a id="id177" class="indexterm"/> about AdonisJS at <a class="ulink" href="http://adonisjs.com">http://adonisjs.com</a>.</p></div></div></div>
+<div class="section" title="Summary"><div class="titlepage"><div><div><h1 class="title"><a id="ch07lvl1sec47"/>Summary</h1></div></div></div><p>In this chapter, you learned how to render components on the server. We created a simple HTTP server and then upgraded it to allow multiple endpoints and web sockets. Finally, we looked briefly at how we can structure our server-side code and quickly looked at the AdonisJS MVC framework.</p><p>In the next chapter, you will learn about some popular React design patterns that you can apply to your components and interfaces.</p></div></body></html>

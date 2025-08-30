@@ -1,0 +1,437 @@
+<html><head></head><body><div class="chapter" title="Chapter&#xA0;2.&#xA0;Working with Properties and State"><div class="titlepage"><div><div><h1 class="title"><a id="ch02"/>Chapter 2. Working with Properties and State</h1></div></div></div><p>In the previous chapter, we set up our workflow. We worked out how to compile ReactJS and ES6 code through a build step, interpret it directly in our browser, and even run it using services such as JSBin. Now, we can begin creating components for our content management system.</p><p>In this chapter, we're going to start building our interface. We'll see interesting and effective ways to connect components. The important thing in this chapter is learning how to arrange components in complex hierarchies. We're going to nest several components and communicate between them and our data source, using a custom data backend.</p><div class="section" title="Nesting components"><div class="titlepage"><div><div><h1 class="title"><a id="ch02lvl1sec15"/>Nesting components</h1></div></div></div><p>Let's <a id="id25" class="indexterm"/>think about how we want to structure the components of our interface. Many content management systems feature lists of items—items that we store in and retrieve from a database. For example, let's imagine a system through which we can manage the pages of a website.</p><p>For such a system, we need an entry-point—something like <code class="literal">PageAdmin</code>, which connects our persistence layer to our interface:</p><div class="informalexample"><pre class="programlisting">import React from "react";
+
+class PageAdmin extends React.Component {
+    render() {
+        return &lt;ol&gt;...page objects&lt;/ol&gt;;
+    }
+}
+
+export default PageAdmin;</pre></div><p>We can also<a id="id26" class="indexterm"/> represent the persistence layer in the form of a backend class:</p><div class="informalexample"><pre class="programlisting">class Backend {
+    getAll() {
+        // ...returns an array of pages
+    }
+
+    update(id, property, value) {
+        // ...updates a page
+    }
+
+    delete(id) {
+        // ...deletes a page
+    }
+}</pre></div><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note09"/>Note</h3><p>Later, we'll look at ways of persisting this data. For now, it's OK to just use static data in this class.</p></div></div><p>We could connect <code class="literal">PageAdmin</code> to this class by proving an instance of <code class="literal">Backend</code> as a property:</p><div class="informalexample"><pre class="programlisting">var backend = new Backend();
+
+ReactDOM.render(
+    &lt;PageAdmin <span class="strong"><strong>backend={backend}</strong></span> /&gt;,
+    document.querySelector(".react")
+);</pre></div><p>Now, we can start using the <code class="literal">Backend</code> data in our <code class="literal">PageAdmin</code> component:</p><div class="informalexample"><pre class="programlisting">class PageAdmin extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            "pages": []
+        };
+    }
+
+    componentWillMount() {
+        <span class="strong"><strong>this.setState({</strong></span>
+<span class="strong"><strong>            "pages": this.props.backend.getAll()</strong></span>
+<span class="strong"><strong>        });</strong></span>
+    }
+
+    render() {
+        return &lt;ol&gt;
+            <span class="strong"><strong>{this.state.pages.map(function(page) {</strong></span>
+<span class="strong"><strong>                return &lt;li key={page.id}&gt;a new page&lt;/li&gt;</strong></span>
+<span class="strong"><strong>            })}</strong></span>
+        &lt;/ol&gt;;
+    }
+}</pre></div><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note10"/>Note</h3><p>The truth is that we don't really need to define a default state, or store the page objects to the state. I've done so to demonstrate the idiomatic way of defining initial component state and overriding state when working with ES6-style components.</p></div></div><p>There's a lot <a id="id27" class="indexterm"/>going on here, so let's break it down bit-by-bit:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">We made a constructor. In the constructor, we defined the initial state of a component. We defined the state as an object with an empty <code class="literal">pages</code> array.</li><li class="listitem" style="list-style-type: disc">React will call a few <span class="emphasis"><em>magic</em></span> methods in the life cycle of a component. We used <code class="literal">componentWillMount</code> to get an array of pages, so we have something to render. We also passed this array of pages to the <code class="literal">setState</code> method. This exists to store state data and update the markup of a component at the same time. The <code class="literal">this.state.pages</code> method will now contain the array of pages from the backend.</li><li class="listitem" style="list-style-type: disc">When we use curly braces inside markup, it acts like a dynamic value (just like with properties). We can use the <code class="literal">Array.prototype.map</code> method to return a new element for each page in the array of pages. This will return a new list of <code class="literal">li</code> components. React also expects components in a list to have a special <code class="literal">key</code> property, which it uses to identify them. React uses this to track which components it can remove, add, or change efficiently.<div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note11"/>Note</h3><p>The code references <code class="literal">page.id</code>. The pages returned by the backend should have the <code class="literal">id</code>, <code class="literal">title</code>, and <code class="literal">body</code> properties for these examples to work.</p></div></div></li></ul></div><p>Let's <a id="id28" class="indexterm"/>concentrate on how to show each page through the content management system. The <code class="literal">PageAdmin</code> renders each page as a list item, so let's think about what we want to do inside each list item. I think it makes sense to have a non-interactive summary of each page. Think of a tabular view of all pages in a website:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">Home</li><li class="listitem" style="list-style-type: disc">Products</li><li class="listitem" style="list-style-type: disc">Terms of service</li><li class="listitem" style="list-style-type: disc">Contact us</li></ul></div><p>So there's one aspect to pages that is static: the view of the page title. Perhaps we can also include links to edit or delete each page.</p><p>We also want to be able to update each page. We're probably going to need some sort of form, with text inputs for each field we might want to update.</p><p>We can represent these two scenarios in a single component:</p><div class="informalexample"><pre class="programlisting">import React from "react";
+
+class Page extends React.Component {
+    constructor(props) {
+        super(props);
+
+        <span class="strong"><strong>this.state = {</strong></span>
+<span class="strong"><strong>            "isEditing": false</strong></span>
+<span class="strong"><strong>        };</strong></span>
+    }
+
+    render() {
+<span class="strong"><strong>        if (this.state.isEditing) {</strong></span>
+<span class="strong"><strong>            return &lt;PageEditor /&gt;;</strong></span>
+<span class="strong"><strong>        }</strong></span>
+
+<span class="strong"><strong>        return &lt;PageView /&gt;;</strong></span>
+    }
+}
+
+export default Page;</pre></div><p>Now, we can switch between the different components, based on whether we're editing or not. Of course, we also need to define these new components:</p><div class="informalexample"><pre class="programlisting">import React from "react";
+
+class PageEditor extends React.Component {
+    render() {
+        return &lt;form&gt;
+            &lt;input type="text" name="title" /&gt;
+            &lt;textarea name="body"&gt;&lt;/textarea&gt;
+            &lt;button&gt;back&lt;/button&gt;
+        &lt;/form&gt;;
+    }
+}
+
+export default PageEditor;</pre></div><p>Note that <a id="id29" class="indexterm"/>we can define input elements in a way you might expect, if you've worked with HTML markup before. We'll revisit this component later, so don't worry about the details just yet.</p><p>The preview mode, for this component, is a little similar:</p><div class="informalexample"><pre class="programlisting">import React from "react";
+
+class PageView extends React.Component {
+    render() {
+        return &lt;div&gt;
+            {this.props.title}
+            &lt;button&gt;edit&lt;/button&gt;
+            &lt;button&gt;delete&lt;/button&gt;
+        &lt;/div&gt;;
+    }
+}
+
+export default PageView;</pre></div><p>This raises an interesting question. How can we efficiently transfer properties from one component to another? ES6 provides a great tool for this in the form of a language feature called the <span class="emphasis"><em>spread</em></span> operator. First, we need to provide pages to page components in <code class="literal">PageAdmin</code>:</p><div class="informalexample"><pre class="programlisting">render() {
+    return &lt;ol&gt;
+        {this.state.pages.map(function(page) {
+            return &lt;li key={page.id}&gt;
+                &lt;Page <span class="strong"><strong>{...page}</strong></span> /&gt;
+            &lt;/li&gt;;
+        })}
+    &lt;/ol&gt;;
+}</pre></div><p>We're <a id="id30" class="indexterm"/>replacing <code class="literal">a new page</code> with the <code class="literal">Page</code> component we created earlier. We use the spread operator to assign each object key as a component property. We can repeat this concept in <code class="literal">Page</code>:</p><div class="informalexample"><pre class="programlisting">render() {
+    if (this.state.isEditing) {
+        return &lt;PageEditor <span class="strong"><strong>{...this.props}</strong></span> /&gt;;
+    }
+
+    return &lt;PageView <span class="strong"><strong>{...this.props}</strong></span> /&gt;;
+}</pre></div><p>The <code class="literal">{...this.props}</code> expands the page object keys. The <code class="literal">page.id</code> becomes <code class="literal">this.props.id</code> inside the <code class="literal">PageEditor</code> and <code class="literal">PageView</code> components. This method is great for transferring many properties; we don't need to write out each one.</p></div></div>
+<div class="section" title="Shared component actions"><div class="titlepage"><div><div><h1 class="title"><a id="ch02lvl1sec16"/>Shared component actions</h1></div></div></div><p>So, how do we<a id="id31" class="indexterm"/> change from a <code class="literal">PageView</code> class to a <code class="literal">PageEditor</code> class? For that, we need to hook into browser events and fiddle with the state:</p><div class="informalexample"><pre class="programlisting">class Page extends React.Component {
+    constructor(props) {
+        super(props);
+
+        <span class="strong"><strong>this.state = {</strong></span>
+<span class="strong"><strong>            "isEditing": false</strong></span>
+<span class="strong"><strong>        };</strong></span>
+    }
+
+    render() {
+        if (this.state.isEditing) {
+            return &lt;PageEditor
+                {...this.props}
+                <span class="strong"><strong>onCancel={this.onCancel.bind(this)}</strong></span>
+                /&gt;;
+        }
+
+        return &lt;PageView
+            {...this.props}
+            <span class="strong"><strong>onPageEdit={this.onEdit.bind(this)}</strong></span>
+            /&gt;;
+    }
+
+    <span class="strong"><strong>onEdit() {</strong></span>
+<span class="strong"><strong>        this.setState({</strong></span>
+<span class="strong"><strong>            "isEditing": true</strong></span>
+<span class="strong"><strong>        });</strong></span>
+<span class="strong"><strong>    }</strong></span>
+
+<span class="strong"><strong>    onCancel() {</strong></span>
+<span class="strong"><strong>        this.setState({</strong></span>
+<span class="strong"><strong>            "isEditing": false</strong></span>
+<span class="strong"><strong>        });</strong></span>
+<span class="strong"><strong>    }</strong></span>
+}</pre></div><p>We're providing a way <a id="id32" class="indexterm"/>for <span class="emphasis"><em>child</em></span> components to call methods in <span class="emphasis"><em>parent</em></span> components by passing down methods child components can use. When a <code class="literal">PageView</code> class wants to put the <code class="literal">Page</code> into edit mode, it can call <code class="literal">this.props.onEdit</code>. The <code class="literal">Page</code> will know how to handle that. We'll see this pattern often, so it's good to understand what it's doing here before moving on!</p><p>In the same way, we provide a way for a <code class="literal">PageEditor</code> class to cancel edit mode. In both these cases, we use <code class="literal">setState</code> to switch between editing and viewing states.</p><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note12"/>Note</h3><p>We bind the handle methods, because otherwise <code class="literal">this</code> will mean something different when the methods are called. Binding like this is not efficient, so we'll revisit this later with an alternative!</p></div></div><p>We can connect these handlers to click events in each component:</p><div class="informalexample"><pre class="programlisting">class PageEditor extends React.Component {
+    render() {
+        return &lt;form&gt;
+            &lt;input type="text" name="title" /&gt;
+            &lt;textarea name="body"&gt;&lt;/textarea&gt;
+            &lt;button&gt;save&lt;/button&gt;
+            &lt;button
+                <span class="strong"><strong>onClick={this.onCancel.bind(this)}</strong></span>
+                &gt;back&lt;/button&gt;
+        &lt;/form&gt;;
+    }
+
+    onCancel(event) {
+        event.preventDefault();
+        this.props.onCancel();
+    }
+}</pre></div><p>We need to prevent <a id="id33" class="indexterm"/>default form submission before calling the <code class="literal">onCancel</code> passed down through props. The code is as follows:</p><div class="informalexample"><pre class="programlisting">class PageView extends React.Component {
+    render() {
+        return &lt;div&gt;
+            {this.props.title}
+            &lt;button
+                <span class="strong"><strong>onClick={this.props.onEdit}</strong></span>
+                &gt;edit&lt;/button&gt;
+            &lt;button&gt;delete&lt;/button&gt;
+        &lt;/div&gt;;
+    }
+}</pre></div><p>You should now be able to run this in a browser and toggle between the edit and view aspects of each page. This is a good time to stop and take stock of what we've achieved:</p><div class="orderedlist"><ol class="orderedlist arabic"><li class="listitem">We created an entry-point component to page management called <code class="literal">PageAdmin</code>. This component handles fetching and persisting page data. It uses a <code class="literal">Backend</code> class to do these. It also renders <code class="literal">Page</code> components for each page that <code class="literal">Backend</code> returns.</li><li class="listitem">We created a <code class="literal">Page</code> component to encapsulate page data as well as edit and view aspects of each page. The <code class="literal">Page</code> component handles switching between these two child components, via callbacks.</li><li class="listitem">We created <code class="literal">PageEditor</code> as an interface for editing page data. It contains a couple of fields, which we'll shortly discuss.</li><li class="listitem">Finally, we created <code class="literal">PageView</code> as an interface for viewing page data and getting to the edit mode. We're about to make the <span class="strong"><strong>Delete</strong></span> button work too.</li></ol></div><p>If you've been following along, your interface may look something like this:</p><div class="mediaobject"><img src="graphics/5268_02_01.jpg" alt="Shared component actions"/></div><p>We have created new<a id="id34" class="indexterm"/> function references throughout this chapter. Every time we use <code class="literal">fn.bind(this)</code>, we create a new function. This is inefficient if we're doing it inside render methods. We can get around this by creating a base component:</p><div class="informalexample"><pre class="programlisting">import React from "react";
+
+class Component extends React.Component {
+    bind(...methods) {
+        methods.map(
+            method =&gt; this[method] = this[method].bind(this)
+        )
+    }
+}
+
+export default Component;</pre></div><p>If we extend this base component (instead of the usual <code class="literal">React.Component</code>), then we will have access to the <code class="literal">bind</code> method. It takes one or more function names, and replaces them with bound versions.</p><p>Now, we need to add event handlers for updating and deleting pages. Let's start with <code class="literal">PageView</code> and <code class="literal">PageEditor</code>:</p><div class="informalexample"><pre class="programlisting">import Component from "component";
+
+class PageView extends Component {
+    constructor(props) {
+        super(props);
+
+        <span class="strong"><strong>this.bind(</strong></span>
+<span class="strong"><strong>            "onDelete"</strong></span>
+<span class="strong"><strong>        );</strong></span>
+    }
+
+    render() {
+        return &lt;div&gt;
+            {this.props.title}
+            &lt;button
+                onClick={this.props.onEdit}
+                &gt;edit&lt;/button&gt;
+            &lt;button
+                <span class="strong"><strong>onClick={this.onDelete}</strong></span>
+                &gt;delete&lt;/button&gt;
+        &lt;/div&gt;;
+    }
+
+    <span class="strong"><strong>onDelete() {</strong></span>
+<span class="strong"><strong>        this.props.onDelete(</strong></span>
+<span class="strong"><strong>            this.props.id</strong></span>
+<span class="strong"><strong>        );</strong></span>
+<span class="strong"><strong>    }</strong></span>
+}</pre></div><p>We added an <code class="literal">onClick</code> handler<a id="id35" class="indexterm"/> to the Delete button. This will trigger a bound version of <code class="literal">onDelete</code> in which we pass the correct:</p><div class="informalexample"><pre class="programlisting">import Component from "component";
+
+class PageEditor extends Component {
+    constructor(props) {
+        super(props);
+
+        <span class="strong"><strong>this.bind(</strong></span>
+<span class="strong"><strong>            </strong></span>"<span class="strong"><strong>onCancel</strong></span>"<span class="strong"><strong>,</strong></span>
+<span class="strong"><strong>            "onUpdate"</strong></span>
+<span class="strong"><strong>        );</strong></span>
+    }
+
+    render() {
+        return &lt;form&gt;
+            &lt;input
+                type="text"
+                name="title"
+                <span class="strong"><strong>value={this.props.title}</strong></span>
+<span class="strong"><strong>                onChange={this.onUpdate}</strong></span>
+               /&gt;
+           &lt;textarea
+               name="body"
+               <span class="strong"><strong>value={this.props.body}</strong></span>
+<span class="strong"><strong>                onChange={this.onUpdate}</strong></span>&gt;
+<span class="strong"><strong>            &lt;/textarea&gt;</strong></span>
+            &lt;button
+                onClick={this.onCancel}&gt;
+                cancel
+            &lt;/button&gt;
+        &lt;/div&gt;;
+    }
+
+<span class="strong"><strong>    onUpdate() {</strong></span>
+<span class="strong"><strong>        this.props.onUpdate(</strong></span>
+<span class="strong"><strong>            this.props.id,</strong></span>
+<span class="strong"><strong>            event.target.name,</strong></span>
+<span class="strong"><strong>            event.target.value</strong></span>
+<span class="strong"><strong>        );</strong></span>
+<span class="strong"><strong>    }</strong></span>
+
+<span class="strong"><strong>    onCancel(event) {</strong></span>
+<span class="strong"><strong>        event.preventDefault();</strong></span>
+<span class="strong"><strong>        this.props.onCancel();</strong></span>
+<span class="strong"><strong>    }</strong></span>
+}</pre></div><p>Here, we <a id="id36" class="indexterm"/>added <code class="literal">onUpdate</code> so that we can determine which input changed. It calls the props <code class="literal">onUpdate</code> method with the correct property name and value.</p><p>We also add the <code class="literal">name</code> and <code class="literal">value</code> attributes for the inputs, setting the values to the corresponding properties. These updates are triggered when the inputs change, calling the <code class="literal">onUpdate</code> method. This means property updates will reflect in the fields.</p><p>Where do these new handler properties come from? We need to add them to <code class="literal">PageAdmin</code>:</p><div class="informalexample"><pre class="programlisting">import Component from "component";
+
+class PageAdmin extends Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            "pages": []
+        };
+
+<span class="strong"><strong>        this.bind(</strong></span>
+<span class="strong"><strong>            "onUpdate",</strong></span>
+<span class="strong"><strong>            "onDelete"</strong></span>
+<span class="strong"><strong>        );</strong></span>
+    }
+
+    componentWillMount() {
+        this.setState({
+            "pages": this.props.backend.getAll()
+        });
+    }
+
+    render() {
+        return &lt;ol&gt;
+            {this.state.pages.map(function(page) {
+                return &lt;li key={page.id}&gt;
+                    &lt;Page
+                        {...page}
+                        <span class="strong"><strong>onUpdate={this.onUpdate}</strong></span>
+                        <span class="strong"><strong>onDelete={this.onDelete}</strong></span>
+                        /&gt;
+                &lt;/li&gt;;
+            })}
+        &lt;/ol&gt;;
+    }
+
+    <span class="strong"><strong>onUpdate(...params) {</strong></span>
+<span class="strong"><strong>        this.props.backend.update(...params);</strong></span>
+<span class="strong"><strong>    }</strong></span>
+
+<span class="strong"><strong>    onDelete(...params) {</strong></span>
+<span class="strong"><strong>        this.props.backend.delete(...params);</strong></span>
+<span class="strong"><strong>    }</strong></span>
+}</pre></div><p>Finally, we create a couple of methods to handle updates and deletes. These are bound, as we've been doing to methods in the other classes. They also use the rest/spread operators as a bit of a shortcut!</p><p>We can fake the <a id="id37" class="indexterm"/>backend data and operations with an array of pages and a few array modifier methods:</p><div class="informalexample"><pre class="programlisting">class Backend {
+    constructor() {
+        <span class="strong"><strong>this.deleted = [];</strong></span>
+<span class="strong"><strong>        this.updates = [];</strong></span>
+
+<span class="strong"><strong>        this.pages = [</strong></span>
+<span class="strong"><strong>            {</strong></span>
+<span class="strong"><strong>                "id": 1,</strong></span>
+<span class="strong"><strong>                "title": "Home",</strong></span>
+<span class="strong"><strong>                "body": "..."</strong></span>
+<span class="strong"><strong>            },</strong></span>
+<span class="strong"><strong>            {</strong></span>
+<span class="strong"><strong>                "id": 2,</strong></span>
+<span class="strong"><strong>                "title": "About Us",</strong></span>
+<span class="strong"><strong>                "body": "..."</strong></span>
+<span class="strong"><strong>            },</strong></span>
+<span class="strong"><strong>            {</strong></span>
+<span class="strong"><strong>                "id": 3,</strong></span>
+<span class="strong"><strong>                "title": "Contact Us",</strong></span>
+<span class="strong"><strong>                "body": "..."</strong></span>
+<span class="strong"><strong>            },</strong></span>
+<span class="strong"><strong>            {</strong></span>
+<span class="strong"><strong>                "id": 4,</strong></span>
+<span class="strong"><strong>                "title": "Products",</strong></span>
+<span class="strong"><strong>                "body": "..."</strong></span>
+<span class="strong"><strong>            }</strong></span>
+<span class="strong"><strong>        ];</strong></span>
+    }
+
+    getAll() {
+        <span class="strong"><strong>return this.pages</strong></span>
+<span class="strong"><strong>            .filter(page =&gt; {</strong></span>
+<span class="strong"><strong>                return this.deleted.indexOf(page.id) == -1</strong></span>
+<span class="strong"><strong>            })</strong></span>
+<span class="strong"><strong>            .map(page =&gt; {</strong></span>
+<span class="strong"><strong>                var modified = page;</strong></span>
+
+<span class="strong"><strong>                this.updates.forEach((update) =&gt; {</strong></span>
+<span class="strong"><strong>                    if (update[0] == page.id) {</strong></span>
+<span class="strong"><strong>                        modified[update[1]] = update[2];</strong></span>
+<span class="strong"><strong>                    }</strong></span>
+<span class="strong"><strong>                });</strong></span>
+<span class="strong"><strong>                return modified;</strong></span>
+<span class="strong"><strong>            });</strong></span>
+    }
+
+    update(id, property, value) {
+        <span class="strong"><strong>this.updates.push([id, property, value]);</strong></span>
+    }
+
+    delete(id) {
+        <span class="strong"><strong>this.deleted.push(id);</strong></span>
+    }
+}</pre></div><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="tip04"/>Tip</h3><p>This is by no means an efficient implementation. Please do not use this code in production. It's just an example interface against which we can test our code!</p></div></div><p>The <code class="literal">all</code> method <a id="id38" class="indexterm"/>returns a filtered and mapped array of initial pages. The <code class="literal">() =&gt; {}</code> syntax is a shortcut for <code class="literal">(function(){}).bind(this)</code>. The brackets are even optional, if there is exactly one property for the function. The filter checks that each page <code class="literal">id</code> is not in the <code class="literal">deleted</code> array. We're not actually deleting pages in this pretend backend. We're simply excluding ones we know we don't want to see.</p><p>We don't update the pages directly, but we apply updates to the array before <code class="literal">all</code> returns it. This isn't efficient, but it does allow us to see out interface in action.</p><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note13"/>Note</h3><p>You can learn more about these array tricks<a id="id39" class="indexterm"/> at <a class="ulink" href="https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Array">https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Array</a>. It's a great place to learn about JavaScript language features.</p></div></div></div>
+<div class="section" title="Component life cycle methods"><div class="titlepage"><div><div><h1 class="title"><a id="ch02lvl1sec17"/>Component life cycle methods</h1></div></div></div><p>There are a couple of tricks <a id="id40" class="indexterm"/>I want to show you before we wrap up. The first is a <span class="emphasis"><em>life cycle method</em></span> we can use to tell when a component's properties will change. We can use this to change the appearance of a component, or refresh the internal state.</p><p>We can add this method to <code class="literal">PageEditor</code>, for example:</p><div class="informalexample"><pre class="programlisting">class PageEditor extends Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            "changed": false
+        };
+
+        this.bind(
+            "onCancel",
+            "onUpdate"
+        );
+    }
+
+    <span class="strong"><strong>isChanged(next, previous) {</strong></span>
+<span class="strong"><strong>        return JSON.stringify(next) !== JSON.stringify(previous)</strong></span>
+<span class="strong"><strong>    }</strong></span>
+
+<span class="strong"><strong>    componentWillReceiveProps(props) {</strong></span>
+<span class="strong"><strong>        this.setState({</strong></span>
+<span class="strong"><strong>            "changed": this.isChanged(props, this.props)</strong></span>
+<span class="strong"><strong>        });</strong></span>
+<span class="strong"><strong>    }</strong></span>
+
+    render() {
+        return &lt;div&gt;
+            &lt;input
+                type="text"
+                name="title"
+                value={this.props.title}
+                onChange={this.onUpdate}
+                /&gt;
+            &lt;textarea
+                name="body"
+                value={this.props.body}
+                onChange={this.onUpdate}&gt;
+            &lt;/textarea&gt;
+            &lt;button
+                onClick={this.onCancel}&gt;
+                cancel
+            &lt;/button&gt;
+        &lt;/div&gt;;
+    }
+
+    onUpdate() {
+        this.props.onUpdate(
+            this.props.id,
+            event.target.name,
+            event.target.value
+        );
+    }
+
+<span class="strong"><strong>    onCancel(event) {</strong></span>
+<span class="strong"><strong>        event.preventDefault();</strong></span>
+<span class="strong"><strong>        this.props.onCancel();</strong></span>
+<span class="strong"><strong>    }</strong></span>
+}</pre></div><p>We can now tell when the<a id="id41" class="indexterm"/> page changes, even though the changes are immediately propagated.</p><p>Another magic method we can use will help cut down on the comparisons React needs to perform. It's called <code class="literal">shouldComponentUpdate</code> and we can add it to <code class="literal">PageView</code>:</p><div class="informalexample"><pre class="programlisting">class PageView extends Component {
+    constructor(props) {
+        super(props);
+
+        this.bind(
+            "onDelete"
+        );
+    }
+
+    <span class="strong"><strong>isChanged(next, previous) {</strong></span>
+<span class="strong"><strong>        return JSON.stringify(next) !== JSON.stringify(previous)</strong></span>
+<span class="strong"><strong>    }</strong></span>
+<span class="strong"><strong>    </strong></span>
+<span class="strong"><strong>    shouldComponentUpdate(props, state) {</strong></span>
+<span class="strong"><strong>        return this.isChanged(props, this.props);</strong></span>
+<span class="strong"><strong>    }</strong></span>
+
+    render() {
+        return &lt;div&gt;
+            {this.props.title}
+            &lt;button
+                onClick={this.props.onEdit}
+                &gt;edit&lt;/button&gt;
+            &lt;button
+                onClick={this.onDelete}
+                &gt;delete&lt;/button&gt;
+        &lt;/div&gt;;
+    }
+
+    onDelete() {
+        this.props.onDelete(
+            this.props.id
+        );
+    }
+}</pre></div><p>The <code class="literal">shouldComponentUpdate</code> method <a id="id42" class="indexterm"/>gives us a way to tell React not to look for changes in this component. At this scale, we're not likely to see huge performance improvements. But when we add this method to more complex layouts, it will drastically reduce the amount of work required to work out how the document should change.</p><p>We'll be using these tricks later, as we build more complex content management features.</p></div>
+<div class="section" title="Summary"><div class="titlepage"><div><div><h1 class="title"><a id="ch02lvl1sec18"/>Summary</h1></div></div></div><p>In this chapter, you learned even more about ES6 classes and how they complement React components in structure and functionality. We also looked at some interesting uses of state and properties.</p><p>Above all, we saw how it's both possible and beneficial to avoid the internal component state. Properties are a powerful tool for component design. We know how to react to changing properties and how to reduce the work React needs to do to render our interfaces.</p><p>In the next chapter, we are going to discuss how to persist this data (to different kinds of local storage). We will see how to connect to these data stores through events.</p></div></body></html>

@@ -1,0 +1,201 @@
+<html><head></head><body><div class="chapter" title="Chapter&#xA0;1.&#xA0;Thinking in Components"><div class="titlepage"><div><div><h1 class="title"><a id="ch01"/>Chapter 1. Thinking in Components</h1></div></div></div><p>React<a id="id0" class="indexterm"/> was the first interface library that got me thinking about component-based design. React promotes many good patterns and habits, but this one stands out for me. To understand why, we need to think about how React works under the hood. React is primarily a rendering engine. It was created (and is used) for generating user interfaces.</p><p>How interfaces used to work (and indeed still work apart from React) was that someone would come up with a design. That image file would then be split up into assets for each interactive part of the interface. A library such as jQuery would manage user interactions and connect different interface components, often with an assortment of plugins.</p><p>Individual interface components can be quite clean and complete individually. However, when they are combined, interactions between components and shared, mutable component state often make a messy codebase. One of the main reasons why React was created was to simplify the interactions between components, so they can remain clean and easy to understand.</p><div class="section" title="Why components?"><div class="titlepage"><div><div><h1 class="title"><a id="ch01lvl1sec08"/>Why components?</h1></div></div></div><p>Component-based <a id="id1" class="indexterm"/>design is powerful, especially when we use immutable data and unidirectional data flow. It forces me to stop thinking about how different technologies or tools interact. It gets me thinking about the single most important function of each interface element.</p><p>When we start building an application, it's tempting to think of every piece as part of the whole. All interface elements blend into the same big picture, until it becomes so big that separating parts of it out seems impossible.</p><p>Imagine you had to build a space ship. What a huge task! You'd need some rocket boosters, a couple of wings, life support, and so on. Now consider how you would approach it if one of the constraints was that each moving part of the space ship would need to be individually tested.</p><p>Testing is the great divide between designing systems as a whole and designing systems as large collections of small pieces. Component-based design is fantastic because it makes sure that<a id="id2" class="indexterm"/> every part is testable.</p></div></div>
+<div class="section" title="Using modern JavaScript"><div class="titlepage"><div><div><h1 class="title"><a id="ch01lvl1sec09"/>Using modern JavaScript</h1></div></div></div><p>React components are<a id="id3" class="indexterm"/> wonderfully encapsulated. Each component is a blueprint for what a focused bit of markup should look like at any moment. They're reusable and can change their behavior depending on the context provided. Does that remind you of another programming paradigm?</p><p>Let's talk about JavaScript. JavaScript has a prototypical inheritance model. That means different objects can have a common structure. The structure of one object can be derived from the structure of another.</p><p>It also means that changes to the original object are inherited in all derivative objects. Let me illustrate this with some code:</p><div class="informalexample"><pre class="programlisting">var Page = function(content) {
+    this.content = content;
+};
+
+Page.prototype.render = function() {
+    return "&lt;div&gt;" + this.content + "&lt;/div&gt;";
+}
+
+var Post = function(tags, content) {
+    this.tags = tags;
+
+    Page.call(this, content);
+};
+
+Post.prototype = new Page();
+
+Post.prototype.render = function() {
+    var page = Page.prototype.render.call(this);
+
+    return "&lt;ul&gt;" + this.renderTags() + "&lt;/ul&gt;" + page;
+};
+
+Post.prototype.renderTags = function() {
+    return "&lt;li&gt;" + this.tags.join("&lt;/li&gt;&lt;/li&gt;") + "&lt;/li&gt;";
+};
+
+var page = new Page("Welcome to my site!");
+var post = new Post(["news"], "A new product!");
+
+Page.prototype.render = function() {
+    return "&lt;section&gt;" + this.content + "&lt;/section&gt;";
+};</pre></div><p>I begin by creating a<a id="id4" class="indexterm"/> function called <code class="literal">Page</code>, which requires a <code class="literal">content</code> parameter. A simple <code class="literal">render</code> method returns that content, wrapped in a <code class="literal">div</code> tag. This seems like a good starting point for a website.</p><p>Next, I decide to make a second type called <code class="literal">Post</code>. Objects of this type have tags, so I create a new initialization function to store them. I want <code class="literal">Post</code> to behave almost like a <code class="literal">Page</code> type, so I call the <code class="literal">Page</code> initialization function.</p><p>To inherit the <code class="literal">Page</code> methods in <code class="literal">Post</code>, I need to link their prototypes. I can then choose to override the <code class="literal">render</code> method and add new methods to the derived type. I can also change the <code class="literal">Page</code> type and these changes will be inherited by objects of the <code class="literal">Post</code> type. The connection happens because a prototype is a reference and not a copy.</p><p>Depending on the programming languages you grew up with, prototypical inheritance might be tricky at first. Many new developers learn (incorrectly) that object-oriented code means class-oriented code. Dynamic concepts such as prototypes are foreign to them. In the past, this led to a few libraries implementing "pretend" classes. They created patterns that would make code appear as if it was class-oriented.</p><p>Then, ES6 added the <code class="literal">class</code> keyword. It's a formalization of the pattern I just showed you. It's a syntactic shortcut to prototypical inheritance.</p><p>We could reduce the previous code to:</p><div class="informalexample"><pre class="programlisting">class Page {
+    constructor(content) {
+        this.content = content;
+    }
+
+    render() {
+        return "&lt;div&gt;" + this.content + "&lt;/div&gt;";
+    }
+}
+
+class Post extends Page {
+    constructor(tags, content) {
+        super(content);
+        this.tags = tags;
+    }
+
+    render() {
+        var page = super.render();
+        
+        return "&lt;ul&gt;" + this.renderTags() + "&lt;/ul&gt;" + page;
+    }
+
+    renderTags() {
+        return "&lt;li&gt;" + this.tags.join("&lt;/li&gt;&lt;/li&gt;") + "&lt;/li&gt;";
+    }
+}
+
+var page = new Page("Welcome to my site!");
+var post = new Post(["news"], "A new product!");</pre></div><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note02"/>Note</h3><p>If you're trying to run this using Node (preferably a version greater than 4.1), you may need to add <code class="literal">use strict</code> at the top of the file.</p></div></div><p>Notice how much<a id="id5" class="indexterm"/> clearer things are? If you want to use classes, then this syntactic shortcut is brilliant!</p><p>Let's look at a typical ES5-compatible React component:</p><div class="informalexample"><pre class="programlisting">var Page = React.createClass({
+    render: function() {
+        return &lt;div&gt;{this.props.content}&lt;/div&gt;;
+    }
+});
+
+var Post = React.createClass({
+    render: function() {
+        var page = &lt;Page content={this.props.content} /&gt;
+        var tags = this.renderTags();
+
+        return &lt;div&gt;&lt;ul&gt;{tags}&lt;/ul&gt;{page}&lt;/div&gt;;
+    },
+    renderTags: function() {
+        return this.props.tags.map(function(tag, i) {
+            return &lt;li key={i}&gt;{tag}&lt;/li&gt;;
+        });
+    }
+});
+
+ReactDOM.render(
+    &lt;Post tags={["news"]} content="A new product!" /&gt;,
+    document.querySelector(".react")
+);</pre></div><p>You've probably<a id="id6" class="indexterm"/> seen this kind of code before. It's called JSX and it's a JavaScript superset language. The idea is that the markup and the supporting logic are created and stored together.</p><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note03"/>Note</h3><p>React components must return a single React node, which is why we wrap the tags and page elements in a <code class="literal">div</code> element. If you are using React in the browser, you also need to render your components to an existing DOM node (like I've just rendered the post to <code class="literal">.react</code>).</p></div></div><p>We'll get into some of the specifics in later chapters, but this is doing pretty much the same thing as before. We create a base component called <code class="literal">Page</code>. It renders a property instead of a constructor parameter.</p><p>The <code class="literal">Post</code> component composes the <code class="literal">Page</code> component. This style of React code doesn't support component inheritance. For that, we need ES6 code:</p><div class="informalexample"><pre class="programlisting">class Page extends React.Component {
+    render() {
+        return &lt;div&gt;{this.props.content}&lt;/div&gt;;
+    }
+}
+
+class Post extends Page {
+    render() {
+        var page = super.render();
+        var tags = this.renderTags();
+
+        return &lt;div&gt;&lt;ul&gt;{tags}&lt;/ul&gt;{page}&lt;/div&gt;;
+    }
+
+    renderTags() {
+        return this.props.tags.map(function(tag, i) {
+            return &lt;li key={i}&gt;{tag}&lt;/li&gt;;
+        });
+    }
+}</pre></div><p>We could still <a id="id7" class="indexterm"/>compose <code class="literal">Page</code> within <code class="literal">Post</code>, but that's not the only option with ES6. This code resembles the non-React version we saw earlier.</p><p>In upcoming chapters, we'll learn many useful features of ES6 that'll allow us to create modern, expressive React components.</p><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note04"/>Note</h3><p>If you want<a id="id8" class="indexterm"/> to look ahead a little, check out <a class="ulink" href="http://babeljs.io/docs/learn-es2015">http://babeljs.io/docs/learn-es2015</a>. It's a great place to learn the main features of ES6!</p></div></div><p>Babel<a id="id9" class="indexterm"/> is the cross-compilation tool we'll use to turn ES6 code into ES5 code:</p><div class="mediaobject"><img src="graphics/5268_01_01.jpg" alt="Using modern JavaScript"/></div></div>
+<div class="section" title="Compiling modern JavaScript"><div class="titlepage"><div><div><h1 class="title"><a id="ch01lvl1sec10"/>Compiling modern JavaScript</h1></div></div></div><p>It's time for us to look at how<a id="id10" class="indexterm"/> to compile ES6 and JSX code into formats that most browsers can read. Create a folder for your React components and run the following commands inside it:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>$ npm init</strong></span>
+<span class="strong"><strong>$ npm install --save browserify babelify</strong></span>
+<span class="strong"><strong>$ npm install --save react react-dom</strong></span>
+</pre></div><p>The first command will kick off a series of questions, most of which should have reasonable defaults. The second command will download a builder and a cross-compiler for your ES6 code. Place the following component in a file called <code class="literal">page.js</code>:</p><div class="informalexample"><pre class="programlisting">import React from "react";
+
+export default class Page extends React.Component {
+    render() {
+        return &lt;div&gt;{this.props.content}&lt;/div&gt;;
+    }
+}</pre></div><p>There are a couple of important differences between this and the previous <code class="literal">Page</code> component. We import the main <code class="literal">React</code> object from within the <code class="literal">node_modules</code> folder. We also export the class definition so that importing this file immediately references this class. It's a good idea to limit each file to a single class. It's also a good idea to make each file define types or use them. We use this class in <code class="literal">main.js</code>:</p><div class="informalexample"><pre class="programlisting">import React from "react";
+import ReactDOM from "react-dom";
+import Page from "./page";
+
+ReactDOM.render(
+    &lt;Page content="Welcome to my site!" /&gt;,
+    document.querySelector(".react")
+);</pre></div><p>This code<a id="id11" class="indexterm"/> imports <code class="literal">React</code> and <code class="literal">ReactDOM</code> from within the <code class="literal">node_modules</code> folder, so we can render the <code class="literal">Page</code> class. Here we're referencing an element in the DOM again. We can use this JavaScript within an HTML page:</p><div class="informalexample"><pre class="programlisting">&lt;!doctype html&gt;
+&lt;html lang="en"&gt;
+    &lt;body&gt;
+        &lt;div class="react"&gt;&lt;/div&gt;
+    &lt;/body&gt;
+    &lt;script src="main.dist.js"&gt;&lt;/script&gt;
+&lt;/html&gt;</pre></div><p>The final step is to compile the ES6/JSX code in <code class="literal">main.js</code> to ES5-compatible code in <code class="literal">main.dist.js</code>:</p><div class="informalexample"><pre class="programlisting">$ alias browserify=node_modules/.bin/browserify
+$ browserify -t babelify main.js -o main.dist.js</pre></div><p>The first command creates a shortcut to the <code class="literal">browserify</code> command in the <code class="literal">node_modules/.bin</code> folder. This is useful for repeated calls to <code class="literal">browserify</code>.</p><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note05"/>Note</h3><p>If you want to keep that alias around, be sure to add it to your <code class="literal">~/.bashrc</code>, <code class="literal">~/.zshrc</code> or <code class="literal">~/.profile</code> file.</p></div></div><p>The second<a id="id12" class="indexterm"/> command starts a build. <span class="emphasis"><em>Browserify</em></span> will combine all imported files into a single file, so they can be used in a browser.</p><p>We use the <code class="literal">babelify</code> transformer, so the ES6 code becomes ES5-compatible code. Babel supports JSX, so we don't need additional steps for that. We specify <code class="literal">main.js</code> as the file to transform and <code class="literal">main.dist.js</code> as the output file.</p><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note06"/>Note</h3><p>If you want to compile React and ReactDOM into their own file, you can exclude them with the <code class="literal">-x</code> switch. Your command should be something like this:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>browserify main.js -t babelify -x react -x react-dom --outfile main.dist.js</strong></span>
+</pre></div></div></div></div>
+<div class="section" title="Debugging in the browser"><div class="titlepage"><div><div><h1 class="title"><a id="ch01lvl1sec11"/>Debugging in the browser</h1></div></div></div><p>We can also use our code<a id="id13" class="indexterm"/> directly in the browser. There may be times when <a id="id14" class="indexterm"/>we want to see the effects of a change, without a build step. In such cases, we can try something like this:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>$ npm install --save babel-core</strong></span>
+<span class="strong"><strong>$ npm install --save systemjs</strong></span>
+</pre></div><p>These will give us access to a browser-based dependency manager and cross-compiler; that is, we can use unbundled source code in an example HTML file:</p><div class="informalexample"><pre class="programlisting">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+    &lt;head&gt;
+        &lt;script src="/node_modules/babel-core/browser.js"&gt;&lt;/script&gt;
+        &lt;script src="/node_modules/systemjs/dist/system.js"&gt;&lt;/script&gt;
+    &lt;/head&gt;
+    &lt;body&gt;
+        &lt;div class="react"&gt;&lt;/div&gt;
+        &lt;script&gt;
+            System.config({
+                "transpiler": "babel",
+                "map": {
+                    "react": "/examples/react/react",
+                    "react-dom": "/examples/react/react-dom",
+                    "page": "/src/page"
+                },
+                "defaultJSExtensions": true
+            });
+
+            System.import("main");
+        &lt;/script&gt;
+    &lt;/body&gt;
+&lt;/html&gt;</pre></div><p>This uses the same unprocessed <code class="literal">main.js</code> file as before, but we no longer need to rebuild it after each change to the source code. The <code class="literal">System</code> is a reference to the <span class="emphasis"><em>SystemJS</em></span> library we just installed through NPM. It takes care of the import statements, loading those dependencies with Ajax requests.</p><p>You may notice the<a id="id15" class="indexterm"/> references to <code class="literal">react</code> and <code class="literal">react-dom</code>. We import these <a id="id16" class="indexterm"/>in <code class="literal">main.js</code>, but where do they come from? Browserify fetches them out of the <code class="literal">node_modules</code> folder. When we skip the Browserify step, we need to let SystemJS know where to find them.</p><p>The easiest place to find these files is at <a class="ulink" href="https://facebook.github.io/react">https://facebook.github.io/react</a>. Click on the download button, extract the archive, and copy the <code class="literal">JS</code> files in the <code class="literal">build</code> folder to where they are referenced in the HTML page.</p><p>The ReactJS website is a great place to download ReactJS, and find documentation about how you can use it:</p><div class="mediaobject"><img src="graphics/5268_01_02.jpg" alt="Debugging in the browser"/></div></div>
+<div class="section" title="Managing common tasks"><div class="titlepage"><div><div><h1 class="title"><a id="ch01lvl1sec12"/>Managing common tasks</h1></div></div></div><p>As our collection <a id="id17" class="indexterm"/>of React components grows, we'll need ways of bundling them all together. It would also be a good idea for us to minify the resulting JavaScript to reduce the time it takes to load them in a browser.</p><p>We can perform these kinds of tasks using scripts in <code class="literal">package.json</code>:</p><div class="informalexample"><pre class="programlisting">"scripts": {
+    "bundle": "browserify -t babelify main.js -o main.dist.js",
+    "minify": "..."
+}</pre></div><p>NPM scripts are fine for small, simple tasks. When the tasks get more complex, we'll start to see the drawbacks of using NPM scripts for this. There's no easy way to use variables in these scripts, so parameters are often repeated. The scripts are also a bit inflexible and frankly ugly.</p><p>There are a few <a id="id18" class="indexterm"/>tools that address these problems. We're going to use one of them, called<a id="id19" class="indexterm"/> <span class="strong"><strong>Grunt</strong></span>, to create flexible, repeatable tasks.</p><p>The Grunt website has instructions for using Grunt and a list of popular plugins you can use to customize your workflow:</p><div class="mediaobject"><img src="graphics/5268_01_03.jpg" alt="Managing common tasks"/></div><p>Grunt is a JavaScript task runner. There are three steps for using it:</p><div class="orderedlist"><ol class="orderedlist arabic"><li class="listitem">First, we need to install the CLI tool. We'll use this to run different tasks.</li><li class="listitem">Then, we need to install the libraries our tasks will use, via NPM.</li><li class="listitem">Finally, we need to create a <code class="literal">gruntfile.js</code> file where we'll put our tasks.</li></ol></div><p>We can install the CLI tool using the following command:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>$ npm install -g grunt-cli</strong></span>
+</pre></div><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note07"/>Note</h3><p>The preceding command installs the Grunt CLI tool globally. If you don't want that, omit the <code class="literal">-g</code> flag. You'll need to alias/run it directly with <code class="literal">node_modules/.bin/grunt</code> from here on though.</p></div></div><p>We will need the<a id="id20" class="indexterm"/> following task libraries:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>$ npm install --save-dev grunt</strong></span>
+<span class="strong"><strong>$ npm install --save-dev grunt-browserify</strong></span>
+<span class="strong"><strong>$ npm install --save-dev grunt-contrib-uglify</strong></span>
+<span class="strong"><strong>$ npm install --save-dev grunt-contrib-watch</strong></span>
+</pre></div><p>The global CLI tool needs a local copy of <code class="literal">grunt</code>. In addition, we also want the glue libraries to run Browserify, Uglify, and a file watcher in Grunt. We configure them with something like this:</p><div class="informalexample"><pre class="programlisting">module.exports = function(grunt) {
+    grunt.initConfig({
+        "browserify": {
+            "main.js": ["main.es5.js"],
+            "options": {
+                "transform": [
+                    "babelify"
+                ],
+                "external": [
+                    "react", "react-dom"
+                ]
+            }
+        },
+        "uglify": {
+            "main.es5.js": ["main.dist.js"]
+        },
+        "watch": {
+            "files": ["main.js"],
+            "tasks": ["browserify", "uglify"]
+        }
+    });
+
+    grunt.loadNpmTasks("grunt-browserify");
+    grunt.loadNpmTasks("grunt-contrib-uglify");
+    grunt.loadNpmTasks("grunt-contrib-watch");
+
+    grunt.registerTask("default", ["browserify", "uglify"]);
+};</pre></div><p>We can configure <a id="id21" class="indexterm"/>each task in <code class="literal">gruntfile.js</code>. Here, we create a <code class="literal">browserify</code> task, defining the source and destination files. We include the <code class="literal">babelify</code> transformation to convert our ES6 classes into ES5-compatible code.</p><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="note08"/>Note</h3><p>I've added the <code class="literal">external</code> option so you can see how. If you don't need it, just delete it and your bundle file should then include the full React source code.</p></div></div><p>After the ES6 code is transformed, we can run <span class="emphasis"><em>Uglify</em></span> to remove unnecessary whitespace. This reduces the size of the file, so browsers can download it quicker. We can target the file Browserify created and create a new minified file from it.</p><p>Finally, we create a <code class="literal">watch</code> task. This watches for changes to <code class="literal">main.js</code> and triggers the Browserify and Uglify tasks. We need to register a default set of tasks, which we set to <code class="literal">browserify</code> and <code class="literal">uglify</code>. This configuration enables the following commands:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>$ grunt</strong></span>
+<span class="strong"><strong>$ grunt browserify</strong></span>
+<span class="strong"><strong>$ grunt uglify</strong></span>
+<span class="strong"><strong>$ grunt watch</strong></span>
+</pre></div><p>There are other great tools like Grunt:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc"><a class="ulink" href="http://gulpjs.com">http://gulpjs.com</a></li><li class="listitem" style="list-style-type: disc"><a class="ulink" href="https://webpack.github.io">https://webpack.github.io</a></li></ul></div><p>They work with similar configuration files, but the configuration is done through functional composition. The important thing to take from this is that there are tools we can use to automate tasks we would have run by hand. They make these repetitive tasks easy!</p></div>
+<div class="section" title="Testing in JSBin"><div class="titlepage"><div><div><h1 class="title"><a id="ch01lvl1sec13"/>Testing in JSBin</h1></div></div></div><p>If you're anything like me, you'll often just<a id="id22" class="indexterm"/> want a quick place to test some small component or ES6 code. Setting up these build chains or live browser environments takes time. There is a quicker way. It's called<a id="id23" class="indexterm"/> JSBin and you can find it at <a class="ulink" href="https://jsbin.com">https://jsbin.com</a>:</p><div class="mediaobject"><img src="graphics/5268_01_04.jpg" alt="Testing in JSBin"/></div><p>To get the most out of <a id="id24" class="indexterm"/>JSBin, be sure to set the <span class="strong"><strong>JavaScript</strong></span> dropdown to <span class="strong"><strong>ES6/Babel</strong></span> and include the ReactJS scripts from <span class="emphasis"><em>CDNJS</em></span>. These are pre-built versions of ReactJS, so you can create React components (using ES6 features) straight from the browser.</p><div class="note" title="Note" style=""><div class="inner"><h3 class="title"><a id="tip02"/>Tip</h3><p><span class="strong"><strong>Downloading the example code</strong></span></p><p>You can download the example code files for this book from your account at <a class="ulink" href="http://www.packtpub.com">http://www.packtpub.com</a>. If you purchased this book elsewhere, you can visit <a class="ulink" href="http://www.packtpub.com/support">http://www.packtpub.com/support</a> and register to have the files e-mailed directly to you.</p><p>You can download the code files by following these steps:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">Log in or register to our website using your e-mail address and password.</li><li class="listitem" style="list-style-type: disc">Hover the mouse pointer on the SUPPORT tab at the top.</li><li class="listitem" style="list-style-type: disc">Click on Code Downloads &amp; Errata.</li><li class="listitem" style="list-style-type: disc">Enter the name of the book in the Search box.</li><li class="listitem" style="list-style-type: disc">Select the book for which you're looking to download the code files.</li><li class="listitem" style="list-style-type: disc">Choose from the drop-down menu where you purchased this book from.</li><li class="listitem" style="list-style-type: disc">Click on Code Download.</li></ul></div><p>You can also download the code files by clicking on the Code Files button on the book's webpage at the Packt Publishing website. This page can be accessed by entering the book's name in the Search box. Please note that you need to be logged in to your Packt account.</p><p>Once the file is downloaded, please make sure that you unzip or extract the folder using the latest version of:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">WinRAR / 7-Zip for Windows</li><li class="listitem" style="list-style-type: disc">Zipeg / iZip / UnRarX for Mac</li><li class="listitem" style="list-style-type: disc">7-Zip / PeaZip for Linux</li></ul></div></div></div></div>
+<div class="section" title="Summary"><div class="titlepage"><div><div><h1 class="title"><a id="ch01lvl1sec14"/>Summary</h1></div></div></div><p>In this chapter, we saw why component-based design is good. We saw what simple React components look like. We saw a few interesting differences between ES5 and ES6, and we also saw how those differences influence React components.</p><p>We also saw a few ways to make ES6 code work in an ES5-compatible way. We can write cutting-edge code that works on common browsers. We can even bundle that code into single, efficient files, or debug it live in a browser.</p><p>In the next chapter, we're going to look at some intricacies of state and properties. We'll begin by creating reusable React components to use in our example application.</p></div></body></html>

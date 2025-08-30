@@ -1,0 +1,523 @@
+<html><head></head><body>
+<div id="sbo-rt-content"><div id="_idContainer030">
+<h1 class="chapter-number" id="_idParaDest-85"><a id="_idTextAnchor084"/>5</h1>
+<h1 id="_idParaDest-86"><a id="_idTextAnchor085"/>Mocking the API</h1>
+<p>In the previous chapter, we built the application pages that use test data. The UI of the pages is complete, but the pages are not functional yet. We are using the test data without making requests to <span class="No-Break">the API.</span></p>
+<p>In this chapter, we will learn what mocking is and why it is useful. We will learn how to mock the API endpoints with the <strong class="source-inline">msw</strong> library, a great tool that allows us to create mocked API endpoints that behave as real-world <span class="No-Break">API endpoints.</span></p>
+<p>We will also learn how to model the data of our application entities with the <strong class="source-inline">@</strong><span class="No-Break"><strong class="source-inline">mswjs/data</strong></span><span class="No-Break"> library.</span></p>
+<p>In this chapter, we will cover the <span class="No-Break">following topics:</span></p>
+<ul>
+<li>Why is <span class="No-Break">mocking useful?</span></li>
+<li>Introduction <span class="No-Break">to MSW</span></li>
+<li>Configuring <span class="No-Break">data models</span></li>
+<li>Configuring request handlers for <span class="No-Break">API endpoints</span></li>
+</ul>
+<p>By the end of this chapter, we will learn how to generate fully featured mocked APIs with data models set in place, which will make our code base less dependent on external APIs <span class="No-Break">during development.</span></p>
+<h1 id="_idParaDest-87"><a id="_idTextAnchor086"/>Technical requirements</h1>
+<p>Before we get started, we need to set up our project. To be able to develop our project, we will need the following things installed on <span class="No-Break">our computer:</span></p>
+<ul>
+<li><strong class="bold">Node.js</strong> version 16 or above and <strong class="bold">npm</strong> version 8 <span class="No-Break">or above</span></li>
+</ul>
+<p>There are multiple ways to install Node.js and npm. Here is a great article that goes into more <span class="No-Break">detail: </span><a href="https://www.nodejsdesignpatterns.com/blog/5-ways-to-install-node-js"><span class="No-Break">https://www.nodejsdesignpatterns.com/blog/5-ways-to-install-node-js</span></a><span class="No-Break">.</span></p>
+<ul>
+<li><strong class="bold">Visual Studio Code</strong> (<strong class="bold">VS Code</strong>) (optional) is currently the most popular editor/IDE for JavaScript/TypeScript, so we will be using it. It is open source, has great integration with TypeScript, and we can extend its features via extensions. It can be downloaded from <span class="No-Break">here: </span><a href="https://code.visualstudio.com/"><span class="No-Break">https://code.visualstudio.com/</span></a><span class="No-Break">.</span></li>
+</ul>
+<p>The code files for this chapter can be found <span class="No-Break">here: </span><a href="https://github.com/PacktPublishing/React-Application-Architecture-for-Production"><span class="No-Break">https://github.com/PacktPublishing/React-Application-Architecture-for-Production</span></a></p>
+<p>The repository can be cloned locally with the <span class="No-Break">following command:</span></p>
+<pre class="console">
+git clone https://github.com/PacktPublishing/React-Application-Architecture-for-Production.git</pre>
+<p>Once the repository is cloned, we need to install the <span class="No-Break">application’s dependencies:</span></p>
+<pre class="console">
+npm install</pre>
+<p>We can provide the environment variables using the <span class="No-Break">following command:</span></p>
+<pre class="console">
+cp .env.example .env</pre>
+<p>Once the dependencies have been installed, we need to select the right stage of the code base that matches this chapter. We can do that by executing the <span class="No-Break">following command:</span></p>
+<pre class="console">
+npm run stage:switch</pre>
+<p>This command will prompt us with a list of stages for <span class="No-Break">each chapter:</span></p>
+<pre class="console">
+? What stage do you want to switch to? (Use arrow
+ keys)
+❯ chapter-02
+  chapter-03
+  chapter-03-start
+  chapter-04
+  chapter-04-start
+  chapter-05
+  chapter-05-start
+(Move up and down to reveal more choices)</pre>
+<p>This is the fifth chapter, so we can select <strong class="source-inline">chapter-05-start</strong> if we want to follow along, or <strong class="source-inline">chapter-05</strong> to see the final results of <span class="No-Break">the chapter.</span></p>
+<p>Once the chapter has been selected, all files required to follow along with the chapter <span class="No-Break">will appear.</span></p>
+<p>For more information about the setup details, check out the <span class="No-Break"><strong class="source-inline">README.md</strong></span><span class="No-Break"> file.</span></p>
+<h1 id="_idParaDest-88"><a id="_idTextAnchor087"/>Why is mocking useful?</h1>
+<p><strong class="bold">Mocking</strong> is the process of<a id="_idIndexMarker259"/> simulating parts of the system, meaning they are not production-ready but fake versions that are useful for development <span class="No-Break">and testing.</span></p>
+<p>You may ask yourself, <em class="italic">Why do we want to bother with setting a mocked API?</em> There are several benefits of having the <span class="No-Break">API </span><span class="No-Break"><a id="_idIndexMarker260"/></span><span class="No-Break">mocked:</span></p>
+<ul>
+<li><strong class="bold">Independence of external services during development</strong>: A web application usually consists of many different parts such as the frontend, the backend, external third-party APIs, and so on. When developing our frontends, we want to be as autonomous as possible without getting blocked by some parts of the system that are not functional. If the API of our application is broken or unfinished, we should still be able to proceed with developing the frontend part of <span class="No-Break">the application.</span></li>
+<li><strong class="bold">Good for quick prototyping</strong>: Mocked endpoints allow us to prototype the application quicker since they don't require any additional setup such as the backend server, database, and so on. Very <a id="_idIndexMarker261"/>useful for building <strong class="bold">proofs of concept</strong> (<strong class="bold">POCs</strong>) and <strong class="bold">minimum viable product</strong> (<span class="No-Break"><strong class="bold">MVP</strong></span><span class="No-Break">) </span><span class="No-Break"><a id="_idIndexMarker262"/></span><span class="No-Break">applications.</span></li>
+<li><strong class="bold">Offline development</strong>: Having mocked API endpoints allows us to develop our application without an <span class="No-Break">internet connection.</span></li>
+<li><strong class="bold">Testing</strong>: We do not want to hit our real services while testing our frontends. That’s where mocked<a id="_idIndexMarker263"/> APIs become useful. We can build and test the entire functionality as if we were building it against a real API and then switch to the real one when <span class="No-Break">in production.</span></li>
+</ul>
+<p>For testing our API endpoints, we will use the <strong class="bold">Mock Service Worker</strong> (<strong class="bold">MSW</strong>) library, a great tool that allows us to mock endpoints in a very <span class="No-Break">elegant way.</span></p>
+<h1 id="_idParaDest-89"><a id="_idTextAnchor088"/>Introduction to MSW</h1>
+<p><strong class="bold">MSW</strong> is a tool that allows us to create mocked APIs. It works as a service worker that intercepts any API request that has its mocked version defined. We <a id="_idIndexMarker264"/>can inspect the requests and responses in the <strong class="bold">Network</strong> tab of our browser the same way as if we were calling the <span class="No-Break">real API.</span></p>
+<p>To get a high-level overview of how it works, let’s take a look at the diagram provided on <span class="No-Break">their website:</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer024">
+<img alt="Figure 5.1 – MSW workflow diagram " height="442" src="image/B17297_05_01.jpg" width="698"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.1 – MSW workflow diagram</p>
+<p>One great thing about MSW is that our application will behave the same as if it were using a real API, and it’s pretty trivial to switch to using the real API by turning mocked endpoints off and <a id="_idIndexMarker265"/>not <span class="No-Break">intercepting requests.</span></p>
+<p>Another great thing is that since the interception happens at the network level, we will still be able to inspect our requests in the <strong class="bold">Network</strong> tab of the browser <span class="No-Break">dev tools.</span></p>
+<h2 id="_idParaDest-90"><a id="_idTextAnchor089"/>Configuration overview</h2>
+<p>We already have the MSW package<a id="_idIndexMarker266"/> installed as a dev dependency. The msw mocked API can be configured to work both in the browser and on <span class="No-Break">the server.</span></p>
+<h3>Browser</h3>
+<p>The <em class="italic">browser</em> version of <a id="_idIndexMarker267"/>the mocked API can be used for running mocked endpoints during<a id="_idIndexMarker268"/> the development of <span class="No-Break">the application.</span></p>
+<h4>Initialization</h4>
+<p>The first thing that needs to be done is to create a service worker. This can be done by executing the <span class="No-Break">following </span><span class="No-Break"><a id="_idIndexMarker269"/></span><span class="No-Break">command:</span></p>
+<pre class="console">
+npx msw init public/ --save</pre>
+<p>The preceding command will create a service worker at <strong class="source-inline">public/mockServiceWorker.js</strong>, which will intercept our requests in the browser and modify the <span class="No-Break">responses accordingly.</span></p>
+<h4>Configuring the worker for the browser</h4>
+<p>We can now <a id="_idIndexMarker270"/>configure our worker to use the endpoints we will define in a couple of moments. Let’s open the <strong class="source-inline">src/testing/mocks/browser.ts</strong> file and add <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import { setupWorker } from 'msw';
+import { handlers } from './handlers';
+export const worker = setupWorker(...handlers);</pre>
+<p>The preceding snippet will configure MSW to work with the provided handlers in <span class="No-Break">the browser.</span></p>
+<h3>Server</h3>
+<p>The <em class="italic">server</em> version is used mostly during<a id="_idIndexMarker271"/> running automated tests since our test<a id="_idIndexMarker272"/> runner works in the Node environment instead of the browser. The server version is also useful for API calls executed on the server, which we will have for our application during <span class="No-Break">server-side rendering.</span></p>
+<h4>Configuring MSW for the server</h4>
+<p>Let’s open the <strong class="source-inline">src/testing/mocks/server.ts</strong> file and add <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import { setupServer } from 'msw/node';
+import { handlers } from './handlers';
+export const server = setupServer(...handlers);</pre>
+<p>The preceding snippet will<a id="_idIndexMarker273"/> apply the handlers to the server version of <span class="No-Break">our mocks.</span></p>
+<h3>Running MSW in the application</h3>
+<p>Now that we <a id="_idIndexMarker274"/>have configured MSW, we need to make it run in our application. To do that, let’s open the <strong class="source-inline">src/testing/mocks/initialize.ts</strong> file and modify the <strong class="source-inline">initializeMocks</strong> function to <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import { IS_SERVER } from '@/config/constants';
+const initializeMocks = () =&gt; {
+  if (IS_SERVER) {
+    const { server } = require('./server');
+    server.listen();
+  } else {
+    const { worker } = require('./browser');
+    worker.start();
+  }
+};
+initializeMocks();</pre>
+<p>The <strong class="source-inline">initializeMocks</strong> function is in charge of calling the proper MSW setup based on the environment it is being called in. If it is executed on the server, it will run the server version. Otherwise, it will start the <span class="No-Break">browser version.</span></p>
+<p>Now, we need to integrate <span class="No-Break">our</span><span class="No-Break"><a id="_idIndexMarker275"/></span><span class="No-Break"> mocks.</span></p>
+<p>Let’s create an <strong class="source-inline">src/lib/msw.tsx</strong> file and add <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import { MSWDevTools } from 'msw-devtools';
+import { ReactNode } from 'react';
+import { IS_DEVELOPMENT } from '@/config/constants';
+import { db, handlers } from '@/testing/mocks';
+export type MSWWrapperProps = {
+  children: ReactNode;
+};
+require('@/testing/mocks/initialize');
+export const MSWWrapper = ({
+  children,
+}: MSWWrapperProps) =&gt; {
+  return (
+    &lt;&gt;
+      {IS_DEVELOPMENT &amp;&amp; (
+        &lt;MSWDevTools db={db} handlers={handlers} /&gt;
+      )}
+      {children}
+    &lt;/&gt;
+  );
+};</pre>
+<p>Here we defined <strong class="source-inline">MSWWrapper</strong>, which is a component that will wrap our application and initialize MSW and the MSW dev tools into the <span class="No-Break">wrapped application.</span></p>
+<p>Now we can integrate it into<a id="_idIndexMarker276"/> our application by <span class="No-Break">opening </span><span class="No-Break"><strong class="source-inline">src/pages/_app.tsx</strong></span><span class="No-Break">.</span></p>
+<p>We want to add <span class="No-Break">new imports:</span></p>
+<pre class="source-code">
+import dynamic from 'next/dynamic';
+import { API_MOCKING } from '@/config/constants';
+import { MSWWrapperProps } from '@/lib/msw';</pre>
+<p>Then, we want to load <span class="No-Break"><strong class="source-inline">MSWWrapper</strong></span><span class="No-Break"> dynamically:</span></p>
+<pre class="source-code">
+const MSWWrapper = dynamic&lt;MSWWrapperProps&gt;(() =&gt;
+  import('@/lib/msw').then(({ MSWWrapper }) =&gt; MSWWrapper)
+);</pre>
+<p>Finally, let’s modify the <strong class="source-inline">return</strong> statement of our <strong class="source-inline">App</strong> component <span class="No-Break">as follows:</span></p>
+<pre class="source-code">
+return (
+    &lt;AppProvider&gt;
+      {API_MOCKING ? (
+        &lt;MSWWrapper&gt;{pageContent}&lt;/MSWWrapper&gt;
+      ) : (
+        pageContent
+      )}
+    &lt;/AppProvider&gt;
+  );</pre>
+<p>As you can see, we will load the <strong class="source-inline">MSWWrapper</strong> component and wrap the content of the page only if the mocks are enabled. We are doing this to exclude MSW-related code for the production version of the application, which uses the real API and does not need the redundant <span class="No-Break">MSW-related code.</span></p>
+<p>To verify that MSW is<a id="_idIndexMarker277"/> running, let’s open the console. We should see something <span class="No-Break">like this:</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer025">
+<img alt="Figure 5.2 – MSW running in our application " height="584" src="image/B17297_05_02.jpg" width="1044"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.2 – MSW running in our application</p>
+<p>Now that we have successfully installed and integrated MSW in our application, let’s implement our first <span class="No-Break">mocked endpoint.</span></p>
+<h2 id="_idParaDest-91"><a id="_idTextAnchor090"/>Writing our first handler</h2>
+<p>To define mocked <a id="_idIndexMarker278"/>endpoints, we need to create request handlers. Think of request handlers as functions that determine whether a request should be intercepted and modified by mocking <span class="No-Break">their responses.</span></p>
+<p>Let’s create our first handler in the <strong class="source-inline">src/testing/mocks/handlers/index.ts</strong> file by adding <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import { rest } from 'msw';
+import { API_URL } from '@/config/constants';
+export const handlers = [
+  rest.get(`${API_URL}/healthcheck`, (req, res, ctx) =&gt; {
+    return res(
+      ctx.status(200),
+      ctx.json({ healthy: true })
+    );
+  }),
+];</pre>
+<p>We are using the <strong class="source-inline">rest</strong> helper provided by <strong class="source-inline">msw</strong> to define our rest endpoints. We are using the <strong class="source-inline">get</strong> method, which accepts the path, and a callback, which will modify <span class="No-Break">the response.</span></p>
+<p>The handler callback will <a id="_idIndexMarker279"/>return a response with a status code of <strong class="source-inline">200</strong> and the response data set as <strong class="source-inline">{ healthy: </strong><span class="No-Break"><strong class="source-inline">true }</strong></span><span class="No-Break">.</span></p>
+<p>To verify that our handler is working, let’s open the dev tools in the bottom-right corner and then select the health <span class="No-Break">check endpoint:</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer026">
+<img alt="Figure 5.3 – Health check handler test selection " height="717" src="image/B17297_05_03.jpg" width="1650"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.3 – Health check handler test selection</p>
+<p>Sending the request should<a id="_idIndexMarker280"/> give us a response, as <span class="No-Break">shown here:</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer027">
+<img alt="Figure 5.4 – Health check handler test result " height="1435" src="image/B17297_05_04.jpg" width="1650"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.4 – Health check handler test result</p>
+<p>The <strong class="bold">Devtools</strong> widget is going to give us the ability to test our handlers without creating the UI in the application <span class="No-Break">right away.</span></p>
+<p>Now that we have MSW running <a id="_idIndexMarker281"/>properly in our application, it is time to create a data model for <span class="No-Break">our application.</span></p>
+<h1 id="_idParaDest-92"><a id="_idTextAnchor091"/>Configuring data models</h1>
+<p>For data modeling our application, we will be using the data library from MSW, which is very useful and simple to use to <a id="_idIndexMarker282"/>manipulate the data in a similar way an <strong class="bold">object-relational mapper</strong> (<strong class="bold">ORM</strong>) on the <span class="No-Break">backend would.</span></p>
+<p>To make our request handlers <a id="_idIndexMarker283"/>functional, we could just hardcode the responses, but where is the fun in that? With MSW and its data library, we can build a mocked backend that is fully functional with the business logic included should we decide to <span class="No-Break">implement it.</span></p>
+<p>To configure our data models, let’s open the <strong class="source-inline">src/testing/mocks/db.ts</strong> file and add <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import { factory, primaryKey } from '@mswjs/data';
+import { uid } from '@/utils/uid';
+const models = {
+  user: {
+    id: primaryKey(uid),
+    createdAt: Date.now,
+    email: String,
+    password: String,
+    organizationId: String,
+  },
+  organization: {
+    id: primaryKey(uid),
+    createdAt: Date.now,
+    adminId: String,
+    name: String,
+    email: String,
+    phone: String,
+    info: String,
+  },
+  job: {
+    id: primaryKey(uid),
+    createdAt: Date.now,
+    organizationId: String,
+    position: String,
+    info: String,
+    location: String,
+    department: String,
+  },
+};
+export const db = factory(models);</pre>
+<p>We are importing the <strong class="source-inline">factory</strong> and <strong class="source-inline">primaryKey</strong> functions from the <strong class="source-inline">@mswjs/data</strong> package. The <strong class="source-inline">primaryKey</strong> function<a id="_idIndexMarker284"/> allows us to define primary keys in our mocked database, and the <strong class="source-inline">factory</strong> function creates an in-memory database that we can use <span class="No-Break">for testing.</span></p>
+<p>We can then access a bunch of different methods on each model that allow us to manipulate our data more easily, <span class="No-Break">as follows:</span></p>
+<pre class="source-code">
+db.job.findFirst
+db.job.findMany
+db.job.create
+db.job.update
+db.job.delete</pre>
+<p>It would also be great if we could pre-fill some data in the database so that we always had something to show in<a id="_idIndexMarker285"/> our application. To do that, we should seed <span class="No-Break">the database.</span></p>
+<p>Let’s open the <strong class="source-inline">src/testing/mocks/seed-db.ts</strong> file and add <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import { db } from './db';
+import { testData } from '../test-data';
+export const seedDb = () =&gt; {
+  const userCount = db.user.count();
+  if (userCount &gt; 0) return;
+  testData.users.forEach((user) =&gt; db.user.create(user));
+  testData.organizations.forEach((organization) =&gt;
+    db.organization.create(organization)
+  );
+  testData.jobs.forEach((job) =&gt; db.job.create(job));
+};</pre>
+<p>The <strong class="source-inline">seedDb</strong> function will populate the database with <span class="No-Break">test data.</span></p>
+<p>Let’s execute it after our<a id="_idIndexMarker286"/> mocked endpoints have been initialized. Open <strong class="source-inline">src/testing/mocks/initialize.ts</strong> and call the function, <span class="No-Break">as follows:</span></p>
+<pre class="source-code">
+import { IS_SERVER } from '@/config/constants';
+import { seedDb } from './seed-db';
+const initializeMocks = () =&gt; {
+  if (IS_SERVER) {
+    const { server } = require('./server');
+    server.listen();
+  } else {
+    const { worker } = require('./browser');
+    worker.start();
+  }
+  seedDb();
+};
+initializeMocks();</pre>
+<p>To inspect the data in our database, we can open the <strong class="bold">Data</strong> tab <span class="No-Break">in </span><span class="No-Break"><strong class="bold">Devtools</strong></span><span class="No-Break">:</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer028">
+<img alt="Figure 5.5 – Inspecting seeded data " height="1231" src="image/B17297_05_05.jpg" width="1650"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.5 – Inspecting seeded data</p>
+<p>Awesome! Now, we have <a id="_idIndexMarker287"/>our database pre-filled with some test data. We can now create request handlers, which will interact with the database and consume <span class="No-Break">the data.</span></p>
+<h1 id="_idParaDest-93"><a id="_idTextAnchor092"/>Configuring request handlers for API endpoints</h1>
+<p>In this section, we will<a id="_idIndexMarker288"/> define handlers for our application. As already mentioned, a handler in MSW is a function that, if defined, will intercept any matching requests, and instead of sending the requests to the network, it will modify them and return the <span class="No-Break">mocked response.</span></p>
+<h2 id="_idParaDest-94"><a id="_idTextAnchor093"/>API utils</h2>
+<p>Before getting started, let’s take a quick look at the <strong class="source-inline">src/testing/mocks/utils.ts</strong> file, which<a id="_idIndexMarker289"/> includes some utilities we will be using for handling the business logic of our <span class="No-Break">API handlers:</span></p>
+<ul>
+<li><strong class="source-inline">authenticate</strong> accepts user credentials, and if they are valid, it will return the user from the database together with the <span class="No-Break">authentication token.</span></li>
+<li><strong class="source-inline">getUser</strong> returns a test <span class="No-Break">user object.</span></li>
+<li><strong class="source-inline">requireAuth</strong> returns the current user if the token in the cookie is available. It can optionally throw an error if the token does <span class="No-Break">not exist.</span></li>
+</ul>
+<p>Before getting started, let’s include<a id="_idIndexMarker290"/> all handlers in the configuration. Open the <strong class="source-inline">src/testing/mocks/handlers/index.ts</strong> file and change it to <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import { rest } from 'msw';
+import { API_URL } from '@/config/constants';
+import { authHandlers } from './auth';
+import { jobsHandlers } from './jobs';
+import { organizationsHandlers } from './organizations';
+export const handlers = [
+  ...authHandlers,
+  ...jobsHandlers,
+  ...organizationsHandlers,
+  rest.get(`${API_URL}/healthcheck`, (req, res, ctx) =&gt; {
+    return res(
+      ctx.status(200),
+      ctx.json({ healthy: true })
+    );
+  }),
+];</pre>
+<p>We are including all handlers we will define in each of the handlers’ files and make them available <span class="No-Break">to MSW.</span></p>
+<p>Now, we can start working on the<a id="_idIndexMarker291"/> request handlers for <span class="No-Break">our application.</span></p>
+<h2 id="_idParaDest-95"><a id="_idTextAnchor094"/>Auth handlers</h2>
+<p>For the <strong class="source-inline">auth</strong> feature, we will <a id="_idIndexMarker292"/>need the <span class="No-Break">following endpoints:</span></p>
+<ul>
+<li><span class="No-Break"><strong class="source-inline">POST /auth/login</strong></span></li>
+<li><span class="No-Break"><strong class="source-inline">POST /auth/logout</strong></span></li>
+<li><span class="No-Break"><strong class="source-inline">GET /auth/me</strong></span></li>
+</ul>
+<p>The endpoints for <strong class="source-inline">auth</strong> will be defined in the <span class="No-Break"><strong class="source-inline">src/test/mocks/handlers/auth.ts</strong></span><span class="No-Break"> file.</span></p>
+<p>Let’s start by importing <span class="No-Break">the dependencies:</span></p>
+<pre class="source-code">
+import { rest } from 'msw';
+import { API_URL } from '@/config/constants';
+import {
+  authenticate,
+  requireAuth,
+  AUTH_COOKIE,
+} from '../utils';</pre>
+<p>Then, let’s create a request handler for <span class="No-Break">logging in:</span></p>
+<pre class="source-code">
+const loginHandler = rest.post(
+  `${API_URL}/auth/login`,
+  async (req, res, ctx) =&gt; {
+    const credentials = await req.json();
+    const { user, jwt } = authenticate(credentials);
+    return res(
+      ctx.delay(300),
+      ctx.cookie(AUTH_COOKIE, jwt, {
+        path: '/',
+        httpOnly: true,
+      }),
+      ctx.json({ user })
+    );
+  }
+);</pre>
+<p>We are extracting the credentials<a id="_idIndexMarker293"/> and using them to get the user info and the token. Then, we attach the token to the cookie and return the user in the response with a 300 ms delay as the <span class="No-Break">real API.</span></p>
+<p>We are using the <strong class="source-inline">httpOnly</strong> cookie because it is safer since it is not accessible from <span class="No-Break">the client.</span></p>
+<p>Then, let’s create a <span class="No-Break">logout handler:</span></p>
+<pre class="source-code">
+const logoutHandler = rest.post(
+  `${API_URL}/auth/logout`,
+  async (req, res, ctx) =&gt; {
+    return res(
+      ctx.delay(300),
+      ctx.cookie(AUTH_COOKIE, '', {
+        path: '/',
+        httpOnly: true,
+      }),
+      ctx.json({ success: true })
+    );
+  }
+);</pre>
+<p>The handler will just empty the cookie and return the response. Any subsequent requests to protected handlers <a id="_idIndexMarker294"/>will throw <span class="No-Break">an error.</span></p>
+<p>Finally, we have an endpoint for fetching the currently <span class="No-Break">authenticated user:</span></p>
+<pre class="source-code">
+const meHandler = rest.get(
+  `${API_URL}/auth/me`,
+  async (req, res, ctx) =&gt; {
+    const user = requireAuth({ req, shouldThrow: false });
+    return res(ctx.delay(300), ctx.json(user));
+  }
+);</pre>
+<p>The endpoint will extract the user from the token and return it in the response. In the end, we should export the handlers in order for them to be consumed <span class="No-Break">by MSW:</span></p>
+<pre class="source-code">
+export const authHandlers = [
+  loginHandler,
+  logoutHandler,
+  meHandler,
+];</pre>
+<h2 id="_idParaDest-96"><a id="_idTextAnchor095"/>Jobs handlers</h2>
+<p>For the <strong class="source-inline">jobs</strong> feature, we will<a id="_idIndexMarker295"/> need the <span class="No-Break">following endpoints:</span></p>
+<ul>
+<li><span class="No-Break"><strong class="source-inline">GET /jobs</strong></span></li>
+<li><span class="No-Break"><strong class="source-inline">GET /jobs/:jobId</strong></span></li>
+<li><span class="No-Break"><strong class="source-inline">POST /jobs</strong></span></li>
+</ul>
+<p>The endpoints for <strong class="source-inline">jobs</strong> will be defined in the <span class="No-Break"><strong class="source-inline">src/test/mocks/handlers/jobs.ts</strong></span><span class="No-Break"> file.</span></p>
+<p>Let’s start by importing <span class="No-Break">the dependencies:</span></p>
+<pre class="source-code">
+import { rest } from 'msw';
+import { API_URL } from '@/config/constants';
+import { db } from '../db';
+import { requireAuth } from '../utils';</pre>
+<p>Then, let’s implement a handler for <span class="No-Break">fetching jobs:</span></p>
+<pre class="source-code">
+const getJobsHandler = rest.get(
+  `${API_URL}/jobs`,
+  async (req, res, ctx) =&gt; {
+    const organizationId = req.url.searchParams.get(
+      'organizationId'
+    ) as string;
+    const jobs = db.job.findMany({
+      where: {
+        organizationId: {
+          equals: organizationId,
+        },
+      },
+    });
+    return res(
+      ctx.delay(300),
+      ctx.status(200),
+      ctx.json(jobs)
+    );
+  }
+);</pre>
+<p>We are getting the organization ID from the search parameters and using that to get jobs for a given <a id="_idIndexMarker296"/>organization, which we return in <span class="No-Break">the response.</span></p>
+<p>Another endpoint we want to create is a job details endpoint. We can do that by creating the <span class="No-Break">following handler:</span></p>
+<pre class="source-code">
+const getJobHandler = rest.get(
+  `${API_URL}/jobs/:jobId`,
+  async (req, res, ctx) =&gt; {
+    const jobId = req.params.jobId as string;
+    const job = db.job.findFirst({
+      where: {
+        id: {
+          equals: jobId,
+        },
+      },
+    });
+    if (!job) {
+      return res(
+        ctx.delay(300),
+        ctx.status(404),
+        ctx.json({ message: 'Not found!' })
+      );
+    }
+    return res(
+      ctx.delay(300),
+      ctx.status(200),
+      ctx.json(job)
+    );
+  }
+);</pre>
+<p>We are getting the job ID from the URL parameters and using that to retrieve the given job from the database. If the<a id="_idIndexMarker297"/> job is not found, we return a <strong class="source-inline">404</strong> error. Otherwise, we return the job in <span class="No-Break">the response.</span></p>
+<p>Our application also needs an endpoint for creating jobs. We can create a handler for that, <span class="No-Break">as follows:</span></p>
+<pre class="source-code">
+const createJobHandler = rest.post(
+  `${API_URL}/jobs`,
+  async (req, res, ctx) =&gt; {
+    const user = requireAuth({ req });
+    const jobData = await req.json();
+    const job = db.job.create({
+      ...jobData,
+      organizationId: user?.organizationId,
+    });
+    return res(
+      ctx.delay(300),
+      ctx.status(200),
+      ctx.json(job)
+    );
+  }
+);</pre>
+<p>We are first checking whether the user is authenticated since we don’t want to allow creation for unauthenticated <a id="_idIndexMarker298"/>users. Then, we get the job data from the request and use that to create a new job, which we then return in <span class="No-Break">the response.</span></p>
+<p>Finally, we want to export the handlers to make them available <span class="No-Break">for MSW:</span></p>
+<pre class="source-code">
+export const jobsHandlers = [
+  getJobsHandler,
+  getJobHandler,
+  createJobHandler,
+];</pre>
+<h2 id="_idParaDest-97"><a id="_idTextAnchor096"/>Organizations handlers</h2>
+<p>For the <strong class="source-inline">organizations</strong> feature, we will need the <strong class="source-inline">GET /</strong><span class="No-Break"><strong class="source-inline">organizations/:organizationId</strong></span><span class="No-Break"> endpoint.</span></p>
+<p>All handlers for this feature will be <a id="_idIndexMarker299"/>defined in the <span class="No-Break"><strong class="source-inline">src/test/mocks/handlers/organizations.ts</strong></span><span class="No-Break"> file.</span></p>
+<p>Let’s start by importing all <span class="No-Break">required dependencies:</span></p>
+<pre class="source-code">
+import { rest } from 'msw';
+import { API_URL } from '@/config/constants';
+import { db } from '../db';</pre>
+<p>Then, we can implement the endpoint for getting organization details by adding <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+const getOrganizationHandler = rest.get(
+  `${API_URL}/organizations/:organizationId`,
+  (req, res, ctx) =&gt; {
+    const organizationId = req.params
+      .organizationId as string;
+    const organization = db.organization.findFirst({
+      where: {
+        id: {
+          equals: organizationId,
+        },
+      },
+    });
+    if (!organization) {
+      return res(
+        ctx.status(404),
+        ctx.json({ message: 'Not found!' })
+      );
+    }
+    return res(
+      ctx.delay(300),
+      ctx.status(200),
+      ctx.json(organization)
+    );
+  }
+);</pre>
+<p>We are getting the organization<a id="_idIndexMarker300"/> ID from URL parameters and using that to retrieve the given organization. If it doesn’t exist in the database, the handler will return a <strong class="source-inline">404</strong> error; otherwise, it will return the <span class="No-Break">found organization.</span></p>
+<p>In the end, we must export <span class="No-Break">the handler:</span></p>
+<pre class="source-code">
+export const organizationsHandlers = [
+  getOrganizationHandler,
+];</pre>
+<p>To verify that we have all handlers defined, we can visit <span class="No-Break"><strong class="bold">Devtools</strong></span><span class="No-Break"> again:</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer029">
+<img alt="Figure 5.6 – Mocked endpoints " height="1430" src="image/B17297_05_06.jpg" width="1650"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.6 – Mocked endpoints</p>
+<p>Great! Now, we have all the<a id="_idIndexMarker301"/> required handlers to make our application work as if it were consuming the real API. Play around with the handlers to make sure that everything works as expected. In the next chapter, we will integrate these endpoints into <span class="No-Break">the application.</span></p>
+<h1 id="_idParaDest-98"><a id="_idTextAnchor097"/>Summary</h1>
+<p>In this chapter, we learned about mocking the API. We introduced the <strong class="bold">MSW</strong> library, which is a great tool for mocking APIs in an elegant way. It can work both in the browser and on the server. It is super useful for prototyping and testing the application <span class="No-Break">during development.</span></p>
+<p>In the next chapter, we will integrate the API layer of the application, which will consume the endpoints we <span class="No-Break">just created.</span></p>
+</div>
+</div></body></html>

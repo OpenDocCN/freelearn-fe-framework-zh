@@ -1,0 +1,495 @@
+<html><head></head><body>
+<div id="sbo-rt-content"><div id="_idContainer031">
+<h1 class="chapter-number" id="_idParaDest-99"><a id="_idTextAnchor098"/>6</h1>
+<h1 id="_idParaDest-100"><a id="_idTextAnchor099"/>Integrating the API into the Application</h1>
+<p>In the previous chapter, we went through setting up the mocked API, which we will be consuming in <span class="No-Break">our application.</span></p>
+<p>In this chapter, we will be learning how to consume the API via <span class="No-Break">the application.</span></p>
+<p>When we say API, we mean the API backend server. We will learn how to fetch data from both the client and the server. For the HTTP client, we will be using <strong class="bold">Axios</strong>, and for handling fetched data, we will be using the <strong class="bold">React Query</strong> library, which allows us to handle API requests and responses in our <span class="No-Break">React application.</span></p>
+<p>In this chapter, we will cover the <span class="No-Break">following topics:</span></p>
+<ul>
+<li>Configuring the <span class="No-Break">API client</span></li>
+<li>Configuring <span class="No-Break">React Query</span></li>
+<li>Creating the API layer for <span class="No-Break">the features</span></li>
+<li>Using the API layer in <span class="No-Break">the application</span></li>
+</ul>
+<p>By the end of this chapter, we will know how to make our application communicate with the API in a clean and <span class="No-Break">organized way.</span></p>
+<h1 id="_idParaDest-101"><a id="_idTextAnchor100"/>Technical requirements</h1>
+<p>Before we get started, we need to set up our project. To be able to develop our project, we will need the following things installed on <span class="No-Break">our computer:</span></p>
+<ul>
+<li><strong class="bold">Node.js</strong> version 16 or above and <strong class="bold">npm</strong> version 8 <span class="No-Break">or above</span></li>
+</ul>
+<p>There are multiple ways to install Node.js and npm. Here is a great article that goes into more <span class="No-Break">detail: </span><a href="https://www.nodejsdesignpatterns.com/blog/5-ways-to-install-node-js"><span class="No-Break">https://www.nodejsdesignpatterns.com/blog/5-ways-to-install-node-js</span></a><span class="No-Break">.</span></p>
+<ul>
+<li><strong class="bold">VSCode</strong> (optional) is currently the most popular editor/IDE for JavaScript/TypeScript, so we will be using it. It is open source, has great integration with TypeScript, and we can extend its features via extensions. It can be downloaded <span class="No-Break">from </span><a href="https://code.visualstudio.com/"><span class="No-Break">https://code.visualstudio.com/</span></a><span class="No-Break">.</span></li>
+</ul>
+<p>The code files for this chapter can be found <span class="No-Break">here: </span><a href="https://github.com/PacktPublishing/React-Application-Architecture-for-Production"><span class="No-Break">https://github.com/PacktPublishing/React-Application-Architecture-for-Production</span></a></p>
+<p>The repository can be cloned locally with the <span class="No-Break">following command:</span></p>
+<pre class="console">
+git clone https://github.com/PacktPublishing/React-Application-Architecture-for-Production.git</pre>
+<p>Once the repository has been cloned, we need to install the <span class="No-Break">application’s dependencies:</span></p>
+<pre class="console">
+npm install</pre>
+<p>We can provide the environment variables using the <span class="No-Break">following command:</span></p>
+<pre class="console">
+cp .env.example .env</pre>
+<p>Once the dependencies have been installed, we need to select the right stage of the code base that matches this chapter. We can do that by executing the <span class="No-Break">following command:</span></p>
+<pre class="console">
+npm run stage:switch</pre>
+<p>This command will prompt us with a list of stages for <span class="No-Break">each chapter:</span></p>
+<pre class="console">
+? What stage do you want to switch to? (Use arrow
+ keys)
+❯ chapter-02
+  chapter-03
+  chapter-03-start
+  chapter-04
+  chapter-04-start
+  chapter-05
+  chapter-05-start
+(Move up and down to reveal more choices)</pre>
+<p>This is the sixth chapter, so we can select <strong class="source-inline">chapter-06-start</strong> if we want to follow along, or <strong class="source-inline">chapter-06</strong> to see the final results of <span class="No-Break">this chapter.</span></p>
+<p>Once the chapter has been selected, all the files required to follow along with this chapter <span class="No-Break">will appear.</span></p>
+<p>For more information about the setup details, check out the <span class="No-Break"><strong class="source-inline">README.md</strong></span><span class="No-Break"> file.</span></p>
+<h1 id="_idParaDest-102"><a id="_idTextAnchor101"/>Configuring the API client</h1>
+<p>For the API client<a id="_idIndexMarker302"/> of our<a id="_idIndexMarker303"/> application, we will be using Axios, a very popular library for handling HTTP requests. It is supported in both the browser and the server and has an API for creating instances, intercepting requests and responses, canceling requests, and <span class="No-Break">so on.</span></p>
+<p>Let’s start by creating an instance of Axios, which will include some common things we want to be done on <span class="No-Break">every request.</span></p>
+<p>Create the <strong class="source-inline">src/lib/api-client.ts</strong> file and add <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import Axios from 'axios';
+import { API_URL } from '@/config/constants';
+export const apiClient = Axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+apiClient.interceptors.response.use(
+  (response) =&gt; {
+    return response.data;
+  },
+  (error) =&gt; {
+    const message =
+      error.response?.data?.message || error.message;
+    console.error(message);
+    return Promise.reject(error);
+  }
+);</pre>
+<p>Here, we have created an Axios instance where we define a common base URL and the headers we want to include in <span class="No-Break">each request.</span></p>
+<p>Then, we attached a response interceptor where we want to extract the data property from the response and return that to our client. We also defined the error interceptor where we want to log the error to <span class="No-Break">the console.</span></p>
+<p>Having an <a id="_idIndexMarker304"/>Axios <a id="_idIndexMarker305"/>instance configured is, however, not enough to handle requests in React components elegantly. We would still need to handle calling the API, waiting for the data to arrive, and storing it in a state. That’s where React Query comes <span class="No-Break">into play.</span></p>
+<h1 id="_idParaDest-103"><a id="_idTextAnchor102"/>Configuring React Query</h1>
+<p>React Query is a great library for handling async data and making it available in <span class="No-Break">React components.</span></p>
+<h2 id="_idParaDest-104"><a id="_idTextAnchor103"/>Why React Query?</h2>
+<p>The main<a id="_idIndexMarker306"/> reason that React Query is a great option for handling the async remote state is the number of things it handles <span class="No-Break">for us.</span></p>
+<p>Imagine the following component, which loads some data from the API and <span class="No-Break">displays it:</span></p>
+<pre class="source-code">
+const loadData = () =&gt; Promise.resolve('data');
+const DataComponent = () =&gt; {
+  const [data, setData] = useState();
+  const [error, setError] = useState();
+  const [isLoading, setIsLoading] = useState();
+  useEffect(() =&gt; {
+    setIsLoading(true);
+    loadData()
+      .then((data) =&gt; {
+        setData(data);
+      })
+      .catch((error) =&gt; {
+        setError(error);
+      })
+      .finally(() =&gt; {
+        setIsLoading(false);
+      });
+  }, []);
+  if (isLoading) return &lt;div&gt;Loading&lt;/div&gt;;
+  if (error) return &lt;div&gt;{error}&lt;/div&gt;;
+  return &lt;div&gt;{data}&lt;/div&gt;;
+};</pre>
+<p>This is fine if we fetch data from an API only once, but in most cases, we need to fetch it from many different endpoints. We can see that there is a certain amount of <span class="No-Break">boilerplate here:</span></p>
+<ul>
+<li>The same <strong class="source-inline">data</strong>, <strong class="source-inline">error</strong>, and <strong class="source-inline">isLoading</strong> pieces of state need to <span class="No-Break">be defined</span></li>
+<li>Different pieces of state must be <span class="No-Break">updated accordingly</span></li>
+<li>The data is thrown away as soon as we move away from <span class="No-Break">the component</span></li>
+</ul>
+<p>That’s where<a id="_idIndexMarker307"/> React Query comes in. We can update our component to <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import { useQuery } from '@tanstack/react-query';
+const loadData = () =&gt; Promise.resolve('data');
+const DataComponent = () =&gt; {
+  const {data, error, isLoading} = useQuery({
+    queryFn: loadData,
+    queryKey: ['data']
+  })
+  if (isLoading) return &lt;div&gt;Loading&lt;/div&gt;;
+  if (error) return &lt;div&gt;{error}&lt;/div&gt;;
+  return &lt;div&gt;{data}&lt;/div&gt;;
+};</pre>
+<p>Notice how the state handling is abstracted away from the consumer. We do not need to worry about storing the data, or handling loading and error states; everything is handled by React Query. Another benefit of React Query is its caching mechanism. For every query, we need to provide a corresponding query key that will be used to store the data in <span class="No-Break">the cache.</span></p>
+<p>This also<a id="_idIndexMarker308"/> helps with the deduplication of requests. If we called the same query from multiple places, it would make sure the API requests happen <span class="No-Break">only once.</span></p>
+<h2 id="_idParaDest-105"><a id="_idTextAnchor104"/>Configuring React Query</h2>
+<p>Now, back to <a id="_idIndexMarker309"/>our application. We already have <strong class="source-inline">react-query</strong> installed. We just need to configure it for our application. The configuration needs a query client, which we can create in <strong class="source-inline">src/lib/react-query.ts</strong> and add <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import { QueryClient } from '@tanstack/react-query';
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: false,
+      useErrorBoundary: true,
+    },
+  },
+});</pre>
+<p>React Query comes with a default configuration that we can override during the query client creation. A full list of options can be found in <span class="No-Break">the documentation.</span></p>
+<p>Now that we have created our query client, we must include it in the provider. Let’s head to <strong class="source-inline">src/providers/app.tsx</strong> and <a id="_idIndexMarker310"/>replace the content with <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import {
+  ChakraProvider,
+  GlobalStyle,
+} from '@chakra-ui/react';
+import { QueryClientProvider } from '@tanstack/
+  react-query';
+import { ReactQueryDevtools } from '@tanstack/
+  react-query-devtools';
+import { ReactNode } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+import { theme } from '@/config/theme';
+import { queryClient } from '@/lib/react-query';
+type AppProviderProps = {
+  children: ReactNode;
+};
+export const AppProvider = ({
+  children,
+}: AppProviderProps) =&gt; {
+  return (
+    &lt;ChakraProvider theme={theme}&gt;
+      &lt;ErrorBoundary
+        fallback={&lt;div&gt;Something went wrong!&lt;/div&gt;}
+        onError={console.error}
+      &gt;
+        &lt;GlobalStyle /&gt;
+        &lt;QueryClientProvider client={queryClient}&gt;
+          &lt;ReactQueryDevtools initialIsOpen={false} /&gt;
+          {children}
+        &lt;/QueryClientProvider&gt;
+      &lt;/ErrorBoundary&gt;
+    &lt;/ChakraProvider&gt;
+  );
+};</pre>
+<p>Here, we are importing and adding <strong class="source-inline">QueryClientProvider</strong>, which will make the query client and its configuration available for queries and mutations. Notice how we are passing our query client instance as the <span class="No-Break"><strong class="source-inline">client</strong></span><span class="No-Break"> prop.</span></p>
+<p>We are also adding <strong class="source-inline">ReactQueryDevtools</strong>, which is a widget that allows us to inspect all <a id="_idIndexMarker311"/>queries. It only works in development, and that is very useful <span class="No-Break">for debugging.</span></p>
+<p>Now that our <strong class="source-inline">react-query</strong> setup is in place, we can start implementing the API layer for <span class="No-Break">the features.</span></p>
+<h1 id="_idParaDest-106"><a id="_idTextAnchor105"/>Defining the API layer for the features</h1>
+<p>The API layer<a id="_idIndexMarker312"/> will be defined in the <strong class="source-inline">api</strong> folder of every feature. An API request can be either a query or a mutation. A query describes requests that only fetch data. A mutation describes an API call that mutates data on <span class="No-Break">the server.</span></p>
+<p>For every API request, we will have a file that includes and exports an API request definition function and a hook for consuming the request inside React. For the request definition functions, we will be using the API client we just created with Axios, and for the hooks, we will be using the hooks from <span class="No-Break">React Query.</span></p>
+<p>We’ll learn<a id="_idIndexMarker313"/> how to implement it in action in the <span class="No-Break">following sections.</span></p>
+<h2 id="_idParaDest-107"><a id="_idTextAnchor106"/>Jobs</h2>
+<p>For the <strong class="source-inline">jobs</strong><a id="_idIndexMarker314"/> feature, we have three <span class="No-Break">API calls:</span></p>
+<ul>
+<li><span class="No-Break"><strong class="source-inline">GET /jobs</strong></span></li>
+<li><span class="No-Break"><strong class="source-inline">GET /jobs/:jobId</strong></span></li>
+<li><span class="No-Break"><strong class="source-inline">POST /jobs</strong></span></li>
+</ul>
+<h3>Get jobs</h3>
+<p>Let’s start with <a id="_idIndexMarker315"/>the API call that fetches jobs. To define it in our application, let’s create the <strong class="source-inline">src/features/jobs/api/get-jobs.ts</strong> file and add <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
+import { Job } from '../types';
+type GetJobsOptions = {
+  params: {
+    organizationId: string | undefined;
+  };
+};
+export const getJobs = ({
+  params,
+}: GetJobsOptions): Promise&lt;Job[]&gt; =&gt; {
+  return apiClient.get('/jobs', {
+    params,
+  });
+};
+export const useJobs = ({ params }: GetJobsOptions) =&gt; {
+  const { data, isFetching, isFetched } = useQuery({
+    queryKey: ['jobs', params],
+    queryFn: () =&gt; getJobs({ params }),
+    enabled: !!params.organizationId,
+    initialData: [],
+  });
+  return {
+    data,
+    isLoading: isFetching &amp;&amp; !isFetched,
+  };
+};</pre>
+<p>As we can see, there <a id="_idIndexMarker316"/>are a few things <span class="No-Break">going on:</span></p>
+<ol>
+<li>We are defining the type for the request options. There, we can pass <strong class="source-inline">organizationId</strong> to specify the organization for which we want to get <span class="No-Break">the jobs.</span></li>
+<li>We are defining the <strong class="source-inline">getJobs</strong> function, which is the request definition for <span class="No-Break">getting jobs.</span></li>
+<li>We are defining the <strong class="source-inline">useJobs</strong> hook by using <strong class="source-inline">useQuery</strong> from <strong class="source-inline">react-query</strong>. The <strong class="source-inline">useQuery</strong> hook returns many different properties, but we want to expose only what is needed by the application. Notice how by using the <strong class="source-inline">enabled</strong> property, we are telling <strong class="source-inline">useQuery</strong> to run only if <strong class="source-inline">organizationId</strong> is provided. This means that the query will wait for <strong class="source-inline">organizationId</strong> to exist before fetching <span class="No-Break">the data.</span></li>
+</ol>
+<p>Since we will be<a id="_idIndexMarker317"/> using it outside the feature, let’s make it available <span class="No-Break">at </span><span class="No-Break"><strong class="source-inline">src/features/jobs/index.ts</strong></span><span class="No-Break">:</span></p>
+<pre class="source-code">
+export * from './api/get-jobs';</pre>
+<h3>Get job details</h3>
+<p>The get job<a id="_idIndexMarker318"/> request should be straightforward. Let’s create the <strong class="source-inline">src/features/jobs/api/get-job.ts</strong> file and add <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
+import { Job } from '../types';
+type GetJobOptions = {
+  jobId: string;
+};
+export const getJob = ({
+  jobId,
+}: GetJobOptions): Promise&lt;Job&gt; =&gt; {
+  return apiClient.get(`/jobs/${jobId}`);
+};
+export const useJob = ({ jobId }: GetJobOptions) =&gt; {
+  const { data, isLoading } = useQuery({
+    queryKey: ['jobs', jobId],
+    queryFn: () =&gt; getJob({ jobId }),
+  });
+  return { data, isLoading };
+};</pre>
+<p>As we can see, we are defining and exporting the <strong class="source-inline">getJob</strong> function and the <strong class="source-inline">useJob</strong> query, which we will use in <span class="No-Break">a moment.</span></p>
+<p>We want to consume this API request outside the feature, so we have to make it available by<a id="_idIndexMarker319"/> re-exporting it <span class="No-Break">from </span><span class="No-Break"><strong class="source-inline">src/features/jobs/index.ts</strong></span><span class="No-Break">:</span></p>
+<pre class="source-code">
+export * from './api/get-job';</pre>
+<h3>Create job</h3>
+<p>As we already<a id="_idIndexMarker320"/> mentioned, whenever we change something on the server, it should be considered a mutation. With that said, let’s create the <strong class="source-inline">src/features/jobs/api/create-job.ts</strong> file and add <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import { useMutation } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
+import { queryClient } from '@/lib/react-query';
+import { Job, CreateJobData } from '../types';
+type CreateJobOptions = {
+  data: CreateJobData;
+};
+export const createJob = ({
+  data,
+}: CreateJobOptions): Promise&lt;Job&gt; =&gt; {
+  return apiClient.post(`/jobs`, data);
+};
+type UseCreateJobOptions = {
+  onSuccess?: (job: Job) =&gt; void;
+};
+export const useCreateJob = ({
+  onSuccess,
+}: UseCreateJobOptions = {}) =&gt; {
+  const { mutate: submit, isLoading } = useMutation({
+    mutationFn: createJob,
+    onSuccess: (job) =&gt; {
+      queryClient.invalidateQueries(['jobs']);
+      onSuccess?.(job);
+    },
+  });
+  return { submit, isLoading };
+};</pre>
+<p>There are<a id="_idIndexMarker321"/> a few things going <span class="No-Break">on here:</span></p>
+<ol>
+<li value="1">We define the <strong class="source-inline">CreateJobOptions</strong> type of the API request. It will require a data object that contains all the fields that are required for creating a <span class="No-Break">new job.</span></li>
+<li>We define the <strong class="source-inline">createJob</strong> function, which makes the request to <span class="No-Break">the server.</span></li>
+<li>We define <strong class="source-inline">UseCreateJobOptions</strong>, which accepts an optional callback to call if the request succeeds. This may become useful whenever we want to show a notification, redirect the user, or do anything that is not directly related to the <span class="No-Break">API request.</span></li>
+<li>We are defining the <strong class="source-inline">useCreateJob</strong> hook, which uses <strong class="source-inline">useMutation</strong> from <strong class="source-inline">react-query</strong>. As defined in the type, it accepts an optional <strong class="source-inline">onSuccess</strong> callback that gets called if the <span class="No-Break">mutation succeeds.</span></li>
+<li>To create the mutation, we provide the <strong class="source-inline">createJob</strong> function <span class="No-Break">as </span><span class="No-Break"><strong class="source-inline">mutationFn</strong></span><span class="No-Break">.</span></li>
+<li>We define <strong class="source-inline">onSuccess</strong> of <strong class="source-inline">useMutation</strong>, where we invalidate all job queries once a new job is created. Invalidating queries means that we want to set them as invalid in the cache. If we need them again, we will have to fetch them from <span class="No-Break">the API.</span></li>
+<li>We are reducing the API surface of the <strong class="source-inline">useCreateJob</strong> hook to things that are used by the application, so we are just exposing <strong class="source-inline">submit</strong> and <strong class="source-inline">isLoading</strong>. We can always expose more things in the future if we notice we <span class="No-Break">need them.</span></li>
+</ol>
+<p>We don’t have<a id="_idIndexMarker322"/> to export this request from the <strong class="source-inline">index.ts</strong> file since it is used only within the <span class="No-Break"><strong class="source-inline">jobs</strong></span><span class="No-Break"> feature.</span></p>
+<h2 id="_idParaDest-108"><a id="_idTextAnchor107"/>Organizations</h2>
+<p>For the<a id="_idIndexMarker323"/> <strong class="source-inline">organizations</strong> feature, we have one <span class="No-Break">API call:</span></p>
+<ul>
+<li><span class="No-Break"><strong class="source-inline">GET /organizations/:organizationId</strong></span></li>
+</ul>
+<h3>Get organization details</h3>
+<p>Let’s create <strong class="source-inline">src/features/organizations/api/get-organization.ts</strong> and <a id="_idIndexMarker324"/>add <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
+import { Organization } from '../types';
+type GetOrganizationOptions = {
+  organizationId: string;
+};
+export const getOrganization = ({
+  organizationId,
+}: GetOrganizationOptions): Promise&lt;Organization&gt; =&gt; {
+  return apiClient.get(
+    `/organizations/${organizationId}`
+  );
+};
+export const useOrganization = ({
+  organizationId,
+}: GetOrganizationOptions) =&gt; {
+  const { data, isLoading } = useQuery({
+    queryKey: ['organizations', organizationId],
+    queryFn: () =&gt; getOrganization({ organizationId }),
+  });
+  return { data, isLoading };
+};</pre>
+<p>Here, we are defining a query that will fetch the organization based on the <strong class="source-inline">organizationId</strong> property <span class="No-Break">we pass.</span></p>
+<p>Since this query will also be used outside the <strong class="source-inline">organizations</strong> feature, let’s also re-export <span class="No-Break">from </span><span class="No-Break"><strong class="source-inline">src/features/organizations/index.ts</strong></span><span class="No-Break">:</span></p>
+<pre class="source-code">
+export * from './api/get-organization';</pre>
+<p>Now that we <a id="_idIndexMarker325"/>have defined all our API requests, we can start consuming them in <span class="No-Break">our application.</span></p>
+<h1 id="_idParaDest-109"><a id="_idTextAnchor108"/>Consuming the API in the application</h1>
+<p>To be able to build <a id="_idIndexMarker326"/>the UI without the API functionality, we used test data on our pages. Now, we want to replace it with the real queries and mutations that we just made for communicating with <span class="No-Break">the API.</span></p>
+<h2 id="_idParaDest-110"><a id="_idTextAnchor109"/>Public organization</h2>
+<p>We need<a id="_idIndexMarker327"/> to replace a couple of <span class="No-Break">things now.</span></p>
+<p>Let’s open <strong class="source-inline">src/pages/organizations/[organizationId]/index.tsx</strong> and remove <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import {
+  getJobs,
+  getOrganization,
+} from '@/testing/test-data';</pre>
+<p>Now, we must load the data from the API. We can do that by importing <strong class="source-inline">getJobs</strong> and <strong class="source-inline">getOrganization</strong> from corresponding <strong class="source-inline">features</strong>. Let’s add <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import { JobsList, Job, getJobs } from '@/features/jobs';
+import {
+  getOrganization,
+  OrganizationInfo,
+} from '@/features/organizations';</pre>
+<p>The new API functions are a bit different, so we need to replace the <span class="No-Break">following code:</span></p>
+<pre class="source-code">
+const [organization, jobs] = await Promise.all([
+  getOrganization(organizationId).catch(() =&gt; null),
+  getJobs(organizationId).catch(() =&gt; [] as Job[]),
+]);</pre>
+<p>We must<a id="_idIndexMarker328"/> replace it with <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+const [organization, jobs] = await Promise.all([
+  getOrganization({ organizationId }).catch(() =&gt; null),
+  getJobs({
+    params: {
+      organizationId: organizationId,
+    },
+  }).catch(() =&gt; [] as Job[]),
+]);</pre>
+<h2 id="_idParaDest-111"><a id="_idTextAnchor110"/>Public job</h2>
+<p>The same<a id="_idIndexMarker329"/> process should be repeated for the public <span class="No-Break">job page.</span></p>
+<p>Let’s open <strong class="source-inline">src/pages/organizations/[organizationId]/jobs/[jobId].tsx</strong> and remove <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import {
+  getJob,
+  getOrganization,
+} from '@/testing/test-data';</pre>
+<p>Now, let’s import <strong class="source-inline">getJob</strong> and <strong class="source-inline">getOrganization</strong> from the <span class="No-Break">corresponding features:</span></p>
+<pre class="source-code">
+import { getJob, PublicJobInfo } from '@/features/jobs';
+import { getOrganization } from '@/features/organizations';</pre>
+<p>Then, inside <strong class="source-inline">getServerSideProps</strong>, we <a id="_idIndexMarker330"/>need to update <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+const [organization, job] = await Promise.all([
+  getOrganization({ organizationId }).catch(() =&gt; null),
+  getJob({ jobId }).catch(() =&gt; null),
+]);</pre>
+<h2 id="_idParaDest-112"><a id="_idTextAnchor111"/>Dashboard jobs</h2>
+<p>For the<a id="_idIndexMarker331"/> dashboard jobs, the only thing we need to do is to update the imports so that we no longer load jobs from test data but from <span class="No-Break">the API.</span></p>
+<p>Let’s import <strong class="source-inline">useJobs</strong> from the <strong class="source-inline">jobs</strong> feature instead of the test data by updating the following lines <span class="No-Break">in </span><span class="No-Break"><strong class="source-inline">src/pages/dashboard/jobs/index.tsx</strong></span><span class="No-Break">:</span></p>
+<pre class="source-code">
+import { JobsList, useJobs } from '@/features/jobs';
+import { useUser } from '@/testing/test-data';</pre>
+<p>We will still keep <strong class="source-inline">useUser</strong> from <strong class="source-inline">test-data</strong> for now; we will replace this in the <span class="No-Break">next chapter.</span></p>
+<p>Since the newly created <strong class="source-inline">useJobs</strong> hook is a bit different than the <strong class="source-inline">test-data</strong> one, we need to update the way it is being used, <span class="No-Break">as follows:</span></p>
+<pre class="source-code">
+const jobs = useJobs({
+  params: {
+    organizationId: user.data?.organizationId ?? '',
+  },
+});</pre>
+<h2 id="_idParaDest-113"><a id="_idTextAnchor112"/>Dashboard job</h2>
+<p>The job details <a id="_idIndexMarker332"/>page in the dashboard is also <span class="No-Break">very straightforward.</span></p>
+<p>In <strong class="source-inline">src/pages/dashboard/jobs/[jobId].tsx</strong>, let’s remove <strong class="source-inline">useJob</strong>, which was imported <span class="No-Break">from </span><span class="No-Break"><strong class="source-inline">test-data</strong></span><span class="No-Break">:</span></p>
+<pre class="source-code">
+import { useJob } from '@/testing/test-data';</pre>
+<p>Now, let’s import it from the <span class="No-Break"><strong class="source-inline">jobs</strong></span><span class="No-Break"> feature:</span></p>
+<pre class="source-code">
+import {
+  DashboardJobInfo,
+  useJob,
+} from '@/features/jobs';</pre>
+<p>Here, we need to update how <strong class="source-inline">useJob</strong> <span class="No-Break">is consumed:</span></p>
+<pre class="source-code">
+const job = useJob({ jobId });</pre>
+<h2 id="_idParaDest-114"><a id="_idTextAnchor113"/>Create job</h2>
+<p>For the job <a id="_idIndexMarker333"/>creation, we will need to update the form, which, when submitted, will create a <span class="No-Break">new job.</span></p>
+<p>Currently, the form is not functional, so we need to add a couple <span class="No-Break">of things.</span></p>
+<p>Let’s open <strong class="source-inline">src/features/jobs/components/create-job-form/create-job-form.tsx</strong> and replace the content with <span class="No-Break">the following:</span></p>
+<pre class="source-code">
+import { Box, Stack } from '@chakra-ui/react';
+import { useForm } from 'react-hook-form';
+import { Button } from '@/components/button';
+import { InputField } from '@/components/form';
+import { useCreateJob } from '../../api/create-job';
+import { CreateJobData } from '../../types';
+export type CreateJobFormProps = {
+  onSuccess: () =&gt; void;
+};
+export const CreateJobForm = ({
+  onSuccess,
+}: CreateJobFormProps) =&gt; {
+  const createJob = useCreateJob({ onSuccess });
+  const { register, handleSubmit, formState } =
+    useForm&lt;CreateJobData&gt;();
+  const onSubmit = (data: CreateJobData) =&gt; {
+    createJob.submit({ data });
+  };
+  return (
+    &lt;Box w="full"&gt;
+      &lt;Stack
+        as="form"
+        onSubmit={handleSubmit(onSubmit)}
+        w="full"
+        spacing="8"
+      &gt;
+        &lt;InputField
+          label="Position"
+          {...register('position', {
+            required: 'Required',
+          })}
+          error={formState.errors['position']}
+        /&gt;
+        &lt;InputField
+          label="Department"
+          {...register('department', {
+            required: 'Required',
+          })}
+          error={formState.errors['department']}
+        /&gt;
+        &lt;InputField
+          label="Location"
+          {...register('location', {
+            required: 'Required',
+          })}
+          error={formState.errors['location']}
+        /&gt;
+        &lt;InputField
+          type="textarea"
+          label="Info"
+          {...register('info', {
+            required: 'Required',
+          })}
+          error={formState.errors['info']}
+        /&gt;
+        &lt;Button
+          isDisabled={createJob.isLoading}
+          isLoading={createJob.isLoading}
+          type="submit"
+        &gt;
+          Create
+        &lt;/Button&gt;
+      &lt;/Stack&gt;
+    &lt;/Box&gt;
+  );
+};</pre>
+<p>There are a <strong class="source-inline">few</strong>things worth mentioning in <span class="No-Break">this component:</span></p>
+<ol>
+<li value="1">We are using the <strong class="source-inline">useForm</strong> hook to handle the <span class="No-Break">form’s state.</span></li>
+<li>We are importing and using the <strong class="source-inline">useCreateJob</strong> API hook we previously defined <a id="_idIndexMarker334"/>to submit <span class="No-Break">the request.</span></li>
+<li>When the mutation succeeds, the <strong class="source-inline">onSuccess</strong> callback <span class="No-Break">is called.</span></li>
+</ol>
+<p class="callout-heading">Note</p>
+<p class="callout">The <em class="italic">create job</em> form requires the user to be authenticated. Since we didn’t implement the authentication system yet, you can use the MSW dev tools to authenticate with the test user to try the <span class="No-Break">form submission.</span></p>
+<h1 id="_idParaDest-115"><a id="_idTextAnchor114"/>Summary</h1>
+<p>In this chapter, we learned how to make the application communicate with its API. First, we defined an API client that allows us to unify the API requests. Then, we introduced <strong class="bold">React Query</strong>, a library for handling asynchronous states. Using it reduces boilerplate and simplifies the code <span class="No-Break">base significantly.</span></p>
+<p>Finally, we declared the API requests, and then we integrated them into <span class="No-Break">the application.</span></p>
+<p>In the next chapter, we will learn how to create an authentication system for our application where only authenticated users will be able to visit <span class="No-Break">the dashboard.</span></p>
+</div>
+</div></body></html>

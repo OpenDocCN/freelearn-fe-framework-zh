@@ -1,6 +1,6 @@
-# 7
 
-# 将 Vue 3 应用程序 Docker 化
+
+# 第七章：将 Vue 3 应用程序 Docker 化
 
 在上一章中，我们展示了如何使用 Vue.js 3、GraphQL 和 Strapi 后端构建一个完整的 Pinterest 克隆。你还利用了你对 GraphQL 的知识来开发一个企业级 Pinterest 克隆应用程序。在本章中，你将学习 Docker 化你的 Vue.js 3 项目所涉及的步骤的细节。此外，你还将了解 Docker 化和部署企业级 Vue.js 3 网络应用程序的最佳实践和行业标准。本章还将通过介绍如何 Docker 化全栈网络应用程序并将其部署到云平台（使用 Docker Compose）采取更实际的方法。
 

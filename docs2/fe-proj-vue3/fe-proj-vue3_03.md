@@ -1,6 +1,6 @@
-# 3
 
-# Vite 和 Vue Devtools
+
+# 第三章：Vite 和 Vue Devtools
 
 在上一章中，你学习了如何利用 Vue 组件的数据响应性，并使用方法、计算属性和观察属性将外部数据查询到组件的数据系统中。本章介绍了 **Vite** 并展示了如何使用 Vue Devtools 调试这些计算属性和事件。
 

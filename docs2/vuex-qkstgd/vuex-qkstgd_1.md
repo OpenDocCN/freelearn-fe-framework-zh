@@ -1,4 +1,4 @@
-# 使用 Flux、Vue 和 Vuex 重新思考用户界面
+# 第一章：使用 Flux、Vue 和 Vuex 重新思考用户界面
 
 我在 2007 年底开始了我的第一份工作，作为 Java EE 程序员。我仍然记得我的朋友 Giuseppe 说，“你不喜欢 JavaScript，对吧？”而我回答，“不，我不喜欢。每次我写 JavaScript 时，它都不在所有版本的 Internet Explorer 中工作...更不用说 Firefox 了！”他只是回答，“看看 jQuery。”今天，我喜欢称自己为 JavaScript 程序员。
 

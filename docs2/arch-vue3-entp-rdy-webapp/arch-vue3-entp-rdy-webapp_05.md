@@ -1,6 +1,6 @@
-# 5
 
-# GraphQL、查询、突变和 RESTful API 简介
+
+# 第五章：GraphQL、查询、突变和 RESTful API 简介
 
 在前面的章节中，我们探讨了使用 Vue 3 开发大规模企业应用的不同库和方法。在本章中，我们将首先了解 GraphQL 是什么以及它与 REST 的不同之处。接下来，我们将探索 GraphQL、GraphQL Apollo Server 2、查询和突变，以及如何将这些技术集成到您的 Vue.js 3 应用程序中。此外，您还将学习如何利用 GraphQL 来提供可扩展且性能高的应用程序。
 

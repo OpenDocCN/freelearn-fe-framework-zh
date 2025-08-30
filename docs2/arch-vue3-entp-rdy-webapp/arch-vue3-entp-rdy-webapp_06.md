@@ -1,6 +1,6 @@
-# 6
 
-# 使用 GraphQL 构建完整的 Pinterest 克隆
+
+# 第六章：使用 GraphQL 构建完整的 Pinterest 克隆
 
 在上一章中，我们探讨了 GraphQL、GraphQL Apollo Server 2、查询、变更以及如何将这些技术集成到你的 Vue.js 3 应用程序中。此外，我们还学习了如何利用 GraphQL 来提供可扩展和性能高的应用程序。本章将演示如何使用 Vue 3 和 GraphQL 构建一个完整的 Pinterest 克隆应用。你将利用你对 GraphQL 的知识来开发和交付一个如 Pinterest 这样的企业级应用程序，使用 Vue 3 和 GraphQL。此外，你将学习如何使用一个流行的无头**内容管理系统**（**CMS**）Strapi 来创建和管理你的后端 API。
 

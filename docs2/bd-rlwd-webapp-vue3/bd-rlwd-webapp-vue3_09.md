@@ -1,6 +1,6 @@
-# 9
 
-# 使用 TensorFlow 进行实验性物体识别
+
+# 第九章：使用 TensorFlow 进行实验性物体识别
 
 是时候做一些更实验性的东西了。正如我们所见，**人工智能**（**AI**）在编写由 AI 辅助的代码以及构建由 AI 驱动的解决方案时提供了许多新的探索机会。在本章中，我们将探讨**TensorFlow**。Google 在开源许可下开发和发布了 TensorFlow。它使开发者能够使用和训练适用于不同应用的机器学习模型。你可以在 TensorFlow 网站上找到精选的演示列表：[`www.tensorflow.org/js/demos`](https://www.tensorflow.org/js/demos)。
 

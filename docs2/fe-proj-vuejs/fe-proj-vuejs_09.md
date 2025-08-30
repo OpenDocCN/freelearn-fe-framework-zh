@@ -1,4 +1,4 @@
-# 9. 使用 Vuex – 状态、Getters、Actions 和 Mutations
+# 第九章：9. 使用 Vuex – 状态、Getters、Actions 和 Mutations
 
 概述
 

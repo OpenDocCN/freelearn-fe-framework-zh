@@ -1,720 +1,1043 @@
 - en: '16'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '16'
 - en: Working with WebSockets
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 与WebSocket一起工作
 - en: In this chapter, we’ll look at how to test-drive the WebSocket API within our
     React app. We’ll use it to build a teaching mechanism whereby one person can share
     their screen and others can watch as they type out commands.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将探讨如何在我们的React应用程序中测试驱动WebSocket API。我们将使用它来构建一种教学机制，其中一个人可以共享他们的屏幕，其他人可以观看他们输入命令。
 - en: 'The WebSocket API isn’t straightforward. It uses a number of different callbacks
     and requires functions to be called in a certain order. To make things harder,
     we’ll do this all within a Redux saga: that means we’ll need to do some work to
     convert the callback API to one that can work with generator functions.'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: WebSocket API并不简单。它使用了许多不同的回调，并要求以特定的顺序调用函数。为了使事情更复杂，我们将在Redux saga中这样做：这意味着我们需要做一些工作来将回调API转换为可以与生成器函数一起工作的API。
 - en: Because this is the last chapter covering unit testing techniques, it does things
     a little differently. It doesn’t follow a strict TDD process. The starting point
     for this chapter has a skeleton of our functions already completed. You’ll flesh
     out these functions, concentrating on learning test-driven techniques for WebSocket
     connections.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 因为这是最后一章介绍单元测试技术，所以它做了一些不同的处理。它不遵循严格的TDD过程。本章的起点是我们已经完成的功能框架。你需要完善这些功能，专注于学习WebSocket连接的测试驱动技术。
 - en: 'This chapter covers the following topics:'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章涵盖了以下主题：
 - en: Designing a WebSocket interaction
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 设计WebSocket交互
 - en: Test-driving a WebSocket connection
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 测试WebSocket连接
 - en: Streaming events with redux-saga
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用redux-saga进行流式事件
 - en: Updating the app
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 更新应用程序
 - en: By the end of the chapter, you’ll have learned how the WebSocket API works along
     with its unit testing mechanisms.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 到本章结束时，你将学会WebSocket API是如何工作的，以及它的单元测试机制。
 - en: Technical requirements
+  id: totrans-11
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: 'The code files for this chapter can be found here:'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章的代码文件可以在以下位置找到：
 - en: '[https://github.com/PacktPublishing/Mastering-React-Test-Driven-Development-Second-Edition/tree/main/Chapter16](https://github.com/PacktPublishing/Mastering-React-Test-Driven-Development-Second-Edition/tree/main/Chapter16)'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: '[https://github.com/PacktPublishing/Mastering-React-Test-Driven-Development-Second-Edition/tree/main/Chapter16](https://github.com/PacktPublishing/Mastering-React-Test-Driven-Development-Second-Edition/tree/main/Chapter16)'
 - en: Designing a WebSocket interaction
+  id: totrans-14
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 设计WebSocket交互
 - en: In this section, we’ll start by describing the sharing workflow, then we’ll
     look at the new UI elements that support this workflow, and finally we’ll walk
     through the code changes you’ll make in this chapter.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将首先描述共享工作流程，然后我们将查看支持此工作流程的新UI元素，最后我们将介绍你在本章中将进行的代码更改。
 - en: The sharing workflow
+  id: totrans-16
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 共享工作流程
 - en: 'A sharing session is made up of one presenter and zero or more watchers. That
     means there are two modes that the app can be in: either **presenting** or **watching**.'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个共享会话由一个演示者和零个或多个观察者组成。这意味着应用程序可以处于两种模式之一：**演示**或**观看**。
 - en: When the app is in presenting mode, then everyone watching will get a copy of
     your Spec Logo instructions. All your instructions are sent to the server via
     a WebSocket.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 当应用程序处于演示模式时，所有观看者都将收到你的Spec Logo指令的副本。所有指令都通过WebSocket发送到服务器。
 - en: When your app is in watching mode, a WebSocket receives instructions from the
     server and immediately outputs them onto your screen.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 当你的应用程序处于观看模式时，WebSocket从服务器接收指令并立即将它们输出到你的屏幕上。
 - en: The messages sent to and from the server are simple JSON-formatted data structures.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 发送到和从服务器发送的消息是简单的JSON格式数据结构。
 - en: '*Figure 16.1* shows how the interface looks when it’s in presenter mode.'
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: '*图16.1*显示了界面在演示模式下的外观。'
 - en: '![Figure 16.1 – Spec Logo in presenter mode ](img/Figure_16.01_B18423.jpg)'
+  id: totrans-22
   prefs: []
   type: TYPE_IMG
+  zh: '![图16.1 – 演示模式下的Spec Logo](img/Figure_16.01_B18423.jpg)'
 - en: Figure 16.1 – Spec Logo in presenter mode
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 图16.1 – 演示模式下的Spec Logo
 - en: So, how does it work?
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 那么，它是如何工作的？
 - en: 'The presenter clicks the **Start sharing** button. The server is sent the following
     message:'
+  id: totrans-25
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 演示者点击**开始共享**按钮。服务器收到以下消息：
 - en: '[PRE0]'
+  id: totrans-26
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'The server then responds with the ID of the session:'
+  id: totrans-27
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 服务器随后响应会话的ID：
 - en: '[PRE1]'
+  id: totrans-28
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'This ID is used to construct a URL that opens the application in watching mode,
     for example:'
+  id: totrans-29
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 这个ID用于构建一个URL，该URL以观看模式打开应用程序，例如：
 - en: '[PRE2]'
+  id: totrans-30
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'The URL can be shared and opened anywhere. When the application is opened in
     this mode, the application immediately opens a WebSocket to the server and sends
     this message:'
+  id: totrans-31
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: URL可以在任何地方共享和打开。当应用程序以这种模式打开时，应用程序立即向服务器打开一个WebSocket并发送此消息：
 - en: '[PRE3]'
+  id: totrans-32
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'There can be any number of watchers that connect. On an initial connection,
     any commands that the presenter has already sent to the server will be replayed.
     Those commands are sent from the presenter for any Redux action of type `SUBMIT_EDIT_LINE`,
     and they are sent via the WebSocket to the server like this:'
+  id: totrans-33
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 可以有任意数量的连接的监视器。在初始连接时，演示者已经发送给服务器的任何命令都将被重新播放。这些命令是演示者发送给任何类型为 `SUBMIT_EDIT_LINE`
+    的 Redux 动作的命令，并且像这样通过 WebSocket 发送到服务器：
 - en: '[PRE4]'
+  id: totrans-34
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'When the server receives actions on the presenter’s WebSocket, it immediately
     forwards the actions to every subscriber:'
+  id: totrans-35
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 当服务器接收到演示者的 WebSocket 动作时，它会立即将动作转发给每个订阅者：
 - en: '[PRE5]'
+  id: totrans-36
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: The server also stores received actions in history, so the actions can be replayed
     by new joiners.
+  id: totrans-37
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 服务器还将接收到的动作存储在历史记录中，因此新加入者可以重新播放这些动作。
 - en: When the watcher is done, they simply need to close the browser window and their
     WebSocket will close.
+  id: totrans-38
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 当监视器完成时，他们只需关闭浏览器窗口，他们的 WebSocket 将关闭。
 - en: When the presenter is done, they can either close the browser window or hit
     the **Stop sharing** button. This closes the connection and the server clears
     out its internal state.
+  id: totrans-39
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 当演示者完成演示后，他们可以关闭浏览器窗口或点击**停止共享**按钮。这将关闭连接，服务器清除其内部状态。
 - en: The new UI elements
+  id: totrans-40
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 新的 UI 元素
 - en: 'Here’s what you’ll find in the UI; all of this has already been built for you:'
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 这就是您将在 UI 中找到的内容；所有这些都已经为您构建好了：
 - en: A new menu button to toggle sharing on and off. It is named **Start sharing**,
     but once sharing has started, the name switches to **Stop sharing**.
+  id: totrans-42
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 一个新的菜单按钮来切换共享的开关。它被命名为**开始共享**，但一旦开始共享，名称将切换到**停止共享**。
 - en: There is a new message that appears as part of the menu buttons bar when Spec
     Logo is in sharing mode. It contains a message telling the user whether they are
     presenting or watching. If they are presenting, it also contains a URL that they
     can copy and share with others.
+  id: totrans-43
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 当 Spec Logo 处于共享模式时，菜单按钮栏中会出现一条新消息。它包含一个消息，告诉用户他们是正在演示还是观看。如果他们正在演示，它还包含一个他们可以复制并与他人分享的
+    URL。
 - en: You can now launch the app in watching mode by adding the search parameter `?watching=<id>`
     to the end of the Spec Logo URL.
+  id: totrans-44
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 您现在可以通过在 Spec Logo URL 的末尾添加搜索参数 `?watching=<id>` 来以观看模式启动应用程序。
 - en: Next, let’s have a look at the skeleton of the Redux saga that you’ll be fleshing
     out.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，让我们看看您将要填充的 Redux saga 的框架。
 - en: Splitting apart the saga
+  id: totrans-46
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 分离 saga
 - en: 'A new piece of Redux middleware exists in the file `src/middleware/sharingSagas.js`.
     This file has two parts to it. First, there’s a middleware function named `duplicateForSharing`.
     This is a filter that provides us with all the actions that we wish to broadcast:'
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 在文件 `src/middleware/sharingSagas.js` 中存在一个新的 Redux 中间件。这个文件包含两部分。首先，有一个名为 `duplicateForSharing`
+    的中间件函数。这是一个过滤器，为我们提供了所有希望广播的动作：
 - en: '[PRE6]'
+  id: totrans-48
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'Second, there’s the root saga itself. It’s split into four smaller functions,
     and these are the functions we’ll fill out in this chapter, using a test-driven
     approach:'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 其次，还有根 saga 本身。它分为四个更小的函数，这些是我们将在本章中填充的函数，使用测试驱动的方法：
 - en: '[PRE7]'
+  id: totrans-50
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: With enough of the design done, let’s get cracking with the implementation.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 在设计完成足够多的部分后，让我们开始实施。
 - en: Test-driving a WebSocket connection
+  id: totrans-52
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 测试驱动 WebSocket 连接
 - en: 'We start by filling out that first function, `startSharing`. This function
     is invoked when the `START_SHARING` action is received. That action is triggered
     when the user clicks the **Start sharing** button:'
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们首先填充那个第一个函数，`startSharing`。当接收到 `START_SHARING` 动作时，将调用此函数。该动作是在用户点击**开始共享**按钮时触发的：
 - en: 'Open `test/middleware/sharingSagas.test.js` and add the following imports at
     the top:'
+  id: totrans-54
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 打开 `test/middleware/sharingSagas.test.js` 文件，并在顶部添加以下导入：
 - en: '[PRE8]'
+  id: totrans-55
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'At the bottom of the file, add a new `describe` block and its setup. We’ll
     break this into a couple of steps: first, set up the Redux store and the WebSocket
     spy. Because `window.WebSocket` is a constructor function, we use `mockImplementation`
     to stub it out:'
+  id: totrans-56
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在文件底部，添加一个新的 `describe` 块及其设置。我们将将其分为几个步骤：首先，设置 Redux 存储和 WebSocket 间谍。因为 `window.WebSocket`
+    是一个构造函数，我们使用 `mockImplementation` 来模拟它：
 - en: '[PRE9]'
+  id: totrans-57
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: Understanding the WebSocket API
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 理解 WebSocket API
 - en: The WebSocket constructor returns an object with `send` and `close` methods,
     plus `onopen`, `onmessage`, `onclose`, and `onerror` event handlers. We’ll implement
     most of these on our test double as we build out our test suite. If you’d like
     to learn more about the WebSocket API, check out the *Further reading* section
     at the end of this chapter.
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: WebSocket构造函数返回一个具有`send`和`close`方法的对象，以及`onopen`、`onmessage`、`onclose`和`onerror`事件处理程序。在我们构建测试套件时，我们将实现这些中的大多数。如果你想了解更多关于WebSocket
+    API的信息，请查看本章末尾的*进一步阅读*部分。
 - en: 'Next, because we’re also concerned with the window location, we also need to
     stub out the `window.location` object. Because this is a read-only object in the
     JSDOM environment, we need to use the `Object.defineProperty` function to override
     it. This is a little clunky, so you may prefer to extract that into its own function
     with a good name. Add the following into the same `beforeEach` block:'
+  id: totrans-60
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，因为我们还关心窗口位置，所以我们还需要模拟`window.location`对象。由于在JSDOM环境中这是一个只读对象，我们需要使用`Object.defineProperty`函数来覆盖它。这有点笨拙，所以你可能更喜欢将其提取到自己的函数中，并给它一个好名字。将以下内容添加到相同的`beforeEach`块中：
 - en: '[PRE10]'
+  id: totrans-61
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'Add the first test in a nested `describe` block. This checks that we make the
     WebSocket connection with the right URL:'
+  id: totrans-62
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在嵌套的`describe`块中添加第一个测试。这检查我们是否使用正确的URL建立WebSocket连接：
 - en: '[PRE11]'
+  id: totrans-63
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'Make that pass by filling in the `startSharing` generator function in the file
     `src/middleware/sharingSagas.js` (remembering that the skeleton has already been
     created for you). This code constructs a new URL with the right host:'
+  id: totrans-64
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过在文件`src/middleware/sharingSagas.js`中填充`startSharing`生成器函数来使测试通过（记住，已经为你创建了骨架）。这段代码构建了一个带有正确主机的新URL：
 - en: '[PRE12]'
+  id: totrans-65
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'Back in the test suite, modify the WebSocket stub implementation to add an
     inner spy, `sendSpy`, which will be called when the user calls the `send` function
     on the WebSocket. We also need to store a reference to the `socketSpy` function
     that’s created, so we can call the callbacks that the user attaches to its event
     handlers (such as `onopen` and `onmessage`). This will make sense when we write
     the next test:'
+  id: totrans-66
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在测试套件中，修改WebSocket模拟实现以添加一个内部间谍，`sendSpy`，当用户在WebSocket上调用`send`函数时会被调用。我们还需要存储创建的`socketSpy`函数的引用，以便我们可以调用用户附加到其事件处理程序（如`onopen`和`onmessage`）的回调。这将在我们编写下一个测试时变得有意义：
 - en: '[PRE13]'
+  id: totrans-67
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'When test-driving an API with callbacks, such as the WebSocket API, it’s important
     that we mimic the exact behavior of each callback. We will start with the `onopen`
     callback. The next test will trigger this as if it was a server sending a message.
     Because we expect a bunch of asynchronous actions to occur when `onopen` is received,
     we can use `async act` to wait for the actions to be completed. So, before the
     next test, define the following function, which triggers the `onopen` callback:'
+  id: totrans-68
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 当使用回调驱动的API进行测试驱动开发时，例如WebSocket API，模拟每个回调的确切行为非常重要。我们将从`onopen`回调开始。下一个测试将触发它，就像服务器发送消息一样。因为我们期望在接收到`onopen`时发生一系列异步操作，所以我们可以使用`async
+    act`等待操作完成。因此，在下一个测试之前，定义以下函数，该函数触发`onopen`回调：
 - en: '[PRE14]'
+  id: totrans-69
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: Using act with non-React code
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用act与非React代码
 - en: The `async act` function helps us even when we’re not dealing with React components
     because it waits for promises to run before returning.
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: '`async act`函数即使在处理React组件时也能帮助我们，因为它在返回之前会等待promise执行。'
 - en: 'We can then use the `notifySocketOpened` function in our next test, which checks
     that when the client receives a `START_SHARING` action, it immediately forwards
     it onto the server:'
+  id: totrans-72
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，我们可以在下一个测试中使用`notifySocketOpened`函数，该函数检查当客户端接收到`START_SHARING`动作时，它会立即将其转发到服务器：
 - en: '[PRE15]'
+  id: totrans-73
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: 'To make that pass, start by extracting the existing code in the `startSharing`
     function into a new function named `openWebsocket`. Then, add in code that invokes
     a `Promise` object that resolves when the `onopen` message is received on the
     socket. This code is fairly difficult—we’re building a `Promise` object specifically
     to adapt the callback-based API into something that we can use with the generator
     `yield` keyword:'
+  id: totrans-74
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 要使测试通过，首先将`startSharing`函数中的现有代码提取到一个名为`openWebsocket`的新函数中。然后，添加代码来调用一个`Promise`对象，当在套接字上接收到`onopen`消息时，它会解析。这段代码相当困难——我们正在构建一个`Promise`对象，专门用于将基于回调的API转换为可以使用生成器`yield`关键字的东西：
 - en: '[PRE16]'
+  id: totrans-75
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'You can now make use of that `openWebSocket` function in `startSharing`. After
     this, your test should pass:'
+  id: totrans-76
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，你可以在`startSharing`中使用那个`openWebSocket`函数。之后，你的测试应该会通过：
 - en: '[PRE17]'
+  id: totrans-77
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: 'The next test will send a message over the socket from the server to the app.
     For this, we need a helper function to mimic sending a message and wait to empty
     the current task queue of tasks. Add this helper to `test/middleware/sharingSagas.test.js`,
     just below `notifySocketOpened`:'
+  id: totrans-78
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下一个测试将从服务器通过套接字向应用发送消息。为此，我们需要一个辅助函数来模拟发送消息并等待清空当前任务队列。将此辅助函数添加到`test/middleware/sharingSagas.test.js`中，在`notifySocketOpened`下方：
 - en: '[PRE18]'
+  id: totrans-79
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: 'Add the next test, using the function you’ve just defined:'
+  id: totrans-80
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 添加下一个测试，使用你刚刚定义的函数：
 - en: '[PRE19]'
+  id: totrans-81
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'To make this pass, we’ll read the message from the socket. Once that’s done,
     we can pass the retrieved information back to the Redux store. Start by adding
     the following new functions at the top of `src/middleware/sharingSagas.js`:'
+  id: totrans-82
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为了使这个通过，我们将从套接字读取消息。一旦完成，我们可以将检索到的信息传递回Redux存储。首先在`src/middleware/sharingSagas.js`顶部添加以下新函数：
 - en: '[PRE20]'
+  id: totrans-83
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: 'Now you can use those functions to finish the implementation of `startSharing`:'
+  id: totrans-84
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，你可以使用这些函数来完成`startSharing`的实现：
 - en: '[PRE21]'
+  id: totrans-85
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: 'That’s it for the process of starting to share. Now let’s deal with what happens
     when the user clicks the **Stop sharing** button:'
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 开始共享的过程到此结束。现在让我们处理用户点击**停止共享**按钮时会发生什么：
 - en: 'Create a helper function inside the `describe` block named `sharingSaga`, as
     shown. This function will change the system to a state of `STARTED_SHARING`:'
+  id: totrans-87
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在`describe`块内部创建一个名为`sharingSaga`的辅助函数，如下所示。这个函数将系统状态更改为`STARTED_SHARING`：
 - en: '[PRE22]'
+  id: totrans-88
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'Update the spy to include a `closeSpy` variable, which we set up in the same
     way as `sendSpy`:'
+  id: totrans-89
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 更新间谍以包括一个`closeSpy`变量，我们以与`sendSpy`相同的方式设置它：
 - en: '[PRE23]'
+  id: totrans-90
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: 'Add the first test in a new nested context. It begins by starting sharing and
     then dispatches the `STOP_SHARING` action:'
+  id: totrans-91
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在新的嵌套上下文中添加第一个测试。它首先开始共享，然后分发`STOP_SHARING`动作：
 - en: '[PRE24]'
+  id: totrans-92
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: 'To make this pass, we’ll fill out the `stopSharing` generator function. First,
     however, we need to get access to the socket that we created within the `startSharing`
     function. Extract that variable into the top-level namespace:'
+  id: totrans-93
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 为了使这个通过，我们需要填写`stopSharing`生成器函数。首先，然而，我们需要获取在`startSharing`函数中创建的套接字。将这个变量提取到顶级命名空间中：
 - en: '[PRE25]'
+  id: totrans-94
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: 'Then, add the following definition to the `stopSharing` function. You can then
     run your tests, and everything should pass; however, if you’re running your entire
     test suite (with `npm test`), you’ll see a couple of console errors appear. These
     are coming from one test in the `MenuButtons` test suite—we will fix this in the
     *Updating the app* section later:'
+  id: totrans-95
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，在`stopSharing`函数中添加以下定义。然后你可以运行你的测试，一切应该通过；然而，如果你正在运行整个测试套件（使用`npm test`），你会看到几个控制台错误出现。这些错误来自`MenuButtons`测试套件中的一个测试——我们将在稍后的*更新应用*部分修复这个问题：
 - en: '[PRE26]'
+  id: totrans-96
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: Running tests in just a single suite
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 仅在一个测试套件中运行测试
 - en: To avoid seeing the console errors, remember you can opt to run tests for this
     test suite only using the command `npm test test/middleware/sharingSagas.test.js`.
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了避免看到控制台错误，请记住你可以选择仅使用命令`npm test test/middleware/sharingSagas.test.js`为此测试套件运行测试。
 - en: 'Moving on to the next test, we want to update the Redux store with the new
     `stopped` status. This will allow us to remove the message that appeared to the
     user when they began sharing:'
+  id: totrans-99
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来进行下一个测试，我们想要更新Redux存储以包含新的`stopped`状态。这将允许我们移除用户开始共享时出现的消息：
 - en: '[PRE27]'
+  id: totrans-100
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: 'That’s a simple one-liner to make pass:'
+  id: totrans-101
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 这是一个简单的单行代码来使其通过：
 - en: '[PRE28]'
+  id: totrans-102
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: 'Next up is broadcasting actions from the presenter to the server:'
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来是向服务器广播从演示者发出的动作：
 - en: 'Create a new nested `describe` block with the following test:'
+  id: totrans-104
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个新的嵌套`describe`块，包含以下测试：
 - en: '[PRE29]'
+  id: totrans-105
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: 'Make it pass by filling in the following content for the `shareNewAction` function:'
+  id: totrans-106
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过填写以下内容来使`shareNewAction`函数通过：
 - en: '[PRE30]'
+  id: totrans-107
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: 'Add the next test, which checks that we do not send any actions if the user
     isn’t presenting:'
+  id: totrans-108
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 添加下一个测试，该测试检查如果用户没有演示，则不会发送任何动作：
 - en: '[PRE31]'
+  id: totrans-109
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: Using not.toBeCalled in an asynchronous environment
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 在异步环境中使用not.toBeCalled
 - en: This test has a subtle issue. Although it will help you add to the design of
     your software, it’s slightly less useful as a regression test because it *could*
     potentially result in false positives. This test guarantees that something doesn’t
     happen between the start and the end of the test, but it makes no guarantees about
     what happens *after*. Such is the nature of the async environment.
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个测试有一个微妙的问题。尽管它将帮助你添加到软件的设计中，但它作为回归测试的实用性略低，因为它*可能*会导致假阳性。这个测试保证测试的开始和结束之间没有发生任何事情，但它对*之后*发生的事情没有任何保证。这就是异步环境的本质。
 - en: 'Making this test pass is simply a matter of adding a conditional around the
     code we have:'
+  id: totrans-112
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使这个测试通过只是简单地添加一段代码的判断条件：
 - en: '[PRE32]'
+  id: totrans-113
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: 'We also don’t want to share the action if the user has stopped sharing—so let’s
     add that in:'
+  id: totrans-114
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们也不希望当用户停止共享时共享动作——所以让我们添加这个功能：
 - en: '[PRE33]'
+  id: totrans-115
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: The WebSocket specification
+  id: totrans-116
   prefs: []
   type: TYPE_NORMAL
+  zh: WebSocket规范
 - en: The constant in the preceding test, `WebSocket.CLOSED`, and the constant in
     the following code, `WebSocket.OPEN`, are defined in the WebSocket specification.
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 前一个测试中的常量`WebSocket.CLOSED`和以下代码中的常量`WebSocket.OPEN`在WebSocket规范中定义。
 - en: 'Move to the top of the test file and define the following two constants, underneath
     your imports. These are needed because when we spy on the WebSocket constructor,
     we overwrite these values. So, we need to add them back in. Start by saving the
     real values:'
+  id: totrans-118
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将测试文件顶部移动，并定义以下两个常量，在导入下面。这是因为当我们监视WebSocket构造函数时，我们会覆盖这些值。因此，我们需要将它们重新添加。首先保存真实值：
 - en: '[PRE34]'
+  id: totrans-119
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: 'Update your spy to set these constants once `WebSocket` has been stubbed. While
     we’re here, let’s also set the default `readyState` for a socket to be `WebSocket.OPEN`,
     which means our other tests won’t break:'
+  id: totrans-120
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 更新您的监视器，在`WebSocket`被模拟后设置这些常量。当我们在这里时，让我们也将套接字的默认`readyState`设置为`WebSocket.OPEN`，这样其他测试就不会失败：
 - en: '[PRE35]'
+  id: totrans-121
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: 'Finally, back in the production code, make the test pass by checking if `readyState`
     is `WebSocket.OPEN`, which is not exactly what the test specified, but it’s good
     enough to make it pass:'
+  id: totrans-122
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，回到生产代码中，通过检查`readyState`是否为`WebSocket.OPEN`来使测试通过，这并不完全符合测试的指定，但足够好，可以使它通过：
 - en: '[PRE36]'
+  id: totrans-123
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: 'That’s it for the presenter behavior: we have test-driven the `onopen`, `onclose`,
     and `onmessage` callbacks. In a real-world application, you would want to follow
     the same process for the `onerror` callback.'
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 这就是演示者的行为：我们已经通过测试驱动了`onopen`、`onclose`和`onmessage`回调。在实际应用中，您会希望对`onerror`回调执行相同的流程。
 - en: Now let’s look at the watcher’s behavior.
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，让我们看看监视器的行为。
 - en: Streaming events with redux-saga
+  id: totrans-126
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用redux-saga进行事件流
 - en: 'We’ll repeat a lot of the same techniques in this section. There are two new
     concepts: first, pulling out the `search` param for the watcher ID, and second,
     using `eventChannel` to subscribe to the `onmessage` callback. This is used to
     continually stream messages from the WebSocket into the Redux store.'
+  id: totrans-127
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将重复很多相同的技巧。有两个新概念：首先，提取监视器ID的`search`参数，其次，使用`eventChannel`订阅`onmessage`回调。这用于从WebSocket持续地将消息流到Redux存储。
 - en: 'Let’s being by specifying the new URL behavior:'
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们从指定新的URL行为开始：
 - en: 'Write a new `describe` block at the bottom of `test/middleware/sharingSagas.test.js`,
     but still nested inside the main `describe` block:'
+  id: totrans-129
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在`test/middleware/sharingSagas.test.js`的底部写一个新的`describe`块，但仍然嵌套在主`describe`块中：
 - en: '[PRE37]'
+  id: totrans-130
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: 'Make it pass by filling out the `startWatching` function in your production
     code. You can make use of the existing `openWebSocket` function:'
+  id: totrans-131
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过在您的生产代码中填写`startWatching`函数来使其通过。您可以使用现有的`openWebSocket`函数：
 - en: '[PRE38]'
+  id: totrans-132
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: 'In the next test, we’ll begin to make use of the `search` param:'
+  id: totrans-133
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在下一个测试中，我们将开始使用`search`参数：
 - en: '[PRE39]'
+  id: totrans-134
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: 'Make it pass by extracting the `search` param using the `URLSearchParams` object:'
+  id: totrans-135
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过使用`URLSearchParams`对象提取`search`参数来使其通过：
 - en: '[PRE40]'
+  id: totrans-136
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: 'Before we write the next test, add the following helper function, which mimics
     the action that will occur on the real WebSocket, ensuring that `onopen` is called:'
+  id: totrans-137
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在我们编写下一个测试之前，添加以下辅助函数，该函数模拟真实WebSocket上将要发生的动作，确保`onopen`被调用：
 - en: '[PRE41]'
+  id: totrans-138
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: 'When a new watch session has started, we need to reset the user’s output so
     that it is blank:'
+  id: totrans-139
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 当一个新的观察会话开始时，我们需要重置用户的输出，使其为空：
 - en: '[PRE42]'
+  id: totrans-140
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: 'Make it pass by adding in a `put` function call:'
+  id: totrans-141
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过添加一个`put`函数调用使其通过：
 - en: '[PRE43]'
+  id: totrans-142
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: 'Next, we need to send a message to the server, including the ID of the session
     we wish to watch:'
+  id: totrans-143
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们需要向服务器发送一条消息，包括我们希望观察的会话ID：
 - en: '[PRE44]'
+  id: totrans-144
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE44]'
 - en: 'We already have our spy set up from the previous section, so this is a quick
     one to fix:'
+  id: totrans-145
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们已经从上一节中设置了监视器，所以这是一个快速修复：
 - en: '[PRE45]'
+  id: totrans-146
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE45]'
 - en: 'The next test tells the Redux store that we have started watching. This will
     then allow the React UI to display a message to the user telling them that they
     are connected:'
+  id: totrans-147
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 下一个测试告诉Redux存储我们已经开始观察。这样，React UI就可以向用户显示一条消息，告诉他们他们已经连接：
 - en: '[PRE46]'
+  id: totrans-148
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE46]'
 - en: 'Make that pass by adding a new call to `put`, as shown:'
+  id: totrans-149
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过添加一个新的`put`调用使其通过，如下所示：
 - en: '[PRE47]'
+  id: totrans-150
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE47]'
 - en: 'Now the big one. We need to add in the behavior that allows us to receive multiple
     messages from the server and read them in:'
+  id: totrans-151
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在是最大的一个。我们需要添加允许我们从服务器接收多条消息并读取它们的行为：
 - en: '[PRE48]'
+  id: totrans-152
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE48]'
 - en: Long tests
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 长测试
 - en: You may think it would help to have a smaller test that handles just one message.
     However, that won’t help us for multiple messages, as we need to use an entirely
     different implementation for multiple messages, as you’ll see in the next step.
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可能会认为有一个只处理一条消息的小测试会很有帮助。然而，对于多条消息来说，这并不能帮助我们，因为我们需要为多条消息使用一个完全不同的实现，正如你将在下一步看到的那样。
 - en: 'We’ll use the `eventChannel` function to do this. Its usage is similar to the
     earlier `Promise` object usage when we converted a callback to an operation that
     could be awaited with `yield`. With the `Promise` object, we called `resolve`
     when the callback was received. With `eventChannel`, when the callback is received,
     we invoke `emitter(END)`. The significance of this will become apparent in the
     next step:'
+  id: totrans-155
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们将使用 `eventChannel` 函数来完成这个任务。它的用法与之前将回调转换为可以使用 `yield` 等待的操作的 `Promise` 对象用法相似。在使用
+    `Promise` 对象时，我们在回调收到时调用 `resolve`。在使用 `eventChannel` 时，当回调收到时，我们调用 `emitter(END)`。这一点的意义将在下一步变得明显：
 - en: '[PRE49]'
+  id: totrans-156
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE49]'
 - en: Understanding the eventChannel function
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 理解 eventChannel 函数
 - en: The `eventChannel` function from `redux-saga` is a mechanism for consuming event
     streams that occur outside of Redux. In the preceding example, the WebSocket provides
     the stream of events. When invoked, `eventChannel` calls the provided function
@@ -723,99 +1046,146 @@
     `emmitter` function without modification. When the WebSocket is closed, we pass
     the special `END` event to signal to `redux-saga` that no more events will be
     received, allowing it to close the channel.
+  id: totrans-158
   prefs: []
   type: TYPE_NORMAL
+  zh: 来自 `redux-saga` 的 `eventChannel` 函数是一个用于消费发生在 Redux 之外的事件流的机制。在上一个例子中，WebSocket
+    提供了事件流。当被调用时，`eventChannel` 会调用提供的函数来初始化通道，然后每次收到事件时都必须调用提供的 `emmitter` 函数。在我们的情况下，我们直接将消息传递给
+    `emmitter` 函数而不做任何修改。当 WebSocket 关闭时，我们传递特殊的 `END` 事件来通知 `redux-saga` 将不再接收更多事件，从而允许它关闭通道。
 - en: 'Now you can use the `websocketListener` function to create a channel that we
     can repeatedly take events from using a loop. This loop needs to be wrapped in
     a `try` construct. The `finally` block will be called when the `emitter(END)`
     instruction is reached. Create a new generator function that does that, as shown:'
+  id: totrans-159
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，你可以使用 `websocketListener` 函数创建一个通道，我们可以通过循环反复从该通道获取事件。这个循环需要被 `try` 语句包围。当达到
+    `emitter(END)` 指令时，将调用 `finally` 块。创建一个新的生成器函数来完成这个任务，如下所示：
 - en: '[PRE50]'
+  id: totrans-160
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE50]'
 - en: 'Link the `webSocketListener` function and the `watchUntilStopRequest` generator
     function by calling them both from within `startWatching`. After this step, your
     test should pass:'
+  id: totrans-161
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过在 `startWatching` 中调用这两个函数来将 `webSocketListener` 函数和 `watchUntilStopRequest`
+    生成器函数链接起来。完成这一步后，你的测试应该通过：
 - en: '[PRE51]'
+  id: totrans-162
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE51]'
 - en: 'The final test is to alert the Redux store that we’ve stopped watching so that
     it can then remove the message that appears in the React UI:'
+  id: totrans-163
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后的测试是向 Redux 存储器发出警报，表明我们已经停止了监听，这样它就可以从 React UI 中删除出现的消息：
 - en: '[PRE52]'
+  id: totrans-164
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE52]'
 - en: 'Make that pass by adding this one-liner to the `finally` block in `watchUntilStopRequest`:'
+  id: totrans-165
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过在 `watchUntilStopRequest` 中的 `finally` 块中添加这一行代码来实现这一点：
 - en: '[PRE53]'
+  id: totrans-166
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE53]'
 - en: 'You’ve now completed the saga: your application is now receiving events, and
     you’ve seen how to use the `eventChannel` function to listen to a stream of messages.'
+  id: totrans-167
   prefs: []
   type: TYPE_NORMAL
+  zh: 你现在已经完成了整个故事：你的应用程序现在正在接收事件，你也看到了如何使用 `eventChannel` 函数来监听消息流。
 - en: All that’s left is to integrate this into our React component.
+  id: totrans-168
   prefs: []
   type: TYPE_NORMAL
+  zh: 剩下的工作就是将这个功能整合到我们的 React 组件中。
 - en: Updating the app
+  id: totrans-169
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 更新应用程序
 - en: We’ve completed the work on building the sagas, but we have just a couple of
     adjustments to make in the rest of the app.
+  id: totrans-170
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经完成了构建 sagas 的工作，但我们在应用程序的其余部分只需要做一些调整。
 - en: 'The `MenuButtons` component is already functionally complete, but we need to
     update the tests to properly exercise the middleware, in two ways: first, we must
     stub out the WebSocket constructor, and second, we need to fire off a `TRY_START_WATCHING`
     action as soon as the app starts:'
+  id: totrans-171
   prefs: []
   type: TYPE_NORMAL
+  zh: '`MenuButtons` 组件已经功能完整，但我们需要更新测试以正确地测试中间件，有两种方式：首先，我们必须模拟 WebSocket 构造函数，其次，我们需要在应用程序启动时立即触发一个
+    `TRY_START_WATCHING` 动作：'
 - en: 'Open `test/MenuButtons.test.js` and start by importing the `act` function.
     We’ll need this to await our socket saga actions:'
+  id: totrans-172
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 打开 `test/MenuButtons.test.js` 并首先导入 `act` 函数。我们需要这个函数来等待我们的 socket saga 动作：
 - en: '[PRE54]'
+  id: totrans-173
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE54]'
 - en: 'Next, find the `describe` block named `sharing button` and insert the following
     `beforeEach` block, which is similar to the same stubbed constructor you used
     in the saga tests:'
+  id: totrans-174
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，找到名为 `sharing button` 的 `describe` 块，并插入以下 `beforeEach` 块，它与你在 saga 测试中使用的模拟构造函数类似：
 - en: '[PRE55]'
+  id: totrans-175
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE55]'
 - en: 'Next, in the same `describe` block, add the following `notifySocketOpened`
     implementation. This is different from the `notifySocketOpened` implementation
     in the saga tests, because it calls both `onopen` and then `onmessage`, with a
     sample message. All of this is necessary for the `startSharing` saga to run correctly:
     it mimics the WebSocket opening, then the server sending the first message, which
     should result in the `STARTED_SHARING` message being sent:'
+  id: totrans-176
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，在相同的 `describe` 块中，添加以下 `notifySocketOpened` 实现方式。这与 saga 测试中的 `notifySocketOpened`
+    实现方式不同，因为它同时调用了 `onopen` 和 `onmessage`，并附带一个示例消息。所有这些对于 `startSharing` saga 正确运行都是必要的：它模拟了
+    WebSocket 的打开，然后服务器发送第一条消息，这将导致发送 `STARTED_SHARING` 消息：
 - en: '[PRE56]'
+  id: totrans-177
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE56]'
 - en: 'We can now use this to update the test that is causing console errors. The
     test is the one with the description `dispatches an action of STOP_SHARING when
     stop sharing is clicked`. To avoid the errors, we must adjust a couple of lines.
@@ -823,118 +1193,178 @@
     message. Then, we use `notifySocketOpened` to mimic the server response to opening
     the socket. This will trigger the saga to send a `STARTED_SHARING` event, which
     causes the `MenuButtons` to change to be named `STOP_SHARING` event to be sent:'
+  id: totrans-178
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们现在可以使用这个来更新导致控制台错误的测试。这个测试的描述是 `当点击停止共享时，触发 STOP_SHARING 动作`。为了避免错误，我们必须调整几行。首先，我们发送一个
+    `START_SHARING` 消息，而不是 `STARTED_SHARING` 消息。然后，我们使用 `notifySocketOpened` 来模拟服务器对套接字打开的响应。这将触发
+    saga 发送 `STARTED_SHARING` 事件，导致 `MenuButtons` 改变为名为 `STOP_SHARING` 的事件被发送：
 - en: '[PRE57]'
+  id: totrans-179
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE57]'
 - en: 'With the test passing, update `src/index.js` to call the `TRY_START_WATCHING`
     action when the app first loads:'
+  id: totrans-180
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 测试通过后，更新 `src/index.js` 以在应用首次加载时调用 `TRY_START_WATCHING` 动作：
 - en: '[PRE58]'
+  id: totrans-181
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE58]'
 - en: 'You can now run the app and try it out. Here’s a manual test you can try:'
+  id: totrans-182
   prefs: []
   type: TYPE_NORMAL
+  zh: 你现在可以运行应用并尝试它。以下是一个你可以尝试的手动测试：
 - en: Open a session in a browser window and click **Start sharing**.
+  id: totrans-183
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在浏览器窗口中打开一个会话并点击 **开始共享**。
 - en: Right-click on the link that appears and choose to open it in a new window.
+  id: totrans-184
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 右键单击出现的链接，并选择在新窗口中打开它。
 - en: Move your two windows so that they are side by side.
+  id: totrans-185
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将你的两个窗口移动到并排的位置。
 - en: In the original window, type some commands, such as `forward 100` and `right
     90`. You should see the commands update.
+  id: totrans-186
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在原始窗口中输入一些命令，例如 `forward 100` 和 `right 90`。你应该看到命令已更新。
 - en: Now, hit **Stop sharing** in the original window. You should see the sharing
     messages disappear from both screens.
+  id: totrans-187
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，在原始窗口中点击 **停止共享**。你应该看到共享消息从两个屏幕上消失。
 - en: That covers test-driving WebSockets.
+  id: totrans-188
   prefs: []
   type: TYPE_NORMAL
+  zh: 这就涵盖了测试驱动 WebSocket 的内容。
 - en: Summary
+  id: totrans-189
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 摘要
 - en: In this chapter, we’ve covered how to test against the WebSocket API.
+  id: totrans-190
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们介绍了如何针对 WebSocket API 进行测试。
 - en: You’ve seen how to mock the WebSocket constructor function, and how to test-drive
     its `onopen`, `onclose`, and `onmessage` callbacks.
+  id: totrans-191
   prefs: []
   type: TYPE_NORMAL
+  zh: 你已经看到了如何模拟 WebSocket 构造函数，以及如何测试其 `onopen`、`onclose` 和 `onmessage` 回调。
 - en: You’ve also seen how to use a `Promise` object to convert a callback into something
     that can be yielded in a generator function, and how you can use `eventChannel`
     to take a stream of events and send them into the Redux store.
+  id: totrans-192
   prefs: []
   type: TYPE_NORMAL
+  zh: 你还看到了如何使用 `Promise` 对象将回调转换为可以在生成器函数中产生的对象，以及如何使用 `eventChannel` 将事件流发送到 Redux
+    存储。
 - en: In the next chapter, we’ll look at using Cucumber tests to drive some improvements
     to the sharing feature.
+  id: totrans-193
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一章中，我们将探讨如何使用 Cucumber 测试来推动共享功能的改进。
 - en: Exercises
+  id: totrans-194
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 练习
 - en: What tests could you add to ensure that socket errors are handled gracefully?
+  id: totrans-195
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可以添加哪些测试来确保套接字错误能够优雅地处理？
 - en: Further reading
+  id: totrans-196
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 进一步阅读
 - en: 'The WebSocket specification:'
+  id: totrans-197
   prefs: []
   type: TYPE_NORMAL
+  zh: WebSocket 规范：
 - en: '[https://www.w3.org/TR/websockets/](https://www.w3.org/TR/websockets/)'
+  id: totrans-198
   prefs: []
   type: TYPE_NORMAL
+  zh: '[https://www.w3.org/TR/websockets/](https://www.w3.org/TR/websockets/)'
 - en: Part 4 – Behavior-Driven Development with Cucumber
+  id: totrans-199
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 第 4 部分 – 使用 Cucumber 进行行为驱动开发
 - en: This part is about **behavior-driven development** (**BDD**) using Cucumber
     tests. Whereas the first three parts were focused on building Jest unit tests
     at the component level, this part looks at writing tests at the *system* level—you
     might also think of these as end-to-end tests. The goal is to show how the TDD
     workflow applies beyond unit testing and can be used by the whole team, not just
     developers.
+  id: totrans-200
   prefs: []
   type: TYPE_NORMAL
+  zh: 这一部分是关于使用 Cucumber 测试进行 **行为驱动开发**（**BDD**）。前三个部分侧重于在组件级别构建 Jest 单元测试，而这一部分则关注在
+    *系统* 级别编写测试——你也可以将这些视为端到端测试。目标是展示 TDD 工作流程如何应用于单元测试之外，并且可以被整个团队使用，而不仅仅是开发者。
 - en: Finally, we end the book with a discussion of how TDD fits within the wider
     testing landscape and suggestions for how you can continue your TDD journey.
+  id: totrans-201
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们以讨论TDD如何在更广泛的测试领域中适用以及如何继续您的TDD之旅的建议来结束本书。
 - en: 'This part includes the following chapters:'
+  id: totrans-202
   prefs: []
   type: TYPE_NORMAL
+  zh: 本部分包括以下章节：
 - en: '[*Chapter 17*](B18423_17.xhtml#_idTextAnchor344), *Writing Your First Cucumber
     Test*'
+  id: totrans-203
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[*第17章*](B18423_17.xhtml#_idTextAnchor344), *编写您的第一个Cucumber测试*'
 - en: '[*Chapter 18*](B18423_18.xhtml#_idTextAnchor355), *Adding Features Guided by
     Cucumber Tests*'
+  id: totrans-204
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[*第18章*](B18423_18.xhtml#_idTextAnchor355), *由Cucumber测试引导添加功能*'
 - en: '[*Chapter 19*](B18423_19.xhtml#_idTextAnchor375), *Understanding TDD in the
     Wider Testing Landscape*'
+  id: totrans-205
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[*第19章*](B18423_19.xhtml#_idTextAnchor375), *在更广泛的测试领域中理解TDD*'

@@ -1,0 +1,918 @@
+<html><head></head><body>
+<div id="sbo-rt-content"><div id="_idContainer035">
+<h1 class="ch pter-number" id="_idParaDest-112"><a id="_idTextAnchor184"/>8</h1>
+<h1 id="_idParaDest-113"><a id="_idTextAnchor185"/>Testing React Query Hooks and Components</h1>
+<p>You have almost mastered React Query! By now, you are well aware of how queries and mutations work and are ready to leverage React Query in a server-side, rendered project as well. Now, we’ll look at the last skill you need to be a full-on React Query hero – testing React Query <span class="No-Break">using code.</span></p>
+<p>This chapter will teach you how to test your <strong class="source-inline">useQuery</strong> and <strong class="source-inline">useMutation</strong> using components and hooks. But before that, you will get to know a super useful library to help you test your React Query code called Mock <span class="No-Break">Service Worker.</span></p>
+<p>You will then learn some restructuring tips and tricks you can leverage to make your React Query code more readable <span class="No-Break">and reusable.</span></p>
+<p>With this knowledge, you can start testing your code. You will start with testing your components that leverage React Query and see what testing from a user-centric approach looks like for queries <span class="No-Break">and mutations.</span></p>
+<p>Finally, we will dive into implementation details and see when and how we should test our hooks that use <span class="No-Break">React Query.</span></p>
+<p>In this chapter, we’ll be covering the <span class="No-Break">following topics:</span></p>
+<ul>
+<li>Configuring Mock <span class="No-Break">Service Worker</span></li>
+<li><span class="No-Break">Organizing code</span></li>
+<li><a id="_idTextAnchor186"/>Testing components that use <span class="No-Break">React Query</span></li>
+<li>Testing custom hooks that use <span class="No-Break">React Query</span></li>
+</ul>
+<h1 id="_idParaDest-114"><a id="_idTextAnchor187"/>Technical requirements</h1>
+<p>All the code examples for this chapter can be found on GitHub <span class="No-Break">at </span><a href="https://github.com/PacktPublishing/State-management-with-React-Query/tree/feat/chapter_8"><span class="No-Break">https://github.com/PacktPublishing/State-management-with-React-Query/tree/feat/chapter_8</span></a><span class="No-Break">.</span></p>
+<h1 id="_idParaDest-115"><a id="_idTextAnchor188"/>Configuring Mock Service Worker</h1>
+<p>When testing React applications, one question often asked is how to test API calls. This question often <a id="_idIndexMarker399"/>leads to a follow-up question: “<em class="it lic">How can I make sure my network requests return the data I expect so that my tests always receive the same data and don’t become flaky?</em>” There are many ways to answer these questions, and many implementations we can follow. The most common implementation often leveraged is mocking your <span class="No-Break">data-fetching clients.</span></p>
+<p>While this approach works, one thing that I’ve seen often in all the projects that I have worked on that followed this method is that the more tests you write, the more unmaintainable they become. This is due to the fact that mocking things such as <strong class="source-inline">fetch</strong> or <strong class="source-inline">axios</strong> comes with a lot of boilerplate code to take care of things such as different routes being hit, different responses for the same route, and cleaning up your client mocks to avoid tests leaking on each other. Let us not forget that if we use GraphQL and REST in the same application, we must mock an extra client, depending on the component you <span class="No-Break">are testing.</span></p>
+<p>What if I told you there is an alternative you can use to intercept your network requests and return predefined data without having to mock any client? What if I told you this alternative supports REST and GraphQL? What if I told you that this alternative could also be used in your application to provide some dummy data for a route your backend team has not yet implemented? You can do all this with <strong class="bold">Mock Service </strong><span class="No-Break"><strong class="bold">Worker</strong></span><span class="No-Break"> (</span><span class="No-Break"><strong class="bold">MSW</strong></span><span class="No-Break">).</span></p>
+<p>As the MSW docs say: “<em class="it lic">Mock Service Worker is an API mocking library that uses Service Worker API to intercept actual </em><span class="No-Break"><em class="it lic">requests</em></span><span class="No-Break">” (</span><a href="https://mswjs.io/docs/"><span class="No-Break">https://mswjs.io/docs/</span></a><span class="No-Break">).</span></p>
+<p>MSW leverages service workers to intercept requests on the network level and return some predefined data for that specific request. This means that just by having a defined API contract, you can return mocked data even before that endpoint exists. Also, leveraging this predefined data in your tests means you no longer need to mock <strong class="source-inline">axios</strong> or <strong class="source-inline">fetch</strong>. It is important to mention that service workers only work in the browser. In your tests, MSW uses a request interceptor library to allow you to reuse the same mock definitions you have in <span class="No-Break">your browser.</span></p>
+<p>While leveraging MSW in the browser is super helpful, it sits outside this chapter’s scope. In this chapter, we will only use MSW in <span class="No-Break">our tests.</span><a id="_idTextAnchor189"/></p>
+<p>Here is how to add MSW to <span class="No-Break">your project:</span></p>
+<ul>
+<li>If you are running npm in your project, run the <span class="No-Break">following command:</span><pre class="source-code">
+<strong class="bold">npm install msw --save-dev</strong></pre></li>
+<li>If you are using Yarn, run the <span class="No-Break">following command:</span><pre class="source-code">
+<strong class="bold">yarn add msw --dev</strong></pre></li>
+<li>If you are using pnpm, run the <span class="No-Break">following command:</span><pre class="source-code">
+<strong class="bold">pnpm add msw --save-dev</strong></pre></li>
+</ul>
+<p>Once MSW is installed, we must create our request handlers and <span class="No-Break">response resolvers.</span></p>
+<p>Request handlers allow you to specify the method, path, and response when handling a request. They <a id="_idIndexMarker400"/>are often paired with response resolvers. A response resolver is a function you pass to the request handler that allows you to specify the mocked response when intercepting <span class="No-Break">a request.</span></p>
+<p>Let us now create some handlers to handle some routes. Here is what we have <span class="No-Break">to do.</span></p>
+<p>Inside the <strong class="source-inline">src/mocks</strong> folder, create a <span class="No-Break"><strong class="source-inline">handlers.js</strong></span><span class="No-Break"> file.</span></p>
+<p>In the <strong class="source-inline">handlers.js</strong> file, add the <span class="No-Break">following code:</span></p>
+<pre class="source-code">
+import { rest } from "msw";
+export const handlers = [
+  rest.get("*/api/*", (req, res, ctx) =&gt; {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        data: "value"
+      })
+    );
+  }),
+];</pre>
+<p>In the preceding snippet, we do <span class="No-Break">the following:</span></p>
+<ol>
+<li>We import the <strong class="source-inline">rest</strong> namespace containing a set of request handlers to handle <span class="No-Break"><strong class="source-inline">REST</strong></span><span class="No-Break"> requests.</span></li>
+<li>We create a <strong class="source-inline">handlers</strong> array that will contain all of our <span class="No-Break">request handlers.</span></li>
+</ol>
+<p>The first mock we create is for a <strong class="source-inline">GET</strong> request to any route that <span class="No-Break">contains </span><span class="No-Break"><strong class="source-inline">/api/</strong></span><span class="No-Break">.</span></p>
+<p>When a request hits this request handler, it will return a response that will, in turn, return a <strong class="source-inline">200 OK</strong> response code with an object that, inside the <strong class="source-inline">data</strong> property, will include a <strong class="source-inline">"value"</strong> <span class="No-Break">string .</span></p>
+<p>Now that we have created our <strong class="source-inline">handlers</strong>, we need to ensure that MSW will intercept our requests using our previously <span class="No-Break">created </span><span class="No-Break"><strong class="source-inline">handlers</strong></span><span class="No-Break">.</span></p>
+<p>This is what <a id="_idIndexMarker401"/>we have <span class="No-Break">to do.</span></p>
+<p>Inside the <strong class="source-inline">src/mocks</strong> folder, create a <span class="No-Break"><strong class="source-inline">server.js</strong></span><span class="No-Break"> file.</span></p>
+<p>In the <strong class="source-inline">server.js</strong> file, add the <span class="No-Break">following code:</span></p>
+<pre class="source-code">
+import { setupServer } from "msw/node";
+import { handlers } from "./handlers";
+export const server = setupServer(...handlers);</pre>
+<p>In the preceding snippet, we leverage the <strong class="source-inline">setupServer</strong> function and our created <strong class="source-inline">handlers</strong> array to create an object responsible for intercepting our requests with our <span class="No-Break">given </span><span class="No-Break"><strong class="source-inline">handlers</strong></span><span class="No-Break">.</span></p>
+<p>Now that we have created our server file, we need to ensure <strong class="source-inline">Jest</strong> uses them. To do this, inside our <strong class="source-inline">setupTests.js</strong> file, add the <span class="No-Break">following code:</span></p>
+<pre class="source-code">
+import { server } from "./mocks/server.js";
+beforeAll(() =&gt; server.listen());
+afterEach(() =&gt; server.resetHandlers());
+afterAll(() =&gt; server.close());</pre>
+<p>This is what we do in the <span class="No-Break">preceding snippet:</span></p>
+<ol>
+<li>We import our created <span class="No-Break"><strong class="source-inline">server</strong></span><span class="No-Break"> object.</span></li>
+<li>We leverage the <strong class="source-inline">beforeAll</strong> global hook to ensure that MSW is intercepting our requests before any of our tests <span class="No-Break">are executed.</span></li>
+<li>We then leverage the <strong class="source-inline">afterEach</strong> global hook so that after every single test, we reset our handlers. This considers a scenario where we add a custom handler for one of our tests so that they don’t leak into <span class="No-Break">another test.</span></li>
+<li>Finally, we <a id="_idIndexMarker402"/>leverage the <strong class="source-inline">afterAll</strong> global hook so that after all our tests run, we clean up and stop <span class="No-Break">intercepting requests.</span></li>
+</ol>
+<p>Now, any API requests made by our tests will be intercepted <span class="No-Break">by MSW.</span></p>
+<p>Before seeing how we can test our components and React Query using hooks, let us see a couple of patterns we can apply to make our code more structured and easier <span class="No-Break">to test.</span></p>
+<h1 id="_idParaDest-116"><a id="_idTextAnchor190"/>Organizing  code</h1>
+<p>There are many ways you can organize your code. Now, one thing we need to be aware of is choosing patterns <a id="_idIndexMarker403"/>that save you some time and make your code better in the long run. This section will discuss three different patterns that we can leverage together or independently to make our code more structured, readable, and organized. Here’s what we will discuss in <span class="No-Break">this sect<a id="_idTextAnchor191"/>ion:</span></p>
+<ul>
+<li>Creating an <span class="No-Break">API file</span></li>
+<li>Leveraging query <span class="No-Break">key factories</span></li>
+<li>Creating a <span class="No-Break">hooks folder</span></li>
+</ul>
+<h2 id="_idParaDest-117"><a id="_idTextAnchor192"/>Creating an API file</h2>
+<p>Creating an API file to contain <a id="_idIndexMarker404"/>all my requests for a specific domain is a <a id="_idIndexMarker405"/>pattern that <span class="No-Break">I follow.</span></p>
+<p>In this file, I leverage my API client and create the functions responsible to make a request to a given route and return the <span class="No-Break">request data.</span></p>
+<p>This is particularly useful because it avoids repeating the logic for the same request in your code and focuses all the domain-specific requests in the <span class="No-Break">same file.</span></p>
+<p>For all the requests made in the scope of this book, I would prefer to create a file for my user domain, given that the scope seems to be focused on users. So, inside our <strong class="source-inline">api</strong> folder, we will create a <span class="No-Break"><strong class="source-inline">userAPI.js</strong></span><span class="No-Break"> file.</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer033">
+<img alt="Figure 8.1 – Adding userAPI.js to our API folder" height="82" src="image/Figure_8.1_B18501.jpg" width="398"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.1 – Adding userAPI.js to our API folder</p>
+<p>Inside that file, we can now move all of our requests inside our code. This is how it <span class="No-Break">might look:</span></p>
+<pre class="source-code">
+import axios from "axios";
+export const axiosInstance = axios.create({
+  baseURL: "https://danieljcafonso.builtwithdark.com",
+});
+export const getUser = async (username, signal) =&gt; {
+  const { data } = await axiosInstance.get
+    (`/react-query-api/${username}`, {
+    signal,
+  });
+  return data;
+};
+export const createUser = async (user) =&gt; {
+  return axiosInstance.post(`/name-api`, user);
+};</pre>
+<p>In the preceding snippet, we can see an example of a <strong class="source-inline">userAPI</strong> file containing our <strong class="source-inline">axios</strong> client instance, a <strong class="source-inline">getUser</strong> function (to fetch data from a given user), and a <strong class="source-inline">createUser</strong> function (to create <span class="No-Break">a user).</span></p>
+<p>As you can see, this <a id="_idIndexMarker406"/>pattern improves the code reusability and readability in the <a id="_idIndexMarker407"/>components that end up using the functions from our <span class="No-Break">API file.</span></p>
+<p>One extra thing you can do that we didn’t do in the preceding snippet is add the specific logic from your query functions. This makes these functions more accessible in your application if you only use React Query. I prefer to keep my query functions and these API functions separated because I often use different query functions with the same API function. Still, it will improve your code readability if you choose to <span class="No-Break">use it.</span></p>
+<h2 id="_idParaDest-118"><a id="_idTextAnchor193"/>Leveraging query key factories</h2>
+<p>Managing <a id="_idIndexMarker408"/>query keys is often a nuisance. We forget which <a id="_idIndexMarker409"/>ones we have already used and need to go through most of our queries to remember them. This is where query key <span class="No-Break">factories shine.</span></p>
+<p>A query key factory can be a single object that, inside each property, will include a function responsible for generating a query key. This way, you keep all your query keys in the same place and stop wasting time trying to <span class="No-Break">remember them.</span></p>
+<p>This is what your query key factory can <span class="No-Break">look like:</span></p>
+<pre class="source-code">
+export const userKeys = {
+    all: () =&gt; ["allUsers"],
+    api: () =&gt; [{queryIdentifier: "api"}],
+    withUsername: (username = "username") =&gt;
+      [{ ...userKeys.api[0], username }],
+    paginated: (page) =&gt; [{ ...userKeys.api, page }]
+}</pre>
+<p>As you can <a id="_idIndexMarker410"/>see from the preceding snippet, we <a id="_idIndexMarker411"/>create a <strong class="source-inline">userKey</strong> object, which will be our query key factory. In each property, we have a function that will be responsible for returning our <span class="No-Break">query key.</span></p>
+<h2 id="_idParaDest-119"><a id="_idTextAnchor194"/>Creating a hooks folder</h2>
+<p>The name here <a id="_idIndexMarker412"/>also speaks for itself. One recommendation for organizing <a id="_idIndexMarker413"/>code I like to follow is creating a <span class="No-Break">hooks folder.</span></p>
+<p>I like to create custom hooks in this folder that contain some of the queries and mutations I often repeat, or ones that end up having too much logic and impact my code readability. This makes it easier for me to test a specific hook in isolation and make the components that use them <span class="No-Break">more readable.</span></p>
+<p>For instance, remember when we performed optimistic updates in <a href="B18501_06.xhtml#_idTextAnchor159"><span class="No-Break"><em class="it lic">Chapter 6</em></span></a>? The <strong class="source-inline">useMutation</strong> hook we created is a great candidate to move to a custom hook. I will create a <strong class="source-inline">useOptimisticUpdateUserCreation</strong> custom hook and move my code in there. This is what that hook will <span class="No-Break">look like:</span></p>
+<pre class="source-code">
+import { useMutation, useQueryClient } from
+  "@tanstack/react-query";
+import { userKeys } from "../utils/queryKeyFactories";
+import { createUser } from "../api/userAPI";
+const useOptimisticUpdateUserCreation = () =&gt; {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createUser,
+    retry: 0,
+    onSettled: () =&gt; queryClient.invalidateQueries
+      (userKeys.all()),
+    onMutate: async (user) =&gt; {
+      await queryClient.cancelQueries(userKeys.all());
+      const previousUsers = queryClient.getQueryData
+        (userKeys.all());
+      queryClient.setQueryData(userKeys.all(), (prevData)
+        =&gt; [
+        user,
+        ...prevData,
+      ]);
+      return { previousUsers };
+    },
+    onError: (error, user, context) =&gt; {
+      queryClient.setQueryData(userKeys.all(),
+        context.previousUsers);
+    },
+  });
+};
+export default useOptimisticUpdateUserCreation;</pre>
+<p>In the preceding snippet, we create the <strong class="source-inline">useOptimisticUpdateUserCreation</strong> hook and <a id="_idIndexMarker414"/>move the code from our <strong class="source-inline">OptimisticMutation</strong> component there. As you can also see from the code, we already applied our <a id="_idIndexMarker415"/>API file and query <span class="No-Break">factory pattern.</span></p>
+<p>In the component using our hook, all we have to do now is import the hook and use it <span class="No-Break">like this:</span></p>
+<pre class="source-code">
+const mutation = useOptimisticUpdateUserCreation();</pre>
+<p>Applying all the patterns of this section, this is what your project structure can end up <span class="No-Break">looking like:</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer034">
+<img alt="Figure 8.2 – What the project structure may look like after following these three patterns" height="710" src="image/Figure_8.2_B18501.jpg" width="982"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.2 – What the project structure may look like after following these three patterns</p>
+<p>Now that we’ve <a id="_idIndexMarker416"/>seen these patterns, let us finally move to start testing our <a id="_idIndexMarker417"/>code. We’ll start with one of the most recommended approaches – testing components using Re<a id="_idTextAnchor195"/>act <span class="No-Break">Query hooks.</span></p>
+<h1 id="_idParaDest-120"><a id="_idTextAnchor196"/>Testing components that use React Query</h1>
+<p>When the React Testing Library was first introduced, it was <a id="_idIndexMarker418"/>under a main guiding principle that changed how we wrote tests going forward. That guiding principle is, “<em class="it lic">The more your tests resemble the way your software is used, the more confidence they can give </em><span class="No-Break"><em class="it lic">you</em></span><span class="No-Break">” (</span><a href="https://testing-library.com/docs/guiding-principles/"><span class="No-Break">https://testing-library.com/docs/guiding-principles/</span></a><span class="No-Break">).</span></p>
+<p>From that point on, many things changed in our tests. Focusing on a user-centric approach meant avoiding implementation details in our tests at all costs. This meant no more shallow rendering, no more state and prop references, and a more user-centric way of querying <span class="No-Break">the DOM.</span></p>
+<p>Reading the last paragraph, you might be wondering how to test your components following a user-centric approach. Well, the answer is straightforward – a user doesn’t have to know the page they are using leverages React Query. If you write your tests like you are just using the page, this means that you will find issues that your user might find as well accidentally, and if for some reason you change your implementation, your tests <span class="No-Break">won’t break.</span></p>
+<p>There will be <a id="_idIndexMarker419"/>some scenarios where you might have to tie your tests to some implementation details to help you do some assertions, but we will try to avoid them at all costs in <span class="No-Break">this section.</span></p>
+<p>Before we start writing our tests, we need to do some <span class="No-Break">setting up.</span></p>
+<h2 id="_idParaDest-121"><a id="_idTextAnchor197"/>Setting up testing utils</h2>
+<p>When testing components that leverage React Query, we must ensure we wrap up those components <a id="_idIndexMarker420"/>with our <strong class="source-inline">QueryClientProvider</strong>. Now, we could create a custom wrapper for each test and wrap <a id="_idIndexMarker421"/>our component with it when rendering, but remember that you will most likely end up with many components that will use React Query in <span class="No-Break">some way.</span></p>
+<p>This is where setting up some testing utils will help you. A pattern that I really like to follow is overwriting the <strong class="source-inline">render</strong> function from the testing library and wrapping every component that is rendered, using this function automatically with our React Query <strong class="source-inline">QueryClientProvider</strong>. To do that, I create a <strong class="source-inline">test-utils.js</strong> file inside a <span class="No-Break"><strong class="source-inline">utils</strong></span><span class="No-Break"> folder.</span></p>
+<p>This is what we can add to our <span class="No-Break"><strong class="source-inline">test-utils.js</strong></span><span class="No-Break"> file:</span></p>
+<pre class="source-code">
+import { render } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from
+  "@tanstack/react-query";
+const customRender = (ui, { ...options } = {}) =&gt; {
+  const queryClient = new QueryClient({
+    logger: {
+      log: console.log,
+      warn: console.warn,
+      error: () =&gt; {},
+    },
+    defaultOptions: {
+      queries: {
+        retry: 0,
+        cacheTime: Infinity,
+      },
+    },
+  });
+  const CombinedProviders = ({ children }) =&gt; {
+    return (
+      &lt;QueryClientProvider client={queryClient}&gt;
+        {children}&lt;/QueryClientProvider&gt;
+    );
+  };
+  return render(ui, { wrapper: CombinedProviders,
+     ...options });
+};
+export * from "@testing-library/react";
+export { customRender as render };</pre>
+<p>This is what we do in the <span class="No-Break">preceding snippet:</span></p>
+<ol>
+<li>We import the <strong class="source-inline">render</strong> function from the React <span class="No-Break">Testing Library.</span></li>
+<li>We import our <strong class="source-inline">QueryClient</strong> and our <strong class="source-inline">QueryClientProvider</strong> from <span class="No-Break">React Query.</span></li>
+<li>We create <a id="_idIndexMarker422"/>a custom <strong class="source-inline">render</strong> <span class="No-Break">function (</span><span class="No-Break"><strong class="source-inline">customRender</strong></span><span class="No-Break">):</span><ol><li>This <a id="_idIndexMarker423"/>function will receive a <strong class="source-inline">ui</strong> parameter, which will be the component we want to render. It will also receive an <strong class="source-inline">options</strong> object, which we can forward to the <span class="No-Break"><strong class="source-inline">render</strong></span><span class="No-Break"> function.</span></li><li>We create our <strong class="source-inline">queryClient</strong> instance. Here, we override our <strong class="source-inline">logger</strong> <strong class="source-inline">error</strong> property to avoid showing up errors from React Query. This is because we might want to test error scenarios, and we don’t want React Query to pollute our <strong class="source-inline">console</strong> with the errors we expect. We also define our queries to never attempt to retry a query after it fails, and we set our <strong class="source-inline">cacheTime</strong> to <strong class="source-inline">Infinity</strong> to avoid <strong class="source-inline">Jest</strong> error messages in scenarios where we manually set a <span class="No-Break"><strong class="source-inline">cacheTime</strong></span><span class="No-Break"> value.</span></li><li>We create a <strong class="source-inline">CombinedProviders</strong> wrapper that will be responsible for wrapping our components with <span class="No-Break">our </span><span class="No-Break"><strong class="source-inline">QueryClientProvider</strong></span><span class="No-Break">.</span></li><li>We call the React Testing Library <strong class="source-inline">render</strong> function, pass it the <strong class="source-inline">ui</strong> parameter, wrap it with our <strong class="source-inline">CombinedProviders</strong>, and send it the <strong class="source-inline">options</strong> <span class="No-Break">we received.</span></li></ol></li>
+<li>We export all of the React Testing Library and our <strong class="source-inline">customRender</strong> function, which will now be the main <strong class="source-inline">render</strong> function. This means we now import this file instead of the React Testing Library in <span class="No-Break">our tests.</span></li>
+</ol>
+<p>Note in the snippet that we create our <strong class="source-inline">queryClient</strong> inside the <strong class="source-inline">customRender</strong> function instead <a id="_idIndexMarker424"/>of outside it. You can <a id="_idIndexMarker425"/>follow this approach if you want to avoid having to clean up the query cache between tests. If you want to have the same <strong class="source-inline">QueryClient</strong> between tests, you can create the <strong class="source-inline">queryClient</strong> instance outside <span class="No-Break">the function.</span></p>
+<p>Now that our <strong class="source-inline">render</strong> function is ready to render React Query using components, we can start <span class="No-Break">writing<a id="_idTextAnchor198"/> tests.</span></p>
+<h2 id="_idParaDest-122"><a id="_idTextAnchor199"/>Testing queries</h2>
+<p>In the following subsections, we will see some common testing scenarios you might find in your day-to-day activities when using <span class="No-Break">React Query.</span></p>
+<h3>Checking whether data is fetched</h3>
+<p>One of the <a id="_idIndexMarker426"/>most common tests we have to write is ensuring that our data was fetched properly. Let us start with this scenario and revisit our parallel queries example from <a href="B18501_05.xhtml#_idTextAnchor140"><span class="No-Break"><em class="it lic">Chapter 5</em></span></a>. We will also rewrite the code to adjust to some of the practices mentioned in this chapter. Let’s start by looking at our <span class="No-Break"><strong class="source-inline">ParallelQueries</strong></span><span class="No-Break"> component:</span></p>
+<pre class="source-code">
+export const ParallelQueries = () =&gt; {
+  const { multipleQueries } = useMultipleQueriesV2();
+  return (
+    &lt;div&gt;
+      {multipleQueries.map(({ data, isFetching }, index) =&gt; (
+        &lt;p key={index}&gt;{isFetching ? "Fetching data..." :
+          data.hello}&lt;/p&gt;
+      ))}
+    &lt;/div&gt;
+  );
+};</pre>
+<p>As you can see from the preceding snippet, the code is pretty much the same as the one presented in <a href="B18501_05.xhtml#_idTextAnchor140"><span class="No-Break"><em class="it lic">Chapter 5</em></span></a><em class="it lic">,</em> with the exception of the part where we fetch our data. Here, we applied one of the patterns mentioned in this chapter and moved this logic to a custom <a id="_idIndexMarker427"/>hook inside our custom <span class="No-Break">hooks folder.</span></p>
+<p>Let us now look at what sits inside our <strong class="source-inline">useMultipleQueriesV2</strong> <span class="No-Break">hook file:</span></p>
+<pre class="source-code">
+import { useQueries } from "@tanstack/react-query";
+import { userKeys } from "../utils/queryKeyFactories";
+import { getUser } from "../api/userAPI";
+const fetchData = async ({ queryKey }) =&gt; {
+  const { username } = queryKey[0];
+  return await getUser(username);
+};
+const usernameList = ["userOne", "userTwo", "userThree"];
+const useMultipleQueriesV2 = () =&gt; {
+  const multipleQueries = useQueries({
+    queries: usernameList.map((username) =&gt; {
+      return {
+        queryKey: userKeys.withUsername(username),
+        queryFn: fetchData,
+      };
+    }),
+  });
+  return { multipleQueries }
+};
+export de<a id="_idTextAnchor200"/>fault useMultipleQueriesV2</pre>
+<p>As you can see from the preceding snippet, we basically just move what we had in our component to our <strong class="source-inline">useMultipleQueriesV2</strong> hook. Note also that we leverage the other two patterns we mentioned in <span class="No-Break">this chapter:</span></p>
+<ul>
+<li>We create an entry inside the <strong class="source-inline">userKeys</strong> factory and leverage it to set our <strong class="source-inline">useQueries</strong> <span class="No-Break">hook, </span><span class="No-Break"><strong class="source-inline">queryKey</strong></span></li>
+<li>We create an API file to gather our user API functions and add our <span class="No-Break"><strong class="source-inline">getUser</strong></span><span class="No-Break"> function</span></li>
+</ul>
+<p>This is <a id="_idIndexMarker428"/>what our <strong class="source-inline">getUser</strong> function <span class="No-Break">looks like:</span></p>
+<pre class="source-code">
+export const getUser = async (username, signal) =&gt; {
+  const { data } = await axiosInstance.get
+    (`/react-query-api/${username}`, {
+    sign<a id="_idTextAnchor201"/>al,
+  });
+  return data;
+};</pre>
+<p>The <strong class="source-inline">getUser</strong> function shown in this snippet is responsible for making a <strong class="source-inline">GET</strong> request for our given endpoint and aborting that request if our <strong class="source-inline">s<a id="_idTextAnchor202"/>ignal</strong> tells <strong class="source-inline">axios</strong> to <span class="No-Break">do so.</span></p>
+<p>Now that you are reacquainted with this component and how it work<a id="_idTextAnchor203"/>s, let's start to <span class="No-Break">test it.</span></p>
+<p>The first thing we need to do before we write our test is to make sure we have MSW intercepting the <strong class="source-inline">GET</strong> request and returning the data <span class="No-Break">we want:</span></p>
+<pre class="source-code">
+  rest.get("*/react-query-api/*", (req, res, ctx) =&gt; {
+    return res(
+      ctx.delay(500),
+      ctx.status(200),
+      ctx.json({
+        hello: req.para<a id="_idTextAnchor204"/><a id="_idTextAnchor205"/><a id="_idTextAnchor206"/>ms[1],
+      })
+    );
+  })</pre>
+<p>In the preceding snippet, we create a request handler to add to our <strong class="source-inline">handlers</strong> array, which does <span class="No-Break">the following.</span></p>
+<p>Whenever we intercept a <strong class="source-inline">GET</strong> request to an endpoint that includes the <strong class="source-inline">/react-query-api/</strong> path, we return a <strong class="source-inline">200 OK</strong> response that will be delayed by 500 milliseconds, and <a id="_idIndexMarker429"/>it will have in its body an object with a <strong class="source-inline">hello</strong> property that will contain the parameter in the second position of the <span class="No-Break">request parameters.</span></p>
+<p>This means that a <strong class="source-inline">GET</strong> request for the <a href="https://danieljcafonso.builtwithdark.com/react-query-api/userOne">https://danieljcafonso.builtwithdark.com/react-query-api/userOne</a> endpoint will return a <strong class="source-inline">200 OK</strong> response with the <span class="No-Break">following object:</span></p>
+<pre class="source-code">
+{
+  hello: "Hello userOne"
+}</pre>
+<p>Now that we are sure that our components will always receive the same data after a requ<a id="_idTextAnchor207"/>est, we can write <span class="No-Break">our tests.</span></p>
+<p>Now, I suggest you look at the <strong class="source-inline">ParallelQueries</strong> component from a user-centric perspective and consider the scenarios you might want to test. The rule of thumb here is to think, “<em class="it lic">If I was a user interacting with this code, what would I interact with or expect </em><span class="No-Break"><em class="it lic">to happen?</em></span><span class="No-Break">”</span></p>
+<p>Following the preceding analysis, I came<a id="_idTextAnchor208"/><a id="_idTextAnchor209"/> up with two <span class="No-Break">test scenarios:</span></p>
+<ul>
+<li><strong class="bold">As a user, I want to see the data my parallel queries fetched</strong>: In this scenario, we want our component to be rendered and wait for it to render a hello message for <strong class="source-inline">userOne</strong>, <strong class="source-inline">userTwo</strong>, <span class="No-Break">and </span><span class="No-Break"><strong class="source-inline">userThree</strong></span><span class="No-Break">.</span></li>
+<li><strong class="bold">As a user, I want to have a loading indicator being displayed while I have no data</strong>: In this scenario, we want our component to be rendered, and while we wait for our data to be fetched, we should see a <strong class="source-inline">"Fetching data…"</strong> messa<a id="_idTextAnchor210"/>ge for each of <span class="No-Break">our requests.</span></li>
+</ul>
+<p>With those <a id="_idIndexMarker430"/>scenarios in mind, we can write our tests. Let us see what our test f<a id="_idTextAnchor211"/>ile would <span class="No-Break">look like:</span></p>
+<pre class="source-code">
+import { ParallelQueries } from "../MultipleQueries";
+import { render, screen } from "../utils/test-utils";
+describe("Parallel <a id="_idTextAnchor212"/>Queries Tests", () =&gt; {
+  test("component should fetch and render multiple data",
+    async () =&gt; {
+    render(&lt;ParallelQueries /&gt;);
+    const text = await screen.findByText("userOne");
+    expect(text).toBeInTheDocument();
+    expect(screen.getByText("userTwo")).toBeInTheDocument();
+    expect(screen.getByText("userThree")).toBeIn<a id="_idTextAnchor213"/>TheDocument();
+  });
+  test("component should show loading indicator for each
+    query", () =&gt; {
+    render(&lt;ParallelQueries /&gt;);
+    const isFetching = screen.getAllByText("Fetching data...");
+    expect(isFetchin<a id="_idTextAnchor214"/><a id="_idTextAnchor215"/>g).toHaveLength(3);
+  });
+});</pre>
+<p>Let us now review what we do in the <span class="No-Break">preceding snippet:</span></p>
+<ol>
+<li>We import our <strong class="source-inline">ParallelQueries</strong> component and, from our <strong class="source-inline">test-utils</strong>, our custom <strong class="source-inline">render</strong> function and the <span class="No-Break"><strong class="source-inline">screen</strong></span><span class="No-Break"> object.</span></li>
+<li>We create our test suite and, inside it, <span class="No-Break">our tests:</span><ol><li>For the <strong class="source-inline">"component should fetch and render multiple dat<a id="_idTextAnchor216"/><a id="_idTextAnchor217"/><a id="_idTextAnchor218"/>a"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Render our <span class="No-Break"><strong class="source-inline">ParallelQueries</strong></span><span class="No-Break"> component.</span></li><li>Since we need to wait for the data to be fetched, we leverage an <strong class="source-inline">async</strong> query variant (<strong class="source-inline">findBy</strong>) from the React Testing Library and <strong class="source-inline">await</strong> until the <strong class="source-inline">userOne</strong> text shows up on <span class="No-Break">the DOM.</span></li><li>Once our query finds the <strong class="source-inline">userOne</strong> text, we assert that it is in the DOM and <a id="_idIndexMarker431"/>repeat the same assertion for <strong class="source-inline">userTwo</strong> and <strong class="source-inline">userThree</strong>. In these last two examples (<strong class="source-inline">userTwo</strong> and <strong class="source-inline">userThree</strong>), we won’t need to leverage the <strong class="source-inline">findBy</strong> variant because the data will already be on the DOM, so we use the <strong class="source-inline">getBy</strong> <span class="No-Break">variant instead.</span></li></ol></li><li>For the <strong class="source-inline">"component should show loading indicator for each query"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Render <a id="_idTextAnchor219"/>our <span class="No-Break"><strong class="source-inline">ParallelQueries</strong></span><span class="No-Break"> component.</span></li><li>Due to the 500 millisecond delay we added to our mocked response, we won’t have our data immediately available to be rendered, so we should have our loading indicators showing up instead. Since we will have multiple indicators, we leverage the <strong class="source-inline">getAllBy</strong> variant to get an array of elements that match <span class="No-Break">our query.</span></li><li>We then assert that our array of elements has a length of <strong class="source-inline">3</strong> to ensure that we have a <strong class="source-inline">"Fetching data…"</strong> message for <span class="No-Break">each query.</span></li></ol></li></ol></li>
+</ol>
+<p>With these tests, we have followed an approach that reflects our user behavior when interacting with our component and, at the same time, got 100% coverage on our <strong class="source-inline">ParallelQueries</strong> component and our <strong class="source-inline">useMultipleQueriesV2</strong> <span class="No-Break">custom hook.</span></p>
+<p>In most scenarios, to deal with data-fetching scenarios, you only need to wait for the data you fetch to be rendered on the DOM. Got a single query? Wait for the data to be displayed <a id="_idIndexMarker432"/>on the DOM. Got some parallel queries? Wait for the data to be displayed on the DOM. Got some dependent queries? Wait for the first query data to be displayed on the DOM. Then, repeat this step for the <span class="No-Break">following queries.</span></p>
+<p>Now, in some scenarios, you will have to fire some actions to get to your test assertion. Some of those scenarios might even involve query invalidation or query cancelation. Due to the similarity of these scenarios, let us now see what we ca<a id="_idTextAnchor220"/>n test with <span class="No-Break">query invalidation.</span></p>
+<h3>Checking whether a query was invalidated</h3>
+<p>As you should remember from <a href="B18501_05.xhtml#_idTextAnchor140"><span class="No-Break"><em class="it lic">Chapter 5</em></span></a>, query invalidation is when you manually mark your query as stale so that React Query can refetch it if it is <span class="No-Break">being rendered.</span></p>
+<p>Let us review the <strong class="source-inline">QueryInvalidation</strong> component we saw in <a href="B18501_05.xhtml#_idTextAnchor140"><span class="No-Break"><em class="it lic">Chapter 5</em></span></a><span class="No-Break">:</span></p>
+<pre class="source-code">
+const fetchData = async ({ queryKey}) =&gt; {
+  const { username } = queryKey[0];
+  return await getUser(username);
+};
+const QueryInvalidation = () =&gt; {
+  const { data, isFetching } = useQuery({
+    queryKey: userKeys.withUsername("userOne"),
+    queryFn: fetchData,
+  });
+  const queryClient = useQueryClient();
+  return (
+    &lt;div&gt;
+      &lt;p&gt;{isFetching ? "Loading..." : data?.hello}&lt;/p&gt;
+      &lt;button onClick={() =&gt; queryClient.invalidateQueries
+        (userKeys.api())}&gt;
+        Invalidate Query
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+};</pre>
+<p>As you can see from the preceding snippet, the code is still very similar to the one from <a href="B18501_05.xhtml#_idTextAnchor140"><span class="No-Break"><em class="it lic">Chapter 5</em></span></a>. The only changes we made here were to apply the API file pattern and leverage the <strong class="source-inline">getUser</strong> function we saw previously in this chapter and change our query key to leverage the query key <span class="No-Break">factory pattern.</span></p>
+<p>Now that <a id="_idIndexMarker433"/>you are reacquainted with this component and how it works, let us start to <span class="No-Break">test it.</span></p>
+<p>As we are leveraging our <strong class="source-inline">getUser</strong> function, we don’t need to create a new request handler in MSW due to the fact <a id="_idTextAnchor221"/>we are using the <span class="No-Break">same endpoint.</span></p>
+<p>Now, looking at the <strong class="source-inline">QueryInvalidation</strong> component from a user-centric perspective, here are the three test scenarios that you <span class="No-Break">might identify:</span></p>
+<ul>
+<li><strong class="bold">As a user, I want to see the data my <a id="_idTextAnchor222"/>query fetched</strong>: In this scenario, we want our component to be rendered and wait for it to render a hello message <span class="No-Break">for </span><span class="No-Break"><strong class="source-inline">userOne</strong></span><span class="No-Break">.</span></li>
+<li><strong class="bold">As a user, I want to have a loading indicator displaying while my data is being fetched</strong>: In this scenario, we want our component to be rendered, and when our data is not being fetched, we should see a <strong class="source-inline">"</strong><span class="No-Break"><strong class="source-inline">Loading…"</strong></span><span class="No-Break"> message.</span></li>
+<li><strong class="bold">As a user, I want my query to be refetched when I click the Invalidate Query button</strong>: In this scenario, we want our component to be rendered, and we wait for it to render a hello message, click the <strong class="bold">Invalidate Query</strong> button, wait for the hello message to disappear, wait for the loading indicator to disappear, and wait for the hello message to reappear. This way, we are sure our query <span class="No-Break">was invalidated.</span></li>
+</ul>
+<p>With those scenarios <a id="_idIndexMarker434"/>in mind, we can write our tests for our <strong class="source-inline">QueryInvalidation</strong> component. Let us see what our te<a id="_idTextAnchor223"/>st file would <span class="No-Break">look like:</span></p>
+<pre class="source-code">
+import { QueryInvalidation } from "../QueryClientExamples";
+import { fireEvent, render, screen, waitFor } from "../utils/test-utils";
+describe("QueryInv<a id="_idTextAnchor224"/>alidation Tests", () =&gt; {
+  test("component should display fetched data", async () =&gt; {
+    render(&lt;QueryInvalidation /&gt;);
+    const text = await screen.findByText("userOne");
+    expect(text).toBeInTheDocument();
+  });
+  test("component should show a loading indicator", () =&gt; {
+    render(&lt;QueryInvalidation /&gt;);
+    expect(screen.getByText("Loading...")).to<a id="_idTextAnchor225"/>BeInTheDocument();
+  });
+  test("component should invalidate query", async () =&gt; {
+    render(&lt;QueryInvalidation /&gt;);
+    const text = await screen.findByText("userOne");
+    expect(text).toBeInTheDocument();
+    const invalidateButton = screen.getByRole("button", {
+      text: "Invalidate Query",
+    });
+    fireEvent.click(invalidateButton);
+    await waitFor(() =&gt;
+      expect(screen.queryByText("userOne")).not.
+        toBeInTheDocument()
+    );
+    await waitFor(() =&gt;
+      expect(screen.queryByText("Loading"…")).not.
+        toBeInTheDocument()
+    );
+    expect(screen.getByText("userOne")).
+      toBeInTheDocument();
+  });
+});</pre>
+<p>Let us now review what we ar<a id="_idTextAnchor226"/>e doing in the <span class="No-Break">preceding snippet:</span></p>
+<ol>
+<li>We import our <strong class="source-inline">QueryInvalidation</strong> component, and from our <strong class="source-inline">test-utils</strong>, we import our custom <strong class="source-inline">render</strong> function, the <strong class="source-inline">screen</strong> object, the <strong class="source-inline">fireEvent</strong> util, and the <span class="No-Break"><strong class="source-inline">waitFor</strong></span><span class="No-Break"> function.</span></li>
+<li>We <a id="_idIndexMarker435"/>create our tes<a id="_idTextAnchor227"/>t suite, and inside it, <span class="No-Break">our tests:</span><ol><li>For the <strong class="source-inline">"component should display fetche<a id="_idTextAnchor228"/><a id="_idTextAnchor229"/><a id="_idTextAnchor230"/>d data"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Render our <span class="No-Break"><strong class="source-inline">QueryInvalidation</strong></span><span class="No-Break"> component.</span></li><li>Since we need to wait for the data to be fetched, we leverage an <strong class="source-inline">async</strong> query variant (<strong class="source-inline">findBy</strong>) from the React Testing Library and <strong class="source-inline">await</strong> until the <strong class="source-inline">userOne</strong> text shows up on <span class="No-Break">the DOM.</span></li><li>Once our query finds the <strong class="source-inline">userOne</strong> text, we assert it is in <span class="No-Break">the DOM.</span></li></ol></li><li>For the <strong class="source-inline">"component should show a loading indicator"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Render our <span class="No-Break"><strong class="source-inline">QueryInvalidation</strong></span><span class="No-Break"> component.</span></li><li>Due to the 500 millisecond delay we added to our mocked response, we won’t have our data immediately available to be rendered, so we should have our loading indicators showing up instead. We then leverage a <strong class="source-inline">getBy</strong> query variant to help assert that the <strong class="source-inline">"Loading…"</strong> text is in <span class="No-Break">the DOM.</span></li></ol></li><li>For the <strong class="source-inline">"component should invalidate query"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Render our <span class="No-Break"><strong class="source-inline">QueryInvalidation</strong></span><span class="No-Break"> component.</span></li><li>We wait for our data to be fetched and consequently assert it is on <span class="No-Break">the DOM.</span></li><li>We find our <strong class="bold">Invalidate Query</strong> button by leveraging the <strong class="source-inline">getByRole</strong> query that will help us find the button with the <strong class="source-inline">Invalidate </strong><span class="No-Break"><strong class="source-inline">Query</strong></span><span class="No-Break"> text.</span></li><li>We then leverage the <strong class="source-inline">fireEvent</strong> util to fire a <strong class="source-inline">click</strong> event on <span class="No-Break">our button.</span></li><li>We then leverage the <strong class="source-inline">waitFor</strong> function to wait until an assertion evaluates to <strong class="source-inline">true</strong>. In this scenario, we wait for our query data to disappear from <span class="No-Break">the DOM.</span></li><li>We then leverage the <strong class="source-inline">waitFor</strong> function once again, this time to wait for the loading indicator to disappear from <span class="No-Break">the DOM.</span></li><li>Finally, we assert that our query has finished refetching by checking whether our data is back on the <span class="No-Break">DOM again.</span></li></ol></li></ol></li>
+</ol>
+<p>Now, we have checked how we can test query invalidation. You might be wondering how query <a id="_idIndexMarker436"/>cancelation differs from query invalidation. At the end of the day, testing query cancelation would differ on the <span class="No-Break">following things:</span></p>
+<ul>
+<li>Our query function would need to receive the <strong class="source-inline">AbortController</strong> signal and forward it to our <span class="No-Break"><strong class="source-inline">getUser</strong></span><span class="No-Break"> function.</span></li>
+<li>Instead of calling the <strong class="source-inline">invalidateQuery</strong> function from <strong class="source-inline">queryClient</strong>, we <span class="No-Break">call </span><span class="No-Break"><strong class="source-inline">cancelQueries</strong></span><span class="No-Break">.</span></li>
+<li>In our tests, the first two scenarios are exactly the same. In the third scenario, we immediately <a id="_idIndexMarker437"/>click the <strong class="bold">cancel</strong> button after rendering the component. After doing this, the DOM should not show either the data or the <span class="No-Break">loading indicator.</span></li>
+</ul>
+<p>Now that you know how to test most scenarios in a user-centric approach, let's put this knowledge to the test and see how we would test a <span class="No-Break">paginated scenario.</span></p>
+<h3>Testing paginated queries</h3>
+<p>In <a href="B18501_05.xhtml#_idTextAnchor140"><span class="No-Break"><em class="it lic">Chapter 5</em></span></a>, we learned how <strong class="source-inline">useQuery</strong> allowed us to create paginated queries and consequently used it to build a paginated <span class="No-Break">UI component.</span></p>
+<p>Let us <a id="_idIndexMarker438"/>review the <strong class="source-inline">PaginatedQuery</strong> component we saw in <a href="B18501_05.xhtml#_idTextAnchor140"><span class="No-Break"><em class="it lic">Chapter 5</em></span></a><span class="No-Break">:</span></p>
+<pre class="source-code">
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { getPaginatedData } from "./api/userAPI";
+import { userKeys } from "./utils/queryKeyFactories";
+const fetchData = async ({ queryKey }) =&gt; {
+  const {<a id="_idTextAnchor231"/> page } = queryKey[0];
+  return await getPaginatedData(page);
+};
+const PaginatedQuery = () =&gt; {
+  const [page, setPage] = useState(0);
+  const { isLoading, isError, error, data, isFetching,
+    isPreviousData } =
+    useQuery({
+      queryKey: userKeys.paginated(page),
+      queryFn: fetchData,
+      keepPreviousData: true,
+    });
+  if (isLoading) {
+    return &lt;h2&gt;Loading initial data...&lt;/h2&gt;;
+  }
+  if (isError) {
+    return &lt;h2&gt;{error.message}&lt;/h2&gt;;
+  }
+  return (
+    &lt;&gt;
+      &lt;div&gt;
+        {data.results.map((user) =&gt; (
+          &lt;div key={user.email}&gt;
+            {user.name.first}
+            {user.name.last}
+          &lt;/div&gt;
+        ))}
+      &lt;/div&gt;
+      &lt;div&gt;
+        &lt;button
+          onClick={() =&gt; setPage((oldValue) =&gt;
+            Math.max(oldValue - 1, 0))}
+          disabled={page === 0}
+        &gt;
+          Previous Page
+        &lt;/button&gt;
+        &lt;button
+          disabled={isPreviousData}
+          onClick={() =&gt; setPage((old) =&gt; old + 1)}
+        &gt;
+          Next Page
+        &lt;/button&gt;
+      &lt;/div&gt;
+      {isFetching ? &lt;span&gt; Loading...&lt;/span&gt; : null}
+    &lt;/&gt;
+  );
+};
+export default PaginatedQuery;</pre>
+<p>As you can see <a id="_idIndexMarker439"/>from the preceding snippet, it is pretty much the same as what we saw in <a href="B18501_05.xhtml#_idTextAnchor140"><span class="No-Break"><em class="it lic">Chapter 5</em></span></a>. Note also that we leveraged two patterns we mentioned in <span class="No-Break">this chapter:</span></p>
+<ul>
+<li>We created an entry into our <strong class="source-inline">userKeys</strong> factory and leveraged it to set our <strong class="source-inline">useQuery</strong> <span class="No-Break">hook, </span><span class="No-Break"><strong class="source-inline">queryKey</strong></span></li>
+<li>We created an API file to gather our user API functions and added our <span class="No-Break"><strong class="source-inline">getP<a id="_idTextAnchor232"/>aginatedData</strong></span><span class="No-Break"> function</span></li>
+</ul>
+<p>This is what our <strong class="source-inline">getPaginatedData</strong> function <span class="No-Break">looks like:</span></p>
+<pre class="source-code">
+export const getPaginatedData = async (page) =&gt; {
+  const { data } = await axiosInstance.get(
+    `/react-query-paginated?page=${page}&amp;results=10`
+  );
+  return data;
+};</pre>
+<p>The <strong class="source-inline">getPaginatedData</strong> function shown in the preceding snippet is responsible for making a <strong class="source-inline">GET</strong> request for our given endpoint for a <span class="No-Break">given page.</span></p>
+<p>Now that <a id="_idIndexMarker440"/>you are reacquainted with this component and how it works, let's <span class="No-Break">test it.</span></p>
+<p>We will start by creati<a id="_idTextAnchor233"/>ng our MSW <span class="No-Break">request handler:</span></p>
+<pre class="source-code">
+rest.get("*/react-query-paginated", (req, res, ctx) =&gt; {
+    const page = req.url.searchParams.get("page");
+    const pageOneData = {
+      email: "email1",
+      name: {
+        first: "first1",
+        last: "last1",
+      },
+    };
+    const pageTwoData = {
+      email: "email2",
+      name: {
+        first: "first2",
+        last: "last2",
+      },
+    };
+    const data = {
+      results: [page &gt; 0 ? pageTwoData : pageOneData],
+    };
+    return res(ctx.status(200), ctx.json(data));
+  })</pre>
+<p>In the preceding snippet, we create a request handler to add to our <strong class="source-inline">handlers</strong> array, which does <span class="No-Break">the following.</span></p>
+<p>Whenever we intercept a <strong class="source-inline">GET</strong> request to an endpoint that includes the <strong class="source-inline">/react-query-paginated</strong> path, we get the <strong class="source-inline">page</strong> query parameter to help us define what data we <span class="No-Break">will return.</span></p>
+<p>We return a <strong class="source-inline">200 OK</strong> response that will have in its body an object with the data for page one or page two, depending on the received page <span class="No-Break">query parameter.</span></p>
+<p>This means that a <strong class="source-inline">GET</strong> request for the <a href="https://danieljcafonso.builtwithdark.com/react-query-paginated?page=0&amp;results=10">https://danieljcafonso.builtwithdark.com/react-query-paginated?page=0&amp;results=10</a> endpoint will return a <strong class="source-inline">200 OK</strong> response with the <strong class="source-inline">pageOneData</strong> object, while a <strong class="source-inline">GET</strong> request for the <a href="https://danieljcafonso.builtwithdark.com/react-query-paginated?page=1&amp;results=10">https://danieljcafonso.builtwithdark.com/react-query-paginated?page=1&amp;results=10</a> endpoint will return a <strong class="source-inline">200 OK</strong> response with the <span class="No-Break"><strong class="source-inline">pageTwoData</strong></span><span class="No-Break"> object.</span></p>
+<p>Now that we are sure that our components will always receive the same data after a request, we <a id="_idIndexMarker441"/>can write our tests and look at the <strong class="source-inline">PaginatedQuery</strong> component from a user-centric perspective; here are the test scenarios that you <span class="No-Break">might identify:</span></p>
+<ul>
+<li><strong class="bold">As a user, I want to see that my<a id="_idTextAnchor234"/> data has loaded after opening the page</strong>: In this scenario, we want our component to be rendered and check whether the initial loading data message <span class="No-Break">shows up.</span></li>
+<li><strong class="bold">As a user, I want to see an error message if my data fails to load</strong>: In this scenario, we want our component to render and see whether it shows the error message when the <span class="No-Break">request fails.</span></li>
+<li><strong class="bold">As a user, I want to see the initially fetched data</strong>: In this scenario, we want our component to render and wait until the data of the first page <span class="No-Break">is fetched.</span></li>
+<li><strong class="bold">As a user, I want to click on the </strong><strong class="bold">Next Page</strong><strong class="bold"> but<a id="_idTextAnchor235"/><a id="_idTextAnchor236"/>ton and see the data from the next page</strong>: In this scenario, we want our component to be rendered, ensure we have the initial data, and after clicking on the <strong class="bold">Next Page</strong> button, wait until the data of the second page <span class="No-Break">is fetched.</span></li>
+<li><strong class="bold">As a user, I want to see a fetching indicator while fetching new data</strong>: In this scenario, we want our component to be re<a id="_idTextAnchor237"/>ndered, ensure we have the initial data, and after clicking on the <strong class="bold">Next Page</strong> button, ensure that the fetching indicator <span class="No-Break">is rendered.</span></li>
+<li><strong class="bold">As a user, I want my data to show up while clicking on </strong><strong class="bold">Next Page</strong><strong class="bold"> and </strong><strong class="bold">Previous Page</strong>: In this scenario, we want our component to be rendered, ensure we have the initial data, and after clicking on the <strong class="bold">Next Page</strong> button, ensure the second page shows up. We then click on the <strong class="bold">Previous Page</strong> button and ensure that the data of the first page is <span class="No-Break">rendered again.</span></li>
+<li><strong class="bold">As a user, I want my </strong><strong class="bold">Previous Page</strong><strong class="bold"> button to<a id="_idTextAnchor238"/> be disabled when I’m on the first page</strong>: In this scenario, we want our component to be rendered and ensure we have the initial data. Since we are on the first page, we want our <strong class="bold">Previous Page</strong> button to <span class="No-Break">be disabled.</span></li>
+<li><strong class="bold">As a user, I want my </strong><strong class="bold">Next Page</strong><strong class="bold"> button to be disabled while waiting for new data to show up</strong>: In this scenario, we want our component to render and ensure we have the initial data. After clicking the <strong class="bold">Next Page</strong> button, we need to ensure that this button <span class="No-Break">is disabled.</span></li>
+</ul>
+<p>With these scenarios <a id="_idIndexMarker442"/>in mind, this is the code we would write to test the <span class="No-Break"><strong class="source-inline">PaginatedQuery</strong></span><span class="No-Break"> component:</span></p>
+<pre class="source-code">
+import PaginatedQuery from "../PaginatedQuery";
+import { render, screen } from "../utils/test-utils";
+import userEvent from "@testing-library/user-event";
+import { server } from "../mocks/server";
+import { rest } from "msw";
+describ<a id="_idTextAnchor239"/>e("PaginatedQuery tests", () =&gt; {
+  test("should render loading indicator on start", () =&gt; {
+    render(&lt;PaginatedQuery /&gt;);
+    expect(screen.getByText("Loading initial data...")).
+<a id="_idTextAnchor240"/>      toBeInTheDocument();
+  });
+  test("should render error on failed fetching", async () =&gt; {
+    server.use(rest.get("*", (req, res, ctx) =&gt;
+      res(ctx.status(403))));
+    render(&lt;PaginatedQuery /&gt;);
+    expect(
+      await screen.findByText("Request failed with status
+        code 403")
+<a id="_idTextAnchor241"/>    ).toBeInTheDocument();
+  });
+  test("should render first page data", async () =&gt; {
+    render(&lt;PaginatedQuery /&gt;);
+    const firstName = await screen.findByText(/first1/i);
+    expect(firstName).toBeInTheDocument();
+    expect(screen.getByText(/last<a id="_idTextAnchor242"/>1/i)).toBeInTheDocument();
+  });
+  test("should render second page data", async () =&gt; {
+    render(&lt;PaginatedQuery /&gt;);
+    const firstName = await screen.findByText(/first1/i);
+    expect(firstName).toBeInTheDocument();
+    const nextPageButton = screen.getByRole("button", {
+      name: "Next Page" });
+    userEvent.click(nextPageButton);
+    const secondPageFirstName = await screen.findByText
+      (/first2/i);
+    expect(secondPageFirstName).toBeInTheDocument();
+    expect(screen.getByText(/last<a id="_idTextAnchor243"/>2/i)).toBeInTheDocument();
+  });
+  test("should show fetching indicator while fetching
+    data", async () =&gt; {
+    render(&lt;PaginatedQuery /&gt;);
+    const firstName = await screen.findByText(/first1/i);
+    expect(firstName).toBeInTheDocument();
+    const nextPageButton = screen.getByRole("button", {
+      name: "Next Page" });
+    userEvent.click(nextPageButton);
+    expect(screen.getByText("Loading...")).
+<a id="_idTextAnchor244"/>      toBeInTheDocument();
+  });
+  test("should change pages back and forth and render
+    expected data", async () =&gt; {
+    render(&lt;PaginatedQuery /&gt;);
+    expect(await screen.findByText(/first1/i)).
+      toBeInTheDocument();
+    expect(screen.getByText(/last1/i)).toBeInTheDocument();
+    const nextPageButton = screen.getByRole("button", {
+      name: "Next Page" });
+    userEvent.click(nextPageButton);
+    expect(await screen.findByText(/first2/i)).
+      toBeInTheDocument();
+    expect(screen.getByText(/last2/i)).toBeInTheDocument();
+    const previousPageButton = screen.getByRole("button", {
+      name: "Previous Page",
+    });
+    userEvent.click(previousPageButton);
+    expect(await screen.findByText(/first1/i)).
+      toBeInTheDocument();
+    expect(screen.getByText(/last<a id="_idTextAnchor245"/>1/i)).toBeInTheDocument();
+  });
+  test("should have previous page button disabled on first
+    page", async () =&gt; {
+    render(&lt;PaginatedQuery /&gt;);
+    const previousPageButton = await screen.findByRole
+      ("button", {
+      name: "Previous Page",
+    });
+    expect(previousP<a id="_idTextAnchor246"/>ageButton).toBeDisabled();
+  });
+  test("should have next page button disabled while
+    changing pages", async () =&gt; {
+    render(&lt;PaginatedQuery /&gt;);
+    const nextPageButton = await screen.findByRole
+      ("button", {
+      name: "Next Page",
+    });
+    userEvent.click(nextPageButton);
+    expect(nextPageButton).toBeDisabled();
+  });
+});<a id="_idTextAnchor247"/></pre>
+<ol>
+<li>We <a id="_idIndexMarker443"/>start by doing the <span class="No-Break">necessary imports:</span><ol><li>Our <span class="No-Break"><strong class="source-inline">PaginatedQuery</strong></span><span class="No-Break"> component.</span></li><li>Our <strong class="source-inline">render</strong> and <strong class="source-inline">screen</strong> utils <span class="No-Break">from </span><span class="No-Break"><strong class="source-inline">test-utils</strong></span><span class="No-Break">.</span></li><li>The <strong class="source-inline">userEvent</strong> util from the <strong class="source-inline">user-event</strong> companion from the testing library. One thing to be aware of here is that we are using a user-event version <span class="No-Break">before v14.</span></li><li>Our MSW <strong class="source-inline">server</strong> so that we can create a custom response mock for one of our <span class="No-Break">test scenarios.</span></li><li>The MSW <strong class="source-inline">rest</strong> namespace to create relevant request handlers for one of our <span class="No-Break">test scenarios.</span></li></ol></li>
+<li>We create<a id="_idTextAnchor248"/> our test suite and, inside it, <span class="No-Break">our tests:</span><ol><li>For the <strong class="source-inline">"should render loading indi<a id="_idTextAnchor249"/>cator on start"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Render our <span class="No-Break"><strong class="source-inline">PaginatedQuery</strong></span><span class="No-Break"> component.</span></li><li>Leverage the <strong class="source-inline">getByText</strong> query to assert that the <strong class="source-inline">"Loading initial data…"</strong> message is on <span class="No-Break">the DOM.</span></li></ol></li><li>For the <strong class="source-inline">"should render error on failed fetching"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Leverage our <strong class="source-inline">server</strong> <strong class="source-inline">use</strong> function to add a request handler to our current server instance. In this scenario, we add a handler that will catch every <strong class="source-inline">GET</strong> request (<strong class="source-inline">"*"</strong> indicates that this handler will match every route) and return <strong class="source-inline">403 Forbidden</strong> so that our request fails. Don’t worry <a id="_idIndexMarker444"/>about this leaking into other tests because we made sure to call the <strong class="source-inline">resetHandlers</strong> function in our <strong class="source-inline">setupTests</strong> file. This will ensure that this custom requ<a id="_idTextAnchor250"/>est handler will only be used on <span class="No-Break">this test.</span></li><li>Render our <span class="No-Break"><strong class="source-inline">PaginatedQuery</strong></span><span class="No-Break"> component.</span></li><li>Leverage the <strong class="source-inline">findByText</strong> query to <strong class="source-inline">await</strong> until the error message shows up on <span class="No-Break">the DOM.</span></li></ol></li><li>For the <strong class="source-inline">"should render <a id="_idTextAnchor251"/>first page data"</strong> test, we do <span class="No-Break">the foll<a id="_idTextAnchor252"/>owing:</span><ol><li>Render our <span class="No-Break"><strong class="source-inline">PaginatedQuery</strong></span><span class="No-Break"> component.</span></li><li>Wait until the data from the first name property from the first page shows up on <span class="No-Break">the DOM.</span></li><li>Assert that the last name property also shows up on <span class="No-Break">the DOM.</span></li></ol></li><li>For the <strong class="source-inline">"should render s<a id="_idTextAnchor253"/><a id="_idTextAnchor254"/>econd page data"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Render our <span class="No-Break"><strong class="source-inline">PaginatedQuery</strong></span><span class="No-Break"> component.</span></li><li>Wait until the da<a id="_idTextAnchor255"/>ta from the first page shows up on <span class="No-Break">the DOM.</span></li><li>Leverage the <strong class="source-inline">getByRole</strong> query to get a button with the text <strong class="bold">Next Page</strong> <span class="No-Break">in it.</span></li><li>Click on the <strong class="bold">Next </strong><span class="No-Break"><strong class="bold">Page</strong></span><span class="No-Break"> button.</span></li><li>Wait until the data from the first name property from the second page shows up on <span class="No-Break">the DOM.</span></li><li>Assert that the last name property from the second page also shows up on <span class="No-Break">the DOM.</span></li></ol></li><li>For the <strong class="source-inline">"should show fetching indicator while fetching data"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Render our <span class="No-Break"><strong class="source-inline">PaginatedQuery</strong></span><span class="No-Break"> component.</span></li><li>Wait until the data from the first page shows up on <span class="No-Break">the DOM.</span></li><li>Leverage the <strong class="source-inline">getByRole</strong> query to get a button with the text <strong class="bold">Next Page</strong> in it and click <span class="No-Break">on it.</span></li><li>Assert that <a id="_idIndexMarker445"/>our query is being fetched by using a <strong class="source-inline">getByText</strong> query to check whether the <strong class="source-inline">"Loading…"</strong> indicator shows up on <span class="No-Break">the DOM.</span></li></ol></li><li>For the <strong class="source-inline">"should change pages back and forth and rend<a id="_idTextAnchor256"/>er expected data"</strong> test, we do <span class="No-Break">the fol<a id="_idTextAnchor257"/>lowing:</span><ol><li>Render our <span class="No-Break"><strong class="source-inline">PaginatedQuery</strong></span><span class="No-Break"> component.</span></li><li>Wait until the data from the first page show<a id="_idTextAnchor258"/>s up on the DOM and assert that it <span class="No-Break">is there.</span></li><li>Leverage the <strong class="source-inline">getByRole</strong> query to get a button with the text <strong class="bold">Next Page</strong> in it and click <span class="No-Break">on it.</span></li><li>Wait until the data from the second page shows up on the DOM and assert that it <span class="No-Break">is there.</span></li><li>Leverage the <strong class="source-inline">getByRole</strong> query to get a button with the text <strong class="bold">Previous Page</strong> in it and click <span class="No-Break">on it.</span></li><li>Wait until the data from the first page show<a id="_idTextAnchor259"/>s up on the DOM and assert that it <span class="No-Break">is there.</span></li></ol></li><li> For the <strong class="source-inline">"should have previous page button disabl<a id="_idTextAnchor260"/>ed on first page"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Render our <span class="No-Break"><strong class="source-inline">PaginatedQuery</strong></span><span class="No-Break"> component.</span></li><li>Leverage <a id="_idIndexMarker446"/>the <strong class="source-inline">findByRole</strong> query to wait until the <strong class="bold">Previous Page</strong> button appears on <span class="No-Break">the DOM.</span></li><li>Assert that the button <span class="No-Break">is disabled.</span></li></ol></li><li>For the <strong class="source-inline">"should have next page button disabled while changing pages"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Render our <span class="No-Break"><strong class="source-inline">PaginatedQuery</strong></span><span class="No-Break"> component.</span></li><li>Leverage the <strong class="source-inline">findByRole</strong> query to wait until the <strong class="bold">Next Page</strong> button shows up on the DOM and click <span class="No-Break">on it.</span></li><li>Assert that the <strong class="bold">Next Page</strong> button is <span class="No-Break">now disabled.</span></li></ol></li></ol></li>
+</ol>
+<p>As you can see, we can test our queries in a fully user-centric approach and forget the implementation details. Now, let’s move into the mutation section and see how it gets a bit harder to follow a <span class="No-Break">user-centric approach.</span></p>
+<h2 id="_idParaDest-123"><a id="_idTextAnchor261"/>Testing mutations</h2>
+<p>You can <a id="_idIndexMarker447"/>definitely follow a user-centric <a id="_idIndexMarker448"/>approach with mutations, although, in some scenarios, this might be harder. Let us review a component we wrote in <a href="B18501_06.xhtml#_idTextAnchor159"><span class="No-Break"><em class="it lic">Chapter 6</em></span></a> and see how it might be harder for <a id="_idIndexMarker449"/>us to test <a id="_idIndexMarker450"/>it following a <span class="No-Break">user-centric approach:</span></p>
+<pre class="source-code">
+export const SimpleMutation = () =&gt; {
+  const [name, setName] = useState("");
+  const { mutate, isPaused } = useMutation({
+    mutationFn: createUser,
+  });
+  const submitForm = (e) =&gt; {
+    e.preventDefault();
+    mutate({ name, age: 0 });
+  };
+  return (
+    &lt;div&gt;
+      {isPaused &amp;&amp; &lt;p&gt; Waiting for network to come back &lt;/p&gt;}
+      &lt;form&gt;
+        &lt;input
+          name="name"
+          type={"text"}
+          onChange={(e) =&gt; setName(e.target.value)}
+          value={name}
+        /&gt;
+        &lt;button disabled={isPaused} onClick={submitForm}&gt;
+          Add
+        &lt;/button&gt;
+      &lt;/form&gt;
+    &lt;/div&gt;
+  );
+};</pre>
+<p>In the preceding snippet, we can see our <strong class="source-inline">SimpleMutation</strong> component. Now, let us try to do our user-centric approach exercise an<a id="_idTextAnchor262"/>d understand which test scenarios we <span class="No-Break">could write:</span></p>
+<ul>
+<li><strong class="bold">As a user, I want to see a paused indicator when my mutation enters the paused state</strong>: In this scenario, we want to render our component and, when we attempt to perform our mutation, the paused indicator message <span class="No-Break">to appear.</span></li>
+<li><strong class="bold">As a user, I want to create data on the server</strong>: In this scenario, we want to render our component, fill out the form, and then perform our mutation. But wait – how does our user <span class="No-Break">assert this?</span></li>
+</ul>
+<p>As you can see, the last scenario had an issue – a lack of information from the UI that our mutation was <span class="No-Break">performed successfully.</span></p>
+<p>Usually, an issue of this sort would be fixed by adding a notification for a user, informing them that the <a id="_idIndexMarker451"/>mutation was performed <a id="_idIndexMarker452"/>successfully. Letting the user know the mutation succeeded is always a good practice. Following this approach, our test would resemble something <span class="No-Break">like this:</span></p>
+<ul>
+<li><strong class="bold">As a user, I want to create data on the server successfully</strong>: In this scenario, we want to render our component, fill out the form, press the <strong class="bold">Add</strong> button, and wait for a success message <span class="No-Break">to appear</span></li>
+</ul>
+<p>As you can see, now we have a user-centric way to test our mutation. However, for some reason, let us assume that we cannot perform changes to our <strong class="source-inline">SimpleMutation</strong> component. How would we ensure that our mutation was performed? We would have to resort to implementation details. Ou<a id="_idTextAnchor263"/>r test scenario would resemble something <span class="No-Break">like this:</span></p>
+<ul>
+<li><strong class="bold">As a user, I want to perform a mutation</strong>: In this scenario, we want to render our component, fill out the form, press the <strong class="bold">Add</strong> button, and assert that our mutation <span class="No-Break">was triggered</span></li>
+</ul>
+<p>In this section, we will show you how to write tests for instances where the ideal (user-centric) approach is not something we <span class="No-Break">can employ.</span></p>
+<p>The first thing we need to do before we write our test is to make sure MSW intercepts our request and <span class="No-Break">is successful:</span></p>
+<pre class="source-code">
+rest.post("*/name-api/*", (req, res, ctx) =&gt; {
+    return res(
+      ctx.status(201),
+      ctx.json({
+        hello: "user",
+      })
+    );
+  })</pre>
+<p>In the preceding snippet, we create a request handler to add to our <strong class="source-inline">handlers</strong> array, which does <span class="No-Break">the following.</span></p>
+<p>Whenever <a id="_idIndexMarker453"/>we intercept a <strong class="source-inline">POST</strong> request to an <a id="_idIndexMarker454"/>endpoint that includes the <strong class="source-inline">/name-api/</strong> path, we return a <strong class="source-inline">201 Created</strong> response that will have an object in its body, with a <strong class="source-inline">hello</strong> property containing <span class="No-Break">a string.</span></p>
+<p>We can now write our tests for our <strong class="source-inline">SimpleMutation</strong> component. Just to recap, here are the tests we will <span class="No-Break">be performing:</span></p>
+<ul>
+<li>As a user, I want to see a paused indicator when my mutation enters the <span class="No-Break">paused state</span></li>
+<li>As a user, I want to perform <span class="No-Break">a mu<a id="_idTextAnchor264"/>tation</span></li>
+</ul>
+<p>Let us now <a id="_idIndexMarker455"/>see our created <span class="No-Break">test file:</span></p>
+<pre class="source-code">
+import { axiosInstance } from "../api/userAPI";
+import { SimpleMutation } from "../Mutation";
+import { render, screen, waitFor } from
+  "../utils/test-utils";
+import userEvent from "@testing-library/user-event";
+const postSpy = jest.spyOn(axiosInstance, "pos<a id="_idTextAnchor265"/>t");
+describe("SimpleMutation Tests", () =&gt; {
+  test("data should be sent to the server", async () =&gt; {
+    const name = "Daniel";
+    render(&lt;SimpleMutation /&gt;);
+    const input = screen.getByRole("textbox");
+    userEvent.type(input, name);
+    userEvent.click(
+      screen.getByRole("button", {
+        name: /add/i,
+      })
+    );
+    await waitFor(() =&gt;
+      expect(postSpy.mock.calls[0][1]).to<a id="_idTextAnchor266"/>Equal
+        ({ name, age: 0 })
+    );
+  });
+  test("on no network should display paused information", as<a id="_idTextAnchor267"/>ync () =&gt; {
+    jest.spyOn(navigator, "onLine", "get").mockReturnValue
+      (false);
+    render(&lt;SimpleMutation /&gt;);
+    userEvent.click(
+      screen.getByRole("button", {
+        name: /add/i,
+      })
+    );
+    const text = await screen.findByText("Waiting for
+      network to come b<a id="_idTextAnchor268"/>ack");
+    expect(text).toBeInTheDocument();
+  });
+});</pre>
+<p>Let us now <a id="_idIndexMarker456"/>review what we are doing in <a id="_idIndexMarker457"/>the <span class="No-Break">preceding snippet:</span></p>
+<ol>
+<li>We import our <strong class="source-inline">axiosInstance</strong> from our API file, as well as the <strong class="source-inline">SimpleMutation</strong> component we saw in <a href="B18501_06.xhtml#_idTextAnchor159"><span class="No-Break"><em class="it lic">Chapter 6</em></span></a>, our custom <strong class="source-inline">render</strong> function, the <strong class="source-inline">screen</strong> object<a id="_idTextAnchor269"/>, and the <strong class="source-inline">waitFor</strong> function from our <strong class="source-inline">test-utils</strong>. Finally, we import the <strong class="source-inline">userEvent</strong> util from the <strong class="source-inline">user-event</strong> companion in the <span class="No-Break">testing library.</span></li>
+</ol>
+<p>One thing to be aware of here is that we are using a user-event version <span class="No-Break">before v14.</span></p>
+<ol>
+<li value="2">Since we will tie one of our tests to implementation details, we create <strong class="source-inline">jest</strong> <strong class="source-inline">spy</strong> over the <strong class="source-inline">post</strong> function of our <strong class="source-inline">axiosInstance</strong>. This means we can check whether our <strong class="source-inline">post</strong> f<a id="_idTextAnchor270"/><a id="_idTextAnchor271"/>unction was called without replacing <span class="No-Break">its implementation.</span></li>
+<li>We create our test suite, and inside it, <span class="No-Break">our tests:</span><ol><li>For the <strong class="source-inline">"data should be sent to the server"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Create <a id="_idTextAnchor272"/>a <a id="_idIndexMarker458"/>variable to hold the name we will use in <a id="_idIndexMarker459"/><span class="No-Break">our mutation.</span></li><li>Render our <span class="No-Break"><strong class="source-inline">SimpleMutation</strong></span><span class="No-Break"> component.</span></li><li>Leverage a <strong class="source-inline">getByRole</strong> query to get our <span class="No-Break">name input.</span></li><li>Leverage the <strong class="source-inline">typ<a id="_idTextAnchor273"/>e</strong> event from <strong class="source-inline">userEvent</strong> and type our name inside <span class="No-Break">our input.</span></li><li>Leverage the <strong class="source-inline">click</strong> event from <strong class="source-inline">userEvent</strong> and click on the <strong class="bold">Add </strong><span class="No-Break"><strong class="bold">text</strong></span><span class="No-Break"> button.</span></li><li>We then wait until the <strong class="source-inline">post</strong> function of our <strong class="source-inline">axiosInstance</strong> is called with the data from <span class="No-Break">our mutation.</span></li></ol></li><li>For the <strong class="source-inline">"on no network should display paused information"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Since we want to make sure that we simulate being offline, we leverage the <strong class="source-inline">mockReturnValue</strong> function from the <strong class="source-inline">spyOn</strong> function to make sure we force our <strong class="source-inline">navigator</strong> <strong class="source-inline">onLine</strong> property to return <strong class="source-inline">false</strong>. This will make sure that our code is aware of <span class="No-Break">being offline.</span></li><li>Render our <span class="No-Break"><strong class="source-inline">SimpleMutation</strong></span><span class="No-Break"> component.</span></li><li>Leverage the <strong class="source-inline">click</strong> event from the <strong class="source-inline">userEvent</strong> and click on the <strong class="bold">Add </strong><span class="No-Break"><strong class="bold">text</strong></span><span class="No-Break"> button.</span></li><li>Since React Query will now know it’s offline, the <strong class="source-inline">isPaused</strong> property is <strong class="source-inline">true</strong>. Therefore, we wait until the <strong class="source-inline">"Waiting for network to come back"</strong> message appears. We then assert it is on <span class="No-Break">the DOM.</span></li></ol></li></ol></li>
+</ol>
+<p>From the previous test, we learned that we can leverage <strong class="source-inline">Jest</strong> spies to check whether our function was called and make sure our mutation is performed. This doesn’t guarantee how our component will behave when our mutation is successful because we don’t have anything rendered in there to let us know. In the first case scenario, always ensure you have all the information your user needs so they can know that your mutation was <a id="_idIndexMarker460"/>successful. If you do this, you can <a id="_idIndexMarker461"/>test it in a user-centric way and avoid <span class="No-Break">implementation details.</span></p>
+<p>One mutation case that might be relevant for testing is when we perform an optimistic update. However, since <a id="_idIndexMarker462"/>we applied one of the aforementioned patterns in this chapter to it, we will be able to test it with the <strong class="bold">React Hooks Testing Library</strong> in the <span class="No-Break">next section.</span></p>
+<h1 id="_idParaDest-124"><a id="_idTextAnchor274"/>Testing custom hooks that use React Query</h1>
+<p>During development, there will be times when your custom hooks are too complex to test alongside <a id="_idIndexMarker463"/>the component that leverages them. This can be due to the size of the hook, complex logic, or just too many scenarios that would increase your test complexity if you focused on a user-centric approach. To fix this issue, the React Hooks Testing Library <span class="No-Break">was created.</span></p>
+<p>Now, it might be very tempting to go ahead and use this everywhere, but don’t forget that a user-centric approach will ultimately help you to find issues faster and save time if you decide to refactor the way your hooks work. Either way, if your hook is not used alongside a component or is too complex, the React Hooks Testing Library is definitely something <span class="No-Break">to consider.</span></p>
+<p>Here is how to add the React Hooks Testing Library to <span class="No-Break">your project:</span></p>
+<ul>
+<li>If you are runni<a id="_idTextAnchor275"/>ng npm in your project, run the <span class="No-Break">following command:</span><pre class="source-code">
+<strong class="bold">npm install @testing-library/react-hooks react-test-renderer --save-dev</strong></pre></li>
+<li>If you are using Yarn, run the <span class="No-Break">following command:</span><pre class="source-code">
+<strong class="bold">yarn add @testing-library/react-hooks react-test-renderer --dev</strong></pre></li>
+<li>If you are using pnpm, run the <span class="No-Break">following command:</span><pre class="source-code">
+<strong class="bold">pnpm add @testing-library/react-hooks react-test-renderer --save-dev</strong></pre></li>
+</ul>
+<p>If you are using React from version 18 and above, there is something to be aware of here. You don’t need to install the React Hooks Testing Library, as from version 13.1.0 onward, the React Testing Library includes <strong class="source-inline">renderHook</strong>, which works similarly to the one from the React Hooks <span class="No-Break">Testing Library.</span></p>
+<p>As mentioned <a id="_idIndexMarker464"/>at the end of the last section, we will see how to test optimistic updates. Before we write our tests, let us see how our code looks after applying the patterns mentioned in <span class="No-Break">this chapter.</span></p>
+<p>To do this, we will leverage the <strong class="source-inline">useOptimisticUpdateUserCreation</strong> hook <span class="No-Break">shown previously:</span></p>
+<pre class="source-code">
+import { useMutation, useQueryClient } from
+  "@tanstack/react-query";
+import { userKeys } from "../../utils/queryKeyFactories";
+import { createUser } from "../../api/userAPI";
+const useOptimisticUpdateUserCreation = () =&gt; {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createUser,
+    retry: 0,
+    onSettled: () =&gt; queryClient.invalidateQueries
+      (userKeys.all()),
+    onMutate: async (user) =&gt; {
+      await queryClient.cancelQueries(userKeys.all());
+      const previousUsers = queryClient.getQueryData
+        (userKeys.all());
+      queryClient.setQueryData(userKeys.all(), (prevData) =&gt; [
+        user,
+        ...prevData,
+      ]);
+      return { previousUsers };
+    },
+    onError: (error, user, context) =&gt; {
+      queryClient.setQueryData(userKeys.all(),
+        context.previousUsers);
+    },
+  });
+};
+export default useOptimisticUpdateUserCreation;</pre>
+<p>Considering <a id="_idIndexMarker465"/>we already have the route leveraged in this hook handled by MSW, we can start considering <span class="No-Break">our tests.</span></p>
+<p>These are the scenarios we will <span class="No-Break">be considering:</span></p>
+<ul>
+<li><strong class="bold">I want to perform an optimistic update right after triggering my mutation</strong>: In this scenario, we render our hook, trigger our mutation, and wait until the query data affected by our mutation <span class="No-Break">is updated.</span></li>
+<li><strong class="bold">I want my optimistic update data to be reverted after my mutation fails</strong>: In this scenario, we render our hook and trigger our mutation, and when our mutation fails, our query data must stay the same as before the mutation <span class="No-Break">was triggered.</span></li>
+<li><strong class="bold">I want my query to be invalidated after my mutation settles</strong>: In this scenario, we render our hook and trigger our mutation. Once our mutation settles, we check whether our query <span class="No-Break">was invalidated.</span></li>
+</ul>
+<p>With these <a id="_idIndexMarker466"/>scenarios in mind, we can create our tests. This is what our test file would <span class="No-Break">look like:</span></p>
+<pre class="source-code">
+import useOptimisticUpdateUserCreation from
+  "../useOptimisticUpdateUserCreation";
+import { QueryClient, QueryClientProvider } from
+  "@tanstack/react-query";
+import { renderHook } from "@testing-library/react-hooks";
+import { userKeys } from "../../../utils/
+  queryKeyFactories";
+import { server } from "../../../mocks/server";
+import { rest } from "msw";
+const queryClient = new QueryClient({
+  logger: {
+    log: console.log,
+    warn: console.warn,
+    error: jest.fn(),
+  },
+});
+const wrapper = ({ children }) =&gt; (
+  &lt;QueryClientProvider client={queryClient}&gt;{children}
+    &lt;/QueryClientProvider<a id="_idTextAnchor276"/>&gt;
+);
+describe("useOptimisticUpdateUserCreation", () =&gt; {
+  test("should perform optimistic update", async () =&gt; {
+    queryClient.setQueryData(userKeys.all(), []);
+    const name = "user";
+    const age = 20;
+    const { result, waitFor } = renderHook(
+      () =&gt; useOptimisticUpdateUserCreation(),
+      {
+        wrapper,
+      }
+    );
+    result.current.mutate({ name, age });
+    await waitFor(() =&gt;
+      expect(queryClient.getQueryData(userKey<a id="_idTextAnchor277"/>s.all())).
+        toEqual([{ name, age }])
+    );
+  });
+  test("should revert optimistic update", async () =&gt; {
+    queryClient.setQueryData(userKeys.all(), []);
+    server.use(rest.post("*", (req, res, ctx) =&gt;
+      res(ctx.status(403))));
+    const name = "user";
+    const age = 20;
+    const { result, waitFor } = renderHook(() =&gt;
+      useOptimisticUpdateUserCreation(), {
+      wrapper,
+    });
+    result.current.mutate({ name, age });
+    await waitFor(() =&gt; expect(result.current.isError).
+      toBe(true));
+    await waitFor(() =&gt;
+      expect(queryClient.getQuer<a id="_idTextAnchor278"/>yData(userKeys.all())).
+        toEqual([])
+    );
+  });
+  test("should invalid<a id="_idTextAnchor279"/>ate query on settled", async () =&gt; {
+    queryClient.setQueryData(userKeys.all(), []);
+    const invalidateQueriesSpy = jest.spyOn(queryClient,
+      "invalidateQueries");
+    const name = "user";
+    const age = 20;
+    const { result, waitFor } = renderHook(
+      () =&gt; useOptimisticUpdateUserCreation(),
+      {
+        wrapper,
+      }
+    );
+    result.current.mutate({ name, age });
+    await waitFor(() =&gt; expect(result.current.isSuccess).
+      toBe(true));
+    expect(invalidateQ<a id="_idTextAnchor280"/><a id="_idTextAnchor281"/><a id="_idTextAnchor282"/><a id="_idTextAnchor283"/><a id="_idTextAnchor284"/>ueriesSpy).toHaveBeenCalledWith
+      (userKeys.all());<a id="_idTextAnchor285"/>
+  });
+});</pre>
+<p>Let us now <a id="_idIndexMarker467"/>review what we do in the <span class="No-Break">preceding snippet:</span></p>
+<ol>
+<li>We start by doing the <span class="No-Break">necessary imports:</span><ol><li>Our <strong class="source-inline">useOptimisticUpdateUserCreation</strong> <span class="No-Break">custom hook.</span></li><li>Our <strong class="source-inline">QueryClient</strong> and <strong class="source-inline">QueryClientProvider</strong>. Remember that we won’t use the previously created <strong class="source-inline">customRender</strong>, so we must create a new <span class="No-Break">wrapper here.</span></li><li><strong class="source-inline">renderHook</strong> from the React Hooks Testing Library. If you use <strong class="source-inline">renderHook</strong> from the React Testing Library, import it <span class="No-Break">there instead.</span></li><li>Our <span class="No-Break"><strong class="source-inline">userKeys</strong></span><span class="No-Break"> factory.</span></li><li>Our MSW <strong class="source-inline">server</strong> so that we can create a custom response mock for one of our <span class="No-Break">test scenarios.</span></li><li>The MSW <strong class="source-inline">rest</strong> namespace to create relevant request handlers for one of our <span class="No-Break">test scenarios.</span></li></ol></li>
+<li>We create our <strong class="source-inline">QueryClient</strong> instance and pass it to our <strong class="source-inline">wrapper</strong>. This will be used <a id="_idIndexMarker468"/>to wrap our hook to u<a id="_idTextAnchor286"/><a id="_idTextAnchor287"/>se <span class="No-Break">React Query.</span></li>
+<li>We create our test suite and, inside it, <span class="No-Break">our tests:</span><ol><li>For the <strong class="source-inline">"should perform optimistic update"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Ensure our cached query data for the query key under the <strong class="source-inline">userKeys.all()</strong> key is an <span class="No-Break">empty array.</span></li><li>Create the <strong class="source-inline">name</strong> and <strong class="source-inline">age</strong> variables to avoid magic numbers in <span class="No-Break">our test.</span></li><li>Render our hook and destructure the <strong class="source-inline">waitFor</strong> function and the <strong class="source-inline">result</strong> object <span class="No-Break">from it.</span></li><li>We leverage our <strong class="source-inline">result</strong> object to access our <strong class="source-inline">mutate</strong> function and perform <span class="No-Break">our mutation.</span></li><li>We use the <strong class="source-inline">waitFor</strong> function to loop our assertion until it evaluates to <strong class="source-inline">true</strong>. In this scenario, we wait until the query cache has the optimistically updated data cached under the <strong class="source-inline">userKeys.all()</strong> <span class="No-Break">query key.</span></li></ol></li><li>For the <strong class="source-inline">"should revert optimistic update"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Ensure our cached query dat<a id="_idTextAnchor288"/><a id="_idTextAnchor289"/>a for the query key under the <strong class="source-inline">userKeys.all()</strong> key is an <span class="No-Break">empty array.</span></li><li>Leverage our <strong class="source-inline">server use</strong> function to add a request handler to our current server instance. In this scenario, we add a handler that will catch every <strong class="source-inline">POST</strong> request (<strong class="source-inline">"*"</strong> indicates that this handler will match every route) and <a id="_idIndexMarker469"/>return a <strong class="source-inline">403 Forbidden</strong> so that our request fails. Don’t worry about this leaking into other tests because we made sure to call the <strong class="source-inline">resetHandlers</strong> function in our <strong class="source-inline">setupTests</strong> file. This will ensure that this custom request handler will only be used on <span class="No-Break">this test.</span></li><li>Create the <strong class="source-inline">name</strong> and <strong class="source-inline">age</strong> variables to avoid magic numbers in <span class="No-Break">our test.</span></li><li>Render our hook and destructure the <strong class="source-inline">waitFor</strong> function and the <strong class="source-inline">result</strong> object <span class="No-Break">from it.</span></li><li>Leverage our <strong class="source-inline">result</strong> object to access our <strong class="source-inline">mutate</strong> function and perform <span class="No-Break">our mutation.</span></li><li>Use the <strong class="source-inline">waitFor</strong> function to wait until our hook’s <strong class="source-inline">isError</strong> property <span class="No-Break">is </span><span class="No-Break"><strong class="source-inline">true</strong></span><span class="No-Break">.</span></li><li>Once we are sure our mutation has failed, we again leverage the <strong class="source-inline">waitFor</strong> function to wait until the query data cached under the <strong class="source-inline">userKeys.all()</strong> key is the empty array we had before <span class="No-Break">our mutation.</span></li></ol></li><li>For the <strong class="source-inline">"should invalidate query on settled"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Ensure our cached query data for the query key under the <strong class="source-inline">userKeys.all()</strong> key is an <span class="No-Break">empty array.</span></li><li>Since we are not rendering a query to make sure it is updating after our mutation, we create <strong class="source-inline">invalidateQueriesSpy</strong> over our <strong class="source-inline">queryClient</strong> <span class="No-Break"><strong class="source-inline">invalidateQueries</strong></span><span class="No-Break"> method.</span></li><li>Create the <strong class="source-inline">name</strong> and <strong class="source-inline">age</strong> variables to avoid magic numbers in <span class="No-Break">our test.</span></li><li>Render our hook and destructure the <strong class="source-inline">waitFor</strong> function and the <strong class="source-inline">result</strong> object <span class="No-Break">from it.</span></li><li>Leverage our <strong class="source-inline">result</strong> object to access our <strong class="source-inline">mutate</strong> function and perform <span class="No-Break">our mutation.</span></li><li>Wait until our <strong class="source-inline">isSuccess</strong> is <strong class="source-inline">true</strong>. This means our mutation <span class="No-Break">was successful.</span></li><li>If our mutation is successful, we can assert that <strong class="source-inline">invalidateQueriesSpy</strong> was called with the <strong class="source-inline">userKeys.all()</strong>. This means that our <strong class="source-inline">onSettled</strong> function was called, and our query would be <span class="No-Break">invalidated afterward.</span></li></ol></li></ol></li>
+</ol>
+<p>We have now <a id="_idIndexMarker470"/>handled how to test custom hooks with React Hooks Testing Library. It is all about rendering your hook and leveraging its result to access what your hook returns to perform your actions <span class="No-Break">and assertions.</span></p>
+<p>Just for the sake of convenience and so that you can see a scenario where we test a query, let us see how we would test the <strong class="source-inline">useMultipleQueriesV2</strong> hook we saw in the <em class="it lic">Checking whether data is </em><span class="No-Break"><em class="it lic">fetched</em></span><span class="No-Break"> section.</span></p>
+<p>For this hook, we would only need a single <span class="No-Break">test scenario:</span></p>
+<ul>
+<li><strong class="bold">I want my parallel queries to fetch data</strong>: In this scenario, we render our hook and wait until it returns the data for the three queries <span class="No-Break">it fetches</span></li>
+</ul>
+<p>Like the previous hook, we have already set up our MSW request handlers previously, so we<a id="_idTextAnchor290"/> don’t need to worry <span class="No-Break">about them.</span></p>
+<p>Let us look <a id="_idIndexMarker471"/>at the test file for our <span class="No-Break"><strong class="source-inline">useMultipleQueriesV2</strong></span><span class="No-Break"> hook:</span></p>
+<pre class="source-code">
+import useMultipleQueriesV2 from "../useMultipleQueriesV2";
+import { QueryClient, QueryClientProvider } from
+  "@tanstack/react-query";
+import { renderHook } from "@testing-library/react-hooks";
+const queryClient = new QueryClient();
+const wrapper = ({ children }) =&gt; (
+  &lt;QueryClientProvider client={queryClient}&gt;{children}
+    &lt;/Que<a id="_idTextAnchor291"/>ryClientProvider&gt;
+);
+describe("useMultipleQueriesV2", () =&gt; {
+  test("should fetch all data", async () =&gt; {
+    const { result, waitFor } = renderHook(() =&gt;
+      useMultipleQueriesV2(), {
+      wrapper,
+    });
+    await waitFor(() =&gt;
+      expect(result.current.multipleQueries[0].data.hello).
+        toBeDefined()
+    );
+    expect(result.current.multipleQueries[0].data.hello).
+      toBe("userOne");
+    expect(result.current.multipleQueries[1].data.hello).
+      toBe("userTwo");
+    expect(result.current.multipleQueries[2].data.hello).
+      toBe("userThree");
+  });
+});</pre>
+<p>Let us now review what we are doing in the <span class="No-Break">preceding snippet:</span></p>
+<ol>
+<li>We start by doing the <span class="No-Break">necessary imports:</span><ol><li>Our <strong class="source-inline">useMultipleQueriesV2</strong> <span class="No-Break">custom hook.</span></li><li>Our <strong class="source-inline">QueryClient</strong> <span class="No-Break">and </span><span class="No-Break"><strong class="source-inline">QueryClientProvider</strong></span><span class="No-Break">.</span></li><li><strong class="source-inline">renderHook</strong> from the React Hooks Testing Library. If you are using <strong class="source-inline">renderHook</strong> from the React Testing Library, import it from <span class="No-Break">there instead.</span></li></ol></li>
+<li>We create <a id="_idIndexMarker472"/>our <strong class="source-inline">QueryClient</strong> instance and pass it to our <strong class="source-inline">wrapper</strong>. This will be used to wrap our hook to use <span class="No-Break">React Query.</span></li>
+<li>We create our test suite and, inside it, <span class="No-Break">our test:</span><ul><li>For the <strong class="source-inline">"should fetch all data"</strong> test, we do <span class="No-Break">the following:</span><ol><li>Render our hook with the <strong class="source-inline">renderHook</strong> function and destructure the <strong class="source-inline">result</strong> object and the <strong class="source-inline">waitFo<a id="_idTextAnchor292"/>r</strong> function <span class="No-Break">from it.</span></li><li>Wait until the data for the first query <span class="No-Break">is defined.</span></li><li>Given that the data is <a id="_idTextAnchor293"/>now defined, we assert that the <a id="_idTextAnchor294"/><a id="_idTextAnchor295"/><strong class="source-inline">hello</strong> property from the returned object on the first query <span class="No-Break">has </span><span class="No-Break"><strong class="source-inline">userOne</strong></span><span class="No-Break">.</span></li><li>We also assert that the <strong class="source-inline">hello</strong> property from the returned object on the second query <span class="No-Break">has </span><span class="No-Break"><strong class="source-inline">userTwo</strong></span><span class="No-Break">.</span></li><li>We also assert that the <strong class="source-inline">hello</strong> property from the returned object on the third query <span class="No-Break">has </span><span class="No-Break"><strong class="source-inline">userThree</strong></span><span class="No-Break">.</span></li></ol></li></ul></li>
+</ol>
+<p>As you can see, testing hooks <a id="_idIndexMarker473"/>and leveraging queries is much simpler, as it mostly only involves rendering and asserting. This a test example, where I did not test the hook because testing the component using it is much easier. Just check the test we did for it in the <em class="it lic">Checking whether data is </em><span class="No-Break"><em class="it lic">fetched</em></span><span class="No-Break"> section.</span></p>
+<p>With all this knowledge in mind, you should be able to write your code and then sleep amazingly well at night because you also wrote valuable tests, ensuring that nothing <span class="No-Break">will break.</span></p>
+<h1 id="_idParaDest-125"><a id="_idTextAnchor296"/>Summary</h1>
+<p>In this chapter, we learned how to test our components and hooks that leverage React Query. Congratulations! Thanks to this chapter, you have become a full-on React <span class="No-Break">Query master!</span></p>
+<p>You learned how MSW can save you a lot of time developing and testing your React Query code by having a couple of <span class="No-Break">request handlers.</span></p>
+<p>You got to meet the three patterns you can apply to make your code more readable and reusable (creating an API file, leveraging query key factories, and creating a hooks folder) and saw how valuable they were in adapting the code we saw in <span class="No-Break">previous chapters.</span></p>
+<p>Finally, you learned when to use the React Testing Library and the React Hooks Testing Library to test your queries and mutations, and you will keep the user-centric approach at the forefront of your mind when writing tests from <span class="No-Break">now on.</span></p>
+<p>Once again, congratulations! You should now be able to leverage React Query in every scenario and sleep better at night because you can write valuable tests for it. Now, run with this knowledge, and go ahead and convince your teammates about the value of the amazing TanStack Query and how its React Adapter, called React Query, will make their server state management <span class="No-Break">much easier.</span></p>
+</div>
+<div>
+<div class="IMG---Figure" id="_idContainer036">
+</div>
+</div>
+</div></body></html>

@@ -1,0 +1,201 @@
+<html><head></head><body>
+<div id="sbo-rt-content"><div id="_idContainer010">
+<h1 class="ch pter-number" id="_idParaDest-27"><a id="_idTextAnchor049"/>2</h1>
+<h1 id="_idParaDest-28"><a id="_idTextAnchor050"/>Server State versus Client State</h1>
+<p>Global state is the <a id="_idIndexMarker039"/>most common way we look at state. It is the state that is shared globally in our application by one or <span class="No-Break">more components.</span></p>
+<p>What we don’t often know is that in our day-to-day development, our global state ends up being split between the state that persists outside of our application and the state that only exists <a id="_idIndexMarker040"/>within our application. The first type of state is called <strong class="bold">server state</strong>, while the <a id="_idIndexMarker041"/>second one is called <strong class="bold">client state</strong>. Both of these types of states have their specific challenges and require different tools to help <span class="No-Break">manage them.</span></p>
+<p>In this chapter, we will understand why we refer mostly to our state as global state and why we should adjust our mental models to include client and server <span class="No-Break">states instead.</span></p>
+<p>We’ll also review what each type of state is responsible for and how to differentiate them in an application and understand the challenges that led to the creation of <span class="No-Break">React Query.</span></p>
+<p>By the end of this chapter, you’ll be able to fully split global state into the client state and the server state by applying the mental models you will have <span class="No-Break">just learned.</span></p>
+<p>You will also understand all the challenges created by having a server state in your application and prepare to overcome them with <span class="No-Break">React Query.</span></p>
+<p>In this chapter, we’ll be covering the <span class="No-Break">following topics:</span></p>
+<ul>
+<li>What is <span class="No-Break">global state?</span></li>
+<li>What is <span class="No-Break">client state?</span></li>
+<li>What is <span class="No-Break">server state?</span></li>
+<li>Understanding common challenges with <span class="No-Break">server state</span></li>
+</ul>
+<h1 id="_idParaDest-29"><a id="_idTextAnchor051"/>Technical requirements</h1>
+<p>All the code examples for this chapter can be found on GitHub <a id="_idTextAnchor052"/><span class="No-Break">at </span><a href="https://github.com/PacktPublishing/State-management-with-React-Query/tree/feat/chapter_2"><span class="No-Break">https://github.com/PacktPublishing/State-management-with-React-Query/tree/feat/chapter_2</span></a><span class="No-Break">.</span></p>
+<h1 id="_idParaDest-30"><a id="_idTextAnchor053"/>What is global state?</h1>
+<p>When starting with state <a id="_idIndexMarker042"/>management in the React world, we are often not familiar with the different concepts <span class="No-Break">of state.</span></p>
+<p>Often, we just look at state by thinking about the amount of <strong class="source-inline">useState</strong> or <strong class="source-inline">useReducer</strong> hooks we have in our components. Then, when the <strong class="source-inline">useState</strong> or <strong class="source-inline">useReducer</strong> pattern stops working and we need to share state between more components, we either lift our state to the nearest parent when this state is needed only by the children of that component, or find a common place where this state can exist and be accessible everywhere by all the components we want. This state is often called <span class="No-Break">global state.</span></p>
+<p>Let’s look at an example of what global state can look like in an application. Here, we have a store responsible for managing theme selection, fetching data, and tracking the loading state of this <span class="No-Break">fetching request:</span></p>
+<pre class="source-code">
+const theme = {
+  DARK: "dark",
+  LIGHT: "light",
+};
+export const GlobalStore = () =&gt; {
+  <strong class="bold">const [selectedTheme, setSelectedTheme] = useState</strong>
+<strong class="bold">    (theme.LIGHT);</strong>
+<strong class="bold">  const [serverData, setServerData] = useState(null);</strong>
+<strong class="bold">  const [isLoadingData, setIsLoadingData] = useState</strong>
+<strong class="bold">    (false);</strong>
+  const <strong class="bold">toggleTheme</strong> = () =&gt; {
+    setSelectedTheme((currentTheme) =&gt;
+      currentTheme === theme.LIGHT ? theme.DARK :
+        theme.LIGHT
+    );
+  };
+  const <strong class="bold">fetchData</strong> = (name = "Daniel") =&gt; {
+    setIsLoadingData(true);
+    fetch(`&lt;insert_url_here&gt;/${name}`)
+      .then((response) =&gt; response.json())
+      .then((responseData) =&gt; {
+        <strong class="bold">setServerData</strong>(responseData);
+      })
+ .finally(() =&gt; {
+        setIsLoadingData(false);
+      })
+      .catch(() =&gt; setIsLoadingData(false));
+  };
+  <strong class="bold">useEffect(() =&gt; {</strong>
+<strong class="bold">    fetchData();</strong>
+<strong class="bold">  }, []);</strong>
+  return {
+    selectedTheme,
+    toggleTheme,
+    serverData,
+    isLoadingData,
+    fetchData
+  };
+};</pre>
+<p>This snippet <a id="_idIndexMarker043"/>shows an example of what some typical global state can look like. By using React Context, we are creating a store that has the following things <span class="No-Break">inside it:</span></p>
+<ul>
+<li>A state variable called <strong class="source-inline">selectedTheme</strong> to manage the <span class="No-Break">selected theme</span></li>
+<li>A state variable called <strong class="source-inline">serverData</strong> to display the data that was returned from our <span class="No-Break">API request</span></li>
+<li>A state variable called <strong class="source-inline">isLoadingData</strong> to display whether the current loading state of our API request is <span class="No-Break">still loading</span></li>
+<li>A function called <strong class="source-inline">toggleTheme</strong> to allow us to toggle between light and <span class="No-Break">dark modes</span></li>
+<li>A <strong class="source-inline">fetchData</strong> function to allow us to fetch the given data and set our loading state as <strong class="source-inline">true</strong> or <strong class="source-inline">false</strong> depending on the state of <span class="No-Break">the request</span></li>
+<li>A <strong class="source-inline">useEffect</strong> hook that will trigger the initial data fetching to provision our <span class="No-Break"><strong class="source-inline">serverData</strong></span><span class="No-Break"> state</span></li>
+</ul>
+<p class="c llout-he ding">What is useEffect?</p>
+<p class="c llout"><strong class="source-inline">useEffect</strong> is a React hook <a id="_idIndexMarker044"/>that allows you to perform side effects in <span class="No-Break">your components.</span></p>
+<p>All these are returned from our store so that the consumers of this context can access them from all over our application as long as they subscribe to <span class="No-Break">our context.</span></p>
+<p>Now, from a first look, there seems to be nothing wrong with this state, and it might be enough for most <a id="_idIndexMarker045"/>applications. The thing is, most of the time, this state will end up growing due to new development needs. This will lead to increasing the size of our state most of <span class="No-Break">the time.</span></p>
+<p>Let’s now picture <a id="_idIndexMarker046"/>that we need a secondary theme, and we need to add another state variable called <strong class="source-inline">secondaryTheme</strong>. Our code would look a lot <span class="No-Break">like this:</span></p>
+<pre class="source-code">
+const [selectedTheme, setSelectedTheme] = useState(theme.LIGHT);
+const [secondaryTheme, setSecondaryTheme] = useState(theme.LIGHT);
+…
+  const toggleSecondaryTheme = () =&gt; {
+    setSecondaryTheme((currentTheme) =&gt;
+      currentTheme === theme.LIGHT ? theme.DARK :
+        theme.LIGHT
+    );
+  };
+  const toggleTheme = () =&gt; {
+    setSelectedTheme((currentTheme) =&gt;
+      currentTheme === theme.LIGHT ? theme.DARK :
+        theme.LIGHT
+    );
+  };</pre>
+<p>So, in this snippet, we added our <strong class="source-inline">secondaryTheme</strong> state variable, and it works very much <span class="No-Break">like </span><span class="No-Break"><strong class="source-inline">selectedTheme</strong></span><span class="No-Break">.</span></p>
+<p>Now, we are using context here; this means that every time we trigger a state update, any component that consumes this state will be forced to re-render to receive the new state updates. What does this mean <span class="No-Break">to us?</span></p>
+<p>Let’s imagine we <a id="_idIndexMarker047"/>have two components (let’s call them <em class="it lic">Component A</em> and <em class="it lic">Component B</em>) consuming <a id="_idIndexMarker048"/>this context, but <em class="it lic">Component B</em> only destructures the <strong class="source-inline">selectedTheme</strong> state <a id="_idIndexMarker049"/>while <em class="it lic">Component A</em> destructures everything. If <em class="it lic">Component A</em> triggers a state update on <strong class="source-inline">secondaryTheme</strong>, then <em class="it lic">Component B</em> will also re-render because React noticed an update inside the context that both of <span class="No-Break">them share.</span></p>
+<p>This is how React Context works, and we can’t change this. We could argue that we could either split the context, split the subscribing component into two components and wrap the second <a id="_idIndexMarker050"/>one with <strong class="source-inline">memo</strong>, or just wrap our return with the <strong class="source-inline">useMemo</strong> hook. Sure, this would probably fix our issue, but we are only dealing with the changes in one type of state that creates the <span class="No-Break">global state.</span></p>
+<p class="c llout-he ding">What are memo and useMemo?</p>
+<p class="c llout"><strong class="source-inline">memo</strong> is a function that you can <a id="_idIndexMarker051"/>wrap your component in to define a memoized version of it. This will guarantee that your component doesn’t re-render unless its props <span class="No-Break">have changed.</span></p>
+<p class="c llout"><strong class="source-inline">useMemo</strong> is a React hook that <a id="_idIndexMarker052"/>allows you to memoize a value. Usually, the value we want to memoize is the result of an <span class="No-Break">expensive calculation.</span></p>
+<p>Now, imagine we needed to add another API request context. Once again, the context grows and we end up with the same issue we had with <span class="No-Break">the themes.</span></p>
+<p>As you may already understand by now, state organization can be a nightmare sometimes. We could resort to a third-party library to help us with this but, once again, this is only a small part of our issues with <span class="No-Break">our state.</span></p>
+<p>So far, we have only been dealing with the organization of state, but now imagine we need to cache the data that we got from our API request. This can lead us <span class="No-Break">to madness.</span></p>
+<p>From these issues we have just noticed, we can see that inside our global state, we tend to have different challenges, and a solution that works for one thing might not work for another. This is why it is important to split our global state. Our global state is often a mix between client state and server state. In the upcoming sections, you will understand what each one <a id="_idIndexMarker053"/>of these states is, and we’ll focus on server state to finally understand why React Query has become so popular and made our lives so much easier as <span class="No-Break">a developer.</span></p>
+<h1 id="_idParaDest-31"><a id="_idTextAnchor054"/>What is client state?</h1>
+<p>I know, by now, you must <a id="_idIndexMarker054"/>be thinking, when is this book going to start React Querying? We are almost there, I promise you. I just need you to fully understand why I love React Query so much and to do so, it is important to understand the main problem <span class="No-Break">it solves.</span></p>
+<p>Now, client state is not one of the problems it solves, but you must be able to identify client state in your day-to-day life as a developer so that you fully understand what should be managed by React Query and what should be managed by other state <span class="No-Break">management tools.</span></p>
+<p>Client state is the state that is owned by <span class="No-Break">your application.</span></p>
+<p>Here are a couple of things that help define your <span class="No-Break">client state:</span></p>
+<ul>
+<li>This state is synchronous, which means you can access it without any waiting time and by using <span class="No-Break">synchronous APIs.</span></li>
+<li>It is local; therefore, it only exists in <span class="No-Break">your application.</span></li>
+<li>It is temporary, so it may get lost upon a page reload and is generally non-persistent <span class="No-Break">between sessions.</span></li>
+</ul>
+<p>With this knowledge in mind, if you were to look back at <strong class="source-inline">GlobalStore</strong>, what would you identify as belonging to <span class="No-Break">client state?</span></p>
+<p>Probably only <span class="No-Break"><strong class="source-inline">selectedTheme</strong></span><span class="No-Break">, right?</span></p>
+<p>Let us apply our learning from the previous <span class="No-Break">bullet points:</span></p>
+<ul>
+<li>Do we need to wait to get its value? <em class="it lic">No</em>, so that means it <span class="No-Break">is synchronous.</span></li>
+<li>Does the <strong class="source-inline">selectedTheme</strong> only exist in our <span class="No-Break">application? </span><span class="No-Break"><em class="it lic">Yes</em></span><span class="No-Break">.</span></li>
+<li>Will it be lost on a page reload? <em class="it lic">Yes</em>, if we don’t persist it in local storage or check the browser preferences, then its value will be lost between <span class="No-Break">page reloads.</span></li>
+</ul>
+<p>With this in mind, we can definitely say that <strong class="source-inline">selectedTheme</strong> belongs in our <span class="No-Break">client state.</span></p>
+<p>To manage this type of state, we can use anything from React Context to third-party libraries such <a id="_idIndexMarker055"/>as Redux, Zustand, or MobX when things start to become harder to organize <span class="No-Break">and maintain.</span></p>
+<p>If we ask the same questions for our <strong class="source-inline">serverData</strong> state variable, would it work <span class="No-Break">the same?</span></p>
+<ul>
+<li>Does the data only exist in our application? <em class="it lic">No</em>, it exists on a <span class="No-Break">database somewhere.</span></li>
+<li>Will it be lost on page reload? <em class="it lic">No</em>, the database still keeps the data, so when we reload, it will be fetched <span class="No-Break">once again.</span></li>
+<li>Do we need to wait to get it? <em class="it lic">Yes</em>, we need to trigger a fetching request to get <span class="No-Break">this data.</span></li>
+</ul>
+<p>This means that our <strong class="source-inline">serverData</strong> state variable doesn’t belong in our client state. This is something that we would classify as part of <span class="No-Break">server state.</span></p>
+<p>Let us now get into the thing that brought you to this book and made React <span class="No-Break">Query necessary.</span></p>
+<h1 id="_idParaDest-32"><a id="_idTextAnchor055"/>What is server state?</h1>
+<p>We have always <a id="_idIndexMarker056"/>had server state in our applications. The main issue was that we tried to tie it in with our client state management solutions. A common example <a id="_idIndexMarker057"/>of trying to tie our server state with our client state management <a id="_idIndexMarker058"/>solutions is using either <strong class="bold">Redux Saga</strong> or <strong class="bold">Redux Thunk</strong>. Both of them made it easier to do data fetching and store your server state. The main issue starts when we have to deal with some of the challenges server state brings us, but let’s not get ahead of ourselves; you will understand these challenges in the <span class="No-Break">next section.</span></p>
+<p>Now, what is server state, you might <span class="No-Break">be wondering?</span></p>
+<p>Well, as the name says, server state is the type of state that is stored on your server. Here are a couple of things that help identify your <span class="No-Break">server state:</span></p>
+<ul>
+<li>This state is asynchronous, which means you need to use asynchronous APIs for fetching and <span class="No-Break">updating it.</span></li>
+<li>It is persisted remotely – most of the time on a database or external place you don’t own <span class="No-Break">or control.</span></li>
+<li>There are no guarantees that this state is up to date in your application because most often, you have shared ownership of it, and it might be changed by others that are consuming it <span class="No-Break">as well.</span></li>
+</ul>
+<p>With this knowledge <a id="_idIndexMarker059"/>in mind, let us look back at <strong class="source-inline">GlobalStore</strong> and our <strong class="source-inline">serverData</strong> state variable and apply these rules to identify our <span class="No-Break">server state:</span></p>
+<ul>
+<li>Do we need asynchronous APIs to access this state? We do! We need to send a fetch request to the server and wait for it to send the <span class="No-Break">data back.</span></li>
+<li>Is it persisted remotely? It sure is. Like I just said in the previous bullet item, we need to ask our server <span class="No-Break">for it.</span></li>
+<li>Will this state always be up to date in our application? We don’t know. We don’t control the state. This means that if anyone that is consuming the same API decides to update it, then our <strong class="source-inline">serverData</strong> state variable will immediately <span class="No-Break">be outdated.</span></li>
+</ul>
+<p>Now, you might be looking back at <strong class="source-inline">GlobalStore</strong> and asking the following: if <strong class="source-inline">selectedTheme</strong> is client state and <strong class="source-inline">data</strong> is server state, then what is the <strong class="source-inline">isLoadingData</strong> <span class="No-Break">state variable?</span></p>
+<p>Well, this is a derived state variable. This means that its state will always depend on the current status of our <strong class="source-inline">serverData</strong> fetching request. If we fetch data, then <strong class="source-inline">isLoadingData</strong> will be <strong class="source-inline">true</strong>; once we are done fetching data, then <strong class="source-inline">isLoadingData</strong> will go back <span class="No-Break">to </span><span class="No-Break"><strong class="source-inline">false</strong></span><span class="No-Break">.</span></p>
+<p>Now, imagine needing one of these derived state variables for every type of server state variable you have in your application. I’m also going to ask you to picture a scenario in which you needed to handle errors when a fetch request fails. You would probably create another state variable for errors, right? But wouldn’t you end up with the same issue as your <span class="No-Break">loading state?</span></p>
+<p>The previously mentioned <a id="_idIndexMarker060"/>scenario is just the very small tip of the iceberg of challenges that the server state brings to your application. Imagine that one of your team technical leads arrives at the office one day and tells you that now you need to start caching your data; oh God, another challenge that we didn’t think about. As you can see, the server state has many challenges, and in the next section, we will see a couple <span class="No-Break">of them.</span></p>
+<h1 id="_idParaDest-33"><a id="_idTextAnchor056"/>Understanding common challenges with server state</h1>
+<p>By now, you have probably <a id="_idIndexMarker061"/>figured out that the server state comes with quite its fair share of challenges. These challenges made React Query stand out even more when it came out because it solved them in such a simple way for developers that it seemed too good to <span class="No-Break">be true.</span></p>
+<p>Now, what are these challenges, and why are they so complex to solve most of <span class="No-Break">the time?</span></p>
+<p>In this section, we will see all the common challenges that we have with the server state and understand a bit of the hard work we had to do as developers to solve them ourselves before we had <span class="No-Break">React Query.</span></p>
+<h2 id="_idParaDest-34"><a id="_idTextAnchor057"/>Caching</h2>
+<p>This is probably one <a id="_idIndexMarker062"/>of the hardest challenges we face in server <span class="No-Break">state management.</span></p>
+<p>To improve your page performance and make your site more responsive, very often, you will need to cache your data. This means being able to reuse data that you previously fetched to avoid refetching it from the server <span class="No-Break">once again.</span></p>
+<p>Now, you might be thinking that this sounds simple, but consider the <span class="No-Break">following things:</span></p>
+<ul>
+<li>While keeping your application responsive, you need to update your cache in <span class="No-Break">the background.</span></li>
+<li>You need to be able to evaluate when your cache data has become stale and needs to <span class="No-Break">be updated.</span></li>
+<li>Once data has not been accessed for a while, you must garbage-collect <span class="No-Break">this data.</span></li>
+<li>You might want <a id="_idIndexMarker063"/>to initialize your cache with some template data before data <span class="No-Break">is fetched.</span></li>
+</ul>
+<p>As you can see, caching comes with its fair share of issues, and imagine having to solve all of these <span class="No-Break">by yourself.</span></p>
+<h2 id="_idParaDest-35"><a id="_idTextAnchor058"/>Optimistic updates</h2>
+<p>When performing mutations, you often want to make your user experience better. A mutation is <a id="_idIndexMarker064"/>a request that will either create or update your server state. Sometimes, you want to make your user experience better. We all hate filling out a form and ending up watching a loading spinner while our application in the background performs the mutation, refetches the data, and updates <span class="No-Break">the UI.</span></p>
+<p>To make the user experience better, we can resort to <span class="No-Break">optimistic updates.</span></p>
+<p>An optimistic update is when during an ongoing mutation, we update our UI to show how it will look after <a id="_idIndexMarker065"/>that mutation is complete, although that mutation is still not confirmed as complete. Basically, we are optimistic that this data will change and be what we are expecting it to be after the mutation, so we save our users some time and give them a UI that they will end up <span class="No-Break">seeing earlier.</span></p>
+<p>Now, imagine implementing this. While doing a mutation, you would need to update the server state in your application with the way we expect it to be after the mutation is successful. This would make the UI more responsive for the user and they can start interacting with it earlier. After the mutation is successful, you need to retrigger a manual refetch for the server state so that you actually have the updated state in your application. Now, picture a scenario in which the mutation fails. You would need to manually roll back your state to the previous version before your <span class="No-Break">optimistic update.</span></p>
+<p>Optimistic updates give an amazing user experience to your users but having to manage all the success and error scenarios, plus keeping your server date updated, can be a hard thing <span class="No-Break">to do.</span></p>
+<h2 id="_idParaDest-36"><a id="_idTextAnchor059"/>Deduping requests</h2>
+<p>Let’s paint the <span class="No-Break">following scenario.</span></p>
+<p>You have a <a id="_idIndexMarker066"/>button in your UI that, when clicked on by the user, triggers a fetch request to partially update your server state. When the fetch is being performed, the button <span class="No-Break">is disabled.</span></p>
+<p>This might seem okay and not troublesome at all but imagine that before your loading state updates and your button ends up being disabled, the user can click on the button 10 more times. What do you get? Ten more unexpected requests for the same data in <span class="No-Break">your application.</span></p>
+<p>This is why deduping requests is important. When fetching for the exact same type of data, if we trigger multiple requests for the same data, we want only one of those requests to be sent and avoid polluting our user network with <span class="No-Break">unnecessary requests.</span></p>
+<p>Now, imagine having to implement this by yourself. You would need to be aware of all the requests currently being done in your application. When one of those requests exactly matches another one, then you would need to cancel that second, third, or <span class="No-Break">fourth request.</span></p>
+<h2 id="_idParaDest-37"><a id="_idTextAnchor060"/>Performance optimization</h2>
+<p>Sometimes, you <a id="_idIndexMarker067"/>need some extra performance optimization in your server state. Here are some common patterns that you might need for specific optimization of your server <span class="No-Break">state management.</span></p>
+<ul>
+<li><strong class="bold">Lazy loading</strong>: You might <a id="_idIndexMarker068"/>only want a specific data fetching request to be done once a certain condition <span class="No-Break">is met.</span></li>
+<li><strong class="bold">Infinite scrolling</strong>: When <a id="_idIndexMarker069"/>dealing with huge lists, infinite scrolling is a very common pattern where you just progressively load more data into your <span class="No-Break">server state.</span></li>
+<li><strong class="bold">Paginated data</strong>: To help <a id="_idIndexMarker070"/>structure large datasets, you can opt to paginate your data. This means that whenever a user decides to move from page 1 to page 2, you will need to fetch the corresponding data for <span class="No-Break">this page.</span></li>
+</ul>
+<p>As you can see, there are several challenges that we need to solve in order to have what we can consider the best experience dealing with server state in <span class="No-Break">our application.</span></p>
+<p>The issue is that deciding to take care of these challenges ourselves as developers can take quite a while, and the code we end up creating is often prone to bugs. Most of the time, these implementations end up affecting a lot of our code readability and significantly increasing the complexity it takes to understand <span class="No-Break">our projects.</span></p>
+<p>What if I told you that there was something that could take care of all of these challenges <a id="_idIndexMarker071"/>and many others in the background for you while giving you a super-clean and simple API that will make your code more readable, easier to understand, and make you feel like a true master of <span class="No-Break">server state?</span></p>
+<p>If you are reading this book, then you probably already know the answer. Yes, I’m talking about <span class="No-Break">React Query.</span></p>
+<p>So, pack up your server state knowledge, and prepare your projects because starting with the next chapter, we will change the way you handle <span class="No-Break">server state.</span></p>
+<h1 id="_idParaDest-38"><a id="_idTextAnchor061"/>Summary</h1>
+<p>In this chapter, we fully understood the concept of global state. By now, you should be able to understand why often our state is called global state and how much harder it can be to maintain it if we don’t <span class="No-Break">split it.</span></p>
+<p>You learned how to split your state into client and server states and understand how each of these types of states is important for your application and how you can identify them in <span class="No-Break">your code.</span></p>
+<p>Finally, you were familiarized with the challenges that server state can bring to your application and understood that if you were to address them all by yourself, then your code complexity would increase significantly and you’d probably lose some much-needed <span class="No-Break">sleeping hours.</span></p>
+<p>In <a href="B18501_03.xhtml#_idTextAnchor062"><span class="No-Break"><em class="it lic">Chapter 3</em></span></a>, <em class="it lic">React Query – Introducing, Installing, and Configuring It</em>, you will start getting hands-on with React Query. You will understand what it is and how it saves you from all the headaches that server state brings to your applications. You will learn how to install and configure it for your application and how you can add dedicated React Query developer tools to make your life even easier as <span class="No-Break">a developer.</span></p>
+</div>
+<div>
+<div class="IMG---Figure" id="_idContainer011">
+</div>
+</div>
+</div></body></html>

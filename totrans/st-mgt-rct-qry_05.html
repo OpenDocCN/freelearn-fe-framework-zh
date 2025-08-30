@@ -1,0 +1,632 @@
+<html><head></head><body>
+<div id="sbo-rt-content"><div id="_idContainer027">
+<h1 class="ch pter-number" id="_idParaDest-74"><a id="_idTextAnchor139"/><a id="_idTextAnchor140"/>5</h1>
+<h1 id="_idParaDest-75"><a id="_idTextAnchor141"/>More Data-Fetching Challenges</h1>
+<p>By now, you must be familiar with how React Query enables you to fetch data with the help of <strong class="source-inline">useQuery</strong>. You even learned how to deal with some common challenges that the server state <span class="No-Break">brings you.</span></p>
+<p>In this chapter, you will learn how to deal with some more server state challenges. You will understand how you can perform parallel queries and, in the process, get to know a variant of your <strong class="source-inline">useQuery</strong> hook that makes it easier, <span class="No-Break">called </span><span class="No-Break"><strong class="source-inline">useQueries</strong></span><span class="No-Break">.</span></p>
+<p>You will again leverage <strong class="source-inline">QueryClient</strong> to deal with data prefetching, query invalidation, and query cancelation. You will even learn how to customize the methods you use to do these things by using <span class="No-Break">some filters.</span></p>
+<p><strong class="bold">Pagination</strong> and <strong class="bold">infinite lists</strong> are common UI patterns, and you will leverage your knowledge to build them while learning more about <strong class="source-inline">useQuery</strong> and even meeting another variant <span class="No-Break">called </span><span class="No-Break"><strong class="source-inline">useInfiniteQuery</strong></span><span class="No-Break">.</span></p>
+<p>By the end of this chapter, you will use the Devtools once again to look inside your queries and enhance your debugging <span class="No-Break">of them.</span></p>
+<p>In this chapter, we’ll be covering the <span class="No-Break">following topics:</span></p>
+<ul>
+<li>Building <span class="No-Break">parallel queries</span></li>
+<li><span class="No-Break">Leveraging </span><span class="No-Break"><strong class="source-inline">QueryClient</strong></span></li>
+<li>Creating <span class="No-Break">paginated queries</span></li>
+<li>Creating <span class="No-Break">infinite queries</span></li>
+<li>Debugging your queries <span class="No-Break">with Devtools</span></li>
+</ul>
+<h1 id="_idParaDest-76"><a id="_idTextAnchor142"/>Technical requirements</h1>
+<p>All the code examples for this chapter can be found on GitHub <span class="No-Break">at </span><a href="https://github.com/PacktPublishing/State-management-with-React-Query/tree/feat/chapter_5"><span class="No-Break">https://github.com/PacktPublishing/State-management-with-React-Query/tree/feat/chapter_5</span></a><span class="No-Break">.</span></p>
+<h1 id="_idParaDest-77"><a id="_idTextAnchor143"/>Building parallel queries</h1>
+<p>A typical pattern that we often find the need to use is parallel queries. Parallel queries are queries that <a id="_idIndexMarker240"/>are executed at the same time to avoid having sequential network requests, often called <span class="No-Break">network waterfalls.</span></p>
+<p>Parallel queries help you avoid network waterfalls by firing all the <span class="No-Break">requests simultaneously.</span></p>
+<p>React Query allows us to perform parallel queries in <span class="No-Break">two ways:</span></p>
+<ul>
+<li><span class="No-Break">Manually</span></li>
+<li><span class="No-Break">Dynamically</span></li>
+</ul>
+<h2 id="_idParaDest-78"><a id="_idTextAnchor144"/>Manual parallel queries</h2>
+<p>This would probably <a id="_idIndexMarker241"/>be how you would do parallel queries if I asked you to do it right now. It involves just writing any number of <strong class="source-inline">useQuery</strong> hooks side <span class="No-Break">by side.</span></p>
+<p>This pattern is great when you have a fixed number of parallel queries you want to execute. This means that the number of queries you will perform will always be the same and <span class="No-Break">not change.</span></p>
+<p>This is how you can write parallel queries following <span class="No-Break">this method:</span></p>
+<pre class="source-code">
+const ExampleOne = () =&gt; {
+  const { data: queryOneData  } = useQuery({
+    queryKey: [{ queryIdentifier: "api", username:
+      "userOne" }],
+    queryFn: fetchData,
+  });
+  const { data: queryTwoData } = useQuery({
+    queryKey: [{ queryIdentifier: "api", username:
+      "userTwo" }],
+    queryFn: fetchData,
+  });
+  const { data: queryThreeData } = useQuery({
+    queryKey: [{ queryIdentifier: "api", username:
+      "userThree" }],
+    queryFn: fetchData,
+  });
+  return (
+    &lt;div&gt;
+      &lt;p&gt;{queryOneData?.hello}&lt;/p&gt;
+      &lt;p&gt;{queryTwoData?.hello}&lt;/p&gt;
+      &lt;p&gt;{queryThreeData?.hello}&lt;/p&gt;
+    &lt;/div&gt;
+  );
+};</pre>
+<p>In the preceding <a id="_idIndexMarker242"/>snippet, we create three different queries by adding different query keys to all of them. These queries will all be fetched in parallel, and once the query function is resolved, we will have access to their data. We then use this data to render their <strong class="source-inline">hello</strong> property inside <span class="No-Break"><strong class="source-inline">p</strong></span><span class="No-Break"> tags.</span></p>
+<h2 id="_idParaDest-79"><a id="_idTextAnchor145"/>Dynamic parallel queries</h2>
+<p>While manual <a id="_idIndexMarker243"/>parallel queries fit most scenarios, if your query number varies, you won’t be able to use it without breaking the rules of hooks. To deal with this issue, React Query created a custom hook <span class="No-Break">called </span><span class="No-Break"><strong class="bold">useQueries</strong></span><span class="No-Break">.</span></p>
+<p><strong class="source-inline">useQueries</strong> allows you to <a id="_idIndexMarker244"/>dynamically call as many queries as you want. Here is <span class="No-Break">its syntax:</span></p>
+<pre class="source-code">
+const queryResults = useQueries({
+  queries: [
+    { queryKey: ["api", "queryOne"], queryFn: fetchData },
+    { queryKey: ["api", "queryTwo"], queryFn: fetchData }
+  ]
+})</pre>
+<p>As you can see from the preceding snippet, the <strong class="source-inline">useQueries</strong> hook receives an array of queries in its <strong class="source-inline">queries</strong> property. These queries can even receive options if you want, so the mental model you should have here is that these queries can be customized the same way as a <span class="No-Break"><strong class="source-inline">useQuery</strong></span><span class="No-Break"> hook.</span></p>
+<p>The <strong class="source-inline">useQueries</strong> hook will return an array with all your <span class="No-Break">query results.</span></p>
+<p>Now that you <a id="_idIndexMarker245"/>are aware of how <strong class="source-inline">useQueries</strong> works, let’s put it to practice in the <span class="No-Break">following snippet:</span></p>
+<pre class="source-code">
+const usernameList = ["userOne", "userTwo", "userThree"];
+const ExampleTwo = () =&gt; {
+  const multipleQueries = useQueries({
+    queries: usernameList.map((username) =&gt; {
+      return {
+        queryKey: [{ queryIdentifier: "api", username }],
+        queryFn: fetchData,
+      };
+    }),
+  });
+  return (
+    &lt;div&gt;
+      {multipleQueries.map(({ data, isFetching }) =&gt; (
+        &lt;p&gt;{isFetching ? "Fetching data..." : data.hello}
+          &lt;/p&gt;
+      ))}
+    &lt;/div&gt;
+  );
+};</pre>
+<p>In the preceding snippet, we do <span class="No-Break">the following:</span></p>
+<ol>
+<li>We create a <strong class="source-inline">usernameList</strong> string array to help us create some <span class="No-Break">dynamic queries.</span></li>
+<li>Inside our <strong class="source-inline">useQueries</strong> hook, for each instance inside <strong class="source-inline">usernameList</strong>, we create a respective query with its query key and <span class="No-Break">query function.</span></li>
+<li>We use the result of our <strong class="source-inline">useQueries</strong> hook; for each item inside of it, we leverage <strong class="source-inline">isFetching</strong> to display to the user that we are fetching data. If it is not fetching data, then <a id="_idIndexMarker246"/>we assume we already did our request, and we show the <span class="No-Break">fetched data.</span></li>
+</ol>
+<p>Now that you know how to leverage <strong class="source-inline">useQuery</strong> and <strong class="source-inline">useQueries</strong> to perform parallel queries, let us see how you can leverage <strong class="source-inline">QueryClient</strong> to solve some more <span class="No-Break">server-state chall<a id="_idTextAnchor146"/>enges.</span></p>
+<h1 id="_idParaDest-80"><a id="_idTextAnchor147"/>Leveraging QueryClient</h1>
+<p>As you <a id="_idIndexMarker247"/>are aware, <strong class="source-inline">QueryClient</strong> allows you to interact with <span class="No-Break">your cache.</span></p>
+<p>In the previous chapter, we saw how <strong class="source-inline">QueryClient</strong> could be leveraged to trigger refetching a query. What we haven’t seen yet is how <strong class="source-inline">QueryClient</strong> can be used for much <span class="No-Break">more things.</span></p>
+<p>To use <strong class="source-inline">QueryClient</strong> in your components, you can leverage the <strong class="source-inline">useQueryClient</strong> hook to access it. Then, all you have to do is call the method <span class="No-Break">you need.</span></p>
+<p>In this section, we’ll see how you can use <strong class="source-inline">QueryClient</strong> to solve more server state challenges such as <span class="No-Break">the following:</span></p>
+<ul>
+<li><span class="No-Break">Query invalidation</span></li>
+<li><span class="No-Break">Prefetching</span></li>
+<li><span class="No-Break">Query cancelation</span></li>
+</ul>
+<p>Before we start query invalidation, one thing to be aware of is that some of these methods, namely the ones we are going to see, can receive certain query filters to help you match with the <span class="No-Break">right queries.</span></p>
+<p>In the previous chapter, we saw the following example for <span class="No-Break">query refetching:</span></p>
+<pre class="source-code">
+queryClient.refetchQueries({ queryKey: ["api"] })</pre>
+<p>The preceding snippet is an example of where we can provide a filter to the <strong class="source-inline">refetchQueries</strong> method. In this scenario, we are trying to refetch all the queries that either match or start with the query <span class="No-Break">key, </span><span class="No-Break"><strong class="source-inline">["api"]</strong></span><span class="No-Break">.</span></p>
+<p>Now, you can use <a id="_idIndexMarker248"/>more filters other than the query key. The filters that are used in the <strong class="source-inline">QueryClient</strong> methods, typically called <strong class="source-inline">QueryFilters</strong>, support filtering <a id="_idIndexMarker249"/>by things such as <span class="No-Break">the following:</span></p>
+<ul>
+<li><span class="No-Break">Query key</span></li>
+<li><span class="No-Break">Query type</span></li>
+<li>Whether the query is stale <span class="No-Break">or fresh</span></li>
+<li><span class="No-Break"><strong class="source-inline">fetchStatus</strong></span></li>
+<li>A <span class="No-Break">predicate function</span></li>
+</ul>
+<p>Here are some examples of <span class="No-Break">using </span><span class="No-Break"><strong class="source-inline">QueryFilters</strong></span><span class="No-Break">.</span></p>
+<p>In the following example, we use the <strong class="source-inline">type</strong> filter with the <strong class="source-inline">active</strong> value to refetch all the queries that are <span class="No-Break">currently active:</span></p>
+<pre class="source-code">
+queryClient.refetchQueries({ type: "active" })</pre>
+<p>In the following example, we use the <strong class="source-inline">stale</strong> filter with <strong class="source-inline">true</strong> as a value to refetch all the queries whose <strong class="source-inline">staleTime</strong> has elapsed and are now <span class="No-Break">considered stale:</span></p>
+<pre class="source-code">
+queryClient.refetchQueries({ stale: true })</pre>
+<p>In the following example, we use the <strong class="source-inline">fetchStatus</strong> filter with <strong class="source-inline">idle</strong> as a value to refetch all the queries that are currently not <span class="No-Break">fetching anything:</span></p>
+<pre class="source-code">
+queryClient.refetchQueries({ fetchStatus: "idle"})</pre>
+<p>In the following <a id="_idIndexMarker250"/>example, we use the <strong class="source-inline">predicate</strong> property and pass an anonymous function to it. This function will receive the query being verified and access its current status; if this status is an error, then the function will return <strong class="source-inline">true</strong>. This means that all queries whose status is currently an error <span class="No-Break">will refetch.</span></p>
+<pre class="source-code">
+queryClient.refetchQueries({
+            predicate: (query) =&gt; query.state.status ===
+              "error",
+})</pre>
+<p>Now, you don’t need to pass only one filter. You can send a combination of filters <span class="No-Break">as follows:</span></p>
+<pre class="source-code">
+queryClient.refetchQueries({ queryKey: ["api"], stale: true
+  })</pre>
+<p>In the preceding example, we refetch all stale queries whose query key begins <span class="No-Break">with </span><span class="No-Break"><strong class="source-inline">["api"]</strong></span><span class="No-Break">.</span></p>
+<p>If you don’t want to pass any filter and want the method to apply to all queries, you can opt not to pass any filters <span class="No-Break">like this:</span></p>
+<pre class="source-code">
+queryClient.refetchQueries()</pre>
+<p>This example will refetch all <span class="No-Break">the queries.</span></p>
+<p>You are now familiar with <strong class="source-inline">QueryFilters</strong> and can see some of the server-state challenges involved. Let’s start with <span class="No-Break">query invalidation.</span></p>
+<h2 id="_idParaDest-81"><a id="_idTextAnchor148"/>Query invalidation</h2>
+<p>Sometimes, independent <a id="_idIndexMarker251"/>of your configured <strong class="source-inline">staleTime</strong>, your data will become stale. Why, you ask? Well, sometimes, it might be because of mutations you have performed; other times, it might be because another user somewhere interacted with your <span class="No-Break">server state.</span></p>
+<p>When this happens, you can leverage your <strong class="source-inline">QueryClient</strong> <strong class="bold">invalidateQueries</strong> method to <a id="_idIndexMarker252"/>mark your queries <span class="No-Break">as stale.</span></p>
+<p>Here is the <strong class="source-inline">invalidateQueries</strong> <span class="No-Break">method syntax:</span></p>
+<pre class="source-code">
+queryClient.invalidateQueries({ queryKey: ["api"] })</pre>
+<p>By calling <strong class="source-inline">invalidateQueries</strong>, every query that matches or starts with <strong class="source-inline">["api"]</strong> will be marked as <strong class="source-inline">stale</strong>, overriding its <strong class="source-inline">staleTime</strong> if configured. If your query is active because a <strong class="source-inline">useQuery</strong> hook rendered is using it, then React Query will take care of refetching <span class="No-Break">that query.</span></p>
+<p>Let us now put this into practice with the <span class="No-Break">following example:</span></p>
+<pre class="source-code">
+const QueryInvalidation = () =&gt; {
+  const { data } = useQuery({
+    queryKey: [{ queryIdentifier: "api", username:
+      "userOne" }],
+    queryFn: fetchData,
+  });
+  const queryClient = useQueryClient();
+  return (
+    &lt;div&gt;
+      &lt;p&gt;{data?.hello}&lt;/p&gt;
+      &lt;button
+        onClick={() =&gt;
+          queryClient.invalidateQueries({
+            queryKey: [{ queryIdentifier: "api" }],
+          })
+        }
+      &gt;
+        Invalidate Query
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+};</pre>
+<p>In the preceding snippet, we have an example of invalidating a query. This is what we <span class="No-Break">are doing:</span></p>
+<ol>
+<li>Creating a <a id="_idIndexMarker253"/>query identified by the <strong class="source-inline">[{ queryIdentifier: "api", username: "userOne" }]</strong> <span class="No-Break">query key</span></li>
+<li>Getting access <span class="No-Break">to </span><span class="No-Break"><strong class="source-inline">queryClient</strong></span></li>
+<li>Rendering our query data and button for which <strong class="source-inline">onClick</strong> will invalidate all queries that match or contain <strong class="source-inline">[{ queryIdentifier: "api" }]</strong> as part of its <span class="No-Break">query key</span></li>
+</ol>
+<p>When the user clicks <a id="_idIndexMarker254"/>on the <strong class="bold">Invalidate Query</strong> button because the created query includes <strong class="source-inline">[{ queryIdentifier: "api" }]</strong> as part of its query key, that query data will be marked immediately as <strong class="source-inline">stale</strong>. Since this query is being rendered now, it will automatically be refetched in <span class="No-Break">the background.</span></p>
+<h2 id="_idParaDest-82"><a id="_idTextAnchor149"/>Prefetching</h2>
+<p>You want your user <a id="_idIndexMarker255"/>experience to be the best possible one. This sometimes involves understanding what the users want even before they do. This is where prefetching can <span class="No-Break">help you.</span></p>
+<p>When you can predict that your user might want to do something that inevitably triggers a query, you can leverage that knowledge and prefetch your query to save some future time for <span class="No-Break">your users.</span></p>
+<p><strong class="source-inline">QueryClient</strong> allows you to access <a id="_idIndexMarker256"/>a method called <strong class="bold">prefetchQuery</strong> to prefetch <span class="No-Break">your data.</span></p>
+<p>Here is the <strong class="source-inline">prefetchQuery</strong> <span class="No-Break">method syntax:</span></p>
+<pre class="source-code">
+queryClient.prefetchQuery({
+      queryKey: ["api"],
+      queryFn: fetchData
+  });</pre>
+<p><strong class="source-inline">prefetchQuery</strong> requires a query key and query function. This method will try to fetch your data and <a id="_idIndexMarker257"/>cache it under the given query key. <em class="it lic">This is an asynchronous method</em>; therefore, you will need to wait for it <span class="No-Break">to complete.</span></p>
+<p>Let us now see a practical example of when we can prefetch our data with our <span class="No-Break"><strong class="source-inline">ExamplePrefetching</strong></span><span class="No-Break"> component:</span></p>
+<pre class="source-code">
+const ExamplePrefetching = () =&gt; {
+  const [renderComponent, setRenderComponent] =
+    useState(false);
+  const queryClient = useQueryClient();
+  const prefetchData = async () =&gt; {
+    await queryClient.prefetchQuery({
+      queryKey: [{ queryIdentifier: "api", username:
+        "userOne" }],
+      queryFn: fetchData,
+      staleTime: 60000
+    });
+  };
+  return (
+    &lt;div&gt;
+      &lt;button onMouseEnter={prefetchData} onClick={() =&gt;
+      setRenderComponent(true)}&gt; Render Component &lt;/button&gt;
+      {renderComponent ? &lt;PrefetchedDataComponent /&gt; : null
+        }
+    &lt;/div&gt;
+  );
+};</pre>
+<p>In the preceding snippet, we create our <strong class="source-inline">ExamplePrefetching</strong> component. Here is what <span class="No-Break">it does:</span></p>
+<ol>
+<li>It creates a state variable that will be used to allow us to <span class="No-Break">render </span><span class="No-Break"><strong class="source-inline">PrefetchedDataComponent</strong></span><span class="No-Break">.</span></li>
+<li>It gets access <span class="No-Break">to </span><span class="No-Break"><strong class="source-inline">queryClient</strong></span><span class="No-Break">.</span></li>
+<li>It creates a function <a id="_idIndexMarker258"/>called <strong class="source-inline">prefetchData</strong> where we call the <strong class="source-inline">prefetchQuery</strong> method and cache the returned data under the <strong class="source-inline">[{ queryIdentifier: "api", username: "userOne" }]</strong> query key. We also give it a <strong class="source-inline">staleTime</strong> of 1 minute, so after calling this query, the data will be considered fresh for <span class="No-Break">1 minute.</span></li>
+<li>Create a button that, when clicked, will change our state variable to allow us to render <strong class="source-inline">PrefetchedDataComponent</strong>. This button also has an <strong class="source-inline">onMouseEnter</strong> event that will trigger our <span class="No-Break">data prefetching.</span></li>
+</ol>
+<p>Let us now look at our <span class="No-Break"><strong class="source-inline">PrefetchedDataComponent</strong></span><span class="No-Break"> component:</span></p>
+<pre class="source-code">
+const PrefetchedDataComponent = () =&gt; {
+  const { data } = useQuery({
+    queryKey: [{ queryIdentifier: "api", username:
+      "userOne" }],
+    queryFn: fetchData,
+  });
+  return &lt;div&gt;{data?.hello}&lt;/div&gt;;
+};</pre>
+<p>In the preceding snippet, we can see <strong class="source-inline">PrefetchedDataComponent</strong>. This component has a query that is identified by the <strong class="source-inline">[{ queryIdentifier: "api", username: "userOne" }]</strong> query key. When this data exists, it will be rendered <span class="No-Break">inside </span><span class="No-Break"><strong class="source-inline">div</strong></span><span class="No-Break">.</span></p>
+<p>So, let’s review the flow of these two components for <span class="No-Break">a user:</span></p>
+<ol>
+<li><strong class="source-inline">ExamplePrefetching</strong> <span class="No-Break">is rendered.</span></li>
+<li>The user will see a button saying <span class="No-Break"><strong class="bold">Render Component</strong></span><span class="No-Break">.</span></li>
+<li>The user puts their mouse over the button to click on it. At this time, we predict that the user <a id="_idIndexMarker259"/>will click on the button, so we trigger the data prefetching. Once the data has been prefetched, it is cached under the <strong class="source-inline">[{ queryIdentifier: "api", username: "userOne" }]</strong> <span class="No-Break">query key.</span></li>
+<li>The user clicks on <span class="No-Break">the button.</span></li>
+<li><strong class="source-inline">PrefetchedDataComponent</strong> <span class="No-Break">is rendered.</span></li>
+<li>The <strong class="source-inline">useQuery</strong> hook that is identified by the <strong class="source-inline">[{ queryIdentifier: "api", username: "userOne" }]</strong> query key will already have the data cached and marked as fresh for one minute, so it doesn’t need to <span class="No-Break">trigger data-fetching.</span></li>
+<li>The user sees the prefetched <span class="No-Break">data rendered.</span></li>
+</ol>
+<h2 id="_idParaDest-83"><a id="_idTextAnchor150"/>Query cancelation</h2>
+<p>There will be times when your <strong class="source-inline">useQuery</strong> hook will unmount while it is doing a query. By default, once your <a id="_idIndexMarker260"/>promise has been resolved, this query data will still be received and cached. But, for some reason, you might want to cancel your queries if your hook unmounts in the middle of data-fetching requests. React Query can take care of this by automatically canceling your query if you desire. You can even cancel your queries manually if <span class="No-Break">you want.</span></p>
+<p>To allow you to cancel your queries, React Query uses a signal that can communicate with DOM requests and abort them. This signal is the <strong class="bold">AbortSignal</strong> object, which belongs <a id="_idIndexMarker261"/>to the <strong class="bold">AbortController</strong> <span class="No-Break">Web API.</span></p>
+<p>The <strong class="source-inline">AbortSignal</strong> signal is injected <a id="_idIndexMarker262"/>into our query function by <strong class="source-inline">QueryFunctionContext</strong>, and then it should be consumed by our <span class="No-Break">data-fetching client.</span></p>
+<p>Here is how we can leverage <strong class="source-inline">AbortSignal</strong> <span class="No-Break">with </span><span class="No-Break"><strong class="source-inline">axios</strong></span><span class="No-Break">:</span></p>
+<pre class="source-code">
+const fetchData = async ({ queryKey, signal }) =&gt; {
+  const { username } = queryKey[0];
+  const { data } = await axios.get(
+    `https://danieljcafonso.builtwithdark.com/
+      react-query-api/${username}`,
+    { signal }
+  );
+  return data;
+};</pre>
+<p>In the preceding snippet, we receive <strong class="source-inline">signal</strong> from <strong class="source-inline">QueryFunctionContext</strong> and pass it as an option in our <strong class="source-inline">axios</strong> client while doing a <span class="No-Break"><strong class="source-inline">get</strong></span><span class="No-Break"> request.</span></p>
+<p>If you use an alternative to <strong class="source-inline">axios</strong> such as <strong class="source-inline">fetch</strong> or <strong class="source-inline">graphql-request</strong> in a scenario in which you use GraphQL, you also need to pass <strong class="source-inline">AbortSignal</strong> to <span class="No-Break">your client.</span></p>
+<p>This is how you can do it <span class="No-Break">using </span><span class="No-Break"><strong class="source-inline">fetch</strong></span><span class="No-Break">:</span></p>
+<pre class="source-code">
+const fetchDataWithFetch = async ({ queryKey, signal }) =&gt; {
+  const { username } = queryKey[0];
+  const response = await fetch(
+    `https://danieljcafonso.builtwithdark.com/
+      react-query-api/${username}`,
+    { signal }
+  );
+  if (!response.ok) throw new Error("Something failed in
+    your request");
+  return response.json();
+};</pre>
+<p>In the preceding <a id="_idIndexMarker263"/>snippet, we receive <strong class="source-inline">signal</strong> from <strong class="source-inline">QueryFunctionContext</strong> and pass it as an option to our <span class="No-Break"><strong class="source-inline">fetch</strong></span><span class="No-Break"> call.</span></p>
+<p>If you are using a GraphQL client such as <strong class="source-inline">graphql-request</strong>, this is how you can <span class="No-Break">do it:</span></p>
+<pre class="source-code">
+const fetchGQL = async ({signal}) =&gt; {
+  const endpoint = &lt;Add_Endpoint_here&gt;;
+  const client = new GraphQLClient(endpoint)
+  const {
+    posts: { data },
+  } = await client.request({document: customQuery,
+    signal});
+  return data;
+};</pre>
+<p>In the preceding snippet, we also receive <strong class="source-inline">signal</strong> from <strong class="source-inline">QueryFunctionContext</strong> and pass it as an option in our <span class="No-Break">client request.</span></p>
+<p>Passing the signal to <a id="_idIndexMarker264"/>our clients is only the first step in allowing them to cancel queries. You need to trigger an automatic query cancelation or a <span class="No-Break">manual one.</span></p>
+<h3>Manual cancelation</h3>
+<p>For manually canceling <a id="_idIndexMarker265"/>a query, <strong class="source-inline">QueryClient</strong> gives you access to the <span class="No-Break"><strong class="bold">cancelQueries</strong></span><span class="No-Break"> method.</span></p>
+<p>Here <a id="_idIndexMarker266"/>is the <strong class="source-inline">cancelQueries</strong> <span class="No-Break">method syntax:</span></p>
+<pre class="source-code">
+queryClient.cancelQueries({ queryKey: ["api"] })</pre>
+<p>By calling <strong class="source-inline">cancelQueries</strong>, every query that matches or starts with <strong class="source-inline">["api"]</strong> that is currently fetching and that has received <strong class="source-inline">AbortSignal</strong> will <span class="No-Break">be aborted.</span></p>
+<h3>Automatic cancelation</h3>
+<p>When a component <a id="_idIndexMarker267"/>using your hook unmounts and your query is currently fetching, if you pass <strong class="source-inline">AbortSignal</strong> to your client, React Query will abort your query by canceling <span class="No-Break">the promise.</span></p>
+<p>Let us see how React Query leverages <strong class="source-inline">AbortSignal</strong> to cancel your query with the next examples. First, we start by configuring our <span class="No-Break">query function:</span></p>
+<pre class="source-code">
+const fetchData = async ({ queryKey, signal }) =&gt; {
+  const { username } = queryKey[0];
+  const { data } = await axios.get(
+    `https://danieljcafonso.builtwithdark.com/
+      react-query-api/${username}`,
+    { signal }
+  );
+  return data;
+};</pre>
+<p>In the preceding snippet, we create a <strong class="source-inline">fetchData</strong> function that will receive <strong class="source-inline">QueryContextObject</strong>. From it, we get access to <strong class="source-inline">signal</strong> and pass it to our <span class="No-Break"><strong class="source-inline">axios</strong></span><span class="No-Break"> client.</span></p>
+<p>Now, let us see <span class="No-Break">our components:</span></p>
+<pre class="source-code">
+const ExampleQueryCancelation = () =&gt; {
+  const [renderComponent, setRenderComponent] =
+    useState(false);
+  return (
+    &lt;div&gt;
+      &lt;button onClick={() =&gt; setRenderComponent
+        (!renderComponent)}&gt;
+        Render Component
+      &lt;/button&gt;
+      {renderComponent ? &lt;QueryCancelation /&gt; : null}
+    &lt;/div&gt;
+  );
+};</pre>
+<p>In the preceding snippet, we have a component called <strong class="source-inline">ExampleQueryCancelation</strong>. This component will render and unmount a component called <strong class="source-inline">QueryCancelation</strong> wherever a user clicks on <span class="No-Break">a button.</span></p>
+<p>Let’s now see the <span class="No-Break"><strong class="source-inline">QueryCancelation</strong></span><span class="No-Break"> component:</span></p>
+<pre class="source-code">
+const QueryCancelation = () =&gt; {
+  const { data } = useQuery({
+    queryKey: [{ queryIdentifier: "api", username:
+      "userOne" }],
+    queryFn: fetchData,
+  });
+  const queryClient = useQueryClient();
+  return (
+    &lt;div&gt;
+      &lt;p&gt;{data?.hello}&lt;/p&gt;
+      &lt;button
+        onClick={() =&gt;
+          queryClient.cancelQueries({
+            queryKey: [{ queryIdentifier: "api" }],
+          })
+        }
+      &gt;
+        Cancel Query
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+};</pre>
+<p>The snippet shows us the <strong class="source-inline">QueryCancelation</strong> component. In this component, we are doing <span class="No-Break">the following:</span></p>
+<ol>
+<li>We create a query identified by the <strong class="source-inline">[{ queryIdentifier: "api", username: "userOne" }]</strong> <span class="No-Break">query key.</span></li>
+<li>We get access <span class="No-Break">to </span><span class="No-Break"><strong class="source-inline">QueryClient</strong></span><span class="No-Break">.</span></li>
+<li>We re<a id="_idTextAnchor151"/>nder our <strong class="source-inline">data</strong> from <span class="No-Break">the query.</span></li>
+<li>We render a button that, when clicked, will use <strong class="source-inline">QueryClient</strong> to cancel all the queries that either match or include <strong class="source-inline">[{ queryIdentifier: "api" }]</strong> in <span class="No-Break">their keys.</span></li>
+</ol>
+<p>Let us now review these components’ lifetimes and how the query cancelation can <span class="No-Break">work out:</span></p>
+<ol>
+<li>We render the <span class="No-Break"><strong class="source-inline">ExampleQueryCancelation</strong></span><span class="No-Break"> component.</span></li>
+<li>We click the button to render the <span class="No-Break"><strong class="source-inline">QueryCancelation</strong></span><span class="No-Break"> component.</span></li>
+<li><strong class="source-inline">QueryCancelation</strong> is rendered and its <strong class="source-inline">useQuery</strong> hook will trigger a request to fetch <span class="No-Break">its data.</span></li>
+<li>During this request, we click right back on the button to <span class="No-Break">render </span><span class="No-Break"><strong class="source-inline">QueryCancelation</strong></span><span class="No-Break">.</span></li>
+<li>Since our request hasn’t been resolved yet and our component is unmounted, React Query will abort our signal, which will cancel <span class="No-Break">our request.</span></li>
+<li>We click the button to render the <strong class="source-inline">QueryCancelation</strong> <span class="No-Break">component again.</span></li>
+<li><strong class="source-inline">QueryCancelation</strong> is rendered, and its <strong class="source-inline">useQuery</strong> hook will trigger a request to fetch <span class="No-Break">its data.</span></li>
+<li>During this request, we click on the button to cancel our query. This will force React Query to abort our signal and cancel our request <span class="No-Break">once again.</span></li>
+</ol>
+<p>We have thus seen how <strong class="source-inline">QueryClient</strong> and some of its methods can help us solve some of our common server <span class="No-Break">state challenges.</span></p>
+<p>In the next section, we’ll see how React Query allows us to build a common UI pattern, that is, <span class="No-Break">paginated queries.</span></p>
+<h1 id="_idParaDest-84"><a id="_idTextAnchor152"/>Creating paginated queries</h1>
+<p>When building <a id="_idIndexMarker268"/>an API to deal with large datasets, to avoid having your frontend deal with everything at once, you don’t want to send all the available data in one request. A pattern often used to make this easier is <span class="No-Break">API pagination.</span></p>
+<p>If your API is paginated, you want to apply the same pattern to <span class="No-Break">your application.</span></p>
+<p>The good thing is that you only need to use <strong class="source-inline">useQuery</strong> and one of its <span class="No-Break">options, </span><span class="No-Break"><strong class="source-inline">keepPreviousData</strong></span><span class="No-Break">.</span></p>
+<p>Let’s look at the next examples and then understand how pagination and React Query work. First, we start with our <span class="No-Break">query function:</span></p>
+<pre class="source-code">
+const fetchData = async ({ queryKey }) =&gt; {
+  const { page } = queryKey[0];
+  const { data } = await axios.get(
+    `https://danieljcafonso.builtwithdark.com/
+      react-query-paginated?page=${page}&amp;results=10`
+  );
+  return data;
+};</pre>
+<p>In the preceding snippet, we <a id="_idIndexMarker269"/>create the function that will be used as our query function. Since this is a paginated API, we will need the <strong class="source-inline">page</strong> to fetch our data. As we established in the last chapter, if a variable is a dependency of our query, it needs to be added to the query key. We then destructure the <strong class="source-inline">page</strong> from our query key in our query function. Then, all we need to do is fetch our data and return it when the <span class="No-Break">promise resolves.</span></p>
+<p>Let us now see how we can build a component for displaying and fetching <span class="No-Break">paginated data:</span></p>
+<pre class="source-code">
+const PaginatedQuery = () =&gt; {
+  const [page, setPage] = useState(0);
+  const { isLoading, isError, error, data, isFetching,
+    isPreviousData } =
+    useQuery({
+      queryKey: [{ queryIdentifier: "api", page }],
+      queryFn: fetchData,
+      keepPreviousData: true,
+    });
+  if (isLoading) {
+    return &lt;h2&gt;Loading initial data...&lt;/h2&gt;;
+  }
+  if (isError) {
+    return &lt;h2&gt;{error.message}&lt;/h2&gt;;
+  }
+  return (
+    &lt;&gt;
+      &lt;div&gt;
+        {data.results.map((user) =&gt; (
+          &lt;div key={user.email}&gt;
+            {user.name.first}
+            {user.name.last}
+          &lt;/div&gt;
+        ))}
+      &lt;/div&gt;
+      &lt;div&gt;
+      &lt;button
+        onClick={() =&gt; setPage((oldValue) =&gt; oldValue === 0
+          ? 0 : oldValue - 1)}
+        disabled={page === 0}
+      &gt;
+        Previous Page
+      &lt;/button&gt;
+      &lt;button
+        disabled={isPreviousData}
+        onClick={() =&gt; {
+          if (!isPreviousData) setPage((old) =&gt; old + 1);
+        }}
+      &gt;
+        Next Page
+      &lt;/button&gt;
+      &lt;/div&gt;
+      {isFetching ? &lt;span&gt; Loading...&lt;/span&gt; : null}
+    &lt;/&gt;
+  );
+};</pre>
+<p>Let’s recap in order <a id="_idIndexMarker270"/>what is happening in the preceding <span class="No-Break">code block:</span></p>
+<ol>
+<li>We create a state variable to hold our current <span class="No-Break">selected </span><span class="No-Break"><strong class="source-inline">page</strong></span><span class="No-Break">.</span></li>
+<li>We create our query, which has the <strong class="source-inline">[{ queryIdentifier: "api", page }]</strong> query key, our <strong class="source-inline">fetchData</strong> function as the query function, and set <strong class="source-inline">keepPreviousData</strong> to <strong class="source-inline">true</strong>. We set this option as <strong class="source-inline">true</strong> because, by default, whenever our query key changes, so will the query data; now, because we have a paginated API, we want to keep showing our data even if we <span class="No-Break">change pages.</span></li>
+<li>We then destructure <strong class="source-inline">isLoading</strong>, <strong class="source-inline">isError</strong>, <strong class="source-inline">error</strong>, <strong class="source-inline">data</strong>, <strong class="source-inline">isFetching</strong>, and <strong class="source-inline">isPreviousData</strong>. <strong class="source-inline">isPreviousData</strong> is used to indicate whether the data currently being shown is the <span class="No-Break">previous version.</span></li>
+<li>We then have two <strong class="source-inline">if</strong> statements to show when our query is loading, or when there is <span class="No-Break">an error.</span></li>
+<li>If we have data, we display it and two buttons to move to the next and the previous page. The button <a id="_idIndexMarker271"/>to move to the next page leverages <strong class="source-inline">isPreviousData</strong> to make sure it is disabled after we click it and move to the following query. We also display a <span class="No-Break">fetching indicator.</span></li>
+</ol>
+<p>Now that we have seen how the code is structured, let’s see how i<a id="_idTextAnchor153"/>t behaves when <span class="No-Break">interacted with:</span></p>
+<ol>
+<li>Our component is rendered, and the first page starts to <span class="No-Break">be fetched.</span></li>
+</ol>
+<p>The <strong class="source-inline">isLoading</strong> property is set as <strong class="source-inline">true</strong>, so we render <strong class="source-inline">Loading </strong><span class="No-Break"><strong class="source-inline">initial data</strong></span><span class="No-Break">.</span></p>
+<ol>
+<li value="2">The data for the first page is resolved, so we <span class="No-Break">display it.</span></li>
+<li>We click on the <strong class="bold">Next </strong><span class="No-Break"><strong class="bold">Page</strong></span><span class="No-Break"> button:</span><ol><li>The <strong class="source-inline">page</strong> value <span class="No-Break">is incremented.</span></li><li>The query key changes, so the following query <span class="No-Break">starts fetching.</span></li><li>Since we have <strong class="source-inline">keepPreviousData</strong> as <strong class="source-inline">true</strong>, we will still display the <span class="No-Break">old data.</span></li><li>Since we are displaying old data, <strong class="source-inline">isPreviousData</strong> is set to <strong class="source-inline">true</strong>, and the <strong class="bold">Next Page</strong> button <span class="No-Break">is disabled.</span></li><li>The fetching indicator <span class="No-Break">shows </span><span class="No-Break"><strong class="source-inline">Loading</strong></span><span class="No-Break">.</span></li></ol></li>
+<li>We get the new data and <span class="No-Break">display it.</span></li>
+<li>We click on the <strong class="bold">Previous </strong><span class="No-Break"><strong class="bold">Page</strong></span><span class="No-Break"> button:</span><ol><li>The page value <span class="No-Break">is decremented.</span></li><li>The query key goes back to the <span class="No-Break">previous one.</span></li><li>Since the data exists cached under this query key, it <span class="No-Break">is returned.</span></li><li>As the data is stale, a new fetching request <span class="No-Break">is triggered.</span></li><li>The fetching indicator <span class="No-Break">displays </span><span class="No-Break"><strong class="source-inline">Loading</strong></span><span class="No-Break">.</span></li></ol></li>
+<li>The new data is received <span class="No-Break">and displayed.</span></li>
+</ol>
+<p>As you can see, all <a id="_idIndexMarker272"/>you need is a new option and the same old <strong class="source-inline">useQuery</strong> hook to enable you to build an application <span class="No-Break">using pagination.</span></p>
+<p>For the next section, let’s see now how we can build <span class="No-Break">infinite queries.</span></p>
+<h1 id="_idParaDest-85"><a id="_idTextAnchor154"/>Creating infinite queries</h1>
+<p>Another very <a id="_idIndexMarker273"/>common UI pattern is building an infinite scroll component. In this pattern, we are presented with a list that allows us to load more data as we <span class="No-Break">scroll down.</span></p>
+<p>To deal with these types of lists, React Query has an alternative to the <strong class="source-inline">useQuery</strong> hook, which is another custom <a id="_idIndexMarker274"/>hook <span class="No-Break">called </span><span class="No-Break"><strong class="bold">useInfiniteQuery</strong></span><span class="No-Break">.</span></p>
+<p>Using the <strong class="source-inline">useInfiniteQuery</strong> hook has many similarities to the <strong class="source-inline">useQuery</strong> one, but some things differ that we need to be <span class="No-Break">aware of:</span></p>
+<ul>
+<li>Your data is now an object that contains <span class="No-Break">the following:</span><ul><li>The <span class="No-Break">fetched pages</span></li><li>The <strong class="source-inline">page</strong> parameters that were used to fetch <span class="No-Break">the pages</span></li></ul></li>
+<li>A function called <strong class="source-inline">fetchNextPage</strong> to fetch the <span class="No-Break">next page</span></li>
+<li>A function called <strong class="source-inline">fetchPreviousPage</strong> to fetch the <span class="No-Break">previous page</span></li>
+<li>A Boolean state called <strong class="source-inline">isFetchingNextPage</strong> to indicate that the next page is <span class="No-Break">being fetched</span></li>
+<li>A Boolean state called <strong class="source-inline">isFetchingPreviousPage</strong> to indicate that the next page is <span class="No-Break">being fetched</span></li>
+<li>A Boolean state called <strong class="source-inline">hasNextPage</strong> to indicate whether the list has a <span class="No-Break">next page</span></li>
+<li>A Boolean state called <strong class="source-inline">hasPreviousPage</strong> to indicate whether the list has a <span class="No-Break">previous page</span></li>
+</ul>
+<p>These last two Boolean values depend on two options that can be passed to the hook. Respectively, they are <strong class="source-inline">getNextPageParam</strong> and <strong class="source-inline">getPreviousPageParam</strong>. The functions will be <a id="_idIndexMarker275"/>responsible for picking the last or first page in the cache and checking whether its data indicates the next or previous page to be fetched. If these values exist, then the respective Boolean values will be <strong class="source-inline">true</strong>. If they return undefined, then the Boolean values will <span class="No-Break">be </span><span class="No-Break"><strong class="source-inline">false</strong></span><span class="No-Break">.</span></p>
+<p>To use the <strong class="source-inline">useInfiniteQuery</strong> hook, you need to import it <span class="No-Break">this way:</span></p>
+<pre class="source-code">
+import { useInfiniteQuery } from "@tanstack/react-query"</pre>
+<p>Let us now see an example of how to use the <strong class="source-inline">useInfiniteQuery</strong> hook to build an <span class="No-Break">infinite list:</span></p>
+<pre class="source-code">
+const fetchData = async ({ pageParam = 1 }) =&gt; {
+    const { data } = await axios.get(
+        `https://danieljcafonso.builtwithdark.com/
+         react-query-infinite?page=${pageParam}&amp;results=10`
+    );
+    return data;
+  };</pre>
+<p>In the preceding snippet, we set up the function to be used as the infinite query function. The hook will pass <strong class="source-inline">pageParam</strong> in <strong class="source-inline">QueryFunctionContext</strong> so that we can leverage it to fetch our data. Like the query function in the <strong class="source-inline">useQuery</strong> hook, this query function needs to either resolve the data or throw an error, so all the same principles learned <span class="No-Break">previously apply.</span></p>
+<p>The next <a id="_idIndexMarker276"/>snippet will show us our <span class="No-Break"><strong class="source-inline">InfiniteScroll</strong></span><span class="No-Break"> component:</span></p>
+<pre class="source-code">
+const InfiniteScroll = () =&gt; {
+  const {
+    isLoading,
+    isError,
+    error,
+    data,
+    fetchNextPage,
+    isFetchingNextPage,
+    hasNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["api"],
+    queryFn: fetchData,
+    getNextPageParam: (lastPage, pages) =&gt; {
+      return lastPage.info.nextPage;
+    },
+  });
+  if (isLoading) {
+    return &lt;h2&gt;Loading initial data...&lt;/h2&gt;;
+  }
+  if (isError) {
+    return &lt;h2&gt;{error.message}&lt;/h2&gt;;
+  }
+  return (
+    &lt;&gt;
+      &lt;div&gt;
+        {data.pages.map((page) =&gt;
+          page.results.map((user) =&gt; (
+            &lt;div key={user.email}&gt;
+              {user.name.first}
+              {user.name.last}
+            &lt;/div&gt;
+          ))
+        )}
+      &lt;/div&gt;
+      &lt;button
+        disabled={!hasNextPage || isFetchingNextPage}
+        onClick={fetchNextPage}
+      &gt;
+        {isFetchingNextPage
+          ? «Loading...»
+          : hasNextPage
+          ? «Load More»
+          : «You have no more data»}
+      &lt;/button&gt;
+    &lt;/&gt;
+  );
+};</pre>
+<p>In the preceding snippet, we have a component that renders an infinite list. This is what we are doing in <span class="No-Break">the component:</span></p>
+<ol>
+<li>We create <strong class="source-inline">useInfiniteQuery</strong>, which has <strong class="source-inline">["api"]</strong> as the query key and <strong class="source-inline">fetchData</strong> as the query function. It also receives an anonymous function in the <strong class="source-inline">getNextPageParam</strong> option to check whether there is still more data to be loaded on the <span class="No-Break">next page.</span></li>
+<li>We also destructure from the hook some variables needed to build <span class="No-Break">our application.</span></li>
+<li>We then have <a id="_idIndexMarker277"/>two <strong class="source-inline">if</strong> statements to show when our query is loading, or when there is <span class="No-Break">an error.</span></li>
+<li>When we have data, we map the content inside its <strong class="source-inline">page</strong> properties to render <span class="No-Break">our list.</span></li>
+<li>We also render a button that will be disabled if we don’t have the next page or when we are currently fetching the next page. When clicked, this button will fetch more data. This button message will also depend on <span class="No-Break">some constraints:</span><ul><li>If we are fetching, the next page will show a <span class="No-Break"><strong class="source-inline">Loading</strong></span><span class="No-Break"> message</span></li><li>If we have the next page, it will show <strong class="source-inline">Load more</strong> so the user can click it to <span class="No-Break">start fetching</span></li><li>If there is no more data to fetch, it will show a message letting the user know there is no <span class="No-Break">more data</span></li></ul></li>
+</ol>
+<p>As we just reviewed how the component is built, let us see how it will work when interacting <span class="No-Break">with it:</span></p>
+<ol>
+<li>Our component renders, and the first page of the list is <span class="No-Break">automatically fetched:</span><ul><li>The <strong class="source-inline">isLoading</strong> property is set to <strong class="source-inline">true</strong>, so we render <strong class="source-inline">Loading </strong><span class="No-Break"><strong class="source-inline">initial data</strong></span></li></ul></li>
+<li>The data for the first page of the list is resolved, so we <span class="No-Break">display it.</span></li>
+<li>At the same time, the <strong class="source-inline">getNextPageParam</strong> function checks whether we have more data on <span class="No-Break">the list.</span></li>
+<li>If there is no more data, the <strong class="source-inline">hasNextPage</strong> property is set to <strong class="source-inline">false</strong> and the button for fetching more data is disabled and displays <strong class="bold">You have no </strong><span class="No-Break"><strong class="bold">more data</strong></span><span class="No-Break">.</span></li>
+<li>If there is more data, the <strong class="source-inline">hasNextPage</strong> property is set to <strong class="source-inline">true</strong>, and the user can click the button to fetch <span class="No-Break">more data.</span></li>
+<li>If the user clicks <a id="_idIndexMarker278"/>the button, we see <span class="No-Break">the following:</span><ol><li>The next page <span class="No-Break">starts fetching.</span></li><li>The <strong class="source-inline">isFetchingNextPage</strong> value <span class="No-Break">becomes </span><span class="No-Break"><strong class="source-inline">true</strong></span><span class="No-Break">.</span></li><li>The button is disabled and displays the <span class="No-Break">loading message.</span></li><li>The data is resolved, and our data <strong class="source-inline">pages</strong> property length increases as it has the data for the new page. <em class="it lic">Steps 3, 4, </em>and<em class="it lic"> 5</em> <span class="No-Break">are repeated.</span></li></ol></li>
+</ol>
+<p>With this, we just saw how the <strong class="source-inline">useQuery</strong> variant called <strong class="source-inline">useInfiniteQuery</strong> allows us to build an infinite <span class="No-Break">list straightforwardly.</span></p>
+<p>Before we wrap up this chapter, let’s finally see how we can use the React Query Devtools to help us debug our code and see how our <span class="No-Break">queries behave.</span></p>
+<h1 id="_idParaDest-86"><a id="_idTextAnchor155"/>Debugging your queries with Devtools</h1>
+<p>In <a href="B18501_03.xhtml#_idTextAnchor062"><span class="No-Break"><em class="it lic">Chapter 3</em></span></a>, you learned <a id="_idIndexMarker279"/>about React Query Devtools. At that <a id="_idIndexMarker280"/>point, you didn’t know how to use queries yet, so we could not see it working. Well, now <span class="No-Break">we can.</span></p>
+<p>For the images you are going to see next, we are going to leverage the code we wrote when showing you the <strong class="source-inline">useQueries</strong> hook example in the <em class="it lic">Dynamic parallel </em><span class="No-Break"><em class="it lic">queries</em></span><span class="No-Break"> section.</span></p>
+<p>So that you <a id="_idIndexMarker281"/>remember, here <a id="_idIndexMarker282"/>is <span class="No-Break">the code:</span></p>
+<pre class="source-code">
+const usernameList = ["userOne", "userTwo", "userThree"];
+const ExampleTwo = () =&gt; {
+  const multipleQueries = useQueries({
+    queries: usernameList.map((username) =&gt; {
+      return {
+        queryKey: [{ queryIdentifier: "api", username }],
+        queryFn: fetchData,
+      };
+    }),
+  });
+  return (
+    &lt;div&gt;
+      {multipleQueries.map(({ data, isFetching }) =&gt; (
+        &lt;p&gt;{isFetching ? "Fetching data..." : data.hello}
+          &lt;/p&gt;
+      ))}
+    &lt;/div&gt;
+  );
+};</pre>
+<p>When using that code and checking our page, this is <a id="_idTextAnchor156"/>what the Devtools will present <span class="No-Break">us with:</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer023">
+<img alt="Figure 5.1 – React Query Devtools after parallel queries are executed" height="410" src="image/Figure_5.1_B18501.jpg" width="555"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.1 – React Query Devtools after parallel queries are executed</p>
+<p>In the preceding <a id="_idIndexMarker283"/>figure, we can see the <span class="No-Break">following </span><span class="No-Break"><a id="_idIndexMarker284"/></span><span class="No-Break">things:</span></p>
+<ul>
+<li>We have <span class="No-Break">three queries</span></li>
+<li>Each one of the queries is identified by the respective <span class="No-Break">query key</span></li>
+<li>All of the queries are <span class="No-Break">currently stale</span></li>
+<li>We have selected the query identified with the <strong class="source-inline">[{ queryIdentifier: "api", username: "userThree" }]</strong> <span class="No-Break">query key</span></li>
+</ul>
+<p>When we select a query, we can see the query details in our <strong class="bold">Query </strong><span class="No-Break"><strong class="bold">Details</strong></span><span class="No-Break"> tab.</span></p>
+<p>In the preceding figure, we can see that this query is identified by its query key and <span class="No-Break">its status.</span></p>
+<p>Scrolling down on the <strong class="bold">Query Details</strong> tab<a id="_idTextAnchor157"/>, we are also able to see <span class="No-Break">the following:</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer024">
+<img alt="Figure 5.2 – React Query Devtools Query Details tab displaying Actions and Data Explorer" height="211" src="image/Figure_5.2_B18501.jpg" width="557"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.2 – React Query Devtools Query Details tab displaying Actions and Data Explorer</p>
+<p>In the preceding <a id="_idIndexMarker285"/>figure, we can see that we can perform several <a id="_idIndexMarker286"/>actions for the selected query, such as refetching, invalidating, resetting, and <span class="No-Break">removing it.</span></p>
+<p>We are also able to see the current data of <span class="No-Break">this query.</span></p>
+<p>Scrolling even further down our <strong class="bold">Query Details</strong> tab, we can also check <span class="No-Break"><strong class="bold">Query Explorer</strong></span><span class="No-Break">:</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer025">
+<img alt="Figure 5.3 – React Query Devtools Query Details tab displaying Query Explorer" height="383" src="image/Figure_5.3_B18501.jpg" width="532"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.3 – React Query Devtools Query Details tab displaying Query Explorer</p>
+<p>In the preceding figure, we can see <strong class="bold">Query Explorer</strong> for our selected query. Here, we can see the options <a id="_idIndexMarker287"/>that our query is using right now. Here, one <a id="_idIndexMarker288"/>of the things we can highlight is that this query has the default <strong class="source-inline">cacheTime</strong> <span class="No-Break">of </span><span class="No-Break"><strong class="source-inline">300000</strong></span><span class="No-Break">.</span></p>
+<p>You are now aware of what you can see in the Devtools for each <span class="No-Break">selected query.</span></p>
+<p>Before wrapping up this section, let’s just see what happens when we click on one of the buttons available in the <strong class="bold">Query </strong><span class="No-Break"><strong class="bold">Details</strong></span><span class="No-Break"> actions:</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer026">
+<img alt="Figure 5.4 – React Query Devtools currently fetching a query" height="447" src="image/Figure_5.4_B18501.jpg" width="556"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 5.4 – React Query Devtools currently fetching a query</p>
+<p>In the preceding figure, we clicked on the <strong class="bold">Invalidate</strong> button for our query identified by the <strong class="source-inline">[{ queryIdentifier: "api", username: "userTwo" }]</strong> <span class="No-Break">query key.</span></p>
+<p>As you remember from learning about query invalidation, when we invalidate a query, it is automatically <a id="_idIndexMarker289"/>marked as <strong class="source-inline">stale</strong>, and if the query is currently being <a id="_idIndexMarker290"/>rendered, it will automatically be refetched. As you can see from the figure, this is what happened. Our query was already stale, so there was no need to mark it as <strong class="source-inline">stale</strong> again, but as it was currently being rendered on our page, React Query took care of refetching it, and we can see that in <span class="No-Break">the figure.</span></p>
+<p>As you saw from this <a id="_idIndexMarker291"/>section, the Devtools can save you a lot of time <a id="_idIndexMarker292"/>debugging your queries. By looking inside your queries, you can check what their data looks like if you have configured the right options, and even trigger some actions if you <span class="No-Break">so desire.</span></p>
+<h1 id="_idParaDest-87"><a id="_idTextAnchor158"/>Summary</h1>
+<p>In this chapter, we learned more about using the <strong class="source-inline">useQuery</strong> hook to solve some common challenges we are presented with when dealing with the server state. By now, you can handle all your data fetching needs and do <span class="No-Break">it easily.</span></p>
+<p>You learned about parallel queries and learned you could manually build these queries with <strong class="source-inline">useQuery</strong>. You were also introduced to one alternative of the <strong class="source-inline">useQuery</strong> hook: <strong class="source-inline">useQueries</strong>. With it, you learned how to build dynamic <span class="No-Break">parallel queries.</span></p>
+<p>You got to learn more about some methods of <strong class="source-inline">QueryClient</strong> that allow you to prefetch, cancel, and invalidate queries and also understood how you can leverage <strong class="source-inline">QueryFilters</strong> to customize the query matching used in <span class="No-Break">these methods.</span></p>
+<p>Pagination is a typical UI pattern, and now you know that you can easily build a paginated component with the help of <strong class="source-inline">useQuery</strong> and one of <span class="No-Break">its options.</span></p>
+<p>Another typical UI pattern is infinite scrolling. With the help of another <strong class="source-inline">useQuery</strong> variant called <strong class="source-inline">useInfiniteQuery</strong>, you learned how React Query enables you to build an application with an <span class="No-Break">infinite list.</span></p>
+<p>Finally, you looked inside your queries with the React Query Devtools and understood how it allows you to debug them and improve your <span class="No-Break">development process.</span></p>
+<p>In <a href="B18501_06.xhtml#_idTextAnchor159"><span class="No-Break"><em class="it lic">Chapter 6</em></span></a>, <em class="it lic">Performing Data Mutations with React Query</em>, we’ll leave data fetching behind and move on to mutations. You’ll understand how React Query enables you to perform mutations with the help of one of its custom hooks called <strong class="source-inline">useMutation</strong>. You will also leverage this hook to deal with more common server-state challenges you find in your applications and start building a better user experience in your apps by using <span class="No-Break">optimistic updates.</span></p>
+</div>
+<div>
+<div class="IMG---Figure" id="_idContainer028">
+</div>
+</div>
+</div></body></html>

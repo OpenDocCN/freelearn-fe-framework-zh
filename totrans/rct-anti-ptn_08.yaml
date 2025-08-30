@@ -1,0 +1,589 @@
+- en: '8'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Exploring Data Management in React
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In modern frontend development, the way we handle state and data access can
+    make or break an application. Whether you’re a solo developer or part of a large
+    team, understanding best practices and common pitfalls is critical. This chapter
+    aims to elevate your proficiency in state management and data handling within
+    React applications, focusing on scalable and maintainable approaches.
+  prefs: []
+  type: TYPE_NORMAL
+- en: State management is challenging, particularly in React, and there are many issues
+    that developers tend to face in their day-to-day work. One of the challenges is
+    where you can locate the business logic in your code base. When business logic
+    infiltrates UI components, it compromises their reusability. Many domain objects,
+    along with computational logic, are scattered in UI components either deliberately
+    or unintentionally, which can lead to tangled logic that’s hard to follow, debug,
+    and test. It can also lead to performance issues, which negatively affect the
+    user experience.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another issue is prop drilling, where passing props from a parent component
+    to deeply nested children becomes both cumbersome and susceptible to errors. This
+    often leads to code duplication as the same snippets find their way into multiple
+    files, making any future updates a complicated task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Lastly, sharing state in a React application presents its own set of challenges.
+    Various mechanisms exist for this, but choosing the most efficient way to share
+    stateful logic across components can be quite perplexing. We’ll dive deep to explore
+    the issues of sharing state and see how React’s Context API can help.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding business logic leaks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introducing the anti-corruption layer
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exploring the prop drilling issue
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using the Context API to resolve prop drilling
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A GitHub repository has been created to host all the code we’ll discuss in this
+    book. For this chapter, you can find the recommended structure at [https://github.com/PacktPublishing/React-Anti-Patterns/tree/main/code/src/ch8](https://github.com/PacktPublishing/React-Anti-Patterns/tree/main/code/src/ch8).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding business logic leaks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Business logic** refers to the rules, calculations, and processes that are
+    essential to the operation of a business application. When this business logic
+    “leaks” into components or areas of the application where it doesn’t belong, this
+    is known as a **business** **logic leak**.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This issue frequently crops up in various projects, partly because there’s no
+    widely agreed-upon approach for handling business logic in React. The framework’s
+    flexibility allows you to implement this logic directly in components, Hooks,
+    or helper functions; as a result, developers often end up embedding the logic
+    directly into components, where it’s immediately needed – hence the leakage.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This leakage can cause many problems. Business logic leaks can result in tightly
+    coupled components that become difficult to test, maintain, or reuse. When business
+    logic is scattered across different parts of the application, it leads to code
+    duplication and inconsistency, making the application more prone to errors and
+    harder to debug. Additionally, this scattering complicates any future modifications
+    to the business rules as changes will likely have to be made in multiple places,
+    increasing the risk of introducing new issues.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are various indicators that business logic is leaking into your code,
+    but the most prevalent sign is the incorporation of data transformation directly
+    within views or UI components. In this section, we’ll delve into this issue in
+    depth; in the following section, we’ll explore solutions to mitigate this problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`UserProfile` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `UserProfile` function component fetches user data from a backend API. The
+    `useEffect` Hook ensures that data fetching happens whenever the ID changes. The
+    fetched data is then stored in a local state variable, `user`, and the component
+    displays the user’s name once the data is available. If the data is still loading,
+    a **Loading…** message is displayed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the `useEffect` block, the fetched data transforms being stored in the `user`
+    state variable. Specifically, the keys from the fetched JSON response are mapped
+    to new names that are more suitable for the frontend application – for example,
+    `data.user_identification` becomes `id` and `data.user_full_name` becomes `name`.
+    This transformation allows for easier handling and readability within the React
+    component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As you might imagine, this type of transformation can happen in many places
+    in an application, and it isn’t limited to the inside of a React component; sometimes,
+    this transformation can be present in Hooks and other places, as demonstrated
+    in the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.1: Using data transformation in views](img/B21103_08_01.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.1: Using data transformation in views'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The backend service can serve data in various formats that are supported by
+    different technologies – some utilize RESTful APIs, while others employ GraphQL.
+    From the perspective of the frontend code, the specifics of these formats are
+    abstracted away. For instance, one component may be responsible for transforming
+    XML data (indicated by an orange diamond shape) into an internal type, *X* (depicted
+    as a blue square). Meanwhile, another component may interact with a GraphQL endpoint,
+    processing the received data (represented by a red circle) into the same internal
+    type, *X*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This discrepancy necessitates data transformations across multiple areas in
+    the code. When such transformations are duplicated, there’s a higher risk of overlooking
+    changes, especially if the backend alters the structure of their data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'All these varied transformations can be centralized into a single location
+    where data reshaping occurs, along with empty field checks, field renaming, and
+    the elimination of unnecessary fields. This segues nicely into our next topic:
+    the **anti-corruption** **layer** (**ACL**).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing the ACL
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In software development, an ACL acts like a translator or a mediator between
+    different subsystems that may not speak the same “language,” so to speak. Imagine
+    that you have two systems, each with its own set of rules, structures, and complexities.
+    If these systems interact directly, there’s a risk that they could influence each
+    other in unintended ways, leading to what is called *corruption* in the domain
+    logic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the context of frontend development, especially in complex applications,
+    an ACL becomes crucial for managing the interactions between the frontend and
+    various backends or APIs. Frontend developers often have to deal with multiple
+    services that may have inconsistent or convoluted data formats. Implementing an
+    ACL in the frontend allows you to create a unified interface to interact with
+    these services.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, if your frontend application has to communicate with multiple RESTful
+    APIs, GraphQL services, and even WebSocket servers, each may have its own set
+    of rules, data structures, and complexities. A frontend ACL would take on the
+    role of translating these disparate forms of data into a format that your frontend
+    application understands. This means that your UI components don’t have to worry
+    about the intricate details of each service’s data format, making the components
+    easier to develop, test, and maintain.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The ACL can also be a strategic place to handle caching, error transformations,
+    and other cross-cutting concerns. By centralizing these functionalities, you avoid
+    scattering similar logic all over your frontend code base, thus adhering to the
+    **Don’t Repeat Yourself** (**DRY**) principle:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.2: Introduced ACL for data transforming](img/B21103_08_02.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.2: Introduced ACL for data transforming'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As illustrated in *Figure 8**.2*, all data transformations are now centralized,
+    eliminating the need for such operations in the views. You might be curious about
+    how to put this into practice in your code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing a typical usage
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To get started, let’s build on the example from the previous section and introduce
+    a basic function as the starting point for our ACL. We should identify the external
+    data format and what we consume, then define functions as the transformers before
+    putting them in a common place.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let’s define a type for the user data format we receive from the remote
+    server. By using TypeScript, we gain the advantage of compile-time checks, thereby
+    ensuring that any inconsistencies in the data format are flagged before the application
+    runs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will also define the local `User` type – it includes all fields (`id`, `name`,
+    and so on) that we use in the `UserProfile` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `type` definition specifies the structure of a user object that will be
+    used in React components. Note that the `subscription` property uses a custom
+    type, `UserSubscription`, which can take one of four string values: `expire` is
+    a string that indicates when the user’s subscription will expire.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With this setup, we can define a new function called `transformUser` in a file
+    called `transformer.ts`. The file simply returns the mapped object with the `User`
+    type we just defined:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'With this new extracted function in `transformer.ts`, our component can be
+    simplified like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `UserProfile` component relies on the `fetchUserData` helper function to
+    retrieve and process user data from an API. This design insulates `UserProfile`
+    from any knowledge of the remote data structure. If there are future changes to
+    the `RemoteUser` type, `UserProfile` remains unaffected as all the adjustments
+    will be confined to `transformer.ts`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It’s advantageous to have a distinct function dedicated to managing remote data
+    and molding it to suit the requirements of higher-level views. However, complications
+    arise when the backend fails to deliver the necessary data. In such scenarios,
+    additional logic is necessitated in this layer to establish fallback or default
+    values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the fallback or default value
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Another frequently observed issue related to data transformation is the excessive
+    use of defensive programming in React views. While defensive programming is generally
+    good practice and useful in various contexts, overloading React components with
+    too many null checks and fallbacks can clutter the code and make it difficult
+    to comprehend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Defensive programming** is a practice that involves writing code in a way
+    that anticipates possible errors, failures, or exceptions, and handles them gracefully.
+    The goal is to make your application more resilient and maintainable by minimizing
+    the impact of unexpected scenarios.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For instance, in the `UserProfile` example, you might encounter situations where
+    certain values from the remote service are empty. Instead of displaying `null`
+    or `undefined` to end users, you would need to implement fallback values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s review the `transformUser` function we extracted previously:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: What if `subscription_details` doesn’t exist, or what happens when `expiry`
+    isn’t a valid date format from the backend? These mismatches can cause runtime
+    exceptions, so we should fall back to some default value when the remote data
+    isn’t in the right format.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We could put the fallback logic into components, right before we render them.
+    Without the ACL, we might end up with some logic in `UserProfile`, like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `UserProfile` function component takes a user object as a prop. It displays
+    the user’s full name, subscription level, and subscription expiry date. If any
+    of these values are missing or falsy, it provides default fallback text such as
+    **Loading…**, **Basic**, or **Never**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As such, logic begins to infiltrate the `UserProfile` component, increasing
+    the component’s length and therefore complexity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This kind of logic can be better managed by moving it into a function such
+    as `transformUser`, where it can be thoroughly tested:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `transformUser` function maps fields from the remote user data structure
+    to the application’s expected `user` data structure, providing default values
+    for each field in case they are missing or null. For example, if `remoteUser.user_identification`
+    is `null`, it will use **N/A** as the default ID.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that here, we use `?`), which allows you to access deeply nested properties
+    without checking each level of nesting. If `subscription_details` or `level` is
+    null or undefined, the result, `subscription`, will also be undefined and no errors
+    will be thrown. We also used `??`) for falling back – it takes the value on its
+    left if that value isn’t null or undefined; otherwise, it takes the value on its
+    right.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All this transforming and fallback logic is now encapsulated in a common place
+    – the ACL. Any further changes to the remote or local data shape can easily happen
+    in this layer, and we don’t have to look up the entire code base for different
+    usages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Excellent – the ACL pattern effectively isolates business logic from your views.
+    However, there are additional challenges in managing data within a React application,
+    such as sharing data between components and avoiding prop drilling. In the following
+    section, we’ll explore how to tackle these issues using the Context API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring the prop drilling issue
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Prop drilling** is an issue that arises when you have to pass data through
+    multiple levels of components that don’t need the data, just so it can reach a
+    component deeper in the hierarchy that does need it. This often makes the code
+    harder to follow, understand, and maintain.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider a standard scenario in React where we have a universal searchable
+    list component. This component takes in a list and displays each item, whether
+    it’s a list of books, menus, tickets, or anything else you can think of. In addition
+    to displaying the list, the component also includes a search box, allowing users
+    to easily filter through a lengthy list:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.3: The searchable list component](img/B21103_08_03.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.3: The searchable list component'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At first glance, the implementation seems straightforward and not overly complicated:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: The code defines a `SearchableList` component in React that filters and displays
+    a list of items based on user input. It starts with a full list of items and updates
+    the filtered list whenever the text in the input box changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Over time, as the component evolves and is used in more diverse scenarios,
+    the code base becomes increasingly complex, resulting in additional layout changes
+    and more lines of code. As illustrated in *Figure 8**.4*, on the right-hand side,
+    we can break the searchable list input into three sub-components called `SearchInput`,
+    `List`, and `ListItem`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.4: Breaking a searchable list into smaller components](img/B21103_08_04.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.4: Breaking a searchable list into smaller components'
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the right-hand side, `SearchInput` accepts the user’s input (in the top red
+    rectangle). It is a sibling of the `List` component (inside the green rectangle),
+    which contains multiple `ListItem` (in the purple rectangle) – each `ListItem`
+    represents an item (one might have a title, description, or buttons in it).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s look at each of these extracted components in detail:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`ListItem` displays the name and description of an item. For any further details
+    that are needed, we only need to modify this file directly.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, each `ListItem` is wrapped inside a container component, `List`, like
+    so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: This `List` acts as the container for all the items. It also includes a footer
+    to show some summary information of the items.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we have the `SearchInput` component, which is responsible for collecting
+    user input and triggering searches as the user is typing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that this code breakdown is only an internal structural change – we made
+    the change only to make each part easy to read and understand. People who use
+    `SearchableList` aren’t aware of such changes at all – the props of `SearchableList`
+    haven’t been changed so far.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, the consumer has requested a new feature: they wish to track user
+    interactions for analytics, specifically to gauge the popularity of items and
+    the utilization of the search function. To meet this requirement, two new props
+    are being introduced: an `onItemClicked` callback to capture when an item is clicked,
+    and an `onSearch` callback to monitor when a search is performed.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, we need to modify our code to meet these requirements, starting from the
+    new type used in `SearchableList`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To pass `onSearch` and `onItemClicked`, we’ll make some changes to `ListItem`.
+    We need to change the props list (adding `onItemClicked`) and then call the function
+    when the list is clicked:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'However, as `ListItem` is not exposed directly to the outside world, the props
+    are passed from its parent component, `List`. So, we also need to update the `List`
+    component’s props list to add `onItemClicked`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `List` component has to accept `onItemClicked` as a prop and then pass on
+    the `onItemClicked` prop into `ListItem` without touching it. This is a code smell,
+    signaling that the component is dealing with something not directly relevant to
+    its function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, the `onItemClick` prop is passed from the `List` component''s parent
+    `SearchableList` component, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Observe how we transfer the `onItemClicked` prop to the `ListItem` component.
+    First, it goes through the `List` component, which directly passes it down to
+    `ListItem` without using it for anything. This is a classic example of prop drilling.
+    The same could happen with `SearchInput`. As we continue to add more and more
+    props from the outside and drill them down through the component tree, the entire
+    structure could soon become unmanageable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fortunately, the Context API provides an elegant solution to the prop drilling
+    issue, which we will review in the next section (we covered the fundamentals of
+    using the Context API in [*Chapter 2*](B21103_02.xhtml#_idTextAnchor044); you
+    can revisit that chapter if you’d like a refresher).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the Context API to resolve prop drilling
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The concept behind using the Context API to address prop drilling is to create
+    a shared container for all sub-components under a common parent. This eliminates
+    the need for explicitly passing down props from parent to child. Sub-components
+    can directly access the shared context whenever necessary. Another advantage of
+    using the Context API is that it triggers automatic re-rendering of components
+    whenever the data within the context changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Returning to our searchable list example, which has already got the *props drilling*
+    issue, `onItemClicked` in the `List` component isn’t necessary as `List` doesn’t
+    use the prop. This scenario involves just one layer and one prop. Now, envision
+    a situation where we need to insert additional elements between the `List` and
+    `ListItem` components; we would have to pass the `onItemClicked` prop down to
+    where it’s utilized. The complexity is amplified if we have multiple props to
+    relay.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first step is to define a context with an appropriate type:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: This code defines a React context called `SearchableListContext`. It specifies
+    the types of the `onSearch` and `onItemClicked` functions that the context will
+    hold. It also initializes these functions with a no-operation (`noop`) function
+    by default.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we can use the context as a wrapper in the searchable list to provide
+    the context to all its child components:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `SearchableList` component wraps its children, `SearchInput` and `List`,
+    inside `SearchableListContext.Provider`. This allows these child components to
+    access the `onSearch` and `onItemClicked` functions from the context without passing
+    them down explicitly as props. The `handleSearch` function filters items based
+    on the search keyword.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This means our `List` component can be reverted to the simple version before
+    we introduce `onItemClicked`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For `ListItem`, we can directly access `onItemClicked` from the context:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `ListItem` component now uses `useContext` to access the `onItemClicked`
+    function from `SearchableListContext`. When a list item is clicked, `onItemClicked`
+    is called with the clicked item as an argument.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Likewise, for the `SearchInput` component, there’s no need to pass down extra
+    props from `SearchableList`. Instead, we can directly access what we need from
+    the context:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `SearchInput` component uses the `useContext` Hook to access the `onSearch`
+    function from `SearchableListContext`. When the input changes, it calls both the
+    local `onSearch` function and the one from the context, effectively merging external
+    and internal behaviors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As demonstrated, the Context API results in a much cleaner structure. It allows
+    you to make additional structural adjustments to sub-components without the concern
+    of continually passing props down the hierarchy. This simplifies the component
+    interface, making it easier to read and understand.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we delved into some of the most pressing challenges that are
+    often encountered in React development, such as the leakage of business logic,
+    the complexities associated with prop drilling, and the difficulties of managing
+    shared state. To counter these issues, we introduced robust solutions such as
+    the ACL and the Context API. These strategies aim to streamline your code, making
+    it both more maintainable and effective for long-term projects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next up, we’ll dive into common React design patterns that you can use to further
+    refine your coding skills. Stay tuned.
+  prefs: []
+  type: TYPE_NORMAL

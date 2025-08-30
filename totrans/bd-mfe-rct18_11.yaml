@@ -1,0 +1,1209 @@
+- en: '8'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Deploying Microfrontends to Kubernetes
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we learned how to manually deploy our microfrontends
+    to a static storage provider such as Firebase.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will go deeper into cloud and DevOps territory by learning
+    how to deploy our apps to a managed Kubernetes cluster. Kubernetes has become
+    the de facto choice to deploy enterprise-grade web apps (both backend and frontend)
+    to the cloud.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When it comes to deploying SPAs, we run usually the webpack `build` command
+    to generate our JavaScript bundles and assets in the `/build` or `/dist` folder,
+    which we then simply copy to a static website hosting provider to make our app
+    available to our users. However, deploying microfrontends is a bit more complex.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will see how to deploy our module-federated microfrontend
+    to a managed Kubernetes cluster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to containerize our apps using Docker
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The basics of Kubernetes and its various components
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Some basic commands to manage our Kubernetes cluster
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: DevOps and how to automate deploying our micro-apps to Kubernetes
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: By the end of this chapter, we will have our microfrontend apps running on a
+    Kubernetes cluster in Azure. We will deploy them via an automated **Continuous
+    Integration** (**CI**) and **Continuous Delivery** (**CD**) pipeline that will
+    automatically build and deploy the necessary apps whenever code is merged.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In addition to all the standard technical requirements that we mentioned in
+    the previous chapters, you will need the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: An Azure cloud subscription
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Access to GitHub and GitHub Actions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A high-level understanding of CI and CD concepts
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Knowledge of Docker and containerizing apps will be helpful
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The code files for this chapter can be found at the following URL, where we
+    essentially started with the microfrontend we built in [*Chapter* *6*](B18987_06.xhtml#_idTextAnchor093):
+    [https://github.com/PacktPublishing/Building-Micro-Frontends-with-React](https://github.com/PacktPublishing/Building-Micro-Frontends-with-React).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We also assume you have a basic working knowledge of Git, such as branching
+    committing code and raising a pull request.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to Kubernetes
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Kubernetes**, also known as **K8s**, has taken the cloud and DevOps world
+    by storm. Originally developed by Google and now part of the Cloud Native Computing
+    Foundation, Kubernetes provides all the tools necessary to deploy and manage large-scale,
+    mission-critical applications on the cloud from a single interface.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Traditionally, managing a large-scale, production-grade application on the cloud
+    meant having to deal with things such as web servers, load balancers, auto-scaling,
+    and internal and external traffic routing. Kubernetes now brings all of that under
+    a single umbrella and provides a consistent way to manage all the components of
+    a cloud environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The premise of Kubernetes is that you tell it the end state of what you want
+    via a spec file, and Kubernetes will go about getting it done for you. For example,
+    if you tell Kubernetes that you want three replicas for your application with
+    a service load balancer, Kubernetes will figure out how to spin up the three replicas
+    and ensure that the traffic is equally distributed between the three replicas.
+    If, for some reason, one of the pods restarts or shuts down, Kubernetes will automatically
+    spin up a new pod to ensure that, at any given time, three replicas of the pod
+    service traffic. Similarly, when you deploy a new version of the app, Kubernetes
+    will take over the responsibility of gradually spinning up new pods with the latest
+    version of the app, while gracefully shutting down the pods with the older version
+    of the application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Through the rest of this section, we will look at some of the key components
+    of Kubernetes that apply to us, along with the architecture to deploy our microfrontend
+    on Kubernetes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is Kubernetes?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Kubernetes is a platform-agnostic container orchestration platform that enables
+    the deployment, scaling, and management of containerized applications in a cluster
+    of machines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It abstracts the underlying infrastructure, allowing you to run your applications
+    in a variety of environments, including on-premises data centers, public cloud
+    providers such as Microsoft Azure, Google Cloud Platform, and Amazon Web Services,
+    and even on your own laptop.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Kubernetes is designed to be highly modular and extensible, and it integrates
+    with a variety of tools and services to support the complete life cycle of an
+    application, including deployment, scaling, monitoring, and maintenance. It is
+    widely adopted in the industry and has become the de facto standard for container
+    orchestration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Key concepts of Kubernetes
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Kubernetes can be quite a vast topic and would need a dedicated area of focus
+    to go deep into it. You can go into the details of the various components of Kubernetes
+    here: [https://kubernetes.io/docs/concepts/overview/components](https://kubernetes.io/docs/concepts/overview/components).
+    However, as a frontend engineer and for the scope of this book, there are six
+    basic concepts and terms that you need to be aware of:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Nodes**: A node is a worker machine in a Kubernetes cluster. It can be a
+    physical or virtual machine, and it is responsible for running the containerized
+    applications deployed to it.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Pods**: A pod is the basic execution unit of a Kubernetes application. It
+    is a logical host for one or more containers, as well as all containers in a pod
+    run on the same node. Pods provide a shared context for containers, such as shared
+    storage and networking.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Services**: A service is a logical abstraction over a group of pods. It defines
+    a policy to access the pods, typically via a stable IP address or DNS name. Services
+    allow you to decouple the dependencies between your applications, enabling you
+    to scale or update a group of pods without affecting the consumers of the service.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Deployments**: A deployment is a declarative way to manage a ReplicaSet,
+    which is a set of identical pods that are deployed to the cluster. Deployments
+    allow you to specify the desired state of your application, and Kubernetes will
+    ensure that the actual state matches the desired state. This includes rolling
+    updates, rollbacks, and self-healing.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Ingress**: Ingress is a way to expose your services to the external world.
+    It provides a way to map external traffic to a specific service in your cluster,
+    typically via a stable IP address or DNS name. Ingress can also provide additional
+    features, such as SSL termination and load balancing. Think of it as a router
+    where a URL is mapped to a service.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Namespaces**: A namespace is a logical partition in a Kubernetes cluster.
+    It allows you to use the same resources (such as names) in different contexts,
+    and it can be used to isolate resources within a cluster.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Kubernetes architecture for microfrontends
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: When deploying our microfrontends on Kubernetes, we create a pod for each micro
+    app, and this micro app is exposed internally via an Ingress service.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The home app module federates all these micro-apps. The following diagram helps
+    to explain the architecture better:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.1 – Kubernetes topology architecture to deploy microfrontends](img/Figure_8.01_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.1 – Kubernetes topology architecture to deploy microfrontends
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see in *Figure 8**.1*, each of our micro-apps is deployed within
+    its own pod. These pods can be replicated or set to auto-scale as traffic increases.
+    This is denoted by the dotted box around the pod. These pods are exposed via a
+    service, which acts as a sort of load balancer. Therefore, the home app service
+    is the single endpoint for all the replications of the home micro app pod.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each of the services is exposed via an Ingress route. This is where we define
+    the URL for our micro app, which eventually will be used in our module federation
+    configuration. This is what the overall Kubernetes architecture will look like.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With this, we come to the end of this section, where we learned about some of
+    the key concepts of Kubernetes, such as nodes, pods, services, Ingress, and the
+    architecture of our micro-apps within a Kubernetes cluster. In the next section,
+    we will see how to go about containerizing our app so that it can be deployed
+    into a Kubernetes cluster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Containerizing our micro-apps with Docker
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Containers are a way to package software applications in a standardized and
+    portable way, allowing them to run consistently across different environments.
+    They provide a lightweight and efficient way to run applications and are particularly
+    well-suited for microservices architectures, where an application is composed
+    of multiple, independently deployable services.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will look at how to install Docker and create a Docker image
+    by creating a Dockerfile.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Installing Docker
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Docker Engine is available for personal use on multiple Linux, Mac, and Windows
+    systems via Docker Desktop. You can follow the instructions here to install the
+    Docker engine: [https://docs.docker.com/engine/install/](https://docs.docker.com/engine/install/).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you don’t want to or can’t use Docker Desktop on your Windows or Mac, there
+    are alternatives, such as Rancher Desktop, Podman, and Colima.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once you have Docker installed, verify it by running the following command
+    in the terminal:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: If it returns the version of Docker, then you are all set, and it means that
+    Docker was installed successfully on your system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating standalone app builds
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Before we can start creating a Docker image, we will first need to ensure that
+    the build outputs of our micro apps are self-contained and can run in standalone
+    mode. We do this by adding the following lines in each of the `next.config.js`
+    files, like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`outputFileTracingRoot` is an experimental feature introduced in Next.js 12+
+    onward; this helps reduce the size of the build outputs, especially when we want
+    to try and reduce our Docker image sizes.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Make sure to add these lines to the `next.config.js` file for each of the micro
+    apps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a Dockerfile
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The next step is to create our Dockerfile, which contains the instructions for
+    Docker to create our Docker image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since we need to create a Docker image for each micro app, we will create a
+    Dockerfile within `apps/home`. The default filename we usually give to this is
+    `Dockerfile`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's add the following commands to this Dockerfile. We will use the default
+    Dockerfile provided by Turborepo and Next.js.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will build our Dockerfile as a multi-stage file, which allows us to leverage
+    the caching of the layers and also ensures that the size of the Docker image is
+    as small as possible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will build it in three stages, starting with the builder stage:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, we use a base image of Node Alpine 18.14, and we call it the
+    builder stage. Alpine is the most minimalistic version of Node.js.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, we install the `libc6-compact` library and run the `update` command. Then,
+    we set the working directory for the app and install turbo.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, we copy everything from our repo (note the space between the two periods
+    in the `COPY` command).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we run the `turbo prune` command to extract all the files necessary
+    for the home micro app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we will move on to the installer stage and continue writing the following
+    code immediately after the previous code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Again, we start by defining the base image as the installer, running the regular
+    `apk add` and `update` commands, and setting the working directory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, we copy the `.gitignore` file as well as the relevant files from the `/app/out`
+    folder from the builder stage.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We then install `pnpm` and run the `pnpm` install command.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, we copy all the files from the `app/out/full` folder from our builder
+    stage and run the `turbo` `build` command.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, we move on to the final runner stage where we write the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, we basically create a user group to avoid the security
+    risks of running the code as root, and then we copy the relevant files from our
+    installer stage and run the `node` command.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we need to create a `.dockerignore` file in the root of the repo, where
+    we list the files and folders that we don’t want Docker to copy to the image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s test the Dockerfile to see whether it builds. From the root of the application,
+    run the following command in the terminal:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`-t` stands for the tag name, and it will create a Docker image with the name
+    `home`. The `-f` part is the path to the Dockerfile.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note the space and period at the end of the command, which is important. The
+    period at the end denotes the build context – that is, the set of files and folders
+    Docker should use to build the image. The period also denotes that we want to
+    package all the files and folders in the current directory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This command will take several minutes to run on its first time, as Docker will
+    download the base node image and other dependencies. The subsequent builds will
+    be a lot faster, as Docker will cache the layers and reuse them if the layer hasn’t
+    changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can run the Docker image locally by running the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Once we’ve verified that this works fine, we will need to create similar Dockerfiles
+    for each of our apps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, in `apps/catalog` and `apps/checkout`, copy and paste the Dockerfile and
+    replace all instances of `home` with the relevant micro app name.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that each of these micro apps runs on the same port, `3000`, so to test
+    them locally, we can test only one image at a time, unless you change the `hostPort`
+    value to something different or use a docker-compose file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have learned how to dockerize our micro apps and run them locally,
+    we will move on to the next section on setting up Docker Hub.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up Docker Hub to store Docker images
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In the previous section, we created Docker images of our apps and were able
+    to run them locally. For us to be able to deploy them on Kubernetes, we need to
+    store them in a container library from where our DevOps pipelines can pull the
+    images. We will use a free artifact registry solution such as Docker Hub for this.
+    Alternatively, you can use other container registry solutions provided by various
+    hosting providers, such as Azure Container Registry, Google Container Registry,
+    and Amazon Elastic Container Registry:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Log in/register at [https://hub.docker.com](https://hub.docker.com), and then
+    create three public repositories one for each micro-app. We will call them the
+    following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**ebuy-home**'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**ebuy-catalog**'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**ebuy-checkout**'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Make a note of the Docker registry paths, which are usually of the **<your-username>/ebuy-home**
+    format, **<your-username>/ebuy-catalog** format, and so on.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Then, let's create an access token that will be needed for our CI and CD pipelines.
+    Go to **Account Settings**, and on the **Security** page, create a new access
+    token and give it a description. Under **Access permissions**, select **Read and
+    Write**, as our pipelines will need to push and pull the Docker images.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Once the token is generated, copy and keep it safe, as it will never be displayed
+    again. (You can always generate a new token if you’ve lost the old one.)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Our work on Docker Hub is done!
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will create our Kubernetes configuration files that
+    will be used to spin up our Kubernetes cluster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a Kubernetes configuration file
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Earlier in this chapter, in the *Introduction to Kubernetes* section, we learned
+    about the various Kubernetes services that we will use to deploy our microfrontends.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deploying these services on Kubernetes is commonly done by defining the various
+    configuration settings in a `.yaml` file and then applying the configuration to
+    the Kubernetes cluster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will learn about the structure of these Kubernetes spec
+    files and how to go about creating them for our deployments, services, and Ingress.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The structure of a Kubernetes spec file
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A Kubernetes spec file is a YAML document that describes the desired state of
+    a Kubernetes object, such as a Deployment, Pod, Service, or ConfigMap. The structure
+    of a Kubernetes spec file generally consists of two main parts – the metadata
+    section and the spec section. Each file always starts by defining the `apiVersion`
+    and the `kind` of spec file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The metadata section includes information about the object, such as its name,
+    labels, and annotations. This section is used by Kubernetes to manage the object
+    and enable other objects to reference it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The spec section includes the desired state of the object, such as the container
+    image, resource requests and limits, networking configuration, and any other relevant
+    settings. This section is used by Kubernetes to create and manage the object according
+    to its desired state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating spec files to deploy our microfrontends
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As we saw earlier, the structure of a Kubernetes spec file follows a hierarchical
+    format, with each section and its corresponding properties nested under the appropriate
+    heading. Additionally, many Kubernetes objects have properties that are specific
+    to their type, so the structure of the spec file may vary depending on the object
+    being described.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's start by creating these files in a folder called `k8s` within each of
+    the micro apps folders.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s start by creating the `/apps/home/k8s/deployment.yml` file with the following
+    code. The `deployment.yml` file contains the configuration to set up and configure
+    the Kubernetes pods within which our micro app will run:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you read through the `deployment.yml` configuration file, you will see that
+    we label the app as `home` and also use the same name to define the name of our
+    container. We define the number of replicas as one, which means it will spin up
+    one pod; increase this number to two or more if you want multiple replicas of
+    the pod. Then, within the container section of the file, we define the name of
+    the path of the Docker image it should use and the ports and protocols that it
+    should use. Replace this with the values of your Docker repository. Note `:latest`
+    at the end of the Docker image value; this is something we add to ensure that
+    Kubernetes always picks up the latest version of the Docker image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, we define the service, which acts as a sort of load balancer over one or
+    more replicas of the pod.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create a new file called `/apps/home/k8s/service.yml` with the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `service.yml` file is quite straightforward, wherein we provide the necessary
+    metadata such as the `name`, `label`, and `namespace` for the Kubernetes cluster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, within the specs, we define what type of service this is; we will set
+    it as a `LoadBalancer`. This will help expose a public IP address that we will
+    need later and, finally, within the `ports` section, the protocol and port numbers
+    on which we will expose the service.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we need to define the `ingress.yml` file where we will assign a URL
+    to the service. Create a file called `/apps/home/k8s/ingress.yml` with the following
+    code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The Ingress within Kubernetes essentially runs nginx under the hood, so if
+    you are familiar with nginx, configuring this should be easy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is generally a bit of a tricky file to configure, as this is where you
+    define the URL structures and rewrite rules and other nginx configurations as
+    you’d do for a web server. As you can see, we define the regular metadata information
+    under annotations, and we define the various rewrite rules and nginx configurations,
+    such as CORS. Then, we set the `regex` path, which tells Kubernetes through which
+    URLs it should direct traffic to this service and pod. Finally we need to copy
+    and paste the K8s folder into each of our micro apps and update the relevant paths
+    and app names to match the name of the micro app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we come to the end of this section, we’ve seen how to create Kubernetes spec
+    files to deploy pods, how to set up a service that sits over these pods, and finally,
+    the ingress that provides routing to these pods. In the next section, we will
+    create an Azure Kubernetes cluster, against which we will execute these specs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up a managed Kubernetes Cluster on Azure
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we will learn how to set up a managed Kubernetes cluster on
+    Azure. The reason it’s called *managed* is because the master node, which is sort
+    of the brain of Kubernetes, is managed by Azure, and we only need to spin up the
+    worker nodes. We will see how to log in to Azure and create a subscription key,
+    and we will install Azure CLI and collect the various credentials that we need
+    for our DevOps pipeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For this chapter, we will use **Azure Kubernetes Service** (**AKS**) to set
+    up our cloud-based managed Kubernetes cluster. You can also set up a managed Kubernetes
+    cluster on Google Cloud using **Google Kubernetes Engine** (**GKE**), or you can
+    use Amazon **Elastic Kubernetes Service** (**EKS**) on AWS.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Irrespective of whichever hosting provider you use to set up your Kubernetes
+    cluster, the Dockerfile and the Kubernetes configuration `.yaml` files remain
+    the same.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Logging into the Azure portal and setting up a subscription key
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To carry out any activity on the Azure platform, you need to have the login
+    credentials for the platform and a subscription key. All the resources that we
+    create within Azure need to be mapped to a subscription key, which eventually
+    is used by Azure to calculate the hosting charges. To do this, follow these steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Head over to [https://portal.azure.com](https://portal.azure.com) and log in
+    with a Microsoft login; if you don’t have one, you can always sign up for one.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Once logged into the portal, search for **Subscriptions** and add a **Pay-As-You-Go**
+    subscription. If you have an **Azure for Student** or free trial subscription
+    in your list, feel free to select either one of them as well. This subscription
+    will be used for all the hosting costs that will be incurred as part of the various
+    services you run within Azure.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Then, in the search box, search for **Resource Group** and create a resource
+    group. Let’s call it **ebuy-rg**; the **rg** suffix stands for **resource group**.
+    It would have selected the default subscription that you created in the earlier
+    step. For the region, you can select **US East** or a region of your choice; for
+    the sake of consistency in this chapter, we will stick with **US East**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In Azure, it is always a good practice to create a resource group for a project
+    and then have all the various services associated with that project within the
+    resource group. This allows us to easily manage the resources within the resource
+    group, especially when we want to shut down all the services for the project.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, we will create our AKS cluster; search for **Azure Kubernetes Service
+    (AKS)**, click on the **Create** button in the top-left corner, and then select
+    the **Create a Kubernetes cluster** menu item. You will be presented with a screen,
+    as shown in the following screenshot:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 8.2 – The Create Kubernetes cluster screen](img/Figure_8.02_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.2 – The Create Kubernetes cluster screen
+  prefs: []
+  type: TYPE_NORMAL
+- en: Select the subscription and resource group we created in the earlier steps,
+    and then, in the Cluster preset configuration, select **Production Standard**
+    as the preset configuration. You can also choose other higher configurations;
+    however, note that the AKS cluster is the most expensive component of your Azure
+    monthly billing.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Provide the Kubernetes cluster name as **ebuy**, and select the same region
+    where you have your resource group created; in our case, it is **(US) East US**.
+    For the Kubernetes version, you can choose to leave it as default or select **1.26.6**
+    to ensure the settings are consistent with the code and configuration defined
+    in the chapter. For the scale method, set it to **Autoscale**, and for the maximum
+    number of nodes, leave it at **1** or **2**. Finally, hit **Review + Create**,
+    and then after the validation check is done, hit **Create**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We now have our Kubernetes cluster running within AKS.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Accessing your Kubernetes cluster via the Azure CLI
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The de facto approach to interacting with your Kubernetes cluster on Azure is
+    via the Azure CLI at [https://learn.microsoft.com/en-us/cli/azure/](https://learn.microsoft.com/en-us/cli/azure/).
+    If you are working with Kubernetes it is best to also install kubectl, the instructions
+    for which you can find here [https://kubernetes.io/docs/tasks/tools/install-kubectl-macos/](https://kubernetes.io/docs/tasks/tools/install-kubectl-macos/)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Follow the documentation at the preceding URL to get the Azure CLI set up on
+    your system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once you have the Azure CLI up and running, the next step is to log in using
+    the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Once you’ve successfully logged in, it will display the details of the subscription
+    and tenant details for your subscription.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Run a couple of the following commands to get a feel for the Azure CLI and
+    the basic Kubernetes commands:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**az aks list** //: To get a list of all your aks clusters'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**az aks get-credentials --resource-group ebuy-rg --name ebuy** //: To connect
+    to your aks cluster'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**kubectl get nodes** //: To get a list of all the nodes'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**kubectl get pods** //: To get a list of all the pods running (we don’t have
+    any pods running yet, so don’t worry if you get an error message)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'These are just a few commands to help you get started; if you are keen to learn
+    about the rest of the kubectl commands head over to the official *kubectl Cheat*
+    *Sheet*: [https://kubernetes.io/docs/reference/kubectl/cheatsheet/](https://kubernetes.io/docs/reference/kubectl/cheatsheet/).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once you are happy trying out the different kubectl commands and comfortable
+    interacting with your Kubernetes cluster, we will proceed to the next step of
+    gathering the necessary credentials to automate deployments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating credentials for your DevOps pipelines
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: For any DevOps pipeline to access the various resources on Azure to spin up
+    Kubernetes clusters, it will need access permissions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will now collect the necessary access permissions. Ensure that you are logged
+    in at [https://portal.azure.com](https://portal.azure.com), or log in via the
+    `az login` CLI command.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following is a list of IDs and secrets that we need from Azure and the
+    process to find them within the Azure portal:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Subscription ID**: Search for **Subscriptions** and select your subscription
+    to display the subscription ID.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Tenant ID**: Search for **Azure Active Directory** and note the Tenant_ID
+    displayed'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Then, we need to create a service principle that can create and manage resources
+    within our resource group; we do that using the az CLI. In the terminal, fire
+    the following command, replacing **{subscriptionid}** with the value you noted
+    in the previous steps, and **{resource-group}** with the name of the resource
+    group; in this case, it is **ebuy-rg**:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Run the command, and if all goes well, it will publish a list of configuration
+    variables, as shown in *Figure 8**.3*, which you can easily save for further use.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 8.3 – Output from running the command to create a service principle](img/Figure_8.03_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.3 – Output from running the command to create a service principle
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note down the configurations from the preceding output, as we will need it in
+    the following steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have all the necessary credentials we need, let's proceed to the
+    next section on setting up the CI and CD pipelines where we will use these credentials.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up CI/CD with GitHub Actions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we will learn how to go about setting up a DevOps pipeline
+    using GitHub Actions. A DevOps pipeline is a series of steps that we define to
+    automate the build and deployment of our apps. In this section, we will learn
+    how to set up GitHub secrets and the workflow .`yml` file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GitHub Actions is an automation and workflow tool provided by GitHub that allows
+    developers to automate software development workflows and streamline their software
+    development process. With GitHub Actions, you can create custom workflows that
+    automate tasks such as building, testing, deploying, and releasing code directly
+    from your GitHub repository. Other tools that we can use for CI and CD are Jenkins,
+    Azure DevOps, Google Cloud Build, and so on. For the purpose of this chapter,
+    we will use GitHub Actions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up GitHub secrets
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As part of the CI and CD steps, GitHub Actions needs to push the Docker image
+    to Docker Hub and spin up new Kubernetes pods, and so on. For all these activities,
+    it needs to be able to log in to the systems with the right credentials. As a
+    rule and for security purposes, we should never directly hardcode the usernames
+    or passwords directly into the DevOps pipelines. The correct way is to create
+    GitHub secrets and use those in your pipelines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First and foremost, make sure you have committed and pushed the latest changes
+    we’ve made so far to GitHub.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s create our GitHub secrets by first going to the **Settings** tab on
+    the GitHub repo and then to the **Secrets and variables** section. Then, under
+    **Actions**, we will create the following secrets along with the corresponding
+    values that we noted down earlier from Docker and the Azure subscription:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will create these as secrets in our DevOps pipeline. These secrets can be
+    accessed in the pipeline as `${{` `secrets.<variable-name> }}`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting started with GitHub Actions
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: GitHub Actions is a relatively new feature provided by GitHub that allows you
+    to create workflows to automate tasks. It can also be used to set up an automated
+    CI and CD pipeline, which is exactly what we will use it for in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can read more about GitHub Actions in detail here: [https://docs.github.com/en/actions](https://docs.github.com/en/actions).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Creating a GitHub action is straightforward. All we need to do is, at the root
+    of our project folder, create a folder called `.github/workflows` and then a `.yaml`
+    file. Once pushed to GitHub, it will automatically detect that you have a workflow
+    file and it will execute it as per the triggers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s create our **.yaml** file at **.github/workflows/home-build-deploy.yml**,
+    and within it, let’s write the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We will provide a name for our GitHub action; which is what will be shown in
+    GitHub Actions. Then, we define the triggers, `on push:` and `on:workflow_dispatch`.
+    The `workflow_dispatch` trigger allows you to manually trigger a pipeline when
+    needed (especially when testing your pipelines), and as you can see, `on push`
+    has further options for `branches: main` and `paths: apps/catalog/**`. This means
+    a change to any file within the `home micro-app` that is pushed to the `main`
+    branch will trigger this pipeline. The `paths` section is critical to ensure that
+    the pipeline builds and deploys only the changed micro app.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now, we need to define the list of jobs that GitHub actions should run; we
+    will do this as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: For every job we define in the pipeline, we need to define what operating system
+    the DevOps pipeline needs to run on, any strategies, what permissions to provide,
+    and finally, the steps that it needs to run.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Now, we will expand into each of these sections.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Since the commands to build and deploy the micro apps remain the same, we will
+    use a matrix strategy that allows us to define variables that can be used later
+    in these steps. Within the strategy section, write the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We set the `fail-fast` option to `false` so that GitHub action continues to
+    run the pipeline for the other micro apps, even if one of them fails. Then, we
+    define the matrix of our variables, which are as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '**Dockerfile**: The path to where the micro app’s Dockerfile is located in
+    your code base'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Image**: The path to the Docker image in Docker Hub'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**k8sManifestPath**: The location of the Kubernetes manifest files needed to
+    spin up your micro app pod, services, and ingress'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'For permissions, we set the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: We set the `contents` scope to read and the `packages` scope to write.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next series of steps is where the actual work happens.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we will see, every step has two to three properties – the first is `name`;
+    then `uses`, which is the component that is used to perform the step; and finally,
+    `with`, which is optional and defines the additional properties required to perform
+    the step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'All of the code in the following steps will be in the `steps:` section of the
+    `.``yml` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We start by checking out the repository:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, we log in to Docker Hub, passing our username and the access token as
+    the password. Note that we pass them as secrets, which we defined earlier:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In the next step, we extract the **git SHA** value, which we will use to tag
+    our Docker images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The next step is the build and push command, where we build the Docker image
+    by passing the micro app name via the matrix variable, and then we push that build
+    Docker image to Docker Hub, using the **git** SHA value as the image tag:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Once the Docker images are pushed to Docker Hub, it’s time for us to set up
+    our Kubernetes pods and services, for which we first need to set up **Kubectl**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'First, we log in to Azure using the client ID and client secrets:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we set up the Kubernetes context:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, we run the Kubernetes deploy commands:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Once you’ve verified that all the indentation in the file is correct, go ahead
+    and commit the file to the main branch.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Then, make a small change to any one of the code files within the home app,
+    commit it, and push it to GitHub. After committing your change, head over to the
+    actions tab at [github.com](https://github.com), and you should be able to see
+    the GitHub pipeline begin to run.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Follow the steps as GitHub Actions goes step by step through the jobs. If there
+    are any errors, the jobs will fail, so look through the errors and make the necessary
+    fixes. Feel free to seek help from your friends and the community as you navigate
+    through this critical step, and keep testing until the pipeline runs successfully.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once the pipeline builds successfully, make copies of the workflow file within
+    the `.github/workflows` folder to build and deploy the other micro apps. We will
+    call these files `.github/workflows/catalog-build-deploy.yml` and .`github/workflows/checkout-build-deploy.yml`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the respective files, change all occurrences of the word `home` to `catalog`
+    and `checkout`. For example, in your `catalog-build-deploy.yml` file, you will
+    have the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `matrix` section under strategies will look as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Similarly, the `checkout-build-deploy.yml` file will have the following changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Also, the `matrix` section under `strategies` will be as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then, make a small change, commit files to the checkout and catalog apps, and
+    verify that only the relevant pipeline is triggered.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can also verify the micro app pods have been successfully created within
+    the `ebuy-ssr` Kubernetes cluster by running the following `kubectl get pods`
+    command in the terminal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If any of the pods don’t show a ready status or have a high restart count, you
+    can look into the pod logs using the `kubectl logs <pod-name>` command in the
+    terminal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With this, we have successfully created our DevOps pipeline using GitHub Actions,
+    where we learned how to securely save our credentials as GitHub action secrets,
+    created an individual workflow .`yml` file for each micro app, and configured
+    it so that they are triggered only when the corresponding micro app has changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While these micro apps are individually running, they will not work with module
+    federation, as the remotes on Kubernetes are different from what we ran locally.
+    In the next section, we will update the remotes to ensure that it works on the
+    cloud as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Updating the remotes
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Once you have your pipelines deployed successfully, log in to [portal.azure.com](https://portal.azure.com),
+    go to the Kubernetes services, select your Kubernetes cluster, go to the Services
+    and Ingress link, and note the external IP address for the service of the micro
+    apps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can achieve the same by running the `kubectl get services` command in the
+    terminal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we have the IP address, we need to update our module federation remotes
+    with the updated URLs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, as you may have figured out, the URLs for our microapps are different
+    locally and on Kubernetes. Since we want to be able to run our apps locally as
+    well as on Kubernetes, we will need to conditionally load in the remotes based
+    on whether the app is running in `dev` or `production` mode. We do this as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the `apps/home/next.config.js` file within the `remotes` object, we update
+    the code as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: What we do here is define a new variable called `ENV` that captures whether
+    the app is running in dev or prod mode, then we create the consts for `LOCAL URL`
+    and `PROD URLS` for our micro apps, and conditionally set the values of the `CATALOG_REMOTE_HOST`
+    and `CHECKOUT_REMOTE_HOST` values based on the `ENV` values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Make the same set of changes to the `next.config.js` files in the checkout and
+    catalog apps, and then save the changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, we can and build the apps locally to verify that things work fine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run the `pnpm dev` command from the root of the project.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once this works locally, let us commit the changes to Git and let the GitHub
+    actions auto-trigger and deploy the new apps to our Kubernetes cluster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once it’s all done, head over to the URL of the home micro app (`http://<your-k8s-ip-address>/`)
+    and verify that the app is working.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Make sure the catalog and checkout apps are deployed first before the home app
+    pipeline starts. This is because, in prod mode, the home app now expects the **remoteEntry.js**
+    files to be present at the URLs we defined in the **CATALOG_URL_PROD** and **CHECKOUT_URL_PROD**
+    constants.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: And with that, we have come to the end of this chapter. I hope you have been
+    able to follow along and enjoyed the joys and pains of wearing a DevOps engineer’s
+    hat.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, we covered a lot in this chapter. We learned about Kubernetes
+    and its various key components. We saw how you spin up an empty Kubernetes cluster
+    on Azure and learned about the Kubernetes spec files that deploy our micro apps
+    into a Kubernetes cluster. We learned how to containerize our micro apps using
+    Docker and how to set up Docker Hub as a remote image repository. Then, we went
+    through the detailed steps of setting up a CI/CD pipeline using GitHub Actions,
+    and finally, we made the necessary tweaks to our code base so that we can run
+    our module-federated microfrontend on Kubernetes. Now that you have managed to
+    complete this chapter, give yourself a pat on the back and take a well-deserved
+    break before we start with the next chapter, where we will see how to manage our
+    microfrontend in production.
+  prefs: []
+  type: TYPE_NORMAL

@@ -1,0 +1,1378 @@
+- en: '10'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Behind the Scenes of React and Optimization Opportunities
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Learning Objectives
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By the end of this chapter, you will be able to do the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Avoid unnecessary code execution via the `useMemo()` and `useCallback()` Hooks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Load optional code lazily, only when it’s needed, via React’s `lazy()` function
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Use React’s developer tools to analyze and optimize your app
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Explore the React Compiler for automatic performance improvements
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introduction
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Using all the features covered up to this point, you can build non-trivial React
+    apps and therefore highly interactive and reactive UIs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter, while introducing some new functions and concepts, will not provide
+    you with tools that will enable you to build even more advanced web apps. You
+    will not learn about groundbreaking, key concepts such as state or props (though
+    you will learn about more advanced concepts in later chapters).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Instead, this chapter allows you to look behind the scenes of React. You will
+    learn how React calculates required DOM updates, and how it ensures that such
+    updates happen without impacting performance in an unacceptable way. You will
+    also learn about some other optimization techniques employed by React—all with
+    the goal of ensuring that your React app runs as smoothly as possible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Besides this look behind the scenes, you will learn about various built-in functions
+    and concepts that can be used to further optimize app performance. This chapter
+    will not only introduce those concepts but also explain **why** they exist, **how**
+    they should be used, and **when** to use which feature.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Revisiting Component Evaluations and Updates
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before exploring React’s internal workings, it makes sense to briefly revisit
+    React’s logic for executing component functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Component functions are executed whenever some state (managed via `useState()`
+    ) changes or their parent component function is executed again. The latter happens
+    because, if a parent component function is called, its entire JSX code (which
+    points at the child component function) is re-evaluated. Any component functions
+    referenced in that JSX code are therefore also invoked again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider a component structure like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In this example structure, the `Parent` component renders a `<div>` with two
+    paragraphs, a button, and another component: the `Child` component. That component
+    in turn outputs a `<div>` with a paragraph and yet another component: the `NestedChild`
+    component (which then only outputs a paragraph).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `Parent` component also manages some state (a dummy counter), which is changed
+    whenever the button is clicked. All three components print a message via `console.log()`
+    , simply to make it easy to spot when each component is called by React.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following screenshot shows those components in action—after the button
+    was clicked:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_10_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.1: Each component function is executed'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this screenshot, you can not only see how the components are nested into
+    each other but also how they are all invoked by React when the `Increment` button
+    is clicked. `Child` and `NestedChild` are invoked even though they don’t manage
+    or use any state. But since they are a child ( `Child` ) or descendent ( `NestedChild`
+    ) of the `Parent` component, which did receive a state change, the nested component
+    functions are called as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding this flow of component function execution is important because
+    this flow implies that any component function invocation also influences its descendent
+    components. It also shows you how frequently component functions may be invoked
+    by React and how many component functions may be affected by a single state change.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Therefore, there’s one important question that should be answered: what happens
+    to the actual page DOM (i.e., to the loaded and rendered website in the browser)
+    when one or more component functions are invoked? Is the DOM recreated? Is the
+    rendered UI updated?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What Happens When a Component Function Is Called
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Whenever a component function is executed, React evaluates whether or not the
+    rendered UI (i.e., the DOM of the loaded page) must be updated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is important: React **evaluates** whether an update is needed. It’s not
+    forcing an update automatically!'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Internally, React does not take the JSX code returned by a component (or multiple
+    components) and replace the page DOM with it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That could be done, but it would mean that every component function execution
+    would lead to some form of DOM manipulation—even if it’s just a replacement of
+    the old DOM content with a new, similar version. In the example shown above, the
+    `Child` and `NestedChild` JSX code would be used to replace the currently rendered
+    DOM every time those component functions were executed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see in the example above, those component functions are executed
+    quite frequently. But the returned JSX code is always the same because it’s static.
+    It does not contain any dynamic values (e.g., state or props).
+  prefs: []
+  type: TYPE_NORMAL
+- en: If the actual page DOM were replaced with the DOM elements implied by the returned
+    JSX code, the visual result would always be the same. But there still would be
+    some DOM manipulation behind the scenes. And that’s a problem because manipulating
+    the DOM is quite a performance-intensive task—especially when done with a high
+    frequency. Removing and adding or updating DOM elements should therefore only
+    be done when needed—not unnecessarily.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because of this, React does not throw away the current DOM and replace it with
+    the new DOM (implied by the JSX code) just because a component function was executed.
+    Instead, React first checks whether an update is needed. And if it’s needed, only
+    the parts of the DOM that need to change are replaced or updated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To determine whether an update is needed (and where), React uses a concept called
+    the **virtual DOM** .
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Virtual DOM vs the Real DOM
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To determine whether (and where) a DOM update might be needed, React (specifically,
+    the `react-dom` package) compares the current DOM structure to the structure implied
+    by the JSX code returned by the executed component functions. If there’s a difference,
+    the DOM is updated accordingly; otherwise, it’s left untouched.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, just as manipulating the DOM is relatively performance-intensive, reading
+    the DOM is as well. Even without changing anything in the DOM, reaching out to
+    it, traversing the DOM elements, and deriving the structure from it is something
+    you typically want to reduce to a minimum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If multiple component functions are executed and each triggers a process where
+    the rendered DOM elements are read and compared to the JSX structure implied by
+    the invoked component functions, the rendered DOM will be hit with read operations
+    multiple times within a very short time frame.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For bigger React apps that are made up of dozens, hundreds, or even thousands
+    of components, it’s highly probable that dozens of component function executions
+    might occur within a single second. If that were to lead to the same amount of
+    DOM read operations, there’s a quite high chance that the web app would feel slow
+    or laggy to the user.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That’s why React does not use the real DOM to determine whether any UI updates
+    are needed. Instead, it constructs and manages a virtual DOM internally—an in-memory
+    representation of the DOM that’s rendered in the browser. The virtual DOM is not
+    a browser feature, but a React feature. You can think of it as a deeply nested
+    JavaScript object that reflects the components of your web app, including all
+    the built-in HTML components such as `<div>` , `<p>` , etc. (that is, the actual
+    HTML elements that should show up on the page in the end).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A diagram of a computer program  Description automatically generated](img/B31339_10_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.2: React manages a virtual representation of the expected element
+    structure'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the figure above, you can see that the expected element structure (in other
+    words, the expected final DOM) is actually stored as a JavaScript object (or an
+    array with a list of objects). This is the virtual DOM, which is managed by React
+    and used for identifying required DOM updates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Please note that the actual structure of the virtual DOM is more complex than
+    the structure shown in the image. The chart above aims to give you an idea of
+    what the virtual DOM is and how it might look. It’s not an exact technical representation
+    of the JavaScript data structure managed by React.
+  prefs: []
+  type: TYPE_NORMAL
+- en: React manages this virtual DOM because comparing this virtual DOM to the expected
+    UI state is much less performance-intensive than reaching out to the real DOM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Whenever a component function is called, React compares the returned JSX code
+    to the respective virtual DOM nodes stored in the virtual DOM. If differences
+    are detected, React will determine which changes are needed to update the DOM.
+    Once the required adjustments are derived, these changes are applied to both the
+    virtual and the real DOM. This ensures that the real DOM reflects the expected
+    UI state without having to reach out to it or update it all the time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A diagram of a computer program  Description automatically generated](img/B31339_10_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.3: React detects required updates via the virtual DOM'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the figure above, you can see how React compares the current DOM and the
+    expected structure with the help of the virtual DOM first, before reaching out
+    to the real DOM to manipulate it accordingly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As a React developer, you don’t need to actively interact with the virtual DOM.
+    Technically, you don’t even need to know that it exists and that React uses it
+    internally. But it’s always helpful to understand the tool (React, in this case)
+    you’re working with. It’s good to know that React does various performance optimizations
+    for you and that you get those on top of the many other features that make your
+    life as a developer (hopefully) easier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: State Batching
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Since React uses the concept of a virtual DOM, frequent component function executions
+    aren’t a huge problem. But of course, even if comparisons are only conducted virtually,
+    there is still some internal code that must be executed. Even with the virtual
+    DOM, performance could degrade if lots of unnecessary (and at the same time quite
+    complex) virtual DOM comparisons must be made.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One scenario where unnecessary comparisons are performed is in the execution
+    of multiple sequential state updates. Since each state update causes the component
+    function to be executed again (as well as all potential nested components), multiple
+    state updates that are performed together (for example, in the same event handler
+    function) will cause multiple component function invocations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider this example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This component contains two state values: `counter` and `showCounter` . When
+    the button is clicked, the counter is incremented by `1` . In addition, `showCounter`
+    is set to `true` . Therefore, the first time the button is clicked, both the `counter`
+    and the `showCounter` states are changed (because `showCounter` is `false` initially).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since two state values are changed, the expectation would be that the `App`
+    component function is called twice by React—because every state update causes
+    the connected component function to be invoked again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, if you add a `console.log()` statement to the `App` component function
+    (to track how often it’s executed), you will see that it’s only invoked once,
+    when the `Increment` button is clicked:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_10_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.4: Only one console log message is displayed'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you see two log messages instead of one, make sure you’re not using React’s
+    “Strict Mode.” When running in Strict Mode during development, React executes
+    component functions more often than it normally would.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If necessary, you can disable Strict Mode by removing the `<React.StrictMode>`
+    component from your `main.jsx` file. You will learn more about React’s Strict
+    Mode toward the end of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This behavior is called **state batching** . React performs state batching when
+    multiple state updates are initiated from the same place in your code (e.g., from
+    inside the same event handler function).
+  prefs: []
+  type: TYPE_NORMAL
+- en: It’s a built-in functionality that ensures that your component functions are
+    not called more often than needed. This prevents unnecessary virtual DOM comparisons.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'State batching is a very useful mechanism. But there is another kind of unnecessary
+    component evaluation that it does not prevent: child component functions that
+    get executed when the parent component function is called.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Avoiding Unnecessary Child Component Evaluations
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Whenever a component function is invoked (because its state changed, for example),
+    any nested component functions will be called as well. See the first section of
+    this chapter for more details.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you saw in the example in the first section of this chapter, it is often
+    the case that those nested components don’t actually need to be evaluated again.
+    They might not depend on the state value that changed in the parent component.
+    They might not even depend on any values of the parent component at all.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s an example where the parent component function contains some state that
+    is not used by the child component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find the complete example code on GitHub at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/10-behind-scenes/examples/03-memo](https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/10-behind-scenes/examples/03-memo)
+    .
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this example, the `Error` component relies on the `message` prop, which is
+    set to the value stored in the `errorMessage` state of the `Form` component. However,
+    the `Form` component also manages an `enteredEmail` state, which is not used (not
+    received via props) by the `Error` component. Therefore, changes to the `enteredEmail`
+    state will cause the `Error` component to be executed again, despite the component
+    not needing that value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can track the unnecessary `Error` component function invocations by adding
+    a `console.log()` statement to that component function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_10_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.5: The Error component function is executed for every keystroke'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding screenshot, you can see that the `Error` component function
+    is executed for every keystroke on the input field (that is, once for every `enteredEmail`
+    state change).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is in line with what you have learned previously, but it is also unnecessary.
+    The `Error` component does depend on the `errorMessage` state and should certainly
+    be re-evaluated whenever that state changes, but executing the `Error` component
+    function because the `enteredEmail` state value was updated is clearly not required.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'That’s why React offers another built-in function that you can use to control
+    (and prevent) this behavior: the `memo()` function.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`memo` is imported from `react` and is used like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: You wrap the component function that should be protected from unnecessary, parent-initiated
+    re-evaluations with `memo()` . This causes React to check whether the component’s
+    props did change, compared to the last time the component function was called.
+    If prop values are equal, React knows that the component function does not need
+    to be executed again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By adding `memo()` , the unnecessary component function invocations are avoided,
+    as shown below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_10_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.6: No console log messages appear'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As you can see in the figure, no messages are printed to the console. This
+    proves that unnecessary component executions are avoided (remember: before adding
+    `memo()` , many messages were printed to the console).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`memo()` also takes an optional second argument that can be used to add your
+    own logic to determine whether prop values have changed or not. This can be useful
+    if you’re dealing with more complex prop values (e.g., objects or arrays) where
+    custom comparison logic might be needed, as in the following example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: The (optional) second argument passed to `memo()` must be a function that automatically
+    receives the previous props object and the next props object. The function then
+    must return `true` if the component ( `SomeComponent` , in this example) should
+    be re-evaluated and `false` if it should not.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Often, the second argument is not needed because the default behavior of `memo()`
+    (where it compares all props for inequality) is exactly what you need. But if
+    more customization or control is needed, `memo()` allows you to add your custom
+    logic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With `memo()` in your toolbox, it’s tempting to wrap every React component function
+    with `memo()` . Why wouldn’t you do it? After all, it avoids unnecessary component
+    function executions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You definitely can use it on all components—but it’s not necessarily helpful
+    to do that because avoiding unnecessary component re-evaluations by using `memo()`
+    comes at a cost: comparing props (old versus new) also requires some code to run.
+    It’s not “free.” It’s not a huge cost, though. Using `memo()` on many (or all)
+    components will likely not slow down your app significantly. But it’s still unnecessary
+    if you have components that do need to be re-evaluated a lot. Using `memo()` on
+    components that receive props that change a lot simply does not do anything useful.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hence `memo()` makes the most sense if you have relatively simple props (i.e.,
+    props with no deeply nested objects that you need to compare manually with a custom
+    comparison function) and most parent component state changes don’t affect those
+    props of the child component. And even in those cases, if you have a relatively
+    simple component function (i.e., without any complex logic in it), using `memo()`
+    still might not yield any measurable benefit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The example code above (the `Error` component) is a good example: in theory,
+    using `memo()` makes sense here. Most state changes in the parent component won’t
+    affect `Error` , and the prop comparison will be very simple because it’s just
+    one prop (the `message` prop, which holds a string) that must be compared. But
+    despite that, using `memo()` to wrap `Error` will very likely not be worth it.
+    `Error` is an extremely basic component with no complex logic in it. It simply
+    doesn’t matter if the component function gets invoked frequently. Hence, using
+    `memo()` in this spot would be absolutely fine—but so is not using it.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A great spot to use `memo()` , on the other hand, is a component that’s relatively
+    close to the top of the component tree (or of a deeply nested branch of components
+    in the component tree). If you are able to avoid unnecessary executions of that
+    one component via `memo()` , you’ll also implicitly avoid unnecessary executions
+    of all nested components beneath that one component. This is illustrated in the
+    diagram below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![img](img/B31339_10_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.7: Using memo at the start of a component tree branch'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding figure, `memo()` is used on the `Shop` component, which has
+    multiple nested descendent components. Without `memo()` , whenever the `Shop`
+    component function gets invoked, `Products` , `ProdItem` , `Cart` , etc. would
+    also be executed. With `memo()` , assuming that it’s able to avoid some unnecessary
+    executions of the `Shop` component function, all those descendent components are
+    no longer evaluated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Avoiding Costly Computations
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The `memo()` function can help avoid unnecessary component function executions.
+    As mentioned in the previous section, this is especially valuable if a component
+    function performs a lot of work (e.g., sorting a long list).
+  prefs: []
+  type: TYPE_NORMAL
+- en: But as a React developer, you will also encounter situations in which you have
+    a work-intensive component that needs to be executed again because some prop value
+    changed. In such cases, using `memo()` won’t prevent the component function from
+    executing again. However, the prop that changed might not be needed for the performance-intensive
+    task that is performed as part of the component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider the following example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `List` component receives two prop values: `items` and `maxNumber` . It
+    then calls `sortItems()` to sort the items by `id` . Thereafter, the sorted list
+    is limited to a certain amount ( `maxNumber` ) of items. As a last step, the sorted
+    and shortened list is then rendered to the screen via `map()` in the JSX code.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A full example app can be found on GitHub at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/10-behind-scenes/examples/04-usememo](https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/10-behind-scenes/examples/04-usememo)
+    .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Depending on the number of items passed to the `List` component, sorting it
+    can take a significant amount of time (for very long lists, even up to a few seconds).
+    It’s definitely not an operation you want to perform unnecessarily or too frequently.
+    The list needs to be sorted whenever `items` changes, but it should not be sorted
+    if `maxNumber` changes—because this does not impact the items in the list (i.e.,
+    it doesn’t affect the order). But with the code snippet shared above, `sortItems()`
+    will be executed whenever either of the two prop values changes, no matter whether
+    it’s `items` or `maxNumber` .
+  prefs: []
+  type: TYPE_NORMAL
+- en: As a result, when running the app and changing the number of displayed items,
+    you can see multiple `"Sorting"` log messages—implying that `sortItems()` was
+    executed every time the number of items was changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_10_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.8: Multiple “Sorting” log messages appear in the console'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `memo()` function won’t help here because the `List` component function
+    should (and will) execute whenever `items` or `maxNumber` changes. `memo()` does
+    not help control partial code execution inside the component function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For that, you can use another feature provided by React: the `useMemo()` Hook.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`useMemo()` can be used to wrap a compute-intensive operation. For it to work
+    correctly, you also must define a list of dependencies that should cause the operation
+    to be executed again. To some extent, it’s similar to `useEffect()` (which also
+    wraps an operation and defines a list of dependencies), but the key difference
+    is that `useMemo()` runs at the same time as the rest of the code in the component
+    function, whereas `useEffect()` executes the wrapped logic after the component
+    function execution has finished. `useEffect()` should not be used for optimizing
+    compute-intensive tasks but for side effects.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`useMemo()` , on the other hand, exists to control the execution of performance-intensive
+    tasks. Applied to the example mentioned above, the code can be adjusted like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`useMemo()` wraps an anonymous function (the function that previously existed
+    as a named function, `sortItems` ), which contains the entire sorting code. The
+    second argument passed to `useMemo()` is the array of dependencies for which the
+    function should be executed again (when a dependency value changes). In this case,
+    `items` is the only dependency of the wrapped function, and so that value is added
+    to the array.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With `useMemo()` used like this, the sorting logic will only execute when items
+    change, not when `maxNumber` (or anything else) changes. As a result, you see
+    `"` `Sorting"` being output in the developer tools console only once:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_10_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.9: Only one “Sorting” output in the console'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`useMemo()` can be very useful for controlling code execution inside of your
+    component functions. It can be a great addition to `memo()` (which controls the
+    overall component function execution). But, also like `memo()` , you should not
+    start wrapping all your logic with `useMemo()` . Only use it for very performance-intensive
+    computations since checking for dependency changes and storing and retrieving
+    past computation results (which `useMemo()` does internally) also comes at a performance
+    cost.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Utilizing useCallback()
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In the previous chapters, you learned about `useCallback()` . Just like `useMemo()`
+    can be used for “expensive” calculations, `useCallback()` can be used to prevent
+    unnecessary function re-creations. In the context of this chapter, `useCallback()`
+    can be helpful because, in conjunction with `memo()` or `useMemo()` , it can help
+    you avoid unnecessary code execution. It can help you in cases where a function
+    is passed as a prop (i.e., where you might use `memo()` ) or is used as a dependency
+    in some “expensive” computation (i.e., possibly solved via `useMemo()` ).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s an example where `useCallback()` can be combined with `memo()` to prevent
+    unnecessary component function executions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `Error` component is wrapped with the `memo()` function and so will only
+    execute if one of the received prop values changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `Error` component is used by another component, the `Form` component, like
+    this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this component, the `Error` component receives a pointer to the `handleClearError`
+    function (as a value for the `onClearError` prop). You might recall a very similar
+    example from earlier in this chapter (from the *Avoiding Unnecessary Child Component
+    Evaluations* section). There, `memo()` was used to ensure that the `Error` component
+    function was not invoked when `enteredEmail` changed (because its value was not
+    used in the `Error` component function at all).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, with the adjusted example and the `handleClearError` function pointer passed
+    to `Error` , `memo()` unfortunately isn’t preventing component function executions
+    anymore. Why? Because functions are objects in JavaScript and the `handleClearError`
+    function is recreated every time the `Form` component function is executed (which
+    happens on every state change, including changes to the `enteredEmail` state).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since a new function object is created for every state change, `handleClearError`
+    is technically a different value for every execution of the `Form` component.
+    Therefore, the `Error` component receives a new `onClearError` prop value whenever
+    the `Form` component function is invoked. To `memo()` , the old and new `handleClearError`
+    function objects are different from each other, and it therefore will not stop
+    the `Error` component function from running again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'That’s exactly where `useCallback()` can help:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: By wrapping `handleClearError` with `useCallback()` , the re-creation of the
+    function is prevented, and so no new function object is passed to the `Error`
+    component. Hence, `memo()` is able to detect equality between the old and new
+    `onClearError` prop value and prevents unnecessary function component executions
+    again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similarly, `useCallback()` can be used in conjunction with `useMemo()` . If
+    the compute-intensive operation wrapped with `useMemo()` uses a function as a
+    dependency, you can use `useCallback()` to ensure that this dependent function
+    is not recreated unnecessarily.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the React Compiler
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Considering and using `memo()` , `useMemo()` , and `useCallback()` to prevent
+    unnecessary component re-evaluations can be a chore. Even though performance optimization
+    is important, as a React developer, you typically want to focus on building great
+    UIs and implementing helpful features in them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That’s why the React team developed a compiler that aims to optimize code for
+    you – a standalone tool that can be added to React projects that will automatically
+    wrap your components with `memo()` , use `useMemo()` when needed, and wrap functions
+    with `useCallback()` .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, when using this compiler, you don’t have to think about or use these
+    optimization functions and Hooks anymore.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In other words, the React compiler will optimize your code for you. At least,
+    that’s the theory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, at the time of writing, this compiler is only available in experimental
+    mode. This means that you shouldn’t use it for production and that there may be
+    bugs or suboptimal compilation results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Nonetheless, you can give it a try when working on a project that uses React
+    19 or higher (the compiler won’t work with older React versions).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Adding the compiler to a project is easy since it’s just an extra dependency
+    that must be installed in your project:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since the compiler is not stable yet, it’s possible that installation steps
+    and usage instructions will change over time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Therefore, you should visit the official React compiler documentation page
+    for the latest details and instructions: [https://react.dev/learn/react-compiler](https://react.dev/learn/react-compiler)
+    .'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With the compiler plugin installed, you must adjust your build process configuration
+    such that the compiler is used. When working on a Vite-based project, you just
+    have to edit the `vite.config.js` file, which should exist in your root project
+    folder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: If you’re using another project setup, you can follow the installation instructions
+    on the official compiler documentation page.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the compiler installed, it will automatically be executed to analyze and
+    adjust your code to include optimizations like `memo()` or `useMemo()` . Keep
+    in mind that those optimizations are performed as part of the build process that’s
+    invoked by running `npm run dev` or `npm run build` . Therefore, your original
+    source code will not change—instead, the compiler optimizes your code *“behind
+    the scenes.”*
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once the React compiler is stable, it will very likely be a standard tool that’s
+    part of every React project’s build process. Therefore, you won’t have to use
+    `memo()` , `useMemo()` , or `useCallback()` manually in your code anymore. But
+    until that’s the case, or in React projects that can’t use the compiler, you’ll
+    still have to optimize the code manually.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Avoiding Unnecessary Code Download
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Thus far, this chapter has mostly discussed strategies for avoiding unnecessary
+    code execution. But it’s not just the execution of code that can be an issue.
+    It’s also not great if your website visitors have to download lots of code that
+    might never be executed at all. Because every kilobyte of JavaScript code that
+    has to be downloaded will slow down the initial loading time of your web page—not
+    just because of the time it takes to download the code bundle (which can be significant,
+    if users are on a slow network and code bundles are big) but also because the
+    browser has to parse all the downloaded code before your page becomes interactive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For this reason, a lot of community and ecosystem effort is spent on reducing
+    JavaScript code bundle sizes. Minification (automatic shortening of variable names
+    and other measures to reduce the final code) and compression can help a lot and
+    is therefore a common technique. Actually, projects created with Vite already
+    come with a build workflow (initiated by running `npm run build` ), which will
+    produce a production-optimized code bundle that is as small as possible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But there also are steps that can be taken by you, the developer, to reduce
+    the overall code bundle size:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Try to write short and concise code.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Be thoughtful about including third-party libraries and don’t use them unless
+    you really need to.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Consider using code-splitting techniques.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The first point should be fairly obvious. If you write less code, your website
+    visitors have less code to download. Therefore, trying to be concise and write
+    optimized code makes sense.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second point should also make sense. For some tasks, you will actually save
+    code by including third-party libraries that may be much more elaborate than the
+    code solution you might come up with. But there are also situations and tasks
+    in which you might get away with writing your own code or using some built-in
+    function instead of including a third-party library. You should at least always
+    think about this alternative and only include third-party libraries you absolutely
+    need.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The last point is something React can help with.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reducing Bundle Sizes via Code Splitting (Lazy Loading)
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: React exposes a `lazy()` function that can be used to load component code conditionally—meaning
+    only when it’s actually needed (instead of upfront).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Consider the following example, consisting of two components working together.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A `DateCalculator` component is defined like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This `DateCalculator` component is then rendered conditionally by the `App`
+    component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, the `DateCalculator` component uses a third-party library (the
+    `date-fns` library) to access various date-related utility functions (for example,
+    a function for calculating the difference between two dates, or `differenceInDays`
+    ).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The component then accepts two date values and calculates the difference between
+    those dates in days—though the actual logic of the component isn’t too important
+    here. What is important is the fact that a third-party library and various utility
+    functions are used. This adds quite a bit of JavaScript code to the overall code
+    bundle, and all that code must be downloaded when the entire website is loaded
+    for the first time, even though the date calculator isn’t even visible at that
+    point in time (because it is rendered conditionally).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After building the app for production (via `npm run build` ), when previewing
+    that production version (via `npm run preview` ), you can see one main code bundle
+    file being downloaded in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![img](img/B31339_10_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.10: One main bundle file is downloaded'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `Network` tab in the browser’s developer tools reveals outgoing network
+    requests. As you can see in the screenshot, one main JavaScript bundle file is
+    downloaded. You won’t see any extra requests being sent when the button is clicked.
+    This implies that all the code, including the code needed for `DateCalculator`
+    , was downloaded upfront.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That’s where code splitting with React’s `lazy()` function becomes useful.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This function can be wrapped around a dynamic import to load the imported component
+    only once it’s needed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dynamic imports are a native JavaScript feature that allows for dynamically
+    importing JavaScript code files. For further information on this topic, visit
+    [https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import)
+    .
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the preceding example, it would be used like this in the `App` component
+    file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This alone won’t do the trick though. You must also wrap the conditional JSX
+    code, where the dynamically imported component is used, with another component
+    provided by React – the `<Suspense>` component – like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find the finished example code on GitHub at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/10-behind-scenes/examples/06-code-splitting](https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/10-behind-scenes/examples/06-code-splitting)
+    .
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Suspense` is a component built into React that aims to display fallback content
+    while some resource or data is loading. Therefore, when using it for lazy loading,
+    you must wrap it around any conditional code that uses React’s `lazy()` function.
+    `Suspense` also has one mandatory prop that must be provided, the `fallback` prop,
+    which expects a JSX value that will be rendered as fallback content until the
+    dynamically loaded content is available.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`lazy()` leads to the overall JavaScript code being split up into multiple
+    bundles. The bundle that contains the `DateCalculator` component (and its dependencies,
+    such as the `date-fns` library code) is only downloaded when it’s needed—that
+    is, when the button in the `App` component is clicked. If that download were to
+    take a bit longer, the `fallback` content of `Suspense` would be shown on the
+    screen in the meantime.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: React’s `Suspense` component is not limited to being used in conjunction with
+    the `lazy()` function. *Chapter 14* , *Managing Data with React Router* , and
+    *Chapter 17* , *Understanding React Suspense & The use() Hook* , will explore
+    how the `Suspense` component may be used to show fallback content while fetching
+    data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After adding `lazy()` and the `Suspense` component as described, a smaller
+    bundle is initially downloaded. In addition, if the button is clicked, more code
+    files are downloaded:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![img](img/B31339_10_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.11: After clicking the button, an extra code file is downloaded'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Just as with all the other optimization techniques described thus far, the `lazy()`
+    function is not a function you should start wrapping around all your imports.
+    If an imported component is very small and simple (and doesn’t use any third-party
+    code), splitting the code isn’t really worth it, especially since you have to
+    consider that the additional HTTP request required for downloading the extra bundle
+    also comes with some overhead.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It also doesn’t make sense to use `lazy()` on components that will be loaded
+    initially anyway. Only consider using it on conditionally loaded components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Strict Mode
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Throughout this chapter, you have learned a lot about React’s internals and
+    various optimization techniques. Not really an optimization technique, but still
+    related, is another feature offered by React, called **Strict Mode** .
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You may have stumbled across code like this before:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`<React.StrictMode>` is another built-in component provided by React. It doesn’t
+    render a visual element, but it will enable some extra checks that are performed
+    behind the scenes by React.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Most checks are related to identifying the use of unsafe or legacy code (i.e.,
+    features that will be removed in the future). But there are also some checks that
+    aim to help you identify potential problems with your code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, when using Strict Mode, React will execute component functions
+    twice and also unmount and remount every component whenever it mounts for the
+    first time. This is done to ensure that you’re managing your state and side effects
+    in a consistent and correct way (for example, that you do have cleanup functions
+    in your effect functions).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Strict Mode only affects your app and its behavior during development. It does
+    not influence your app once you build it for production. Extra checks of effects
+    such as double component function execution will not be performed in production.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building React apps with Strict Mode enabled can sometimes lead to confusion
+    or annoying error messages. You might, for example, wonder why your component
+    effects are executing too often.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, it’s your personal decision whether you want to use Strict Mode or
+    not. Enabling it can help you catch and fix errors early though.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Debugging Code and the React Developer Tools
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Earlier in this chapter, you learned that component functions may execute quite
+    frequently and that you can prevent unnecessary executions using `memo()` and
+    `useMemo()` (and that you shouldn’t always prevent them).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Identifying component executions by adding `console.log()` inside the component
+    functions is one way of gaining insight into a component. It’s the approach used
+    throughout this chapter. However, for large React apps with dozens, hundreds,
+    or even thousands of components, using `console.log()` can get tedious.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That’s why the React team also built an official tool to help with gaining app
+    insights. React Developer Tools is an extension that can be installed on all major
+    browsers (Chrome, Firefox, and Edge). You can find and install the extension by
+    simply searching the web for `"<your browser> react developer tools"` (e.g., *chrome
+    react developer tools* ).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once you have installed the extension, you can access it directly from inside
+    the browser. For example, when using Chrome, you can access the React Developer
+    Tools extension directly from inside Chrome’s developer tools (which can be opened
+    via the menu in Chrome). Explore the specific extension documentation (in your
+    browser’s extensions store) for details on how to access it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The React Developer Tools extension offers two areas: a `Components` page and
+    a `Profile` page:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_10_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.12: React Developer Tools can be accessed via browser developer tools'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `Components` page can be used to analyze the component structure of the
+    currently rendered page. You can use this page to understand the structure of
+    your components (i.e., the “tree of components”), how components are nested into
+    each other, and even the configuration (props, state) of components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_10_13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.13: Component relations and data are shown'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This page can be very useful when attempting to understand the current state
+    of a component, how a component is related to other components, and which other
+    components may therefore influence a component (e.g., cause it to be re-evaluated).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, in the context of this chapter, the more useful page is the `Profiler`
+    page:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_10_14.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.14: The Profiler page (without any data gathered)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: On this page, you can begin recording component evaluations (i.e., component
+    function executions). You can do this by simply clicking the `Record` button in
+    the top-left corner (the blue circle). This button will then be replaced by a
+    `Stop` button, which you can click to end the recording.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After recording the React app for a couple of seconds (and interacting with
+    it during that period), an example result could look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_10_15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.15: The Profiler page shows various bars after recording has finished'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This result consists of two main areas:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A list of bars, indicating the number of component re-evaluations (every bar
+    reflects one re-evaluation cycle that affected one or more components). You can
+    click these bars to explore more details about a specific cycle.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For the selected evaluation cycle, a list of the affected components is presented.
+    You can identify affected components easily as their bars are colored and timing
+    information is displayed for them.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You can select any render cycle from *1* (in this case, there are two for this
+    recording session) to view which components were affected. The bottom part of
+    the window ( *2* ) shows all affected components by highlighting them with some
+    color and outputting the overall amount of time taken by the components to be
+    re-evaluated (for example, `0.1ms of 0.3ms` ).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It’s worth noting that this tool also proves that component evaluation is extremely
+    fast— `0.1ms` for re-evaluating a component is way too fast for any human to realize
+    that something happened behind the scenes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the right side of the window, you also learn more about this component evaluation
+    cycle. For example, you learn where it was triggered. In this case, it was triggered
+    by the `Form` component (it’s the same example as discussed earlier in this chapter,
+    in the *Avoiding Unnecessary Child Component Evaluations* section).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `Profiler` page can therefore also help you to identify component evaluation
+    cycles and determine which components are affected. In this example, you can see
+    a difference if the `memo()` function is wrapped around the `Error` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_10_16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.16: Only the Form component is affected, not the Error component'
+  prefs: []
+  type: TYPE_NORMAL
+- en: After re-adding the `memo()` function as a wrapper around the `Error` component
+    (as explained earlier in this chapter), you can use the `Profiler` page of React
+    Developer Tools to confirm that the `Error` component is no longer unnecessarily
+    evaluated. To do this, you should start a new recording session and reproduce
+    the situation, where previously, without `memo()` , the `Error` component would’ve
+    been called again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The diagonal grayed-out lines across the `Error` component in the `Profiler`
+    window signal that this component was not affected by some other component function
+    invocation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: React Developer Tools can therefore be used to gain deeper insights into your
+    React app and your components. You can use them in addition or instead of calling
+    `console.log()` in a component function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary and Key Takeaways
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: React components are re-evaluated (executed) whenever their state changes or
+    the parent component is evaluated.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: React optimizes component evaluation by calculating required UI changes with
+    the help of a virtual DOM first.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Multiple state updates that occur at the same time and in the same place are
+    batched together by React. This ensures that unnecessary component evaluations
+    are avoided.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `memo()` function can be used to control component function executions.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`memo()` looks for prop value differences (old props versus new props) to determine
+    whether a component function must be executed again.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useMemo()` can be used to wrap performance-intensive computations and only
+    perform them if key dependencies changed.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Both `memo()` and `useMemo()` should be used carefully since they also come
+    at a cost (the comparisons performed).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: When working with React 19 or higher, you can install and enable the (experimental)
+    React compiler to automatically optimize your code during the build process.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The initial code download size can be reduced with the help of code splitting
+    via the `lazy()` function (in conjunction with the built-in `Suspense` component)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: React’s Strict Mode can be enabled (via the built-in `<React.StrictMode>` component)
+    to perform various extra checks and detect potential bugs in your application.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: React Developer Tools can be used to gain deeper insights into your React app
+    (for example, component structure and re-evaluation cycles).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What’s Next?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As a developer, you should always know and understand the tool you’re working
+    with—in this case, React.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter allowed you to get a better idea of how React works under the hood
+    and which optimizations are implemented automatically. In addition, you also learned
+    about various optimization techniques that can be implemented by you.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next chapter will go back to solving actual problems you might face when
+    trying to build React apps. Instead of optimizing React apps, you will learn more
+    about techniques and features that can be used to solve more complex problems
+    related to component and application state management.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Test Your Knowledge!
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Test your knowledge of the concepts covered in this chapter by answering the
+    following questions. You can then compare your answers to examples that can be
+    found at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/blob/10-behind-scenes/exercises/questions-answers.md](https://github.com/mschwarzmueller/book-react-key-concepts-e2/blob/10-behind-scenes/exercises/questions-answers.md)
+    :'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why does React use a virtual DOM to detect required DOM updates?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How is the real DOM affected when a component function is executed?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which components are great candidates for the `memo()` function? Which components
+    are bad candidates?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How is `useMemo()` different from `memo()` ?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What’s the idea behind code splitting and the `lazy()` function?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Apply What You Learned
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: With your newly gained knowledge about React’s internals and some of the optimization
+    techniques you can employ in order to improve your apps, you can now apply this
+    knowledge in the following activity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Activity 10.1: Optimize an Existing App'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this activity, you’re handed an existing React app that could be optimized
+    in various places. Your task is to identify optimization opportunities and implement
+    appropriate solutions. Keep in mind that too much optimization can actually lead
+    to a worse result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find the starting code for this activity at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/10-behind-scenes/activities/practice-1-start](https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/10-behind-scenes/activities/practice-1-start)
+    . When downloading this code, you’ll always download the entire repository. Make
+    sure to then navigate to the subfolder with the starting code ( `activities/practice-1-start`
+    in this case) to use the right code snapshot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The provided project also uses many features covered in earlier chapters. Take
+    the time to analyze it and understand the provided code. This is a great practice
+    and allows you to see many key concepts in action.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once you have downloaded the code and run `npm install` in the project folder
+    (to install all required dependencies), you can start the development server via
+    `npm run dev` . As a result, upon visiting `localhost:5173` , you should see the
+    following UI:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![img](img/B31339_10_17.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.17: The running starting project'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Take your time to get acquainted with the provided project. Experiment with
+    the different buttons in the UI, fill in some dummy data in the form input fields,
+    and analyze the provided code. Please note that this dummy project does not send
+    any HTTP requests to any server. All entered data is discarded the moment it is
+    entered.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To complete the activity, the solution steps are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Find optimization opportunities by looking for unnecessary component function
+    executions.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Also, identify unnecessary code execution inside of component functions (where
+    the overall component function invocation can’t be prevented).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Determine which code could be loaded lazily instead of eagerly.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use the `memo()` function, the `useMemo()` Hook, and React’s `lazy()` function
+    to improve the code.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'You can tell that you came up with a good solution and sensible adjustments
+    if you can see extra code fetching network requests (in the **Network** tab of
+    your browser developer tools) for clicking on the **Reset password** or **Create
+    a new account** buttons:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_10_18.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.18: In the final solution, some code is lazy loaded'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In addition, you should see no `Validated password.` console message when typing
+    into the email input fields ( **Email** and **Confirm Email** ) of the signup
+    form (that is, the form you switch to when clicking **Create a new account** ):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_10_19.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.19: No “Validated password.” output in the console'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You also shouldn’t get any console outputs when clicking the **More Information**
+    button:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_10_20.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 10.20: No console messages when clicking “More Information”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: All code files used for this activity, and the solution, can be found at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/10-behind-scenes/activities/practice-1](https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/10-behind-scenes/activities/practice-1)
+    .
+  prefs: []
+  type: TYPE_NORMAL

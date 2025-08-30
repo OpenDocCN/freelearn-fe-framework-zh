@@ -1,0 +1,951 @@
+- en: '*Chapter 4*: Use State to Jumpstart Components'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we learned how *React* designs a *hook* infrastructure
+    to provide the persistency of a function component. In this chapter, we will begin
+    learning about the built-in hooks in *React*, starting with the `useState` hook.
+    We will first explain how the concept of *state* is used in *React*, and then
+    we will walk through the data structure and source code behind `useState` and
+    describe some common use cases for changing states. We'll give `useState` a test
+    drive, and at the end of the chapter, we'll provide two practical examples of
+    applying `useState` to the `Avatar` and `Tooltip` components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will cover the following topics in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: State in React
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useState` design'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Dispatching states
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Test driving the `useState` hook
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useState` examples'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Questions and answers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Appendix
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: State in React
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: By now, you should have some idea of what a *state* is. To recap, a state is
+    a piece of *memory* stored inside a fiber, introduced in [*Chapter 3*](B17963_03_Epub.xhtml#_idTextAnchor080)*,
+    Hooking into React*. When combined with *props*, a state can represent a *UI*
+    screen deterministically.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.1 – A fiber tree with a source fiber'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_4.01_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.1 – A fiber tree with a source fiber
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, let's say we build a site and end up with a fiber tree (such as
+    the one seen in *Figure 4.1)*. When a user makes an action (such as a click),
+    the action sends a signal via an event handler to a fiber (the red dot in *Figure
+    4.1*). We call this fiber a *source fiber*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, say the dispatched event changes a counter from `0` to `1`. *React* should
+    schedule an update based on this user action and then prepare all of the **Document
+    Object Model** (**DOM**) elements for the screen. Assuming the red lines are the
+    fibers that need to be changed, how does React figure this out?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Upon receiving this update request, *React* goes through the fiber tree from
+    the root. Quite a few fibers (shown as the gray lines) do not have anything to
+    do with this update, so they are cloned from the previous scene. When the update
+    arrives at the source fiber, let''s imagine the fiber carries a function component
+    and invokes an update function called `updateFunctionComponent`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: We introduced the first part of the `updateFunctionComponent` function in [*Chapter
+    3*](B17963_03_Epub.xhtml#_idTextAnchor080), *Hooking into React*. The second part
+    of this function takes the children that the `Component` function returns and
+    converts them into fibers via `reconcileChildren`. At the end of the process,
+    the first child fiber tells the engine what to work on next. This continues until
+    all of the fibers under the source fiber are visited – that is, the red areas
+    shown in *Figure 4.1*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this way, a state change propagates into the children fibers through that
+    branch. When a parent gets updated, a child gets a new set of props before updating,
+    thereby carrying the impact of the state. This is essentially how a state plays
+    in the *React* ecosystem. Now, let's dive in and see how *React* creates the `useState`
+    hook to support this behavior.
+  prefs: []
+  type: TYPE_NORMAL
+- en: useState design
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*React* provides a `useState` hook to manage the state within function components.
+    The following code example shows its common usage:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `useState` function takes an `initialState` argument as the input argument
+    and returns a `state` object and a `dispatch` function. The `dispatch` function
+    can be used to request a state change into a `newState` *object*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Have you ever wondered how *React* designs the `useState` hook behind the scenes?
+    Why does it return an array? How do we know if a new dispatch is successful or
+    not? Most importantly, how can we be sure about the current state in each render?
+  prefs: []
+  type: TYPE_NORMAL
+- en: To answer these questions, we will open up the engine and take a look inside.
+    We will read through a stripped-down version of the source code to gain a bird's-eye
+    view of the architecture relating to this hook before we get into its various
+    uses. Let's start with the data structure first.
+  prefs: []
+  type: TYPE_NORMAL
+- en: useState data structure
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The data structure to make useState work includes a `Hook` type, a `Queue`
+    type as well as an `Update` type, as shown in *Figure 4.2*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.2 – The data structure of the useState hook'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_4.2_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.2 – The data structure of the useState hook
+  prefs: []
+  type: TYPE_NORMAL
+- en: A Hook uses a `state` property to store the state as well as a `next` property
+    that points to the next hook. We have already explained this architecture in [*Chapter
+    3*](B17963_03_Epub.xhtml#_idTextAnchor080), *Hooking into React*. What's new now
+    is that in order to support the dispatch functionality, a `queue` property is
+    added, where it provides a `dispatch` function to dispatch an `action` object
+    with a new state. Within the queue, a list of updates is stored under a property
+    called `pending`. The job of the queue is to maintain a list of pending updates
+    to this fiber – this way, a user can dispatch multiple updates to the fiber.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An update is defined to hold an `action` function that needs to be provided
+    by the user to calculate the next state. Each update is linked to another update
+    via a property called `next` to form a circular linked list (see *Figure 4.3)*.
+    The linked list is similar to how hooks are linked, except updates are linked
+    in a circle, where the last update always points to the first update.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.3 – A hook''s queue with its pending updates'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_4.03_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.3 – A hook's queue with its pending updates
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding figure, there are three updates in the queue with `pending
+    property` points to the last one making `pending.next` point to the first update
+    of the list. This circular list becomes handy when we need to insert or remove
+    updates at the head or tail of the list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have seen the data structure of `useState`, it's time for us to
+    go over the source code and see how this data structure is utilized in the implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The source code of `useState` is structured in a typical *hook* way in that
+    it takes a path of either `mountState` or `updateState`, depending on if the fiber
+    is under `mount` or `update` (as explained in [*Chapter 3*](B17963_03_Epub.xhtml#_idTextAnchor080),
+    *Hooking into React*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Mounting a state
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'When a component is under `mount`, the `mountState` gets a hook by creating
+    one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, it starts to perform the initialization work of the hook. Depending on
+    the form in which the `initialState` object is provided, it can initialize the
+    hook''s `state` object with a value or a function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: After initializing the state, it creates an empty `queue` object with no pending
+    update. Moreover, it sets up a `dispatch` function and stores it under the `queue`
+    object. Let's have a close look at this function, as it's one of the crucial parts
+    of the `useState` hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dispatching an action
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The `dispatch` function is designed to dispatch an action with a new state.
+    It's created with the help of a utility function, `dispatchAction`, which takes
+    a fiber, a queue, and an action.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Upon assigning the `dispatchAction` function to the queue, it binds the updating
+    fiber and the queue so that the `dispatch` function can accept the `action` object
+    as the only input argument:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: The function takes an `action` object from its input argument then creates a
+    new `update` object and appends this to the `queue` object. The preceding code
+    relating to `pending` are all list operations, all of which append the `update`
+    object to the end of the list while making sure the queue continues to form a
+    circular linked list, as illustrated in *Figure 4.3*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'An `action` object can be in the form of a value or a functional updater, exactly
+    as the `initialState` object is, thereby supporting both formats when we invoke
+    the `dispatch` object. This is shown in the following example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: After the queue is updated, it requests an update through a `scheduleUpdateOnFiber`
+    function that essentially kicks *React* into the update process we introduced
+    at the beginning of this chapter. This is the main pathway for how *React* handles
+    a user action.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*React* comes with lots of optimizations inside the engine. Some of these are
+    not publicly accessible because they are part of the engine code. For example,
+    there is a hidden pathway where the dispatch or the entire update can be canceled
+    without invoking the `scheduleUpdateOnFiber` function. If you are interested,
+    you can find out more about this pathway in the *Appendix A – Skipping the dispatch*
+    section at the end of this chapter.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Updating a state
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'After the component is mounted, the next time it gets updated and reaches to
+    the `useState` hook, it goes into `updateState` and gets a hook by cloning one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Once we have the hook, we can check if it gets any pending updates under the
+    `queue.pending` object. The reason the `pending` object can have any update is
+    that the `dispatch` function has been previously invoked. It goes through the
+    first `pending.next` updates and iterates through them following the `update.next`
+    update. For each update, it takes the stored `action` object and applies it to
+    the previous stored state to form a `newState` object that gets stored back to
+    the hook in the end.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The updated `newState` object gets compared to the previous `state` object
+    to determine if it changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: If it turns out the `newState` object differs from the previous state, *React*
+    sets a `didReceiveUpdate` flag, indicating whether the updating fiber contains
+    any change. The reason why *React* uses a global flag here is that there can be
+    lots of other hooks attached to this fiber, therefore, it has to wait until all
+    of the hooks are processed before it can determine if the fiber should be updated
+    or bailed out. If you are interested in the details of the bailing out process,
+    please refer to the pathway in the *Appendix B – Bailing out an update* section
+    at the end of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Returning the hook
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'For either the `mountState` or `updateState` function, the `state` and the
+    `dispatch` function are returned:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'They are returned in an array with two elements. The array format used here
+    is interesting, as we could have used another format, such as an object with keys:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding key-value design would have worked as well. Instead, *React*
+    decides to use an array due to one advantage that this has – that is, we don''t
+    have to remember the key name when referencing any of the values. Here are some
+    examples demonstrating this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, we can rename the `state` and the `dispatch` functions using
+    any name we want, as long as it fits logically at that moment. This becomes pretty
+    handy practically.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All in all, the `state` and `dispatch` functions are directly mapped to the
+    `state` object and the `queue.dispatch` function from the underlying hook. If
+    the state has not changed, it gets the previous state returned. The `dispatch`
+    function is created during the mount and keeps the same function instance for
+    all future updates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A walkthrough of useState
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We have just gone through all of the `useState` hook's code. Just to make you
+    feel better, *React* contains five times the amount of code that we just showed.
+    With the stripped-down version, it's easy to understand the key workflow as it
+    relates to the problem it's designed to solve and what approach it takes. Let's
+    take a look at the workflow sketch in *Figure 4.4*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.4 – The useState hook workflow'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_4.4_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.4 – The useState hook workflow
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's explain what we are seeing in *Figure 4.4*. In an update, as a `useState`
+    hook is invoked, it first checks if it's under `mount` or `update`. If it's under
+    the `mount`, it stores the `initialState`, creates a `dispatch` function, and
+    then returns. If under the `update`, it checks for any `pending` updates and applies
+    them to a new `state`. In both cases, `[state, dispatch]` is returned.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When a `dispatch` function is invoked, it creates an update with the provided
+    `action` object and appends it to the `pending` updates. Then, a request for a
+    new update is scheduled to *React*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It's important to note that the new update is the place where a `state` object
+    is assigned. The purpose of the `dispatch` function is only to request a change,
+    but *the real change does not apply until the next update*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have gone through the design behind `useState`, we can talk about
+    how to dispatch states in general in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dispatching states
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this chapter, we have learned that the `dispatch` function, provided by
+    the `useState` hook, allows us to request a change of state any time we want to.
+    The input argument that represents an action can be a string, a number, an object,
+    an array, or any *JavaScript* expression:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We know that, internally, the input argument supports a functional update format
+    as well:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: The benefit of using a functional update format here is that it has an opportunity
+    to read the previous state before making a move toward the next state. This sometimes
+    becomes useful if you build a new state that requires an old state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A dispatched state is compared with the current state before making a final
+    call if it changes. This means that not all dispatches end up with a state change.
+    Take the following code as an example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: If the state starts with its number as `1`, we can change the state to `3` with
+    the first click. For later clicks, it can't change the number to `3` because it's
+    already `3`. Therefore, upon multiple clicks, the changes taken are `1, 3`, instead
+    of `1, 3, 3, …` – no matter how many times the user clicks. Let's take a look
+    at how this comparison is performed in detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Comparing states
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We mentioned earlier that *React* uses the `Object.is` function whenever it
+    compares two states. This is a *JavaScript* native function, which is quite similar
+    to the *JavaScript* strict equality operator (`===`) and is used to determine
+    whether two values are the same value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For a primitive type, such as a number or a string, this comparison is straightforward:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: It's not difficult to understand that comparing the numbers `1` and `1` should
+    return `true` and comparing the two strings `Hello` and `World` should return
+    `false`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*JavaScript* comes with seven primitive data types: string, number, bigint,
+    Boolean, undefined, symbol, and null. These data types *cannot* be altered once
+    they are created in memory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: A *primitive comparison* is something we commonly understand as a *comparison
+    by value*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For a non-primitive type in *JavaScript*, such as an object or an array, a
+    reference (also known as a pointer) is used to point to a particular memory space:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This means that if you allocate two new objects, they can''t point to the same
+    memory space. Therefore, comparing the two objects `{}` and `{}` should return
+    `false`, even if both contain exactly the same *content*. In contrast, comparing
+    the same object (for example, `v` and `v`) should return `true`, no matter how
+    the content of the object changes. Let''s take a look at an example to understand
+    this better:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: Can you guess if the previous dispatch does anything upon a user click? The
+    answer is *no*. Changing an object's content doesn't qualify as a change from
+    the `Object.is` function's point of view, as the `v` variable still points to
+    the same memory location, even when one of its properties has changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The only way to cause a change in this case is to dispatch a state pointing
+    to a different memory space, and we can do this by creating a new one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: A new object is created with the help of JavaScript's `{ ...v }`) by cloning
+    the content of `v` while changing the `abc` property to `3`. For readers who are
+    interested in learning more about the *JavaScript* *ES6* *syntax*, please refer
+    to the *JavaScript ES6* section of [*Chapter 10*](B17963_10_Epub.xhtml#_idTextAnchor363),
+    *Building a Website with React*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It might take some time to get used to using the `Object.is` function or the
+    strict equality operator (`===`). A simple question to ask yourself is this: *is
+    the value to compare mutable?* If it is, it''s compared by *reference*. If it''s
+    not, it''s compared by *value*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*In React, if you can''t manage a value change, you can''t dispatch a change
+    correctly*. So, it''s important to understand `object.is`, as it''s used extensively
+    for all hook value comparisons, as you''ll see during the rest of this book.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multiple dispatches
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'An interesting case arises when we perform multiple dispatches inside of one
+    event handler. In *React,* multiple dispatches in a row are designed to be processed
+    together, as in the following example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: Upon the user clicking, if we invoke the dispatch (P-Code) function twice, it
+    would only cause one change in the end because each dispatch appends an update
+    to the queue. When we reach the next update, all registered actions in the queue
+    are iterated to form a single new state. In our case, the state changes from `1`
+    to `5`, skipping `3`. But why do two dispatches trigger only one update? Doesn't
+    each dispatch invoke the `scheduleUpdateOnFiber` function?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each dispatch does invoke `scheduleUpdateOnFiber` to kick *React* into the update
+    process. However, this function is designed in such a way that it waits for all
+    dispatches from the same action before making a final update. Therefore, with
+    this functionality, multiple dispatches can be joined into one update operation
+    as a deferred run.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A benefit of this is that you can write a `dispatch` statement as easily as
+    an assignment statement without worrying that it might bring unnecessary work
+    to the DOM. This is not only practically easy to use but also makes the update
+    pretty performant.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have gone over the `dispatch` function, we can put the `useState`
+    hook to use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Test driving the useState hook
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A state is one of the most common techniques in *React* for driving user interactions.
+    Let's consider a component with a button. Each time we click the button, it increments
+    a number and appends it to the `Hello World` string (see *Figure 4.5*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.5 – The Hello World counter'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_4.05_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.5 – The Hello World counter
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can capture this *UI* behavior in a `Title` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we use `[count, setCount]` to keep track of the `count` state. Then, we
+    display `count` in the `h1` element of the page and dispatch `setCount` in the
+    click handler of the `button` element. Each time the button is clicked, it should
+    increment the `count` value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to confirm what happened under the hood, let''s add `console.log`
+    to two locations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The first one is placed after `setCount` to confirm what the `count` value
+    is after each dispatch. The second one is placed before the `return` statement
+    so that we can confirm when an update has arrived and what the `count` value is
+    in that update. They are marked at `➀` and `➁`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: From the `updated` series at `➁`, the number is incremented by`1` from the `clicked`
+    series at `➀`. The `count` value started at `0` during the mount, and with each
+    click, it quickly gets to a new update with an updated number, as shown in *Figure
+    4.6*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `clicked` series at `➀` confirms that the `count` value doesn't get updated
+    to the new `count + 1` value after the dispatch. Instead, it continues to hold
+    the current state in the update where the `onClick` object is defined.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.6 – The Hello World counter'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_4.06_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.6 – The Hello World counter
+  prefs: []
+  type: TYPE_NORMAL
+- en: Great! This is how we use `useState` in general. Let's take a look at another
+    popular use of `useState`, which is to install it in a parent component and allow
+    the child component to drive it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Letting a child drive
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'It''s very common to send a `dispatch` function from a parent component to
+    a child component and expect the child to request the state change from the parent:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding example, the `Title` component has a button, and when it is
+    clicked, it changes the `count` state in the `App` component. We will set up two
+    `console.log` statements to confirm the updates:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: It's working as expected – the clicks come from the child, but everything else
+    is the same as the previous example. Basically, we have given the child the ability
+    to change the `count` value created at the parent level.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is actually quite handy. It tells us that no matter where we define the
+    state, if its child (or grandchild) needs it, it can access it via a prop. This
+    includes the state and the capability of changing the state. This is one of the
+    most effective strategies for using state in *React* and we call it *lifting up*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Lifting up to the parent
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Due to its design, *React* doesn't allow information to be sent to an element
+    directly. Instead, the required mechanism is to use a *prop* that passes the information
+    from a parent to a child, then to a child's child, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In another way, to share information between two children, the information
+    needs to be available to the parent first before sending it to each of the children:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding setup, we have a parent, `App`, rendering two children, `Title`
+    and `Content`. The `count` object installed in the `Title` object can''t be accessed
+    by either its sibling, `Content`, or its parent, `App`. So, to make the `count`
+    object available to access, we need to relocate the `count` object to `App`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code, `useState` is declared in `App`, therefore, we can send
+    the `onClick` object to `Title`, and we can send the `count` object to `Content`.
+    Therefore, we can allow the sharing of things with a sibling by *lifting* those
+    things to the parent. This highlights an important aspect of *React''s* design:
+    *if your parent has it, you can have it*. This is one of the most basic and effective
+    behaviors we rely on when designing a *React* app.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you are a *React* beginner, you should try to work with props as often as
+    you can. Not only are they easy to understand, but they're also a way to make
+    sure everything is wired up correctly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have had a test drive of the `useState` hook, let's look at two
+    more practical examples of how real applications use `useState` to drive *UI*
+    behavior.
+  prefs: []
+  type: TYPE_NORMAL
+- en: useState examples
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we are going to look at two examples of how the `useState`
+    hook is applied in practice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Making an avatar component
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Let's say you want to display an image of a person that you have pulled from
+    the internet. Most of the time, it will turn out to be a good picture (see *Figure
+    4.7*). But sometimes, an image can be unavailable to download due to network or
+    permission issues. When this happens, the browser throws a broken icon (the logo
+    in the middle of *Figure 4.7*), which is not as nice to look at. The latest UX
+    research shows that if we replace any broken image icons with something more unique
+    (such as a user's name or initials, as shown on the right of *Figure 4.7*), this
+    improves the user experience.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.7 – An avatar component using useState'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_4.07_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.7 – An avatar component using useState
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to switch between an image and text, we can apply `useState` to define
+    a condition. We will also need an event handler to notify us when an image URL
+    is broken. If we put this logic together, we get an `Avatar` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, first, we define a state, `error`, with `useState`. and
+    then we set the initial state to `false`, assuming that there's no error before
+    loading the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the component''s `return`, it follows this simple logic:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: If `error` is `true`, it will display `A`. Otherwise, it will display `B`. In
+    our case, `A` will return the user's initials and `B` will return an image. Therefore,
+    it initially displays the image. If the image loads successfully, the job is done.
+    However, if the image happens to fail, it fires an `onError` event handler. In
+    the `onError` event handler, it makes a dispatch to flip the `error` flag to `true`.
+    In the next update, as the `error` flag changes to `true`, it displays the user's
+    initials. So, the job is done – sweet!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To make it easy to use, the `Avatar` component is built with two props, `src`
+    and `username`, where the first prop is the image URL and the second prop is the
+    username string. Here''s what the code looks like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: Playground – Avatar Component
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this example online at [https://codepen.io/windmaomao/pen/VwzaqEo](https://codepen.io/windmaomao/pen/VwzaqEo).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `AvatarStyle` component is a style component that allows us to write CSS
+    inside of a component. If you are interested in learning more about this approach,
+    please refer to the *Adopting CSS-in-JS approach* section in [*Chapter 10*](B17963_10_Epub.xhtml#_idTextAnchor363),
+    *Building a Website with React,* for more details.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Making a custom tooltip component
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Here is another example of using `useState`. Say you have an avatar (you could
+    borrow the one from the previous example), and when hovering over it, you'd like
+    to see some tooltip text (as shown in *Figure 4.8*). This has to be a custom tooltip
+    because we want it to allow a custom border, color, font, and even the inclusion
+    of paragraphs. A browser's built-in tooltips won't provide these options in the
+    `title` attribute.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.8 – A custom tooltip component using useState'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_4.08_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.8 – A custom tooltip component using useState
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to support this pop-up effect, we can use `useState` to set up a Boolean
+    state to indicate when the mouse hovers over the avatar area. We also need both
+    event handlers to monitor when the mouse enters or leaves the avatar area. We
+    can put this logic into a `Tooltip` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: We define a state, `entered`, and set its initial value to `false` (as when
+    we first see this component, the tooltip will not be visible). We wire `setEntered`
+    to the `onMouseEnter` and `onMouseLeave` event handlers to flip the state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Notice that this time the `?` operator isn''t used for the conditional display
+    of the tooltip – instead, a `&&` operator is used:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: That's because in `Tooltip`, there's no `B`. Depending on whether the mouse
+    is in the right area or not, `A` is either displayed or hidden. Therefore, the
+    `&&` operator is serving as a short circuit – if the condition isn't met, it skips
+    the next statement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `Tooltip` component takes both `children` and `tooltip` as props, and this
+    allows it to host any component as the `Avatar` object and any component as the
+    tooltip content, as shown in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code block, we define a custom `TooltipBox` component to pass
+    in the `Tooltip` component via the `tooltip` prop.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Tooltip Component
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this example online at [https://codepen.io/windmaomao/pen/qBXZvKV](https://codepen.io/windmaomao/pen/qBXZvKV).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is the best part of the `Tooltip` component. It's not just designed as
+    a component to suit the needs for one use case – instead, it's designed to be
+    a mechanism that allows you to craft flexible tooltip behavior.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With `useState`, we can tailor our function components to be stateful engines,
+    making it possible to handle a range of user interactions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you learned what the concept of *state* is in *React*. You
+    dug deeper into the `useState` design, which is divided into mounting a state
+    and updating a state. We learned about various ways of dispatching states and
+    ways to determine if a state has changed. Then, we also learned that a dispatch
+    can support a value format or a functional updater format, and we learned that
+    we can dispatch multiple times in one event handler. Then, we took `useState`
+    for a test drive and learned how to send the state change to a child component
+    via props. We also learned a common technique called *lifting up*, which involves
+    lifting a state up to a parent. Last but not least, we designed two components
+    – an avatar component and a tooltip component – to learn how to apply `useState`
+    in the design of components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will explore our second hook in the *React* family.
+    We will also see how *React* defines an action called **effect** and allows you
+    to invoke it after a state change.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions and answers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Here are some questions and answers to refresh your knowledge:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is `useState`?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The `useState` hook is a built-in hook in *React* that allows you to define
+    a state within a functional component and dispatch an action to change it.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: What is the most common use of `useState`?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The `useState` hook is probably the most common hook in the *React* hook family.
+    Whenever you need a variable to change *UI* elements, you can normally resort
+    to `useState` to accomplish this. Touching a widget, clicking a vote-up button,
+    hovering over an icon, toggling a checkbox, and much more can be implemented with
+    the use of `useState`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Appendix
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Appendix A – Skipping the dispatch
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We say that not all dispatched states end up with a change. But actually, not
+    all dispatches end up with a successful dispatch. When a mouse clicks, it goes
+    into the `dispatch` function. It has a special pathway, and when you hit that
+    condition and find out there''s no state change, it can return early without performing
+    a dispatch:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding `dispatchAction` function, a new state is computed when it
+    detects there's no work currently under the fiber. The way it calculates the `newState`
+    value is similar to how the calculation in the `updateState` function works, except
+    it only deals with one `action` object here. Basically, it asks if the action
+    causes a state change from the last updated state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If it turns out that there's no change, it returns without an update, pretending
+    nothing happened. This results in no *UI* updates whatsoever. This pathway is
+    important because it can come very often (for instance, when the user keeps performing
+    the same action over and over again without any state change).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Appendix B – Bailing out an update
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'For any fiber that has been updated, there is a collective flag that is added
+    to it called `didReceiveUpdate`, which indicates if a change has taken place for
+    the fiber. After the work starts on the fiber, any hook that causes a change can
+    set this flag to `true`. Afterward, if the work is done and if the flag is still
+    `false`, that means there''s been absolutely no change for the fiber, so *React*
+    bails out the fiber by cloning it from the previous scene and then moves on to
+    the next fiber to work:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding `updateFunctionComponent` function, after the `Component` function
+    is invoked, it checks two flags. One is `isFiberMounting`, as when the site is
+    under mount, nothing can be bailed out since all of the fibers still need to be
+    created. Another flag is `didReceiveUpdate`. When both are false, it kicks into
+    the bailout of the fiber.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It bails out the fiber by cloning the children fibers from the current tree,
+    which in turn carries all finished work over, including the old props and rendered
+    *DOM*. Basically, by bailing out, it doesn't need to do the regular reconciliation
+    work to figure out the new children fibers. And even better, if it turns out there's
+    no work under the children of this fiber, the entire branch bails out. This corresponds
+    to all the gray lines in *Figure 4.1*.
+  prefs: []
+  type: TYPE_NORMAL

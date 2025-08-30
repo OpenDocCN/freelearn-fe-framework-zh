@@ -1,0 +1,2307 @@
+- en: '*Chapter 12*: Continuous Deployment with CircleCI and AWS'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the last two chapters, we prepared our application through tests with Mocha.
+    We have built an application that is ready for the production environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will now generate a production build that's ready for deployment. We've arrived
+    at the point where we can set up **Amazon Elastic Container Service** (**Amazon
+    ECS**) and implement the ability to build and deploy Docker images through a continuous
+    deployment workflow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The process of continuous deployment will help to keep changes small for the
+    production environment. Keeping changes in your application continuous and small
+    will make issues trackable and fixable, whereas releasing a set of multiple features
+    at once will leave the location for bugs open for investigation as multiple things
+    will have changed with just one release.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter covers the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Production-ready bundling
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What is Docker?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Configuring Docker
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Setting up AWS RDS (short for **AWS Relational Database Service**) as a production
+    database
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What is continuous integration/deployment?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Setting up continuous deployment with CircleCI
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Deploying our application to **Amazon Elastic Container Registry** (**Amazon
+    ELB**) and ECS with AWS **Application Load Balancer** (**ALB**)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The source code for this chapter is available in the following GitHub repository:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://github.com/PacktPublishing/Full-Stack-Web-Development-with-GraphQL-and-React-2nd-Edition/tree/main/Chapter12](https://github.com/PacktPublishing/Full-Stack-Web-Development-with-GraphQL-and-React-2nd-Edition/tree/main/Chapter12)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preparing the final production build
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have come a long way to get here. Now is the time when we should look at
+    how we currently run our application and how we should prepare it for a production
+    environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Currently, we use our application in a development environment while working
+    on it. It is not highly optimized for performance or low-bandwidth usage. We include
+    developer functionalities with the code so that we can debug it properly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For use in a real production environment, we should only include what is necessary
+    for the user. When setting the `NODE_ENV` variable to `production`, we remove
+    most of the unnecessary development mechanics.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By bundling our server-side code, we will get rid of unnecessary loading times
+    and will improve the performance. To bundle our backend code, we are going to
+    set up a new webpack configuration file. Follow these instructions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the following two dependencies:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'These packages do the following:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The `webpack-node-externals` package gives you the option to exclude specific
+    modules while bundling your application with webpack. It reduces the final bundle
+    size.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `@babel/plugin-transform-runtime` package is a small plugin that enables
+    us to reuse Babel's helper methods, which usually get inserted into every processed
+    file. It reduces the final bundle size.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Create a `webpack.server.build.config.js` file next to the other webpack files
+    with the following content:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding configuration file is very simple and not complex. Let''s go
+    through the settings that we use to configure webpack:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We load our new `webpack-node-externals` package at the top.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `build` directory, where we save the bundle, is in the `dist` folder, inside
+    of a special `server` folder.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `mode` field is set to `'production'`.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `entry` point for webpack is the server's root `index.js` file.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `output` property holds the standard fields to bundle our code and saves
+    it inside of the folder specified through the `buildDirectory` variable.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We use the previously installed `@babel/plugin-transform-runtime` plugin in
+    the `module` property to reduce the file size for our bundle.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Inside of the `node` property, you can set Node.js-specific configuration options.
+    The `__dirname` field tells webpack that the global `__dirname` variable is used
+    with its default settings and is not customized by webpack. The same goes for
+    the `__filename` property.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `target` field accepts multiple environments in which the generated bundle
+    should work. For our case, we set it to `'node'`, as we want to run our backend
+    in Node.js.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `externals` property gives us the possibility to exclude specific dependencies
+    from our bundle. By using the `webpack-node-externals` package, we prevent all
+    `node_modules` packages from being included in our bundle.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'To make use of our new build configuration file, we add two new commands to
+    the `scripts` field of our `package.json` file. As we are trying to generate a
+    final production build that we can publicize, we have to build our client-side
+    code in parallel. Add the following two lines to the `scripts` field of the `package.json`
+    file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `build` command uses the `&&` syntax to chain two `npm run` commands. It
+    executes the build process for our client-side code first, and afterward, it bundles
+    the entire server-side code. The result is that we have a filled `dist` folder
+    with a `client` folder and a `server` folder. Both can import components dynamically.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'To start our server with the new production code, we are going to add one further
+    command to the `scripts` field. The old `npm run server` command would start the
+    server-side code in the unbundled version, which is not what we want. Insert the
+    following line into the `package.json` file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The preceding command simply executes the `bundle.js` file from the `dist/server`
+    folder, using the plain `node` command to launch our backend.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Now, you should be able to generate your final build by running `npm run build`.
+    Before starting the production server as a test, however, make sure that you have
+    set all environment variables for your database correctly, or your `JWT_SECRET`,
+    for example. Then, you can execute the `npm run server:production` command to
+    launch the backend.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Our tests need to be run in a way to reflect the same production conditions,
+    because only then can we verify that all features that are enabled in the live
+    environment work correctly. To make sure that is true, we need to change how we
+    execute the tests. Edit the `test` command of the `package.json` file to reflect
+    this change, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now, you should be able to test your application with the same generated production
+    bundles.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: In the next section, we will cover how to use Docker to bundle your entire application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up Docker
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Publishing an application is a critical step that requires a lot of work and
+    care. Many things can go wrong when releasing a new version. We have already made
+    sure that we can test our application before it goes live.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The real act of transforming our local files into a production-ready package,
+    which is then uploaded to a server, is the most onerous task. Regular applications
+    generally rely on a server that is preconfigured with all the packages that the
+    application needs to run. For example, when looking at a standard PHP setup, most
+    people rent a preconfigured server. This means that the PHP runtime, with all
+    the extensions, such as the MySQL PHP library, are installed via the built-in
+    package manager of the operating system. This procedure applies not only to PHP
+    but also to nearly any other programming language. This might be okay for general
+    websites or applications that are not too complex, but for professional software
+    development or deployment, this process can lead to issues, such as the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The configuration needs to be done by someone that knows the requirements of
+    the application and the server itself.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A second server needs the same configuration in order to allow our application
+    to run. While doing that configuration, we must ensure that all servers are standardized
+    and consistent with one another.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: All of the servers have to be reconfigured when the runtime environment gets
+    an update, either because the application requires it, or due to other reasons,
+    such as security updates. In this case, everything must be tested again.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Multiple applications running inside of the same server environment may require
+    different package versions or may interfere with each other.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The deployment process must be executed by someone with the required knowledge.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Starting an application directly on a server exposes it to all the services
+    running on the server. Other processes could take over your complete application
+    since they run within the same environment.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Also, the application is not limited to using a specified maximum of the server's
+    resources.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Many people have tried to figure out how to avoid these consequences by introducing
+    a new containerization and deployment workflow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is Docker?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: One of the most important pieces of software is called Docker. It was released
+    in 2013, and its function is to isolate the application within a container by
+    offering its own runtime environment, without having access to the server itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The aim of a container is to isolate the application from the operating system
+    of the server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Standard virtual machines can also accomplish this by running a guest operating
+    system for the application. Inside of the virtual machine, all packages and runtimes
+    can be installed to prepare it for your application. This solution comes with
+    significant overhead, of course, because we are running a second operating system
+    that's just for our application. It is not scalable when many services or multiple
+    applications are involved.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the other hand, Docker containers work entirely differently. The application
+    itself, and all of its dependencies, receive a segment of the operating system's
+    resources. All processes are isolated by the host system inside of those resources.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Any server supporting the container runtime environment (which is Docker) can
+    run your dockerized application. The great thing is that the actual operating
+    system is abstracted away. Your operating system will be very slim, as nothing
+    more than the kernel and Docker is required.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With Docker, the developer can specify how the container image is composed.
+    They can directly test and deploy those images on their infrastructure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To see the process and advantages that Docker provides, we are going to build
+    a container image that includes our application and all the dependencies it needs
+    to run.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Installing Docker
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As with any virtualization software, Docker has to be installed via the regular
+    package manager of your operating system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: I will assume that you are using a Debian-based system. If this is not the case,
+    please get the correct instructions for your system at [https://docs.docker.com/install/overview/](https://docs.docker.com/install/overview/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Continue with the following instructions to get Docker up and running:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Update your system''s package manager, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We can install the Docker package to our system, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'If you are running an Ubuntu version with snap installed, you can also use
+    the following command:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: That's everything that is required to get a working copy of Docker on your system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, you will learn how to use Docker by building your first Docker container
+    image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dockerizing your application
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Many companies have adopted Docker and replaced their old infrastructure setup,
+    thereby largely reducing system administration. Still, there is some work to do
+    before deploying your application straight to production.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One primary task is to dockerize your application. The term **dockerize** means
+    that you take care of wrapping your application inside of a valid Docker container.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are many service providers that connect Docker with CI or continuous deployment
+    because they work well together. In the last section of this chapter, you will
+    learn what continuous deployment is and how it can be implemented. We are going
+    to rely on such a service provider. It will provide us with an automatic workflow
+    for our continuous deployment process. Let's first start dockerizing our application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Writing your first Dockerfile
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The conventional approach to generating a Docker image of your application is
+    to create a `Dockerfile` at the root of your project. But what is a `Dockerfile`
+    for?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A `Dockerfile` is a series of commands that are run through the Docker **Command-Line
+    Interface** (**CLI**). The typical workflow in such a file looks as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A `Dockerfile` starts from a base image, which is imported using the `FROM`
+    command. This base image may include a runtime environment, like Node.js, or other
+    things that your project can make use of. The container images are downloaded
+    from Docker Hub, which is a central container registry that you can find at [https://hub.docker.com/](https://hub.docker.com/).
+    There is the option to download the images from custom registries, too.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Docker offers many commands to interact with the image and your application
+    code. Those commands can be looked up at [https://docs.docker.com/engine/reference/builder/](https://docs.docker.com/engine/reference/builder/).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: After the configuration of the image has finished and all build steps are complete,
+    you will need to provide a command that will be executed when your application's
+    Docker container starts.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The result of the build steps will be a new Docker image (see *Figure 12.1*).
+    The image is saved on the machine where it was generated.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Optionally, you can now publish your new image to a registry, where other applications
+    or users can pull your image. You can also upload them as private images or private
+    registries.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We will start by generating a simple Docker image. First, create the `Dockerfile`
+    inside of the root of your project. The filename is written without any file extensions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first task is to find a matching base image that we can use for our project.
+    The criteria by which we choose a base image are the dependencies and runtime
+    environment. As we have mainly used Node.js without relying on any other server-side
+    package that needs to be covered from our Docker container, we only need to find
+    a base image that provides Node.js. For the moment, we will ignore the database,
+    and we'll focus on it again in a later step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Docker Hub is the official container image registry, providing many minimalistic
+    images. Just insert the following line inside of our new `Dockerfile`, in the
+    root of our project:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: As we mentioned before, we use the `FROM` command to download our base image.
+    As the name of the preceding image states, it includes Node.js in version 14\.
+    There are numerous other versions that you can use. Beyond the different versions,
+    you can also find different flavors (for example, a Node.js image based on an
+    Alpine Linux image). Take a look at the image's `README` to get an overview of
+    the available options at [https://hub.docker.com/_/node/](https://hub.docker.com/_/node/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: I recommend that you read through the reference documentation of the `Dockerfile`.
+    Many advanced commands and scenarios are explained there, which will help you
+    to customize your Docker workflow. Just go to [https://docs.docker.com/engine/reference/builder/](https://docs.docker.com/engine/reference/builder/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: After Docker has run the `FROM` command, you will be working directly within
+    this base image, and all further commands will then run inside of this environment.
+    You can access all features that the underlying operating system provides. Of
+    course, the features are limited by the image that you have chosen. A `Dockerfile`
+    is only valid if it starts with the `FROM` command.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The next step for our `Dockerfile` is to create a new folder, in which the
+    application will be stored and run. Add the following line to the `Dockerfile`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `WORKDIR` command changes the directory to the specified path. The path
+    that you enter lives inside of the filesystem of the image, which does not affect
+    your computer's filesystem. From then on, the `RUN`, `CMD`, `ENTRYPOINT`, `COPY`,
+    and `ADD` Docker commands will be executed in the new working directory. Furthermore,
+    the `WORKDIR` command will create a new folder if it does not exist yet.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we need to get our application's code inside of the new folder. Until
+    now, we have only made sure that the base image was loaded. The image that we
+    are generating does not include our application yet. Docker provides a command
+    to move our code into the final image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As the third line of our `Dockerfile`, add the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `COPY` command accepts two parameters. The first one is the source, which
+    can be a file or folder. The second parameter is the destination path inside of
+    the image's filesystem. You can use a subset of regular expressions to filter
+    the files or folders that you copy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After Docker has executed the preceding command, all contents living in the
+    current directory will be copied over to the `/usr/src/app` path. The current
+    directory, in this case, is the root of our project folder. All files are now
+    automatically inside of the final Docker image. You can interact with the files
+    through all Docker commands but also with the commands that the shell provides.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One important task is that we install all `npm` packages that our application
+    relies on. When running the `COPY` command, such as in the preceding code, all
+    files and folders are transferred, including the `node_modules` folder. This could
+    lead to problems when trying to run the application, however. Many `npm` packages
+    are compiled when they are being installed, or they differentiate between operating
+    systems. We must make sure that the packages that we use are clean, and work in
+    the environment that we want them to work in. We must do two things to accomplish
+    this, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create a `.dockerignore` file in the root of the project folder, next to the
+    `Dockerfile`, and enter the following content:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `.dockerignore` file is comparable to the `.gitignore` file, which excludes
+    special files or folders from being tracked by Git. Docker reads the `.dockerignore`
+    file before all files are sent to the Docker daemon. If it is able to read a valid
+    `.dockerignore` file, all specified files and folders are excluded. The preceding
+    two lines exclude the whole `node_modules` folder.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Install the `npm` packages inside of Docker. Add the following line of code
+    to the `Dockerfile`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Graphbook uses port `8000` by default, under which it listens for incoming
+    requests, be it a GraphQL or normal web request. When running a Docker container,
+    it receives its own network, with an IP and ports. We must make port `8000` available
+    to the public, not only inside of the container itself. Insert the following line
+    at the end of the `Dockerfile` to make the port accessible from outside of the
+    container:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: It is essential that you understand that the `EXPOSE` command does not map the
+    inner port `8000` from the container to the matching port of our working machine.
+    By writing the `EXPOSE` command, you give the developer using the image the option
+    to publish port `8000` to any port of the real machine running the container.
+    The mapping is done while starting the container, not when building the image.
+    Later in this chapter, we will look at how to map port `8000` to a port of your
+    local machine.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Finally, we have to tell Docker what our container should do once it has booted.
+    In our case, we want to start our backend (including SSR, of course). Since this
+    should be a simple example, we will start the development server.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Add the last line of the `Dockerfile`, as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `CMD` command defines the way that our container is booted, and which command
+    to run. We are using the `exec` option of Docker to pass an array of strings.
+    A `Dockerfile` can only have one `CMD` command. The `exec` format does not run
+    a Bash or shell command when using `CMD`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The container executes the `server` script of our `package.json` file, which
+    has been copied into the Docker image.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: At this point, everything is finished and prepared to generate a basic Docker
+    image. Next, we will continue with getting a container up and running.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building and running Docker containers
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The `Dockerfile` and `.dockerignore` files are ready. Docker provides us with
+    the tools to generate a real image, which we can run or share with others. Having
+    a `Dockerfile` on its own does not make an application dockerized.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Make sure that the database credentials specified in the `/server/config/index.js`
+    file for the backend are valid for development because they are statically saved
+    there. Furthermore, the MySQL host must allow for remote connections from inside
+    the container.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Execute the following command to build the Docker image on your local machine:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: This command requires you to have the Docker CLI and daemon installed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first option that we use is `-t`, following a string (in our case, `sgrebe/graphbook`).
+    The finished build will be saved under the username `sgrebe` and the application
+    name `graphbook`. This text is also called a `tag`. The only required parameter
+    of the `docker build` command is the build context or the set of files that Docker
+    will use for the container. We specified the current directory as the build context
+    by adding the dot at the end of the command. Furthermore, the `build` action expects
+    the `Dockerfile` to be located within this folder. If you want the file to be
+    taken from somewhere else, you can specify it with the `--file` option.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: If the `docker build` command fails, it may be that some environment variables
+    are missing. They usually include the IP and port of the Docker daemon. To look
+    them up, execute the `docker-machine env` command and set the environment variables
+    as returned by the command.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When the command has finished generating the image, it should be available
+    locally. To prove this, you can use the Docker CLI by running the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output from Docker should look as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.1 – Docker images'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.01_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.1 – Docker images
+  prefs: []
+  type: TYPE_NORMAL
+- en: You should see two containers; the first one is the `sgrebe/graphbook` container
+    image, or whatever you used as a tag name. The second one should be the `node`
+    image, which we used as the base for our custom Docker image. The size of the
+    custom image should be much higher because we installed all `npm` packages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we should be able to start our Docker container with this new image. The
+    following command will launch your Docker container:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `docker run` command also has only one required parameter, which is the
+    image to start the container with. In our case, this is `sgrebe/graphbook`, or
+    whatever you specified as a tag name. Still, we define some optional parameters
+    that we need to get our application working. You can find an explanation of each
+    of them, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We set the `-p` option to `8000:8000`. The parameter is used to map ports from
+    the actual host operating system to a specific port inside of the Docker container.
+    The first port is the port of the host machine, and the second one is the port
+    of the container. This option gives us access to the exposed port `8000`, where
+    the application is running under `http://localhost:8000` of our local machine.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `--env-file` parameter is required to pass environment variables to the
+    container. Those can be used to hand over the `NODE_ENV` or `JWT_SECRET` variables,
+    for example, which we require throughout our application. We will create this
+    file in a second.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You can also pass the environment variables one by one using the `-e` option.
+    It is much easier to provide a file, however.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `-d` option sets the container to `docker run` command provides many more
+    options. It allows for various advanced setups. The link to the official documentation
+    is [https://docs.docker.com/engine/reference/run/#general-form](https://docs.docker.com/engine/reference/run/#general-form).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let''s create the `.env` file in the root directory of our project. Insert
+    the following content, replacing all placeholders with the correct value for every
+    environment variable:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `.env` file is a simple key-value list, where you can specify one variable
+    per line, which our application can access from its environment variables.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is vital that you do not commit this file to the public at any stage. Please
+    add this file directly to the `.gitignore` file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you have filled out this file, you will be able to start the Docker container
+    with the previous command that I showed you. Now that the container is running
+    in detached mode, you will have the problem that you cannot be sure whether Graphbook
+    has started to listen. Consequently, Docker also provides a command to test this,
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `docker ps` command gives you a list of all running containers. You should
+    find the Graphbook container in there, too. The output should appear as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![12.2 – Docker running containers'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.02_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 12.2 – Docker running containers
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Like all commands that Docker provides, the `docker ps` command gives us many
+    options to customize and filter the output. Read up on all of the features that
+    it offers in the official documentation at [https://docs.docker.com/engine/reference/commandline/ps/](https://docs.docker.com/engine/reference/commandline/ps/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our container is running, and it uses the database that we have specified. You
+    should be able to use Graphbook as you know it by visiting `http://localhost:8000`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you take a look at the preceding figure, you will see that all running containers
+    receive their own IDs. This ID can be used in various situations to interact with
+    the container.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In development, it makes sense to have access to the command-line printouts
+    that our application generates. When running the container in detached mode, you
+    have to use the Docker CLI to see the printouts, using the following command.
+    Replace the ID at the end of the command with the ID of your container:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `docker logs` command will show you all the printouts that have been made
+    by our application or container recently. Replace the preceding ID with the one
+    given to you by the `docker ps` command. If you want to see the logs in real time
+    while using Graphbook, you can add the `--follow` option.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we are running the container in detached mode, you will not be able to stop
+    it by just using *Ctrl* + *C* as before. Instead, you have to use the Docker CLI
+    again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To stop the container again, run the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To finally remove it, run the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `docker rm` command stops and removes the container from the system. Any
+    changes made to the filesystem inside of the container will be lost. If you start
+    the image again, a new container will be created, with a clean filesystem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When working and developing with Docker frequently, you will probably generate
+    many images to test and verify the deployment of your application. These take
+    up a lot of space on your local machine. To remove the images, you can execute
+    the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: The ID can be taken from the `docker images` command, the output of which you
+    can see in the first image in this section. You can only remove an image if it
+    is not used in a running container.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have come far. We have successfully dockerized our application. However,
+    it is still running in development mode, so there is a lot to do.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multi-stage Docker production builds
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Our current Docker image, which we are creating from the `Dockerfile`, is already
+    useful. We want our application to be transpiled and running in production mode
+    because many things are not optimized for the public when running in development
+    mode.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Obviously, we have to run our build scripts for the backend and frontend while
+    generating the Docker image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Up until now, we have installed all `npm` packages and copied all files and
+    folders for our project to the container image. This is fine for development because
+    this image is not published or deployed to a production environment. When going
+    live with your application, you will want your image to be as slim and efficient
+    as possible. To achieve this, we will use a so-called **multi-stage build**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before Docker implemented the functionality to allow for multi-stage builds,
+    you had to rely on tricks, such as using shell commands to only keep the files
+    that were really required in the container image. The problem that we have is
+    that we copy all files that are used to build the actual distribution code from
+    the project folder. Those files are not needed in the production Docker container,
+    however.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s see how this looks in reality. You can back up or remove the first `Dockerfile`
+    that we wrote, as we will start with a blank one now. The new file still needs
+    to be called `Dockerfile`. All the following lines of code go directly into this
+    empty `Dockerfile`. Follow these instructions to get the multi-stage production
+    build running:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our new file starts with the `FROM` command again. We are going to have multiple
+    `FROM` statements because we are preparing a multi-stage build. The first one
+    should look as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We are introducing the first build stage here. As before, we are using the `node`
+    image in version 14\. Furthermore, we append the `AS build` suffix, which tells
+    Docker that this stage, and everything that we do in it, will be accessible under
+    the name `build` later. A new stage is started with every new `FROM` command.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, we initialize the working directory, as we did in our first `Dockerfile`,
+    as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'It is essential to only copy the files that we really need. It hugely improves
+    the performance if you reduce the number of files that need to be processed:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We copy the `.babelrc`, `package.json`, `package-lock.json`, and webpack files
+    that are required for our application. These include all information we need to
+    generate a production build for the frontend and backend. Furthermore, we also
+    copy the `src`, `public`, and `assets` folders, because they include the code
+    and CSS that will be transpiled and bundled.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Like in our first `Dockerfile`, we must install all `npm` packages; otherwise,
+    our application won''t work. We do this with the following line of code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'After all the packages have been installed successfully, we can start the build
+    process. We added the `build` script in the first section of this chapter. Add
+    the following line to execute the script that will generate the production bundles
+    in the Docker image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The following command will generate a `dist` folder for us, where the runnable
+    code (including CSS) will be stored. After the `dist` folder with all bundles
+    has been created, we will no longer need most of the files that we initially copied
+    over to the current build stage.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'To get a clean Docker image that only contains the `dist` folder and the files
+    that we need to run the application, we will introduce a new build stage that
+    will generate the final image. The new stage is started with a second `FROM` statement,
+    as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We are building the final image in this build step; therefore, it does not need
+    its own name.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Again, we need to specify the working directory for the second stage, as the
+    path is not copied from the first build stage:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Before continuing, we need to ensure that the application has access to all
+    environment variables. For that, add the following lines to the `Dockerfile`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We use the `ENV` command from Docker to fill the environment variables while
+    building the image.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Because we have given our first build stage a name, we can access the filesystem
+    of this stage through that name. To copy the files from the first stage, we can
+    add a parameter to the `COPY` statement. Add the following commands to the `Dockerfile`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: As you should see in the preceding code, we are copying the `package.json` file
+    and the `dist` folder. However, instead of copying the files from our original
+    project folder, we are getting those files directly from the first build stage.
+    For this, we use the `--from` option, following the name of the stage that we
+    want to access; so, we enter the name `build`. The `package.json` file is needed
+    because it includes all dependencies and the `scripts` field, which holds the
+    information on how to run the application in production. The `dist` folder is,
+    of course, our bundled application.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Furthermore, we copy a `start.sh` file that we will create and the server folder
+    because in there we have all the database migrations.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Note that we only copy the `package.json` file and the `dist` folder. Our `npm`
+    dependencies are not included in the application build inside of the `dist` folder.
+    As a result, we need to install the `npm` packages in the second build stage,
+    too:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: mysql2 package. We will leverage them to apply migrations at the start of the
+    Docker container. There are also further ways to trigger them manually and not
+    at the start of a Docker container, but this will work for our setup.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The last two things to do here are to expose the container port to the public
+    and to execute the `CMD` command, which will let the image run a command of our
+    `package.json` file when the container has booted:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Lastly, we need to create a `start.sh` file at the root of the project with
+    the following content:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the `start.sh` file, we have two lines. The first one runs all database migrations.
+    The last one starts the server based on the generated production bundle.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Now, you can execute the `docker build` command again and try to start the container.
+    There is only one problem – the database credentials are read from the environment
+    variables when running in production. As the production setup for a database cannot
+    be on our local machine, it needs to live somewhere on a real server. We could
+    also accomplish this through Docker, but this would involve a very advanced Docker
+    configuration. We would need to save the MySQL data in separate storage because
+    Docker does not persist data of any kind, by default.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Personally, I like to rely on a cloud host, which handles the database setup
+    for me. It is not only great for the overall setup but also improves the scalability
+    of our application. The next section will cover Amazon RDS and how to configure
+    it for use with our application. You can use any database infrastructure that
+    you like.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Amazon RDS
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: AWS offers Amazon **RDS**, which is an easy tool for setting up a relational
+    database in just a few clicks. Shortly, I will explain how to create your first
+    database with RDS, and afterward, we will look at how to insert environment variables
+    correctly in order to get a database connection going with our application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first step is to log in to the AWS Management Console, as we did in [*Chapter
+    7*](B17337_07_Final_ASB_ePub.xhtml#_idTextAnchor154), *Handling Image Uploads*.
+    You can find the service by clicking on the `RDS`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After navigating to **RDS**, you will see the dashboard, as shown in the following
+    screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.3 – AWS RDS'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.03_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.3 – AWS RDS
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Follow these instructions to set the RDS database up:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Initialize a new database by hitting the **Create database** button. You will
+    be presented with a new screen, where you should select an engine for our new
+    database and how to create it, as shown in the following screenshot:![Figure 12.4
+    – AWS RDS Engine selection
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.04_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.4 – AWS RDS Engine selection
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: I recommend that you select **MySQL** here. You should also be able to select
+    **Amazon Aurora** or **MariaDB**, as they are also MySQL compatible; for this
+    book, I have chosen MySQL. Also, stay with the standard creation method. Continue
+    by scrolling down.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: You will need to specify the use case for your database. The production option
+    is only recommended for live applications because this will include higher costs.
+    Choose the free tier, as shown in the following screenshot:![Figure 12.5 – AWS
+    RDS Templates selection
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.05_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.5 – AWS RDS Templates selection
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Continue by scrolling down. Next, you need to fill in the database credentials
+    to authenticate on the backend later. Fill in the details, as shown here:![Figure
+    12.6 – AWS RDS database credentials
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.06_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.6 – AWS RDS database credentials
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Next, you need to select the AWS instance and, by that, the computing power
+    of the database. Select **db.t2.micro**, which is free and enough for our use
+    case now. It should look like as follows:![Figure 12.7 – AWS RDS instance class
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.07_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.7 – AWS RDS instance class
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: You will now be asked for connectivity settings. It is important that you select
+    **Public access**, with **Yes** checked. This does not share your database with
+    the public but makes it accessible from other IPs and other EC2 instances if you
+    select them in your AWS security group. Also, you need to create a new subnet
+    group and give a new security group name:![Figure 12.8 – AWS RDS network settings
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.08_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.8 – AWS RDS network settings
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: In the **Additional configuration** section, we need to provide an initial database
+    name, which will create a database inside RDS after finishing the setup:![Figure
+    12.9 – The Additional configuration window
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.09_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.9 – The Additional configuration window
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Finish the setup process for your first AWS RDS database by clicking on **Create
+    database** at the bottom of the screen.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: You should now be redirected to the list of all databases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Click on the new database instance that has been created. If you scroll down,
+    you will see a list of security groups. Click on the group with the **CIDR/IP
+    - Inbound** type:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.10 – AWS security group rules'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.10_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.10 – AWS security group rules
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you click on the first rule, you will be able to insert the IP that is allowed
+    to access the database. If you insert the `0.0.0.0` IP, it will allow any remote
+    IP to access the database. This is not a recommended database setup for production
+    use, but it makes it easier to test it with multiple environments in developmental
+    use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The credentials that you have specified for the database must be included in
+    the `.env` file for running our Docker container, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `host` URL can be taken from the Amazon RDS instance dashboard. It should
+    look something like `INSTANCE_NAME.xxxxxxxxxx.eu-central-1.rds.amazonaws.com`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, you should be able to run the build for your Docker image again, without
+    any problems. The database has been set up and is available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will look at how we can automate the process of generating the Docker
+    image through continuous integration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Configuring continuous integration
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Many people (especially developers) will have heard of **continuous integration**
+    (**CI**) or **continuous deployment** (**CD**). However, most of them cannot explain
+    their meanings and the differences between the two terms. So, what is CI and CD,
+    in reality?
+  prefs: []
+  type: TYPE_NORMAL
+- en: When it comes to releasing your application, it might seem easy to upload some
+    files to a server and then start the application through a simple command in the
+    shell, via SSH.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This approach might be a solution for many developers or small applications
+    that are not updated often. However, for most scenarios, it is not a good approach.
+    The word *continuous* represents the fact that all changes or updates are continuously
+    either tested, integrated, or even released. This would be a lot of work, and
+    it would be tough to do if we stayed with a simple file upload and took a manual
+    approach. Automating this workflow makes it convenient to update your application
+    at any time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CI is the development practice where all developers commit their code to the
+    central project repository at least once a day to bring their changes to the mainline
+    stream of code. The integrated code will be verified by automated test cases.
+    This will avoid problems when trying to go live at a specific time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CD goes further; it's based on the main principles of CI. Every time the application
+    is successfully built and tested, the changes are directly released to the customer.
+    This is what we are going to implement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our automation process will be based on **CircleCI**. It is a third-party service
+    offering a CI and CD platform, with a massive number of features.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To sign up for CircleCI, visit [https://circleci.com/signup/](https://circleci.com/signup/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: You will need to have a Bitbucket or GitHub account in order to sign up. This
+    will also be the source from which the repositories of your application will be
+    taken, for which we can begin using CI or CD.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To get your project up and running with CircleCI, you will need to click on
+    the **Projects** button in the left-hand panel, or you will be redirected there
+    because you have no projects set up yet. After signing up, you should see all
+    your repositories inside of CircleCI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Select the project that you want to process with CircleCI by hitting **Set
+    Up Project** on the right-hand side of the project. You will then be confronted
+    with the following screen:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.11 – CircleCI Projects'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.11_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.11 – CircleCI Projects
+  prefs: []
+  type: TYPE_NORMAL
+- en: The problem is that you have not configured your repository or application accordingly.
+    You are required to create a folder called `.circleci` and a file inside of it,
+    called `config.yml`, which tells CircleCI what to do when a new commit is pushed
+    to the repository. CircleCI will either ask you to set it up yourself or it will
+    do it for you. I recommend selecting that we are going to do it on our own, as
+    this book guides you through the steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, set **sample config** as **Node**. The final step will be to push a new
+    commit with the matching CircleCI config.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will create a straightforward CircleCI configuration so that we can test
+    that everything is working. The final configuration will be done at a later step
+    when we have configured Amazon ECS, which will be the host of our application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, create a `.circleci` folder at the root of our project and a `config.yml`
+    file inside of this new folder. The `.yml` file extension stands for `.yml` files
+    need a correct indentation. Otherwise, they will not be valid files and cannot
+    be understood by CircleCI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Insert the following code into the `config.yml` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s quickly go through all the steps in the file, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The file starts with a `version` specification. We are using version 2.1, as
+    this is the current version of CircleCI.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Then, we will have a list of `jobs` that get executed in parallel. As we only
+    have one thing that we want to do, we can only see the `build` job that we are
+    running. Later, we will add the whole Docker build and publish the functionality
+    here.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Each job receives an executor type, which needs to be `machine`, `docker`, or
+    `macos`. We are using the `docker` type because we can rely on many prebuilt images
+    of CircleCI. The image is specified in a separate `image` property. There, I have
+    specified `node` in version 14, because we need Node.js for our CI workflow.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Each job then receives several steps that are executed with every commit that
+    is pushed to the Git repository.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The first step is the `checkout` command, which clones the current version of
+    our repository so that we can use it in any further steps.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Lastly, to test that everything has worked, we use the `run` step. It lets us
+    execute a command directly in the Docker `node:14` image that we have started
+    with CircleCI. Each command that you want to execute must be prefixed with `command`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The result of this config file should be that we have pulled the current master
+    branch of our application and printed the text `This is working` at the end. To
+    test the CircleCI setup, commit and push this file to your GitHub or Bitbucket
+    repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'CircleCI should automatically notify you that it has started a new **CI** job
+    for our repository. You can find the job by hitting the **Jobs** button in the
+    left-hand panel of CircleCI. The newest job should be at the top of the list.
+    Click on the job to see the details. They should look as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.12 – CircleCI pipeline'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.12_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.12 – CircleCI pipeline
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding screenshot, each step is represented in a separate row at the
+    bottom of the window. You can expand each row to see the logs that are printed
+    while executing the specific command shown in the current row. The preceding screenshot
+    shows that the job has been successful.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have configured CircleCI to process our repository on each push,
+    we must take a look at how to host and deploy our application directly, after
+    finishing the build.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deploying applications to Amazon ECS
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: CircleCI executes our build steps each time we push a new commit. Now, we want
+    to build our Docker image and deploy it automatically to a machine that will serve
+    our application to the public.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our database and uploaded images are hosted on AWS already, so we can also use
+    AWS to serve our application. Setting up AWS correctly is a significant task,
+    and it takes a large amount of time. We will use Amazon ECS to run our Docker
+    image. Still, to correctly set up the network, security, and container registry
+    is too complex to be explained in just one chapter. I recommend that you take
+    a course or pick up a separate book to understand and learn advanced setups with
+    AWS, and the configuration that is needed to get production-ready hosting. For
+    now, we will use ECS to get the container, including the database connection,
+    running.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before directly going to Amazon ECS and creating your cluster, we need to prepare
+    two services – one is AWS **ALB**, which stands for **Application Load Balancer**,
+    and the other is Amazon ECR. If you set up an ECS cluster, there will be one or
+    more instances of the same service or, to be exact, task running. Those tasks
+    need to receive traffic, but if you release a new version, they should also be
+    exchanged with new tasks while still serving the traffic. That is a good job for
+    AWS ALB, as it can split traffic between the instances and handle dynamic port
+    mapping if tasks are exchanged.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Log in to the AWS Management Console, search for the EC2 service, and click
+    on it. Then, follow these instructions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Scroll down on the left panel until you see the **Load Balancing** section,
+    as shown in the following screenshot:![Figure 12.13 – AWS Load Balancing section
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.13_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.13 – AWS Load Balancing section
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Click on **Load Balancers** and you will see an empty list. We need to click
+    on **Create Load Balancer** in the top left corner now. On the next page, select
+    **Application Load Balancer**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We need to specify a name for our load balancer and a scheme. We will go with
+    the **Internet-facing** option because that way we can access it from outside
+    AWS:![Figure 12.14 – AWS ALB configuration
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.14_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.14 – AWS ALB configuration
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Important Note
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Normally, you would not make the load balancer public but instead add another
+    **Content Delivery Network** (**CDN**), cache, and firewall in front of your application
+    to protect it from **Distributed Denial of Service** (**DDoS**) attacks or unnecessary
+    load. Services on AWS such as Route53 and CloudFront work well together to accomplish
+    this, but they are out of the scope of this book.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: In the next step, we need to select a VPC that will bring the attached resources
+    into one private network. There should be an existing one from the database that
+    you can select. Please do that and select the availability zones, as shown in
+    the following screenshot:![Figure 12.15 – AWS ALB network settings
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.15_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.15 – AWS ALB network settings
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Next, you need to select the security group that we have created with the AWS
+    RDS database, as shown in the following screenshot:![Figure 12.16 – AWS ALB Security
+    groups
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.16_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.16 – AWS ALB Security groups
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: If you scroll further down, you can see that you need to specify the routing
+    for your load balancer, that is, where the load or traffic needs to go, depending
+    on some rules that you need to define. To do that, we need to define a target
+    group. There should be a link reading **Create** **target group** below the selection
+    input, as shown in the following screenshot:![Figure 12.17 – AWS ALB routing
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.17_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.17 – AWS ALB routing
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: If you have created and selected the target group, it should look like the preceding
+    figure, so let's do it.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Open the link in a separate tab or window; as mentioned before, you should see
+    the following screen:![Figure 12.18 – AWS target group creation
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.18_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.18 – AWS target group creation
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Select **Instances**, which means load balancing between different instances
+    in one VPC. Give the target group a name and select the same VPC as before.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: After that, you can hit the **Next** button. You will be presented with the
+    following screen:![Figure 12.19 – AWS target group targets
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.19_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.19 – AWS target group targets
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: This screen normally shows you all instances that would be included in your
+    target group. Because we did not create the ECS cluster yet, this is empty. You
+    can continue by hitting the **Create target group** button.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Go back to the wizard to set up AWS ALB. Hit the **Refresh** button next to
+    the target group selection and select the target group.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hit the **Create load balancer** button at the end of the screen.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Finally, you should have reached the end of the wizard and be presented with
+    a summary, as shown in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.20 – AWS ALB creation summary'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.20_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.20 – AWS ALB creation summary
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next thing we need to prepare is an Amazon ECR repository. Amazon ECR is
+    nothing more than an alternative to Docker Hub or any other Docker registry. In
+    a Docker registry, you can push the Docker images that you built for your application.
+    This is the basis on which our ECS cluster will run.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To set up your ECR repository, search for `ECR` in the top bar and click on
+    the corresponding service. You should be presented with the following screen:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.21 – Amazon ECR overview'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.21_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.21 – Amazon ECR overview
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To set up your Amazon ECR repository, follow these steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Click on **Create repository** on the right side to get into the creation wizard.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Next, you need to provide a name for your repository, as shown in the following
+    screenshot:![Figure 12.22 – Amazon ECR settings
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.22_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.22 – Amazon ECR settings
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We leave our registry private because no one external should have access to
+    it. If you need to have it public for everyone, you can change this setting.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Click **Create repository** to set it up. You will see the following update
+    table now:![Figure 12.23 – Amazon ECR repository created
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.23_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.23 – Amazon ECR repository created
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Later, you will need the `URI`, which is shown next to the registry name.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Now we are prepared to start setting up the ECS cluster. To find ECS, just
+    go to the services bar at the top and search for `ECS`. If you click this service
+    and go to the **Clusters** section, it will show you all the running ECS clusters.
+    It should look like the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.24 – Amazon ECS Clusters'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.24_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.24 – Amazon ECS Clusters
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The process to configure ECS is very complex, and we will follow the most basic
+    configuration in the scope of this book. Follow these instructions to get it working:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hit the **Create Cluster** button (see *Figure 12.24*) to get started.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: On the next screen, you will be asked what kind of instances you want to use.
+    We are going to use the EC2 Linux instances, as shown in the following screenshot:![Figure
+    12.25 – Amazon ECS cluster template
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.25_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.25 – Amazon ECS cluster template
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Click **Next** to get to the configuration wizard for your cluster.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: You will be asked for a cluster name. The default configuration is fine otherwise.
+    The only option that requires a change is the instance type. I recommend going
+    with `t2.micro` because it does not cost that much, which is good for development.
+    The **Number of instances** option specifies how many parallel running EC2 instances
+    we want. For development, mostly one is fine, but if you need to scale, this is
+    something you need to increase:![Figure 12.26 – Amazon ECS cluster configuration
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.26_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.26 – Amazon ECS cluster configuration
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Scroll down to provide some further networking configuration. As we have selected
+    three subnets when configuring the load balancer, we should also now select those
+    three subnets:![Figure 12.27 – Amazon ECS cluster network settings
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.27_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.27 – Amazon ECS cluster network settings
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: After selecting the subnets, you need to select the security group that we also
+    used for the ALB configuration:![Figure 12.28 – Amazon ECS Security settings
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.28_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.28 – Amazon ECS Security settings
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Hit **Create Cluster** and AWS will start the process to spin everything up.
+    This might take some time.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Once AWS is done, you can click the **View Cluster** button, which will take
+    you to the detailed cluster page.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We have defined now that AWS is running an ECS cluster based on one EC2 instance.
+    One thing we did not do so far is to define what this cluster does. For that,
+    we need to go to **Task definitions** on the left-hand panel. Then, follow these
+    instructions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Click on the **Create new task definition** button.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Select the **EC2** type to make your task compatible with this type of cluster.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Give your task definition a name and the **ecsTaskExecutionRole** role. It should
+    look like the following screenshot:![Figure 12.29 – Amazon ECS task definition
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.29_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.29 – Amazon ECS task definition
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Scroll down and give your task a size, which means a memory size and CPU size
+    that it will need to process its task. It should look like the following screenshot:![Figure
+    12.30 – Amazon ECS task definition size
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.30_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.30 – Amazon ECS task definition size
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: This setting needs to be aligned with the resources your cluster has.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Now, click the `:latest` for the moment. As we did not publish any image yet,
+    it will not work anyway, but we will fix this later.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Scroll down to the `8000` because this is the default port that we use for Graphbook.
+    `0`, as this will be automatically assigned by your load balancer. AWS ALB will
+    dynamically map a free port to the container port. We do not need to care exactly
+    which port it will be.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Under the environment section, we need to add all environment variables that
+    our application requires to start. The variables shown in the following screenshot
+    should be enough to get your container running:![Figure 12.32 – Amazon ECS task
+    definition container environment variables
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.32_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.32 – Amazon ECS task definition container environment variables
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The only setting that is helpful is under the **Storage and logging** section.
+    I recommend activating CloudWatch Logs, as you can then see all the logs from
+    your application. It should look like the following screenshot:![Figure 12.33
+    – Amazon ECS task definition container logs
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.33_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.33 – Amazon ECS task definition container logs
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: After enabling this option, you can hit the **Add** button at the bottom of
+    the dialog.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: These are all the important things that you need to do. There is a multitude
+    of further detailed configurations that you can do. For us, they are not required
+    to get our application running, and they are out of the scope of this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The container definitions table should look like the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.34 – Amazon ECS task definition container definitions'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.34_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.34 – Amazon ECS task definition container definitions
+  prefs: []
+  type: TYPE_NORMAL
+- en: What we just did is the most basic ECS setup that you can do. Across all the
+    services that we just set up, we used the simplest configuration that you can
+    do, but there is a tremendous amount of advanced setups and configurations we
+    did not have a look at.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, you can click on the **Create** button at the very end of the ECS task
+    definition wizard. After AWS has successfully created the task definition, go
+    back to the main **Clusters** screen of ECS. You will see this cluster overview:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.35 – Amazon ECS cluster overview'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.35_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.35 – Amazon ECS cluster overview
+  prefs: []
+  type: TYPE_NORMAL
+- en: It just shows you that, still, nothing is running inside your cluster. To fix
+    that, click on your cluster name at the top left.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The actual problem is that no service has been created that is using the just-configured
+    task definition, as shown in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.36 – Amazon ECS cluster services'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.36_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.36 – Amazon ECS cluster services
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hit the **Create** button above the table.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, you need to provide the following data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For **Launch type**, you need to select **EC2**, as with the previous steps.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Then, you need to select the task definition family, which should match the
+    name of your previously created task definition.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Also, you need to select the cluster that we are currently looking at.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: You need to provide a service name for your service, such as `graphbook-service`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: For the `1` is fine. It means that only one task will run in this service at
+    the same time. This is also restricted by the health percentage. The minimum health
+    percent of `100` means that at least one service that is correctly functioning
+    should be running, whereas the maximum percent of `200` means that only a maximum
+    of two tasks that are healthy are allowed to be running. This restriction is required
+    for the moment where you update your service with a new application version. At
+    this moment, there will be two versions running at the same time that will be
+    exchanged. So, currently, we have `200` health percent.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'That is all the information that you need to provide. The rest of the settings
+    can be left as they are set by default. The result should look like the following
+    screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.37 – Amazon ECS service configuration'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.37_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.37 – Amazon ECS service configuration
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can now hit the **Next step** button at the bottom of the screen to continue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next screen is very important because this requires our AWS ALB to be set
+    up.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You need to select the **Application Load Balancer** option and then select
+    our previously created ALB. The settings should match the configuration in the
+    following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.38 – Amazon ECS service load balancing'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.38_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.38 – Amazon ECS service load balancing
+  prefs: []
+  type: TYPE_NORMAL
+- en: This setting will make use of our ALB and do the dynamic port mapping to the
+    container that is running within this service's tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we scroll down, we need to provide details on how the ALB will map to the
+    container. Now, you should see this message:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.39 – Amazon ECS service load balancing mapping'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.39_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.39 – Amazon ECS service load balancing mapping
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You need to click the **Add to load balancer** button. The good thing is you
+    can just select the target group that we created previously. After selecting it,
+    you should see the following screen:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.40 – Amazon ECS load balancing target group configuration'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.40_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.40 – Amazon ECS load balancing target group configuration
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can now hit the **Next step** button at the end of the screen and on the
+    next screen where it asks for auto-scaling, which we do not require. You should
+    be able to click the **Create Service** option at the bottom of the summary screen.
+  prefs: []
+  type: TYPE_NORMAL
+- en: AWS will try to create the service now and spin up the tasks. The problem is
+    that we did not push any Docker image so far. The ECS service will not be able
+    to spin up any task correctly because of that.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, let's fix that.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up CircleCI with Amazon ECR and ECS
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We will start with a blank CircleCI config again; so, empty the old `config.yml`
+    file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One important thing we did not do so far is to set up automated testing within
+    our pipeline. Otherwise, our commits will trigger an automated pipeline and just
+    deploy the untested code, which might cause production issues that we want to
+    prohibit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, let''s do this first. Follow these steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Insert these lines into our `config.yml` file, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This configuration creates a `test` job and pulls one Docker image. The Docker
+    image is the Node.js image from CircleCI that we will run our application inside
+    for testing purposes. At the same time, we pass credentials to actually pull the
+    image, but we also pass some default environment variables that we will make use
+    of in the next step.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Add another image to the `test` job:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This image is for the MySQL database, against which we can run our migrations
+    but also test scripts. This will be created from scratch every time the pipeline
+    runs. You can see here that we also provide the same environment variables. This
+    will set up the MySQL database with these credentials and the Node.js container
+    will have those credentials in the environment variables.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: As you can see in the preceding steps, we are using syntax such as `$DOCKERHUB_USERNAME`
+    to inject variables from the CircleCI settings into our pipeline. That way, we
+    do not need to repeat them repeatedly, but also, they are not committed into our
+    code. Set up the environment variables according to the following screenshot:![Figure
+    12.41 – CircleCI project environment variables
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.41_B17337.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 12.41 – CircleCI project environment variables
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now, we need to add functionality to actually run our tests. We will do this
+    inside a `steps` property that CircleCI is able to understand. Just add the code
+    below the previously added `jobs` section:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The flow of the test job is quite easy. First, we check out our code and then
+    we install all dependencies that our application requires.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Then, we also require the same Sequelize packages to run our database migrations
+    as we had in our `Dockerfile`. Add the following code to do so:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, we need to wait for the database image to come up. If we do not do that,
+    when taking the next steps, the commands will fail if the database is not yet
+    running. Add the following code to wait for our database to come up:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Once the database is up, we can run our database migrations against the `test`
+    database. Add the following code to run them:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, we can finally run our test against the freshly created database. Just
+    use the below code to get it working:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: If one of the tests fails, the complete pipeline will fail. This ensures that
+    only working application code is released to the public.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The last thing to do to get our automated tests running is to set up the CircleCI
+    workflow. You can copy the following code to get it running:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: You can commit and push this new config file into your Git repository, and CircleCI
+    should automatically process it and create a new job for you.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The resulting job should look as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.42 – CircleCI test pipeline'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.42_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.42 – CircleCI test pipeline
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we need to build the Docker image and push this to our registry. Thanks
+    to CircleCI, this is quite easy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Add this configuration to your `config.yml` file below the version specification:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: A CircleCI orb is a set of package configurations that you can share or make
+    use of without needing to write all the steps on your own. This orb that we have
+    just added can build and push a Docker image to Amazon ECR, which we set up in
+    the previous section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can find all the available CircleCI orbs and their documentation on the
+    official CircleCI orb website: [https://circleci.com/developer/orbs](https://circleci.com/developer/orbs).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To leverage this orb, add one workflow step, as shown in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding configuration will build and push your Docker image to Amazon
+    ECR, specified by the `repo` attribute. It will also wait for the `test` step
+    because we have mentioned this in the `requires` property.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you commit and push this configuration, you will see that in the CircleCI
+    pipeline, there is a separate ECR step. If that is completed, you will be able
+    to find a new Docker image inside the ECR repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The only thing missing now is to make use of this Docker image inside of Amazon
+    ECS. If you remember, we specified the Docker image inside of our Amazon ECS task
+    definition. Updating this manually after each pipeline run is not feasible though.
+    To automate this process, add one further orb at the top of the CircleCI config:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'CircleCI also has us covered if we want to update and push a new task definition
+    to our service. To leverage this orb, add this code as the last workflow step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: This step waits for both the test and the ECR job to complete. Afterward, it
+    will create a new task definition revision on Amazon ECS with the given `family`
+    name. It will then update the service with the given name inside the given cluster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Commit and push the new config file, and you will see the following pipeline
+    with three jobs running:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.43 – CircleCI CD pipeline'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.43_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.43 – CircleCI CD pipeline
+  prefs: []
+  type: TYPE_NORMAL
+- en: Amazon ECS will take some time to replace the currently running task, but after
+    that, the new version of your application will be running.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Still, the question is how we can access Graphbook now. For that, we can go
+    to our AWS ALB, go to the **Load Balancers** section, and click our ALB. It will
+    show the following information:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.44 – AWS ALB DNS name'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.44_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.44 – AWS ALB DNS name
+  prefs: []
+  type: TYPE_NORMAL
+- en: Under the given DNS name, we can access the load balancer and, via that, our
+    application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As mentioned previously, this is not recommended, but the fully fledged AWS
+    setup is out of the scope of this book. You should be able to access Graphbook
+    under that link.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That is all you need to do. It will test the application code with our test
+    suite, build and push a new Docker image, and lastly update the task definition
+    and ECS service to replace the old task with an updated task with the new task
+    definition.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you learned how to dockerize your application using a normal
+    `Dockerfile` and a multi-stage build.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Furthermore, I have shown you how to set up an exemplary CD workflow using CircleCI
+    and AWS. You can replace the deployment process with a more complex setup while
+    continuing to use your Docker image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having read this chapter, you have learned everything from developing a complete
+    application to deploying it to a production environment. Your application should
+    now be running on Amazon ECS.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At this point, you have learned all the important things, including setting
+    up React with Webpack, developing a local setup, server-side rendering, and how
+    to tie all the things together with GraphQL. Also, you are able to release changes
+    frequently with CD. Looking ahead, there are still things that we can improve
+    – for example, the scalability of our application or bundle splitting, which are
+    not handled in the scope of this book, but there are many resources available
+    that will help you improve in these areas.
+  prefs: []
+  type: TYPE_NORMAL
+- en: I hope you enjoyed the book and wish you every success!
+  prefs: []
+  type: TYPE_NORMAL

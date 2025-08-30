@@ -1,0 +1,940 @@
+- en: '16'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Working with WebSockets
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we’ll look at how to test-drive the WebSocket API within our
+    React app. We’ll use it to build a teaching mechanism whereby one person can share
+    their screen and others can watch as they type out commands.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The WebSocket API isn’t straightforward. It uses a number of different callbacks
+    and requires functions to be called in a certain order. To make things harder,
+    we’ll do this all within a Redux saga: that means we’ll need to do some work to
+    convert the callback API to one that can work with generator functions.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because this is the last chapter covering unit testing techniques, it does things
+    a little differently. It doesn’t follow a strict TDD process. The starting point
+    for this chapter has a skeleton of our functions already completed. You’ll flesh
+    out these functions, concentrating on learning test-driven techniques for WebSocket
+    connections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter covers the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Designing a WebSocket interaction
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Test-driving a WebSocket connection
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Streaming events with redux-saga
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Updating the app
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: By the end of the chapter, you’ll have learned how the WebSocket API works along
+    with its unit testing mechanisms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The code files for this chapter can be found here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://github.com/PacktPublishing/Mastering-React-Test-Driven-Development-Second-Edition/tree/main/Chapter16](https://github.com/PacktPublishing/Mastering-React-Test-Driven-Development-Second-Edition/tree/main/Chapter16)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Designing a WebSocket interaction
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we’ll start by describing the sharing workflow, then we’ll
+    look at the new UI elements that support this workflow, and finally we’ll walk
+    through the code changes you’ll make in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The sharing workflow
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'A sharing session is made up of one presenter and zero or more watchers. That
+    means there are two modes that the app can be in: either **presenting** or **watching**.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When the app is in presenting mode, then everyone watching will get a copy of
+    your Spec Logo instructions. All your instructions are sent to the server via
+    a WebSocket.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When your app is in watching mode, a WebSocket receives instructions from the
+    server and immediately outputs them onto your screen.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The messages sent to and from the server are simple JSON-formatted data structures.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 16.1* shows how the interface looks when it’s in presenter mode.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 16.1 – Spec Logo in presenter mode ](img/Figure_16.01_B18423.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 16.1 – Spec Logo in presenter mode
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, how does it work?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The presenter clicks the **Start sharing** button. The server is sent the following
+    message:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The server then responds with the ID of the session:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This ID is used to construct a URL that opens the application in watching mode,
+    for example:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The URL can be shared and opened anywhere. When the application is opened in
+    this mode, the application immediately opens a WebSocket to the server and sends
+    this message:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'There can be any number of watchers that connect. On an initial connection,
+    any commands that the presenter has already sent to the server will be replayed.
+    Those commands are sent from the presenter for any Redux action of type `SUBMIT_EDIT_LINE`,
+    and they are sent via the WebSocket to the server like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'When the server receives actions on the presenter’s WebSocket, it immediately
+    forwards the actions to every subscriber:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The server also stores received actions in history, so the actions can be replayed
+    by new joiners.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: When the watcher is done, they simply need to close the browser window and their
+    WebSocket will close.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: When the presenter is done, they can either close the browser window or hit
+    the **Stop sharing** button. This closes the connection and the server clears
+    out its internal state.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The new UI elements
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Here’s what you’ll find in the UI; all of this has already been built for you:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A new menu button to toggle sharing on and off. It is named **Start sharing**,
+    but once sharing has started, the name switches to **Stop sharing**.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: There is a new message that appears as part of the menu buttons bar when Spec
+    Logo is in sharing mode. It contains a message telling the user whether they are
+    presenting or watching. If they are presenting, it also contains a URL that they
+    can copy and share with others.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You can now launch the app in watching mode by adding the search parameter `?watching=<id>`
+    to the end of the Spec Logo URL.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Next, let’s have a look at the skeleton of the Redux saga that you’ll be fleshing
+    out.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Splitting apart the saga
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'A new piece of Redux middleware exists in the file `src/middleware/sharingSagas.js`.
+    This file has two parts to it. First, there’s a middleware function named `duplicateForSharing`.
+    This is a filter that provides us with all the actions that we wish to broadcast:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Second, there’s the root saga itself. It’s split into four smaller functions,
+    and these are the functions we’ll fill out in this chapter, using a test-driven
+    approach:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: With enough of the design done, let’s get cracking with the implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Test-driving a WebSocket connection
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We start by filling out that first function, `startSharing`. This function
+    is invoked when the `START_SHARING` action is received. That action is triggered
+    when the user clicks the **Start sharing** button:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Open `test/middleware/sharingSagas.test.js` and add the following imports at
+    the top:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'At the bottom of the file, add a new `describe` block and its setup. We’ll
+    break this into a couple of steps: first, set up the Redux store and the WebSocket
+    spy. Because `window.WebSocket` is a constructor function, we use `mockImplementation`
+    to stub it out:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Understanding the WebSocket API
+  prefs: []
+  type: TYPE_NORMAL
+- en: The WebSocket constructor returns an object with `send` and `close` methods,
+    plus `onopen`, `onmessage`, `onclose`, and `onerror` event handlers. We’ll implement
+    most of these on our test double as we build out our test suite. If you’d like
+    to learn more about the WebSocket API, check out the *Further reading* section
+    at the end of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, because we’re also concerned with the window location, we also need to
+    stub out the `window.location` object. Because this is a read-only object in the
+    JSDOM environment, we need to use the `Object.defineProperty` function to override
+    it. This is a little clunky, so you may prefer to extract that into its own function
+    with a good name. Add the following into the same `beforeEach` block:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Add the first test in a nested `describe` block. This checks that we make the
+    WebSocket connection with the right URL:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Make that pass by filling in the `startSharing` generator function in the file
+    `src/middleware/sharingSagas.js` (remembering that the skeleton has already been
+    created for you). This code constructs a new URL with the right host:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Back in the test suite, modify the WebSocket stub implementation to add an
+    inner spy, `sendSpy`, which will be called when the user calls the `send` function
+    on the WebSocket. We also need to store a reference to the `socketSpy` function
+    that’s created, so we can call the callbacks that the user attaches to its event
+    handlers (such as `onopen` and `onmessage`). This will make sense when we write
+    the next test:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'When test-driving an API with callbacks, such as the WebSocket API, it’s important
+    that we mimic the exact behavior of each callback. We will start with the `onopen`
+    callback. The next test will trigger this as if it was a server sending a message.
+    Because we expect a bunch of asynchronous actions to occur when `onopen` is received,
+    we can use `async act` to wait for the actions to be completed. So, before the
+    next test, define the following function, which triggers the `onopen` callback:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Using act with non-React code
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `async act` function helps us even when we’re not dealing with React components
+    because it waits for promises to run before returning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can then use the `notifySocketOpened` function in our next test, which checks
+    that when the client receives a `START_SHARING` action, it immediately forwards
+    it onto the server:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'To make that pass, start by extracting the existing code in the `startSharing`
+    function into a new function named `openWebsocket`. Then, add in code that invokes
+    a `Promise` object that resolves when the `onopen` message is received on the
+    socket. This code is fairly difficult—we’re building a `Promise` object specifically
+    to adapt the callback-based API into something that we can use with the generator
+    `yield` keyword:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You can now make use of that `openWebSocket` function in `startSharing`. After
+    this, your test should pass:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The next test will send a message over the socket from the server to the app.
+    For this, we need a helper function to mimic sending a message and wait to empty
+    the current task queue of tasks. Add this helper to `test/middleware/sharingSagas.test.js`,
+    just below `notifySocketOpened`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Add the next test, using the function you’ve just defined:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'To make this pass, we’ll read the message from the socket. Once that’s done,
+    we can pass the retrieved information back to the Redux store. Start by adding
+    the following new functions at the top of `src/middleware/sharingSagas.js`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now you can use those functions to finish the implementation of `startSharing`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'That’s it for the process of starting to share. Now let’s deal with what happens
+    when the user clicks the **Stop sharing** button:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create a helper function inside the `describe` block named `sharingSaga`, as
+    shown. This function will change the system to a state of `STARTED_SHARING`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Update the spy to include a `closeSpy` variable, which we set up in the same
+    way as `sendSpy`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Add the first test in a new nested context. It begins by starting sharing and
+    then dispatches the `STOP_SHARING` action:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'To make this pass, we’ll fill out the `stopSharing` generator function. First,
+    however, we need to get access to the socket that we created within the `startSharing`
+    function. Extract that variable into the top-level namespace:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, add the following definition to the `stopSharing` function. You can then
+    run your tests, and everything should pass; however, if you’re running your entire
+    test suite (with `npm test`), you’ll see a couple of console errors appear. These
+    are coming from one test in the `MenuButtons` test suite—we will fix this in the
+    *Updating the app* section later:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Running tests in just a single suite
+  prefs: []
+  type: TYPE_NORMAL
+- en: To avoid seeing the console errors, remember you can opt to run tests for this
+    test suite only using the command `npm test test/middleware/sharingSagas.test.js`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Moving on to the next test, we want to update the Redux store with the new
+    `stopped` status. This will allow us to remove the message that appeared to the
+    user when they began sharing:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'That’s a simple one-liner to make pass:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next up is broadcasting actions from the presenter to the server:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create a new nested `describe` block with the following test:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Make it pass by filling in the following content for the `shareNewAction` function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Add the next test, which checks that we do not send any actions if the user
+    isn’t presenting:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Using not.toBeCalled in an asynchronous environment
+  prefs: []
+  type: TYPE_NORMAL
+- en: This test has a subtle issue. Although it will help you add to the design of
+    your software, it’s slightly less useful as a regression test because it *could*
+    potentially result in false positives. This test guarantees that something doesn’t
+    happen between the start and the end of the test, but it makes no guarantees about
+    what happens *after*. Such is the nature of the async environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Making this test pass is simply a matter of adding a conditional around the
+    code we have:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We also don’t want to share the action if the user has stopped sharing—so let’s
+    add that in:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The WebSocket specification
+  prefs: []
+  type: TYPE_NORMAL
+- en: The constant in the preceding test, `WebSocket.CLOSED`, and the constant in
+    the following code, `WebSocket.OPEN`, are defined in the WebSocket specification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Move to the top of the test file and define the following two constants, underneath
+    your imports. These are needed because when we spy on the WebSocket constructor,
+    we overwrite these values. So, we need to add them back in. Start by saving the
+    real values:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Update your spy to set these constants once `WebSocket` has been stubbed. While
+    we’re here, let’s also set the default `readyState` for a socket to be `WebSocket.OPEN`,
+    which means our other tests won’t break:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, back in the production code, make the test pass by checking if `readyState`
+    is `WebSocket.OPEN`, which is not exactly what the test specified, but it’s good
+    enough to make it pass:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'That’s it for the presenter behavior: we have test-driven the `onopen`, `onclose`,
+    and `onmessage` callbacks. In a real-world application, you would want to follow
+    the same process for the `onerror` callback.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now let’s look at the watcher’s behavior.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Streaming events with redux-saga
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We’ll repeat a lot of the same techniques in this section. There are two new
+    concepts: first, pulling out the `search` param for the watcher ID, and second,
+    using `eventChannel` to subscribe to the `onmessage` callback. This is used to
+    continually stream messages from the WebSocket into the Redux store.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s being by specifying the new URL behavior:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Write a new `describe` block at the bottom of `test/middleware/sharingSagas.test.js`,
+    but still nested inside the main `describe` block:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Make it pass by filling out the `startWatching` function in your production
+    code. You can make use of the existing `openWebSocket` function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In the next test, we’ll begin to make use of the `search` param:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Make it pass by extracting the `search` param using the `URLSearchParams` object:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Before we write the next test, add the following helper function, which mimics
+    the action that will occur on the real WebSocket, ensuring that `onopen` is called:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'When a new watch session has started, we need to reset the user’s output so
+    that it is blank:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Make it pass by adding in a `put` function call:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we need to send a message to the server, including the ID of the session
+    we wish to watch:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We already have our spy set up from the previous section, so this is a quick
+    one to fix:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The next test tells the Redux store that we have started watching. This will
+    then allow the React UI to display a message to the user telling them that they
+    are connected:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Make that pass by adding a new call to `put`, as shown:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now the big one. We need to add in the behavior that allows us to receive multiple
+    messages from the server and read them in:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Long tests
+  prefs: []
+  type: TYPE_NORMAL
+- en: You may think it would help to have a smaller test that handles just one message.
+    However, that won’t help us for multiple messages, as we need to use an entirely
+    different implementation for multiple messages, as you’ll see in the next step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’ll use the `eventChannel` function to do this. Its usage is similar to the
+    earlier `Promise` object usage when we converted a callback to an operation that
+    could be awaited with `yield`. With the `Promise` object, we called `resolve`
+    when the callback was received. With `eventChannel`, when the callback is received,
+    we invoke `emitter(END)`. The significance of this will become apparent in the
+    next step:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Understanding the eventChannel function
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `eventChannel` function from `redux-saga` is a mechanism for consuming event
+    streams that occur outside of Redux. In the preceding example, the WebSocket provides
+    the stream of events. When invoked, `eventChannel` calls the provided function
+    to initialize the channel, then the provided `emmitter` function must be called
+    each time an event is received. In our case, we pass the message directly to the
+    `emmitter` function without modification. When the WebSocket is closed, we pass
+    the special `END` event to signal to `redux-saga` that no more events will be
+    received, allowing it to close the channel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now you can use the `websocketListener` function to create a channel that we
+    can repeatedly take events from using a loop. This loop needs to be wrapped in
+    a `try` construct. The `finally` block will be called when the `emitter(END)`
+    instruction is reached. Create a new generator function that does that, as shown:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Link the `webSocketListener` function and the `watchUntilStopRequest` generator
+    function by calling them both from within `startWatching`. After this step, your
+    test should pass:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The final test is to alert the Redux store that we’ve stopped watching so that
+    it can then remove the message that appears in the React UI:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Make that pass by adding this one-liner to the `finally` block in `watchUntilStopRequest`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You’ve now completed the saga: your application is now receiving events, and
+    you’ve seen how to use the `eventChannel` function to listen to a stream of messages.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: All that’s left is to integrate this into our React component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Updating the app
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We’ve completed the work on building the sagas, but we have just a couple of
+    adjustments to make in the rest of the app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `MenuButtons` component is already functionally complete, but we need to
+    update the tests to properly exercise the middleware, in two ways: first, we must
+    stub out the WebSocket constructor, and second, we need to fire off a `TRY_START_WATCHING`
+    action as soon as the app starts:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Open `test/MenuButtons.test.js` and start by importing the `act` function.
+    We’ll need this to await our socket saga actions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, find the `describe` block named `sharing button` and insert the following
+    `beforeEach` block, which is similar to the same stubbed constructor you used
+    in the saga tests:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, in the same `describe` block, add the following `notifySocketOpened`
+    implementation. This is different from the `notifySocketOpened` implementation
+    in the saga tests, because it calls both `onopen` and then `onmessage`, with a
+    sample message. All of this is necessary for the `startSharing` saga to run correctly:
+    it mimics the WebSocket opening, then the server sending the first message, which
+    should result in the `STARTED_SHARING` message being sent:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We can now use this to update the test that is causing console errors. The
+    test is the one with the description `dispatches an action of STOP_SHARING when
+    stop sharing is clicked`. To avoid the errors, we must adjust a couple of lines.
+    First, we dispatch a `START_SHARING` message, rather than a `STARTED_SHARING`
+    message. Then, we use `notifySocketOpened` to mimic the server response to opening
+    the socket. This will trigger the saga to send a `STARTED_SHARING` event, which
+    causes the `MenuButtons` to change to be named `STOP_SHARING` event to be sent:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'With the test passing, update `src/index.js` to call the `TRY_START_WATCHING`
+    action when the app first loads:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You can now run the app and try it out. Here’s a manual test you can try:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Open a session in a browser window and click **Start sharing**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Right-click on the link that appears and choose to open it in a new window.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Move your two windows so that they are side by side.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In the original window, type some commands, such as `forward 100` and `right
+    90`. You should see the commands update.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now, hit **Stop sharing** in the original window. You should see the sharing
+    messages disappear from both screens.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: That covers test-driving WebSockets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we’ve covered how to test against the WebSocket API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You’ve seen how to mock the WebSocket constructor function, and how to test-drive
+    its `onopen`, `onclose`, and `onmessage` callbacks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You’ve also seen how to use a `Promise` object to convert a callback into something
+    that can be yielded in a generator function, and how you can use `eventChannel`
+    to take a stream of events and send them into the Redux store.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we’ll look at using Cucumber tests to drive some improvements
+    to the sharing feature.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercises
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: What tests could you add to ensure that socket errors are handled gracefully?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The WebSocket specification:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://www.w3.org/TR/websockets/](https://www.w3.org/TR/websockets/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Part 4 – Behavior-Driven Development with Cucumber
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This part is about **behavior-driven development** (**BDD**) using Cucumber
+    tests. Whereas the first three parts were focused on building Jest unit tests
+    at the component level, this part looks at writing tests at the *system* level—you
+    might also think of these as end-to-end tests. The goal is to show how the TDD
+    workflow applies beyond unit testing and can be used by the whole team, not just
+    developers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we end the book with a discussion of how TDD fits within the wider
+    testing landscape and suggestions for how you can continue your TDD journey.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This part includes the following chapters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[*Chapter 17*](B18423_17.xhtml#_idTextAnchor344), *Writing Your First Cucumber
+    Test*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[*Chapter 18*](B18423_18.xhtml#_idTextAnchor355), *Adding Features Guided by
+    Cucumber Tests*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[*Chapter 19*](B18423_19.xhtml#_idTextAnchor375), *Understanding TDD in the
+    Wider Testing Landscape*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

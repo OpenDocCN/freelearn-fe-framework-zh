@@ -1,0 +1,1100 @@
+- en: '*Chapter 7*: Use Context to Cover an Area'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In the previous chapter, we learned how `useMemo` is designed and how to use
+    `useMemo` to conditionally reuse the last value. In this chapter, we will talk
+    about how to propagate changes to cover an area update. We will introduce what
+    an area update is and how *React* context is used to share a value within that
+    area. Then, we will walk through the data structure and source code behind `useContext`
+    to consume the shared value. And finally, we''ll provide two practical examples
+    of applying contexts to the theme and the table. The chapter also includes two
+    bonus topics in the *Appendix* section: *Propagating a context* and *Context scope
+    and value*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will cover the following topics in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is an area update?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introducing the React context
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding the `useContext` design
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Test driving `useContext`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useContext` examples'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Questions and answers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Appendix
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What is an area update?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: On a typical website, once the site is loaded, it starts listening to all user
+    actions. Each action received gets handled on a first-come, first-served basis.
+    Normally, the impact of each action is limited to one small region of the screen,
+    using a *UI* term, a single component. However, sometimes, a user action can do
+    more than that.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's use the computer as an analogy. Say you decide to change the color settings
+    of your system. Once the color is changed, the computer goes through all the open
+    windows and applies that color to them. Therefore, this action can impact multiple
+    applications spread across the screen. This becomes an area update.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Have you wondered how we can make an area update when the impacted components
+    are located very distantly from each other? To be able to answer this question,
+    let's first recall a single update introduced in [*Chapter 4*](B17963_04_Epub.xhtml#_idTextAnchor113),
+    *Use State to Jumpstart Components*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A fiber tree is scheduled for a single update upon receiving an action. This
+    update is localized around a source fiber where the action is received (the red
+    dot in *Figure 7.1*). *React* follows the source and collects all the changes
+    associated with it and then applies them to the *DOM* (red lines). This is the
+    single update pattern in *React*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.1 – A single update originating from a user action'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_7.01_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 7.1 – A single update originating from a user action
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Say the source fiber is a `Title` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding `Title` component gets updated when the user clicks on `count`.
+    It should also update other children in the `...` section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, consider another component called `ThumbUp`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The intention of the `ThumbUp` component is to respond to `count`. When it
+    becomes greater than `5`, we want an `"Awesome"` message to be printed on the
+    screen. The `ThumbUp` component is located in *Figure 7.2*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.2 – Two updates responding to a single user action'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_7.02_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 7.2 – Two updates responding to a single user action
+  prefs: []
+  type: TYPE_NORMAL
+- en: Currently, the `count` variable in the `ThumbUp` component is a made-up one
+    because we don't know how it can be passed from the `Title` component. All we
+    know is that we want to share this `count` among both components and the challenge
+    somehow lies in their relationship.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Apparently, these two components are not a child or parent to one another. There's
+    no direct path from one to the other unless we first go upward multiple steps
+    to the `Branch` component (dark dot in *Figure 7.2*) and then go down again picking
+    another route. Essentially, `Branch` is their common ancestor. So how exactly
+    can we send information between two nodes that are not in a direct parent/child
+    relationship?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's explore this question by taking two approaches, starting with the props
+    approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Props approach
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Since the React props only work for the parent/child setup, to apply the props
+    to this problem, we need to promote the relevant state to a common ancestor, the
+    `Branch` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, the `count` state is relocated from `Title` to `Branch`.
+    From there, `count` and `dispatch` are then sent to the (distant) children via
+    props. Now, if the state changes, the `Branch` component updates all its children,
+    including `Title` and `ThumbUp`. OK, we managed to share the `count` state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although the props approach works in general, it does require us to modify the
+    props for both the `Title` and `ThumbUp` components. Since there can be other
+    components in the path between `Branch` and each of them, all components along
+    the way need to be modified as well. Considering a typical site build, the need
+    to share a state happens in the later stage of the project cycle. Taking this
+    approach can be very expensive due to the number of components we need to modify.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, is there a better way of sharing the prop without touching so many components?
+    Looking at *Figure 7.2*, an intuitive approach could be to dispatch an update
+    to the `Title` component, and an update to the `ThumbUp` component at the same
+    time. The combined impact could produce an area update covering both. Let's see
+    if we can make this idea work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Combined dispatch approach
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To have a combined dispatch, we need to allow both dispatches to be accessible
+    from an event handler. This is a bit tricky since a dispatch function provided
+    via `useState` is normally defined inside one component, either `Title` or `ThumbUp`.
+    To get around that, let''s say we use a global variable for now:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code, we amended the `ThumbUp` component and added a `count`
+    state and a `dispatch` function. We then used a global variable, `dispatch2`,
+    to point to this `dispatch` function so that it can be invoked by other components.
+    Now, with this change, we can ask the `Title` component to perform both dispatches:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: From the preceding setup, after the user clicks on `count`, it performs the
+    `dispatch` from `Title` and performs `dispatch2` from `Greeting`. Although the
+    two `count` states in each component are not pointing to a shared value, both
+    are incremented respectively from these two dispatches. *React* batches these
+    two dispatches into one update to the screen, and if the user continues clicking
+    the number, you will see an `"Awesome"` message on the screen when the `count`
+    state gets bigger than `5`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You might not believe this hack-ish approach would work, but it does. The fact
+    that we call a dispatch function for another component is a bit beyond what *React*
+    designs `useState` to do, but it's not incorrect. This approach requires fewer
+    changes to the code structure. There's no prop involved. All changes are made
+    on the local side of `Title` and `ThumbUp`. More importantly, it serves as an
+    educational case that an update impacting multiple components can be composed
+    of multiple updates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: OK, what we learned from these two approaches is that we want to avoid passing
+    props all the way down in this non-parent/child case, and we want to share the
+    value as well as trigger a sort of combined update following the value change.
+    Moreover, in practice, if the solution can provide the joint dispatch out of the
+    box and require minor modifications to the existing code structure, that would
+    be even better.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By the end of 2017, the *React* team found such needs and introduced a new version
+    of context to address its current limitations at that time. What the new context
+    does is that it helps to share a value through multiple levels of components without
+    requiring a prop in each level. It also provides a mechanism for a distant child
+    component to access a value from an ancestor component. Let's take a look at this
+    *React* context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing the React context
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The context is modeled with a `ReactContext` data type holding a `_currentValue`
+    value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.3 – React context data structure'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_7.03_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 7.3 – React context data structure
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can create a context with the `createContext` function. For instance, if
+    we want to share a piece of user info, we can create a `UserContext` and hold
+    a `defaultValue`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: The created context can be shared via a *JavaScript* `export` statement, and
+    this way, when any other file or component needs it, it can be imported.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The context allows us to provide the value to all consumers underneath via
+    a `Provider` property:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: A context provider, such as `UserContext.Provider`, accepts a `value` prop to
+    share. The provider is a special component. Unlike a function component, it has
+    its own update implementation. When it gets updated due to a change in `value`,
+    it kicks off a search.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The search goes through its children, and its children's children recursively,
+    until everything under gets visited. For all consumers using the context, they
+    are marked to be updated. If you are interested in knowing more about the context
+    provider, check out *Appendix A – Propagating a context*, at the end of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Hence, a provider''s job is to share a value. If multiple values of different
+    purposes are required, we can stack them together. Let''s say that, on top of
+    `UserContext`, we have one more `ThemeContext` context to share:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding usage would enable any consumer in the`...` section to read the
+    value from `theme` or `user`, or both.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One interesting aspect regarding the design of the provider is that a provider
+    can be nested under the same provider to override the shared value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, `theme1` and `theme2` are provided by two providers from
+    the same `ThemeContext` definition. So, which context value does a consumer see,
+    you might wonder?
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are four locations marked `A`, `B`, `C`, and `D` in the preceding code.
+    The value a consumer sees depends on where it's consumed. For location `A`, the
+    value a consumer sees is `theme1`, for location `B`, it's `theme2`, and for location
+    `C`, it's back to `theme1` again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Essentially, the context provider is designed (in a way) like a *JavaScript*
+    function. You can get different values in the different function scopes. To figure
+    out the correct value at a particular location, you need to find the first ancestor
+    parent that provides the `value`. The closest ancestor provider should provide
+    the right context value. This should explain why location `C` gets `theme1` instead
+    of `theme2`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then what is the context value outside of any provider scope, for instance,
+    at location `D`? Since it does not happen to be an ancestor provider that you
+    can find above the `Branch` component. This is where `defaultValue` comes into
+    play:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When no other provider can be found to provide the value, it takes the `defaultValue`
+    supplied at the time the context is created. This implies that the default value
+    isn''t a must-have, but it can be useful for taking a sneak peek into the format
+    of a context type early on:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: Internally, *React* uses a stack to push and pop the context to keep track of
+    context values for all provider scopes. If you are interested in knowing this
+    detail, check out *Appendix B – Context scope and value*, at the end of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: OK, now that we know how to provide a context value, let's see how we can consume
+    it in a consumer/child component. *React* provides a `useContext` hook to do just
+    that.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the useContext design
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*React* provides a `useContext` hook to consume a context:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `useContext` hook function takes one input argument, `context`, and returns
+    the shared value. `context` is normally imported from a definition file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: useContext data structure
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We are going to explain how `useContext` is designed with a stripped-down version
+    of the source code. Let''s take a look at the data structure that makes it happen:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.4 – useContext hook data structure'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_7.04_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 7.4 – useContext hook data structure
+  prefs: []
+  type: TYPE_NORMAL
+- en: To consume (or read) a context value, each fiber gets a new `dependencies` property
+    to keep track of all the context it consumes. This is because a component can
+    use multiple `useContext` and each usage consumes a different context, such as
+    `UserContext` and `ThemeContext`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `dependencies` property is designed as a linked list with its `firstContext`
+    property to hold the first context with a `ContextItem` type. Each `ContextItem`
+    holds a `ReactContext` (the context introduced earlier) and a `next` property
+    pointing to the next context. The dependencies list is how the provider finds
+    all consumers while propagating the update.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `useContext` hook is designed to read a context value for all updates:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: The main job of `useContext` in the preceding code block is to return `_currentValue`
+    from `context`. It also appends `context` to the fiber's `dependencies` list before
+    returning the context value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`lastDependency` is an auxiliary variable that keeps track of the last context
+    of the update. If this is the first context, it''s then created as `firstContext`,
+    otherwise it is appended to the `next` of the list. At the beginning of the update,
+    `lastDependency` is set to be `null`. Thus, the list of `dependencies` for each
+    fiber is recreated in every update, and this reminds us how hooks are created
+    in each update.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: useContext workflow
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'You have gone through a stripped-down version of `useContext` code. Here is
+    the summary workflow for both provider and `useContext`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.5 – useContext and ContextProvider workflow'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_7.05_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 7.5 – useContext and ContextProvider workflow
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's have a quick run-through. A context is provided through a provider. In
+    the event of a value change from the provider, it finds all the consumers and
+    propagates the update. Otherwise, it skips the update.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In an update, when a `useContext` hook is invoked with a given context, it appends
+    the context to the fiber's `dependencies` list and returns the context's current
+    value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have gone through the overall design, let's take it all out for
+    a test drive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Test driving useContext
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Context is fun to use and has quite a few common applications. Consider a site
+    with a user logo displayed at the top-right corner of the screen:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.6 – An application with App, Header, and Logo'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_7.06_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 7.6 – An application with App, Header, and Logo
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The site is created with an `App` component, containing `Header` and `Main`.
+    And in turn, `Header` contains `Logo`, and `Site` contains `Greeting`. `App`,
+    `Header`, and `Logo` are defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Assuming the user gets authenticated as an `initialUser` and sent to the `App`,
+    it gets passed via a prop to `Header` and `Logo`. In `Logo`, it gets consumed
+    by its `imageUrl` property and `username` to display a logo. Notice the interface
+    for all components needs to carry `user` as a prop. Since we want to display a
+    greeting message under `Main`, the `user` needs to be passed via a prop as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s see how a context can help to simplify this setup. Let''s say we define
+    a `UserContext`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the `App`, we can provide the `initialUser` via `UserContext.Provider`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice that `Header` and `Main` don't have to carry the `user` prop anymore.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `App` component creates a `user` state for holding `initialUser`. The `changeUser`
+    function can be used to replace the current user if needed. It then assembles
+    a `value` object from `user` and `changeUser` to be shared via `UserContext.Provider`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Inside `Logo`, we can consume the value provided, which includes the `user`
+    property:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, the `user` object is obtained by reading off the `UserContext`
+    via an ES6 syntax. For those readers who are interested in knowing about ES6 usages,
+    check out the *Embracing JavaScript ES6* section in [*Chapter 10*](B17963_10_Epub.xhtml#_idTextAnchor363),
+    *Building a Website with React*. Once the `user` is obtained, we can use the `imageUrl`
+    and `username` properties of `user` to quickly wire them to the existing `Logo`
+    component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The same applies to the components under `Main`, such as `Greeting`, which
+    shows the `Hello Fang` message depending on the currently logged-in user. We can
+    utilize the context to accomplish that with little effort:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: It's important to note that with a context such as `UserContext`, our app becomes
+    much more manageable and scalable pertaining to everything about accessing the
+    `user` object. Because the information becomes context info, as long as the component
+    falls into this context, it can access it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we know how to read the user object, let's see if we can change it
+    from `initialUser`, such as allowing the user to log in and out of the app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Changing the context value
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Say we add a `Logo`. When this button is clicked, the current user is logged
+    out, meaning their logo should no longer be available for display:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, the `changeUser` function is provided via `UserContext`.
+    It defines an `authenticated` flag based on whether the `username` is available.
+    This flag can be used to decide whether the *UI* should display the **Logout**
+    or **Login** button.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If the user is authenticated, the `onLogout` event handler is triggered to `changeUser`
+    to an empty object, `{}`. `changeUser` is a dispatch function we defined earlier,
+    and when it updates the `user`, it also propagates the update to all consumers,
+    including the `Logo` component. Thus, when the next update arrives, `user` holds
+    an empty object with no `username`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If the user is not authenticated, the `onLogin` event handler is triggered
+    where we can redirect the user to a `LoginForm` (the redirection code is omitted
+    here):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`LoginForm` also consumes the `UserContext` and reads the `changeUser` property.
+    Upon successful submission of the form, we can use `changeUser` again to change
+    the empty user into an authenticated user. Similarly, the new update propagates
+    the update to all consumers, including `Logo` and `Greeting`. Thus, the user will
+    see their logo and username in the top-right corner after logging in, as well
+    as a greeting message on the main body. See *Figure 7.6*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: User login and logout are generally important operations for a site because
+    it has a direct impact on site authentication and authorization. Especially when
+    refreshing the page entirely isn't an option, the context is a perfect fit in
+    terms of reading and writing the user object without worrying about the out-of-sync
+    moment among various components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have seen how a context update orchestrates the updating of all
+    components in the event of a context change, let's take a look at two more examples
+    using contexts in real applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: useContext examples
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Context is used for sharing site-wise information, but it can be also very effective
+    in sharing things in a narrower area. In this section, we'll see examples of both
+    cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Theme context
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'One nice and common usage involving a context is theming, which allows the
+    user to switch between a light and dark theme based on their preference. See *Figure
+    7.7*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.7 – A theme made with light and dark options'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_7.07_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 7.7 – A theme made with light and dark options
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To implement this feature, let''s start with `ThemeContext`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can set the default theme with an object supporting a `mode` property, which
+    is a string to hold either "light" or "dark".
+  prefs: []
+  type: TYPE_NORMAL
+- en: Design theme context
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Any component that requires the theme can read the settings from `ThemeContext`.
+    Let''s build a theme-aware `Button` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can theme the button''s style based on the shared `mode` inside the `ButtonStyle`
+    component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`ButtonStyle` is a styled component applied on top of the host `button` component
+    with modified *CSS*. It receives the `mode` prop and, based on that, we can define
+    its `color` with either `"white"` or `"black"`. If you are interested in using
+    `StyledComponent`, please check out the *Adopting CSS-in-JS approach* section
+    of [*Chapter 10*](B17963_10_Epub.xhtml#_idTextAnchor363), *Building a Website
+    with React*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Based on this approach, we can build lots of other theme-aware components.
+    And imagine a situation where we have a couple of them under `App`; in the event
+    of the mode changing, they can all be flipped to their corresponding styles in
+    a single update:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now let''s talk about how to design a context. In the preceding theming case,
+    we used `mode` to flip between themes, but we also can bake the exact style into
+    it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding context, two individual colors for primary and secondary purposes
+    are defined. This way, we can directly read the color in `Button`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: There's no right or wrong in terms of how we should design a context. The decision
+    as to what property you should use is more or less based on how you want to consume
+    these properties and design the components. In our case, the decision is more
+    about whether the component should be based on `mode` or `primaryColor`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Apply theme manually
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Using a theme for a group of components works out great with a theme context.
+    However, sometimes there will be a requirement where we want to apply a theme
+    to one particular component without touching the theme of all the other components.
+    This normally applies to a nav header component that gets a different contrast
+    color to the rest of the site.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This problem can be solved by applying a context in a separate scope:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding `Header` component, another usage of `ThemeContext.Provider`
+    is written to provide a different `mode` theme, while `App` has already been provided
+    with a `mode` theme. Let's say the `App` theme is `'light'`; it changes to `'dark'`
+    when it enters `Header`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When the theme-aware `Button` component gets updated, it looks for the closest
+    ancestor that defines the provider. Since the ancestor found is `Header` instead
+    of `App`, it reads the `'dark'` mode.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We are free to override parts of the context value instead of overriding the
+    entire value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding context, `Header` takes the current theme from the parent scope
+    and overrides the `primaryColor` property to `'blue'`. Thus, all child consumers
+    under `Header` see a modified theme setting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Theme Context
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/xxLrwJy](https://codepen.io/windmaomao/pen/xxLrwJy).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now we see that a context is a perfect fit for site-wise subjects such as a
+    theme. The context does not have to always be as big as a site; if we can identify
+    an area, we should be able to apply a context to it. Let's take a look at an example
+    where we apply the context to a targeted area such as a table.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table context
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Another usage of context is to apply the context to a place that can be small
+    but big enough to contain many relevant components inside, such as a table. See
+    *Figure 7.8*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.8 – A table containing customizable cell displays'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_7.08_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 7.8 – A table containing customizable cell displays
+  prefs: []
+  type: TYPE_NORMAL
+- en: A table can be quite complex in a modern *UI*, where it contains a header, a
+    body, a footer, pagination, and a customizable column setting to drive the look
+    and feel of cells. Moreover, all these elements can be assembled in a mix-and-match
+    way on the fly to suit different business purposes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Customizing table cells
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'A table is made up of rows and columns of cells where each cell can be controlled
+    by a cell component such as `DefaultCell`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: The prop `value` is used to pass in a primitive value from a property of a row,
+    such as a string or a number. In a typical case, we simply display it as a string
+    format, as in the preceding code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Given a table row tracking a list of fruits:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding column for `title` is a perfect example, and it should display
+    a list of fruit names. However, not all cells are plain strings, since we can
+    display a cell as a status indicator, a progress bar, a checkbox, and so on. In
+    our case, we have a column for `status` indicating whether the fruit tastes nice
+    or just OK, which can be handled by another cell behavior:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding custom `StatusCell` component, the value passed in is a boolean,
+    and it displays either `'Nice'` or `'Ok'`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This means we need a generic `TableCell` where we can pass in some sort of
+    column information to customize the display:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding `TableCell` component, a `col` prop is provided to describe
+    how a cell should update. Let''s take a look at the information in two columns
+    for both `title` and `status`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: For the second column, the `Cell` property is specified as a custom `StatusCell`,
+    whereas the first column omits it, thus taking the `DefaultCell`. With this `col`
+    capability, we can design a custom look and feel for all sorts of cells.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Design table context
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The example so far displays the cell based on the cell content, `row[col.name]`.
+    As long as the column name matches the data stored in the row data, we should
+    find the correct cell value. But sometimes, they might not match or, even worse,
+    sometimes we need to display a cell based on multiple columns. For instance, to
+    display a person's full name, we need the person's first name and last name, which
+    are spread out across two columns. Only `row` can provide enough. But we only
+    have a cell `value`. Where can we get a `row`?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can pass the `row` into each `TableCell` as a prop. But say we want to avoid
+    the props approach to keep the cell interface flexible. In this case, we can create
+    a `TableContext`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding `TableContext`, we add a `row` property as well as `rows`
+    and `cols` so that all consumers can share them. We can then provide it to each
+    row of a table in the `TableRow` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `TableRow` component is responsible for updating a row of the table. We
+    use `TableContext` for two purposes here, one to get all the `cols` stored, and
+    one to override the `row` property with one provided before providing the context
+    back to each row. Now, when we get to each cell component, we should be able to
+    get the current `row`. To demo it, we can set up another custom column for `''combo''`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The idea of the `''combo''` column is to join both `''title''` and `''status''`
+    in a single cell via a custom `ComboCell` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, we grab the current `row` info from `TableContext` and
+    access both the `title` and `status` properties. With this approach, we can literally
+    assemble any information from the current row. Also, notice that there's no props
+    passed into this component. This means, as long as you import `TableContext`,
+    you can design a custom cell anywhere you want. This decoupling, having no explicit
+    dependency, should make us very comfortable designing a custom cell style on the
+    fly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can argue, were we to provide the `row` directly to the `ComboCell`, we would
+    achieve the same functionalities without the table context setup. That can be
+    true. The choice of whether you pass the `row` as a prop or from a context impacts
+    how you design the cells.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In our case, passing `row` from a context does make the design a bit more flexible.
+    Let's continue our example and see the usage of this `TableContext` in other places.
+    Let's say this time that a cell needs to know more information, such as the `cols`
+    settings, or even a piece of action associated with the table, such as deleting
+    a row.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s take a look at one example where we delete a row of tables by clicking
+    from a cell. Now, in order to manage the content of the table, we can provide
+    a state `[rows, setRows]` to the `Table` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code, the `Table` component is responsible for displaying
+    all the rows of a table. The passed-in `rows` and `cols`, as well as a `setRows`
+    dispatch function, are all sent to the `TableContext` provider to be consumed.
+    With this, we can define a custom `DeleteCell` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, `DeleteCell` contains a `newRows`, by filtering out the
+    current `row` and then uses the `setRows` dispatch function to replace the table
+    content. Once `rows` is updated, it should trigger a provider update and thereby
+    propagate a change to all table components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Without a context to provide `setRows`, it would have to be passed through lots
+    of layers to reach `DeleteCell`. Even in this brief example, the number of layers
+    is not straightforward. Moreover, in this case, we don't exactly know the name
+    of the component beforehand. It could be `DeleteCell` or `DefaultCell`, or any
+    cell component that hasn't been designed yet. Therefore, the context usage here
+    is really helpful in delivering things to an area underneath without knowing the
+    exact location.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Table Context
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/VwzWeMa](https://codepen.io/windmaomao/pen/VwzWeMa).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s conclude this table example by means of `Table` component usage under
+    the `App` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We learned a really cool concept in this chapter, that is, a context. First,
+    we got to know what is a context under *React*. We then dug deeper into the context
+    design as well as how to consume it with a `useContext` hook. We then went through
+    a context test drive by managing a user object for a site and further learned
+    two more applications of applying contexts to the `Theme` and the `Table`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will get into our next hook in the *React* family and
+    see how a ref can be used to hide private matters away from the engine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions and answers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The following are some questions and answers to refresh your knowledge:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is a *React* context?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A *React* context is an identity that can be used to share a value with consumers.
+    It's designed so that a value can be provided to a localized scope, hence all
+    components within that scope can read from this shared value.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: What is the `useContext` hook?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The `useContext` hook is used in a consumer component so that it can read a
+    context given by providers. A component can consume as many contexts as it can.
+    When the provider gets updated, all the consumer components for that particular
+    context get updated at the same time.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: What's the common usage of `useContext`?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The `useContext` hook is a hook in the *React* hook family when it comes to
+    an update involving an area of components. We often see this context usage in
+    `User`, `Theme`, and `Table`, which requires the consumption of a value under
+    an ancestor component without passing it explicitly through layers of components.
+    The `useContext` hook also makes it possible to deliver a value to an area without
+    knowing exactly where the destination is.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Appendix
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Appendix A – Propagating a context
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'React comes with different kinds of fibers. While a function component is one
+    of them, the context provider is another one. It gets its own update logic with
+    each update:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, the `updateContextProvider` function takes in `fiber`,
+    and checks whether it has been mounted or not via `oldProps !== null`. If it's
+    a first-time mount, then it does things similar to a function component, reconciling
+    the children into fibers and then returning the first child to work on next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If it''s not the first time, such as during an update, it then compares the
+    `value` prop between `oldValue` and `newValue`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If it turns out that there''s no change in the value provided from the strict
+    equal comparison, `===`, and if there''s no change in the children, it then bails
+    out the fiber and skips the reconciliation. Otherwise, if there''s a change in
+    the value provided, it propagates the context change to all its consumer fibers
+    via the `propagateContextChange` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: The propagation goes for a deep search under the `fiber` fiber and checks to
+    see whether it contains the same `context` as per the `firstContext`. If it finds
+    a match, it invokes a `scheduleWorkOnParentPath` function to schedule an update
+    along the path from the root to the parent. This function is quite similar to
+    `scheduleUpdateOnFiber`, which we see in the `useState` hook. But here, instead
+    of doing it once, this function is applied to all consumers found.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In short, you can see that a provider is a special component that schedules
+    an update for all consumers reading from the same context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Appendix B – Context scope and value
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A context value changes under different scopes of a context. But what does this
+    statement mean?
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding convoluted example, can you guess what the output is if we
+    invoke `provider1(1)`? Please take a minute to think. The answer is `3`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because each function has a scope, within the scope of the function, all local
+    variables from the input argument take precedence. Though the outer `value` is
+    `1`, the inner `value` becomes `3` due to the change of scope.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The context provider is designed in a similar fashion; it uses a stack to push
+    the old value in before entering one scope, and then pop the old value out after
+    leaving the same scope. This way, an outer scope is always kept in memory when
+    we work in an inner scope.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s take a look at this process closely. Say `cursor` holds the value in
+    one outer scope, and it wants to enter the inner scope with a new `value`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, `cursor` is a global variable, which holds the current
+    value under the `current` property. The `push` operation puts the old value in
+    the stack and then replaces the current value of `cursor` with the new `value`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Therefore, once we enter the inner scope, the `current` of `cursor` is updated
+    to the latest, so how do we get back the old value once we finish this inner scope?
+    Yes, we perform a `pop` operation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, we pop the previous stacked value back to the `cursor`.
+    So now, when we get out of the inner scope, the value gets back to the old value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This mechanism is exactly what''s applied to our context provider:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When it gets to the update of a provider, it pushes the old value and replaces
+    it with a new value with a `pushProvider` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: The last line of `pushProvider` sets the `_currentValue` of the context with
+    the `nextValue` from the `value` prop. This is how the consumer in the inner scope
+    gets the inner value. But before that, it pushes an old value of `_currentValue`
+    in the stack and stores it in a global variable, `valueCursor`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before we move out of the provider''s scope, `popProvider` is invoked:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: The last line of `popProvider` sets the `currentValue` of the context back to
+    the saved value from `valueCursor`. But before that, it pops the old value from
+    the stack.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, at all times, there's a `valueCursor` to hold the outer scope value, while
+    `context._currentValue` holds the current/inner scope value. This means that the
+    context value stored in `_currentValue` is not a fixed value throughout the update.
+    Hopefully, you can now see that a context has a "global" sense and varies based
+    on the scope.
+  prefs: []
+  type: TYPE_NORMAL

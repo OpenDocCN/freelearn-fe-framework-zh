@@ -1,0 +1,1499 @@
+- en: '17'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Introducing React Server Components
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: After implementing our static blog app in Next.js, it’s time to introduce some
+    interactivity to it. Instead of using the traditional pattern of writing a separate
+    backend server, which the frontend fetches data from and makes requests to, we
+    are going to use a new pattern called **React Server Components** (**RSCs**).
+    This new pattern allows us to directly access the database from React components
+    by executing certain React components (so-called server components) only on the
+    server. Together with Server Actions (a way to call functions on the server from
+    the client), this new pattern allows us to easily and quickly develop full-stack
+    apps. In this chapter, we are going to learn what RSCs and Server Actions are,
+    why they matter, what their advantages are, and how to implement them properly
+    and securely.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we are going to cover the following main topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What are RSCs?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Adding a data layer to our Next.js app
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using RSCs to fetch data from the database
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using Server Actions to sign up, log in, and create new posts
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before we start, please install all the requirements from [*Chapter 1*](B19385_01.xhtml#_idTextAnchor016),
+    *Preparing For Full-Stack Development*, and [*Chapter 2*](B19385_02.xhtml#_idTextAnchor028),
+    *Getting to Know Node.js* *and MongoDB*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The versions listed in those chapters are the ones used in this book. While
+    installing a newer version should not be an issue, please note that certain steps
+    might work differently. If you are having an issue with the code and steps provided
+    in this book, please try using the versions mentioned in *Chapters 1* and *2*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can find the code for this chapter on GitHub: [https://github.com/PacktPublishing/Modern-Full-Stack-React-Projects/tree/main/ch17](https://github.com/PacktPublishing/Modern-Full-Stack-React-Projects/tree/main/ch17).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The CiA video for this chapter can be found at: [https://youtu.be/4hGZJRmZW6E](https://youtu.be/4hGZJRmZW6E).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What are RSCs?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'So far, we have been using the traditional React architecture, where all components
+    are **client components**. We started with client-side rendering. However, there
+    are some downsides to client-side rendering:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The JavaScript client bundle must be downloaded from the server before the client
+    can start rendering anything, delaying the **first contentful paint** (**FCP**)
+    for the user.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Data must be fetched from the server (after all JavaScript is downloaded and
+    executed) to show anything meaningful, delaying the **first meaningful paint**
+    (**FMP**) for the user.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Most of the load is on the client, even for pages that are not interactive,
+    which is especially problematic for clients with slow processors, such as low-end
+    mobile devices or old laptops. It also uses more battery to load a heavy client-side
+    rendered page.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In certain cases, data is fetched sequentially (for example, loading posts first
+    and then resolving the authors of each post), which is especially a problem for
+    slow connections with high latency.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'To solve these problems, **server-side rendering** (**SSR**) was introduced,
+    but it still has a big downside: the initial page load can be slow due to everything
+    being rendered on the server. This slowdown happens because of the following reasons:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Data must be fetched from the server before any of it can be shown.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The JavaScript client bundle must be downloaded from the server before the client
+    can be hydrated with it. Hydration means that the page is ready to be interacted
+    with by a user. To refresh your knowledge of how hydration works, check out [*Chapter
+    7*](B19385_07.xhtml#_idTextAnchor147).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Hydration has to be completed on the client before anything can be interacted
+    with.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Even when a client component is pre-rendered on the server, its code will be
+    bundled and sent to the client for hydration. This means that client components
+    can run on both the server (for SSR) and the client, but they need to at least
+    be able to run on the client.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In a traditional full-stack React architecture with only client components,
+    if we needed to access the filesystem of the server or a database, we needed to
+    write a separate backend using Node.js and expose an API (such as a REST API).
+    Then, this API was queried in client components, for example, using TanStack Query.
+    These queries can also be made on the server side (as we saw in [*Chapter 7*](B19385_07.xhtml#_idTextAnchor147),
+    *Improving the Load Time Using Server-Side Rendering*), but they need to at least
+    be executable on the client. This means we cannot directly access the filesystem
+    or database from a React component, even if that code could run on the server;
+    it would be bundled and sent to the client, where running it would not work (or
+    expose internal information, such as credentials, to the database):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 17.1 – The architecture of a full-stack app without and with RSCs](img/B19385_17_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 17.1 – The architecture of a full-stack app without and with RSCs
+  prefs: []
+  type: TYPE_NORMAL
+- en: React 18 introduced a new feature called RSCs, which allows us to define components
+    that will be solely executed on the server, with only the output sent to the client.
+    Server components can, for example, fetch data from a database or the filesystem,
+    and then render interactive client components, passing that data as props to them.
+    This new feature allows for an architecture where we can more easily write a full-stack
+    application using only React, without having to deal with the overhead of defining
+    a REST API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: It might still make sense to define REST APIs for certain apps, especially if
+    the backend is developed by another team in a larger-scale project, or if it is
+    consumed by other services and frontends.
+  prefs: []
+  type: TYPE_NORMAL
+- en: RSCs solve the aforementioned issues with client-side rendering and SSR by allowing
+    us to execute code exclusively on the server (no hydration needed on the client!)
+    and selectively streaming components (so we don’t have to wait for everything
+    to pre-render before serving components to the client).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following figure compares **client-side rendering (CSR)** with SSR and
+    RSCs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 17.2 – Comparison between CSR, SSR and RSC](img/B19385_17_2.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 17.2 – Comparison between CSR, SSR and RSC
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you see, RSCs are not only faster overall (as a result of fewer roundtrips
+    over the network), but they can also display the layout of an app immediately
+    while waiting for the rest of the components to load.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s sum up the most important features of RSCs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: They can run ahead of time and are excluded from the JavaScript bundle, reducing
+    bundle size and improving performance.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: They can run either during build time (resulting in static HTML) or be executed
+    on the fly when a request comes in. Interestingly, server components can also
+    be exclusively executed during build time, resulting in a static HTML bundle.
+    This can be useful for statically built CMS apps or personal blogs. RSCs also
+    allow a mix, where the initial cache is primed with a static build, and then later
+    revalidated through Server Actions or Webhooks. We are going to learn more about
+    caching in [*Chapter 18*](B19385_18.xhtml#_idTextAnchor321)*, Advanced Next.js
+    Concepts* *and Optimizations*.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: They can pass (serializable) data to client components. Additionally, client
+    components can still be server-side rendered to further improve performance!
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Inside a server component, other server components can be passed as props to
+    client components, allowing for composition patterns where server components are
+    “slotted into” interactive client components. However, all components that are
+    imported inside client components will be considered client components; they cannot
+    be server components anymore.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In frameworks such as Next.js, by default, a React component is considered a
+    server component. If we want to turn it into a client component, we need to write
+    the `"use client"` directive at the beginning of a file. We need to do this to
+    make it possible to add interactivity (event listeners) or use state/life cycle
+    effects and browser-only APIs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The **"use client"** directive defines a network boundary between server and
+    client components. All data sent from a server component to a client component
+    will be serialized and sent over the network. When using the **"use client"**
+    directive in a file, all other modules that are imported into it, including child
+    components, are considered to be part of the client bundle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following figure provides an overview of when to use a server component
+    or a client component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 17.3 – Overview of when to use server components and client components](img/B19385_17_3.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 17.3 – Overview of when to use server components and client components
+  prefs: []
+  type: TYPE_NORMAL
+- en: In general, RSCs are an optimization over client components. You could simply
+    write `"use client"` at the top of every file and be done with it, but you would
+    be leaving all the advantages of RSCs behind! So, try to use server components
+    whenever possible, but do not hesitate to fall back to defining something as a
+    client component if it turns out to be too complicated to split it up into server-side
+    and client-side parts. It can always be optimized later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This new way of writing full-stack React applications can be hard to grasp in
+    theory, so feel free to come back to this section again at the end of this chapter.
+    For now, we’ll move on and implement RSCs in our Next.js app as this will help
+    us understand how the new concepts work in practice. First, we’ll start by adding
+    a data layer to our Next.js app, which will allow us to access the database from
+    RSCs later on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adding a data layer to our Next.js app
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the traditional backend structure, we had the database layer, the services
+    layer, and the routes layer. In a modern full-stack Next.js app, we don’t need
+    the routes layer of our backend because we can directly interface with it in RSCs.
+    So, we only need to have the database layer and a data layer to provide functions
+    that access the database. Theoretically, we could directly access the database
+    in RSCs, but it is best practice to have specific functions that access it in
+    certain ways. Defining such functions allows us to clearly define what data is
+    accessible (and thus avoid accidentally leaking too much information). They are
+    also more reusable and make it easier to unit-test and find potential vulnerabilities
+    (for example, via a penetration test) in the data layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To recap, there are three main data-handling approaches:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**HTTP APIs**: We used these in previous chapters to implement our blog app.
+    These can be useful when separate teams are working on the backend and frontend.
+    Due to this, this approach is recommended for existing large projects and organizations.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Data access layer**: This is the pattern we are going to use in this section.
+    It is recommended for new projects that make use of the RSC architecture as it
+    makes it easier to implement full-stack projects by separating concerns of dealing
+    with data (and all the security challenges associated with that) and the user
+    interface (displaying the data in React components). Dealing with each problem
+    on its own is easier to solve and less error-prone than handling the complexity
+    of both at once.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Component-level data access**: This is a pattern where the database is queried
+    directly in RSCs. This approach can be useful for rapid prototyping and learning.
+    However, it should not be used in a production app due to scalability issues and
+    the potential introduction of security problems.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It is not recommended to mix these approaches, so it’s better to pick one and
+    stick to it. In our case, we are going with the “data access layer” approach as
+    it is the safest approach for a modern RSC architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up the database connection
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let’s start by setting up the necessary packages and initializing a database
+    connection:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Copy the existing **ch16** folder to a new **ch17** folder, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Open the **ch17** folder in VS Code and open a Terminal.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We are going to use a package called **server-only** to make sure code from
+    the database and data layer are only executed on the server-side, and not accidentally
+    imported on the client. Install it, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We are also going to need the **mongoose** package to connect to the database
+    and create database schemas and models. Run the following command to install it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Create a new **src/db/** folder.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Inside this folder, create a new **src/db/init.js** file, in which we first
+    import the **server-only** package to make sure the code is only executed on the
+    server:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, import **mongoose**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define and export an **async** function to initialize the database:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, we need to define **DATABASE_URL** in a **.env** file. So, create a new
+    **.env** file in the root of the project and add the following line:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now that the database connection has been set up, we can move on to creating
+    the database models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating the database models
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now, we are going to create database models for posts and users. These are
+    going to be very similar to the ones we created for our blog app in previous chapters.
+    Follow these steps to start creating the database models:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a new **src/db/models/** folder.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Inside it, create a new **src/db/models/user.js** file, where we first import
+    the **server-only** and **mongoose** packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define **userSchema**, which consists of a unique required **username** and
+    a required **password**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We create the Mongoose model if it has not been created yet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Returning the model if it already exists and only creating a new one if it does
+    not is necessary to avoid an **OverwriteModelError** issue, which happens when
+    the model is imported (and thus redefined) multiple times.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create a new **src/db/models/post.js** file, where we first import the **server-only**
+    and **mongoose** packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define **postSchema**, which consists of a required **title** and **author**
+    (referencing the **user** model), and optional **contents**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We create the Mongoose model if it has not been created yet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Create a new **src/db/models/index.js** file and re-export the models:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We re-export the models from this folder to ensure that we can, for example,
+    load a post and resolve the `author` by querying the corresponding user. This
+    would require defining the `user` model, although it is not directly used. To
+    avoid issues like these, we simply load models from a file that defines all models
+    upon importing them.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: After defining the database models, we can define the data layer functions,
+    which will provide various ways to access the database.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining data layer functions
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Now that we have a database connection and schemas, let’s start defining data
+    layer functions that access the database.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the posts data layer
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We’ll start by defining the data layer for posts. This allows us to access
+    all the relevant functions for dealing with posts in our app:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a new **src/data/** folder.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Inside it, create a new **src/data/posts.js** file, where we import the **server-only**
+    package and the **Post** model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define a **createPost** function that takes a **userId**, **title**, and **contents**
+    and creates a new post:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, define a **listAllPosts** function, which first gets all posts from the
+    database sorted by creation date descending (showing the newest posts first):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, we must **populate** the **author** field by resolving the **user** model
+    and getting the **username** value from it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In Mongoose, the `populate` function works like a `JOIN` statement in SQL:
+    it takes the ID stored in the `author` field and then checks which model the ID
+    references by looking at the `post` schema. In the `post` schema, we defined that
+    the `author` field references the `user` schema, so Mongoose will query the `user`
+    model for the given ID and return a user object. By providing the second argument,
+    we specify that we only want to get the `username` value from the `user` object
+    (the ID will always be returned anyway). This is done to avoid leaking internal
+    information, such as the (hashed) password of a user.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'After populating the post objects, we use **.lean()** to turn it into a plain,
+    serializable JavaScript object:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Having a serializable object is necessary to be able to pass the data from an
+    RSC to a regular client-side component later since all data passed to the client
+    needs to cross the network boundary, and thus needs to be serializable.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Lastly, we must define a **getPostById** function, which finds a single post
+    by ID, populates the **author** field, and turns the result into a plain JavaScript
+    object by using **lean()**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Defining the data layer for users
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We are now going to define the data layer for users. This will involve creating
+    a JWT for authentication. Again, a lot of the code will be very similar to what
+    we previously implemented for our blog app. Follow these steps to start defining
+    the data layer for users:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install **bcrypt** (for hashing the user password) and **jsonwebtoken** (for
+    handling JWTs):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Create a new **src/data/users.js** file, where we import **server-only**, **bcrypt**,
+    **jwt**, and the **User** model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define a **createUser** function, where we hash the given password and then
+    create a new instance of the **User** model and save it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, define a **loginUser** function, which first tries to find a user with
+    the given username and throws an error if no user is found:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Depending on your security requirements, you might want to consider not telling
+    a potential attacker that a username exists and instead return a generic message
+    such as “Invalid username or password.” However, in our case, the usernames are
+    assumed to be public information because each user is an author on the blog and
+    their usernames are published with their articles.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, use **bcrypt** to compare the provided password against the hashed password
+    from the database and throw an error if the password is invalid:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Lastly, generate, sign, and return a JWT:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, we are going to define a function to get the user information (for now,
+    we’re only going to get the username, but this could be extended later) from a
+    user ID. If the user ID does not exist, we throw an error:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, define a function to get the user ID from a token, making sure to verify
+    the token signature in addition to decoding the JWT, by using **jwt.verify**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, define a function to get the user information from a token by combining
+    the **getUserIdByToken** and **getUserInfoById** functions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We still need to define the **JWT_SECRET** environment variable for our code
+    to work. Edit **.env** and add it, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is a very basic implementation of authentication with Next.js. For a large-scale
+    project, it is recommended to look into a fully-fledged authentication solution,
+    such as Auth.js (formerly next-auth), Auth0, or Supabase. Check out the Next.js
+    docs for more information on authentication with Next.js: [https://nextjs.org/docs/app/building-your-application/authentication](https://nextjs.org/docs/app/building-your-application/authentication).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have a data layer to access the database, we can start implementing
+    RSCs and Server Actions, which are going to call functions from the data layer
+    to access information from the database and render React components that display
+    it, turning our static blog app into a fully functional blog.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using RSCs to fetch data from the database
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As we have learned, when using Next.js, React components are considered to be
+    Server Components by default, so all page components are already executed and
+    rendered on the server. Only if we need to use client-only functions, such as
+    hooks or input fields, do we need to turn our components into a client component
+    by using the `"use client"` directive. For all components that do not require
+    user interaction, we can simply keep them as server components, and they will
+    only be statically rendered and served as as HTML (encoded in the RSC payload)
+    and not hydrated on the client. To the client (the browser), it will seem as if
+    these React components don’t even exist as the browser will only see static HTML
+    code. This pattern greatly improves the performance of our web application as
+    the client doesn’t need to load JavaScript to render such components. It also
+    reduces the bundle size because less JavaScript code is needed to load our web
+    application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s implement RSCs to fetch data from the database.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fetching a list of posts
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We’ll start by implementing the `HomePage`, where we fetch and render a list
+    of posts:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Edit **src/app/page.js** and import the **initDatabase** and **listAllPosts**
+    functions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Turn the **HomePage** component into an **async** function, which allows us
+    to wait until the data is fetched before rendering the component:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '*Replace* the sample **posts** array with the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Fetching a single post
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now that we can view a list of posts, let’s continue by implementing the process
+    of fetching a single post for `ViewPostPage`. Follow these steps to get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Edit **src/app/posts/[id]/page.js** and import the **notFound**, **getPostById**,
+    and **initDatabase** functions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Turn the page component into an **async** function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '*Replace* the sample **post** object with calls to **initDatabase** and **getPostById**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now, we need to create a `not-found.js` file to catch the error and render a
+    different component instead.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Create a new **src/app/posts/[id]/not-found.js** file, where we render a “Post
+    not found!” message, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Tip
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can also add an **app/not-found.js** file to handle unmatched URLs for the
+    whole application. If users access a path that is not defined by the app, the
+    component defined in that file will be rendered instead.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Additionally, we can create an error component that will be rendered for any
+    errors, such as not being able to connect to the database. Create a new **src/app/posts/[id]/error.js**
+    file, where we render an “Error while loading the post!” message, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Error pages need to be client components, so we added a `'use` `client'` directive.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Info
+  prefs: []
+  type: TYPE_NORMAL
+- en: The reason why error pages need to be client components is that they use the
+    React **ErrorBoundary** feature, which is implemented as class components (using
+    **componentDidCatch**). React class components cannot be server components, so
+    we need to make the error page a client component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We still need to make a small adjustment to the **Post** component because
+    the **_id** is now actually not a string anymore; instead, it’s an **ObjectId**
+    object. Edit **src/components/Post.jsx** and change the type, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Make sure Docker and the MongoDB container are running properly!
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Run the dev server, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Go to **http://localhost:3000** and click on one of the posts in the list;
+    you will see that the post loads successfully. If a post does not exist (for example,
+    if you change a single digit in the ID), the “Post not found!” message will be
+    shown. If there was any other error (for example, an invalid ID), the “Error while
+    loading the post!” message will be shown:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 17.4 – Showing a post and the not found/error components](img/B19385_17_4.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 17.4 – Showing a post and the not found/error components
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: If there are no posts in your database yet, either create a new post by using
+    the blog app from earlier chapters or wait until we implement the create post
+    functionality using Next.js at the end of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After implementing RSCs for fetching posts, our blog app is now connected to
+    the database. However, all it can do right now is show posts; there is no way
+    for the user to interact with the app yet. Let’s move on to making our blog app
+    interactive by adding Server Actions to it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using Server Actions to sign up, log in, and create new posts
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we have only been fetching data from the database on the server and
+    sending it to the client, but for user interactivity, we need to be able to send
+    data back from the client to the server. To be able to do this, React introduced
+    a pattern called Server Actions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`"use server"` directive, and then either importing them into a client component
+    or passing them to a client component via props. While regular JavaScript functions
+    cannot be passed to client components (because they aren’t serializable), Server
+    Actions can be.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can define a whole file to be full of Server Actions by adding the **"use
+    server"** directive at the beginning of a file. This will tell the bundler that
+    all functions in this file are Server Actions; it *does not* define components
+    inside it as server components (to enforce something to be executed on the server,
+    use the **server-only** package instead, as explained). You can then import functions
+    from such a file in client components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In client components, we can make use of the `useFormState` hook, which has
+    a similar signature to `useState` but allows us to execute server actions (on
+    the server) and get back the result on the client. The `useFormState` hook’s signature
+    looks as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the React 19 release, **useFormState** hook will be renamed to **useActionState**.
+    See [https://react.dev/reference/react/useActionState](https://react.dev/reference/react/useActionState)
+    for more information.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As we can see, we pass in a function (Server Action) and an initial state.
+    The hook then returns the current state and a `formAction` function. The state
+    is initially set to the initial state, and updated to the result of the Server
+    Action after the `formAction` function is called. On the server side, the Server
+    Action signature looks as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: As we can see, the Server Action function accepts `previousState` (which will
+    initially be set to `initialState` from the client) and a `formData` object (which
+    is a regular `formData` object from the XMLHttpRequest API web standard). The
+    `formData` object contains all information submitted in form fields. This allows
+    us to easily submit forms to perform an action on the server and return the result
+    to the client.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s start using Server Actions to implement the signup page in our blog
+    app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing the signup page
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The first action a user needs to take to interact with the blog app is signing
+    up, so let’s start by implementing this feature. Follow these steps to get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We start by implementing the client component. Edit **src/components/Signup.jsx**
+    and mark it as a client component, then import the **useFormState** hook and **PropTypes**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The **Signup** component now needs to accept a **signupAction**, which we are
+    going to define on the server side later:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define a **useFormState** hook, which takes a Server Action and an initial
+    state (in our case, an empty object), and returns the current state and an action:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, we can add **action** to the **<form>** tag, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Additionally, we can show an error message below the “Sign Up” button if we
+    get a **state.error** message back from the server:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let’s not forget to define **propTypes** for the **Signup** component. **signupAction**
+    is a function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, we can start implementing the actual server action. Edit **src/app/signup/page.js**
+    and import the **redirect** function from **next/navigation** (to navigate to
+    the login page after successfully signing up), as well as the **createUser** and
+    **initDatabase** functions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, outside of the **SignupPage** component, define a new **async** function
+    that accepts the previous state (in our case, this is the empty object we defined
+    as the initial state, so we can ignore it) and a **formData** object:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We need to tag the function with the **''use server''** directive to turn it
+    into a Server Action:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, we can initialize the database and attempt to create a user:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: As you can see, Server Actions build upon existing web APIs and use the `FormData`
+    API for form submission. We can simply call `.get()` with the `name` of the input
+    field and it will contain the value provided in the respective input field.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'If there is an error, we return the error message (which will then be shown
+    in the **Signup** client component):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Otherwise, if everything went well, we redirect to the login page:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'After defining the Server Action, we can pass it to the **Signup** component,
+    as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Alternatively, the client component could directly import the `signupAction`
+    function from a file. So long as the function has the `'use server'` directive,
+    it will be executed on the server. In this case, we only need the function on
+    this specific page, so it makes more sense to define it on the page and pass it
+    to the component.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Run the dev server, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Go to **http://localhost:3000/signup** and try entering a username and password.
+    It should work successfully and redirect you to the login screen (the change is
+    subtle, but the submit button changes from **Sign Up** to **Log In**).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Go to **http://localhost:3000/signup** again and try entering the same username.
+    You will get the following error:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 17.5 – An error is shown when the username already exists](img/B19385_17_5.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 17.5 – An error is shown when the username already exists
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course, this error message is not very user-friendly, so we could do some
+    work to improve the error messages here. But for now, this is sufficient as an
+    example to show how Server Actions work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, RSCs and Server Actions make implementing features that interface
+    with the database straightforward. As an additional bonus, all Server Actions
+    that are submitted via `<form>` even work with JavaScript disabled – try it out
+    by repeating *Steps 15* and *16* with JavaScript disabled!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing the login page and JWT handling
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Now that users can sign up, we need a way for them to log in. This also means
+    that we will need to implement functionality to create and store JWT. Now that
+    we have more control over the server-client interaction with Next.js, we can store
+    the JWT in a cookie instead of in memory. This means that the user session will
+    persist even when they refresh the page.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s start implementing the login page and JWT handling:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’ll start by implementing the client component. Edit **src/components/Login.jsx**
+    and turn it into a client component:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, import the **useFormState** hook and **PropTypes**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Accept **loginAction** as props. We are going to use this to define the **useFormState**
+    hook:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Pass **formAction**, which was returned from the hook, to the **<****form>**
+    element:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, we can display potential errors at the end of the component:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Lastly, define **propTypes**, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, we can create the **loginAction** Server Action. Edit **src/app/login/page.js**
+    and import the **cookies** and **redirect** functions from Next.js, as well as
+    the **loginUser** and **initDatabase** functions from our data layer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define a new **loginAction** outside of the **LoginPage** component, in which
+    we attempt to log in with the given username and password:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'If this fails, we return the error message:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Otherwise, we set an **AUTH_TOKEN** cookie with an expiry of 24 hours (the
+    same expiry time as the JWT we created), and make it **secure** and **httpOnly**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The **httpOnly** attribute makes sure cookies cannot be accessed by client JavaScript,
+    reducing the possibility of cross-site scripting attacks in our app. The **secure**
+    attribute ensures that the cookie is set on the HTTPS version of the website.
+    To improve the development experience, this doesn’t apply to localhost.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After setting the cookie, we redirect to the home page:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE66]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, we pass the **loginAction** to the **Login** component:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE67]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Go to **http://localhost:3000/login** and try entering a username that doesn’t
+    exist; you will get an error. Then, try entering the same username and password
+    that you used to sign up earlier. It should work successfully and redirect you
+    to the home page.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Checking if the user is logged in
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'You may have noticed that after the user logs in, the navigation bar doesn’t
+    change. We still have to check if the user is logged in and then adjust the navigation
+    bar accordingly. Let’s do that now:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Edit **src/app/layout.js** and import the **cookies** function from Next.js
+    and the **getUserInfoByToken** function from our data layer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE68]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Turn **RootLayout** into an **async** function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE69]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Get the **AUTH_TOKEN** cookie and pass its value to the **getUserInfoByToken**
+    function to get the **user** object, *replacing* the sample **user** object we
+    defined earlier:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE70]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: If you still have the home page open from earlier, it should hot reload automatically
+    and show your username and the logout button.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We are already passing `user?.username` to the `Navigation` component, so that’s
+    all there is to it!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing logout
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now that we can show a different navigation bar when the user is logged in,
+    we can finally see the logout button. However, it doesn’t work yet. We’ll implement
+    the logout button now:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Edit **src/app/layout.js** and define a **logoutAction** Server Action outside
+    of the **RootLayout** component:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE71]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Inside this action, we simply delete the **AUTH_TOKEN** cookie:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE72]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Pass **logoutAction** to the **Navigation** component, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE73]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Edit **src/components/Navigation.jsx** and add **logoutAction** to **UserBar**
+    and the logout form:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE74]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Add the action to **propTypes** of the **UserBar** component, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE75]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, add **logoutAction** as props to the **Navigation** component and pass
+    it down to the **UserBar** component:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE76]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, change **propTypes** of the **Navigation** component, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE77]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Click the **Logout** button to see the navigation bar change back to show the
+    **Log In** and **Sign** **Up** links.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now, our users can finally log in and log out again successfully. Let’s move
+    on to implementing post creation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing post creation
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The last feature missing in our blog app is post creation. We can use Server
+    Actions and a JWT to authenticate the user and allow them to create a post. Follow
+    these steps to implement post creation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This time, we start by implementing the Server Action. Edit **src/app/create/page.js**
+    and import the **cookies**, **redirect**, **createPost**, **getUserIdByToken**,
+    and **initDatabase** functions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE78]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Inside the **CreatePostPage** component, get the token from the cookie:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE79]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Still inside the **CreatePostPage** component, define a Server Action:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE80]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We won’t be using the `useFormState` hook this time because we don’t need to
+    handle the state or result of the action on the client side. So, the Server Action
+    does not have the `(prevState, formData)` signature and instead has a `(``formData)`
+    signature.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Inside the Server Action, we get the **userId** value from the token, then
+    initialize the database connection and create a new post:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE81]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Lastly, we redirect to the **ViewPost** page of the newly created post:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE82]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'If the user isn’t logged in, we can now show an error message:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE83]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Otherwise, we render the **CreatePost** component, passing **createPostAction**
+    to it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE84]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, we can adjust the **CreatePost** component. We *don’t* need to turn it
+    into a client component this time because we won’t be using the **useFormState**
+    hook. Edit **src/components/CreatePost.jsx** and import **PropTypes**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE85]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, add the **createPostAction** as props and pass it to the form element:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE86]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, define **propTypes**, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE87]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Go to **http://localhost:3000**, log in again, and then click the **Create Post**
+    link. Enter a title and some contents and click the **Create** button; you should
+    get redirected to the **ViewPost** page of the newly created blog post!
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned about RSCs, why they were introduced, what their
+    advantages are, and how they fit into our full-stack architecture. Then, we learned
+    how to safely implement RSCs by introducing a data layer into our app. Afterward,
+    we fetched data from our database and rendered components using RSCs. Finally,
+    we learned about Server Actions and added interactive features to our blog app.
+    Now, our blog app is fully functional again!
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, [*Chapter 18*](B19385_18.xhtml#_idTextAnchor321), *Advanced
+    Next.js Concepts and Optimizations*, we are going to dive deep into how Next.js
+    works and how we can further optimize our app when using it. We are going to learn
+    about caching, image and font optimizations, and how to define metadata for SEO
+    optimization.
+  prefs: []
+  type: TYPE_NORMAL

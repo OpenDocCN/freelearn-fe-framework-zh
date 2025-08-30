@@ -1,0 +1,495 @@
+- en: '11'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Optimistic UI
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Optimistic UI makes your app feel snappy by giving immediate feedback, even
+    when actions take a bit longer. This is especially useful when you’re waiting
+    for a network response. Optimistic updates can make a UI feel more responsive
+    and improve the user experience. In this chapter, you will learn how to add optimistic
+    UI updates with Remix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter is split into two sections:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Considering optimistic UI
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Adding optimistic UI updates in Remix
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: First, we will discuss the trade-offs of using optimistic UI updates and investigate
+    the complexity and risks of client/server state synchronizations and rollbacks.
+    Next, we will review the current state of BeeRich and investigate which mutations
+    to enhance with optimistic UI updates. We will then add optimistic UI updates
+    where it makes sense using Remix’s primitives.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After reading this chapter, you will know how to evaluate the usage of optimistic
+    UIs. You will have also practiced implementing optimistic UIs with Remix’s primitives,
+    such as `useNavigation` and `useFetcher`. Finally, you will understand how Remix
+    eases the implementation of optimistic UIs by providing a resilient baseline for
+    your application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'You can find the code for this chapter here: [https://github.com/PacktPublishing/Full-Stack-Web-Development-with-Remix/tree/main/11-optimistic-ui](https://github.com/PacktPublishing/Full-Stack-Web-Development-with-Remix/tree/main/11-optimistic-ui).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: BeeRich has grown quite a bit. Now is a good time to refactor the code. Before
+    starting with this chapter, we want to update the current code. We will also enhance
+    our form validation and parsing using `zod`. Follow the step-by-step guide in
+    the `README.md` file to prepare BeeRich for the upcoming advanced topics.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Considering optimistic UI
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The source of truth of a web application is usually stored remotely in a database.
+    We can only be sure that a mutation succeeded after updating the database and
+    receiving confirmation from the server. The UI response to a mutation is thereby
+    delayed until we hear back from the server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimistic UI is a pattern that’s used to provide instant feedback to users
+    while waiting for an execution to resolve. When updating the UI optimistically,
+    we apply a UI update before receiving the definitive response from the server.
+    Most of the time, our mutations succeed, so why wait for a server response? In
+    this section, we will discuss some trade-offs of optimistic UI updates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Communicating rollbacks
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Updating the UI optimistically speeds up the perceived response time when the
+    optimistic state aligns with the server response. When the optimistic update does
+    not align with the server response, then optimistic updates need to be rolled
+    back or corrected. This is where the optimistic UI pattern starts to become more
+    complicated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When something goes wrong with an optimistic mutation, we must communicate the
+    error and highlight the rollback to the user. Otherwise, we risk losing the user’s
+    trust and confidence in our application. For instance, after attempting to delete
+    an item, we might have to revert to the optimistic removal of the item and tell
+    the user why the item reappeared again – “*I just deleted that item; why is* *it
+    back?*”
+  prefs: []
+  type: TYPE_NORMAL
+- en: When considering optimistic UI, it is a good idea to investigate the error rate
+    of a mutation. If the error rate is high, then the number of rollbacks might degrade
+    the user experience more than the increased response times are worth. As always,
+    it depends on the use case, type of application, and user.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can summarize that error handling with optimistic UI becomes harder to implement
+    as rollbacks have to be communicated correctly. On top of that, optimistic UIs
+    also require re-synchronizing client and server states, leading to more complicated
+    client-side code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Synchronizing client and server states
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: One of the biggest risks of optimistic UI is introducing stale states in the
+    UI. When applying optimistic updates, it can become quite challenging to synchronize
+    the UI state with the server response consistently. The resulting logic might
+    be complex and introduce bugs where part of the application’s UI is out of sync
+    with the server state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When adding optimistic updates, we may allow users to submit several updates
+    subsequently. We optimistically update the UI each time. Then, we must deal with
+    the synchronization of the UI with the server responses. When several updates
+    happen simultaneously, this may lead to race conditions and other hard problems
+    that require thorough synchronization logic and error handling.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimistic UI updates are optional. When implemented correctly, they may improve
+    the user experience by speeding up the perceived response time. However, there
+    is also the risk that optimistic UI updates may increase the complexity of our
+    application’s state management disproportionally and degrade the user experience
+    if not implemented thoroughly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimistic UI updates can lead to stale states, complex client-server state
+    synchronization logic, and a worse user experience if rollbacks aren’t communicated
+    properly. Conclusively, we must cautiously evaluate whether a certain mutation
+    would profit from the addition of optimistic UI updates or whether it would disproportionally
+    increase the complexity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Luckily, Remix provides a great foundation for implementing optimistic UI updates
+    and allows us to implement optimistic UI updates through additive changes to our
+    existing pending UI. Let’s remind ourselves of Remix’s `loader` revalidation feature.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Synchronizing client and server states in Remix
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Remix manages the complexity of optimistic UI out of the box by providing a
+    data revalidation flow. Let’s quickly review Remix’s built-in `loader` revalidation
+    before jumping into the code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Whenever we submit a form in Remix and execute an `action` function, Remix will
+    automatically re-fetch the data from all active `loader` functions. This ensures
+    that we always update all data on the page after every data mutation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When utilizing Remix’s `loader` and `action` functions for data reads and writes,
+    we avoid introducing stale data in our UIs and eliminate the main concern of degrading
+    the user experience when implementing optimistic UI updates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Additionally, Remix’s primitives, such as `useNavigation` and `useFetcher`,
+    allow us to read pending submission data without adding custom React states, which
+    keeps the complexity increase of adding optimistic UI at a low. Let’s see for
+    ourselves by adding optimistic UI to BeeRich. First, let’s review the current
+    mutations in our BeeRich application and investigate whether adding an optimistic
+    UI would improve the user experience.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adding optimistic UI updates in Remix
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we will review our BeeRich application and discuss which user
+    actions would profit the most from adding optimistic UI updates. Then, we will
+    go ahead and make the required code changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating an expense
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Run BeeRich locally by executing `npm run dev` in the project’s root and navigate
+    to the expense overview page ([http://localhost:3000/dashboard/expenses](http://localhost:3000/dashboard/expenses)).
+    Now, create a new expense.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice that after submitting the expense creation form, we are redirected to
+    the expense details page. The URL now includes the new expense identifier. After
+    the redirect, we have access to the newly created expense loader data, including
+    the expense identifier. All further updates to the expense require the expense
+    identifier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adding optimistic UI updates to the expense creation form may become quite complicated.
+    One way to achieve this would be to optimistically update the look and feel of
+    the creation form so that it looks like the expense update form before redirecting
+    the user to the actual details page. However, we can’t execute any subsequent
+    expense update submissions until we receive the expense `id` parameter from the
+    expense creation submission. We could disable all submit buttons until we receive
+    the server response, or we could queue subsequent submissions and submit an update
+    programmatically with the latest changes the user tried to submit. This could
+    become quite complicated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Things become even more complicated when thinking about the attachment logic.
+    What if we are still waiting on the `id` parameter when the user wants to remove
+    the attached file or tries to upload a new attachment? We could prevent all subsequent
+    changes to the attachment by disabling the attachment actions until we get the
+    expense `id` parameter from the server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As always, it comes down to trade-offs. How much could we increase the response
+    time and enhance the experience by adding optimistic updates? Is it worth the
+    complexity? Since our application is quite fast, we decided not to add optimistic
+    updates to the expense creation form. Instead, let’s move on and investigate the
+    expense update form.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Updating an expense
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Navigate to the expense overview page ([http://localhost:3000/dashboard/expenses](http://localhost:3000/dashboard/expenses))
+    and select an expense. This will navigate us to the expense details page, which
+    renders the expense update form. Now, make some changes to the existing expense
+    and click `id` parameter. Instead, we display a success message: **Changes saved!**.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Technically, the UI already displays optimistic updates as we always show the
+    latest input values to the user. Let’s also update the `dashboard.expenses.$id._index.tsx`
+    route module:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Remove the `disabled` property and pending “Save…” UI state:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: It might feel odd at first to remove the pending UI. Let’s think this through.
+    The form now supports subsequent updates as we no longer disable the submit button
+    on pending submissions. Since we always show the user-inputted values in the update
+    form, the input state itself is already optimistic. Since we still show the global
+    transition animation and expense details pulse animation on pending navigation,
+    we still communicate that updates are in progress. Additionally, we still display
+    the success message on successful update. This might be a good compromise.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: But what about the attachment? Adding an attachment creates a new `expense.attachment`
+    value. We require the attachment filename value for the view and delete attachment
+    actions of the `Attachment` component.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: One solution is to add the attachment optimistically but disable the attachment
+    link and the delete button until we receive the server response, which includes
+    the newly added attachment value. Let’s make it happen!
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'In the `dashboard.expenses.$id._index.tsx` route module component, use Remix’s
+    global navigation object to derive whether an attachment is currently being uploaded:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, update the conditional render clause for the `Attachment` component to
+    render if an attachment is currently being uploaded. Further, pass `disabled`
+    to the `Attachment` component:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Remix’s `useNavigation` hook and its `formData` property allow us to conditionally
+    update the UI without creating additional custom React states. This is great as
+    we avoid the need for synchronization logic altogether. Remix’s `ErrorBoundary`
+    components further ensure a resilient baseline if an error occurs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Great! Just like that, we added optimistic UI updates when attaching a file
+    and updating an expense. Users can now make multiple updates without having to
+    wait for a response from the server. If an issue arises, Remix will display our
+    `ErrorBoundary`, letting the user know about the error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As always, implement the same experience for the income routes. This ensures
+    that you revisit the lessons learned before moving on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, let’s investigate the expense deletion form for an opportunity to add
+    optimistic UI updates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deleting an expense
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: On the expense overview page, we render a `ListLinkItem` component for every
+    expense. The `ListLinkItem` component in `app/components/links.tsx` uses `useFetcher.Form`
+    to submit the delete mutation. Optimistically removing or adding elements to a
+    list is a great way to provide instant feedback. Let’s see how we can add an optimistic
+    UI to our expense deletion forms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One way to implement optimistic updates on deletion is to hide the list item
+    immediately after entering the pending state. Update the `ListLinkItem` component
+    in `app/components/links.tsx`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: You already know that the `useFetcher` hook manages its transition life cycle.
+    When trying to implement pending and optimistic UIs with `useFetcher.Form`, we
+    don’t use `useNavigation`; instead, we use the `useFetcher` hook’s `state` and
+    `formData` properties.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Just like that, we remove the expense item from the list when a submission is
+    pending. Once the `action` function finishes, Remix refreshes the loader data
+    and sets the navigation state back to `idle`. If the mutation was successful,
+    then the updated loader data no longer contains the deleted expense, and our UI
+    update persists. But what happens if an error occurs?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Take a look at the `handleDelete` function in the `dashboard.expenses.$id._index.tsx`
+    route module. Right now, we throw a 404 `Response` if deleting an expense doesn’t
+    work. This triggers the `ErrorBoundary`. Let’s improve this by giving the user
+    direct feedback in the UI if the delete action fails.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Update `handleDelete` to return a JSON `Response` if the delete action fails:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: data property. If the action data is present and success is false, we know that
+    the expense’s deletion failed.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Finally, update the `className` property on the list element conditionally to
+    style the list item text red in case `hasFailed` is `true`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Test the changes by throwing an error inside the try-case in `handleDelete`
+    in `dashboard.expenses.$id._index.tsx`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Remix provides a great foundation for optimistic UI
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remix automatically updates loader data after a mutation, keeping the client
+    and server in sync. This greatly simplifies the process of creating optimistic
+    UIs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Great work! As always, make sure to also update the income routes with the latest
+    changes in this section. This ensures that you practice what you learned before
+    moving on to the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this part, we added optimistic UI updates for deleting expenses. We also
+    used the fetcher’s `data` property to signal when an action fails and needs to
+    be rolled back. Next, let’s investigate if we can optimistically remove expense
+    and income attachments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Removing an attachment
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We already optimistically display the `Attachment` component on pending uploads.
+    We should also consider optimistically removing an attachment when clicking the
+    attachment deletion button.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This time, we don’t want to display the `Attachment` component on pending removal
+    but instead display the file input. However, we also want to prevent race conditions
+    and we should make sure we disable the input until the server confirms the removal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since the attachment deletion form submission uses a `Form` component (instead
+    of `useFetcher.Form`), we know the submission is handled via the global navigation
+    object. Hence, we can detect whether the user deletes an attachment by checking
+    the `formData` property on the global navigation object:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Add the following Boolean flag to the `dashboard.expenses.$id._index.tsx` route
+    module component:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '{(isUploadingAttachment || expense.attachment) && !isRemovingAttachment ? (  <Attachment    label="Current
+    Attachment"    attachmentUrl={`/dashboard/expenses/${expense.id}/attachments/${expense.attachment}`}    disabled={isUploadingAttachment}  />)
+    : (  <Input label="New Attachment" type="file" name="attachment" disabled={isSubmitting}
+    />)}'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Try out the implementation to verify that everything works as expected. As always,
+    use the **Network** tab to throttle the connection to inspect pending states.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Great! We added optimistic UI updates to the attachment deletion form and the
+    expense update form. You learned that Remix’s `useFetcher` and `useNavigation`
+    primitives contain the `formData` property of the form currently being submitted.
+    We can use the `formData` property to optimistically update the UI until the `loader`
+    revalidation synchronizes the UI with the server state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you learned how to add optimistic UI updates in Remix. You
+    were introduced to the trade offs of optimistic UI, such as the increased complexity
+    of client-side logic and the necessity of user feedback in case of rollbacks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remix’s `loader` revalidation is a great starting point for synchronizing the
+    UI with the server state. You now understand that Remix’s `loader` revalidation
+    enables us to avoid custom client-server state synchronization and lets us avoid
+    stale states. When relying on the loader data, we get rollbacks out of the box.
+    After each mutation, we receive the latest loader data, and our UI updates automatically.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is still worth communicating why a mutation failed. With or without optimistic
+    updates, it is important to display an error message to the user. For optimistic
+    updates, it might also make sense to highlight the rolled-back data visually.
+    Remix’s `ErrorBoundary` component is a great starting point for recovering from
+    errors. However, if we want more granular feedback, we must add custom error messages
+    and utilize Remix’s primitives to highlight rolled-back data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When implementing optimistic UIs, we usually start by removing pending UIs.
+    Adding and removing pending entities to and from lists is an easy way to show
+    instant feedback.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You also learned how to implement optimistic UI updates using Remix’s primitives
+    such as `useNavigation` and `useFetcher`. We can use the `formData` property on
+    the client to display user data before the final response is returned from the
+    server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn about different caching strategies to further
+    improve the response times and performance of Remix applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'You can find more information about how to implement optimistic UI in the Remix
+    documentation: [https://remix.run/docs/en/2/discussion/pending-ui](https://remix.run/docs/en/2/discussion/pending-ui).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There is also a great Remix Single video about optimistic UI on the Remix YouTube
+    channel: [https://www.youtube.com/watch?v=EdB_nj01C80](https://www.youtube.com/watch?v=EdB_nj01C80).'
+  prefs: []
+  type: TYPE_NORMAL

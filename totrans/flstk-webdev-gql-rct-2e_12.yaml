@@ -1,0 +1,1262 @@
+- en: '*Chapter 10*: Real-Time Subscriptions'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The GraphQL `pollInterval` property to Apollo Hooks to keep the display up to
+    date. A better solution is to implement Apollo subscriptions through WebSockets.
+    This allows us to refresh the **user interface** (**UI**) of the user with the
+    newest user information in real time without manual user interaction or polling.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter covers the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using GraphQL with WebSockets
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Implementing Apollo subscriptions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: JWT authentication with subscriptions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Notifications with Apollo subscriptions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The source code for this chapter is available in the following GitHub repository:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://github.com/PacktPublishing/Full-Stack-Web-Development-with-GraphQL-and-React-Second-Edition/tree/main/Chapter10](https://github.com/PacktPublishing/Full-Stack-Web-Development-with-GraphQL-and-React-Second-Edition/tree/main/Chapter10)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using GraphQL with WebSockets
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In [*Chapter 1*](B17337_01_Final_ASB_ePub.xhtml#_idTextAnchor017), *Preparing
+    Your Development Environment*, I explained all the main features that make GraphQL
+    so useful. We mentioned that **HyperText Transfer Protocol** (**HTTP**) is the
+    standard network protocol when using GraphQL. The problem with regular HTTP connections,
+    however, is that they are one-time requests. They can only respond with the data
+    that exists at the time of the request. If the database receives a change concerning
+    the posts or the chats, the user won't know about this until they execute another
+    request. The UI shows outdated data in this case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To solve this issue, you can refetch all requests in a specific interval, but
+    this is a bad solution because there's no time range that makes polling efficient.
+    Every user would make unnecessary HTTP requests, which neither you nor the user
+    wants.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The best solution relies on WebSockets instead of HTTP requests. As with HTTP,
+    WebSockets are also based on the **Transmission Control Protocol** (**TCP**).
+    One of the main features of WebSockets is that they allow bidirectional communication
+    between the client and the server. Arguably, you could say that HTTP does the
+    same since you send a request and get a response, but WebSockets work very differently.
+    One requirement is that the web server supports WebSockets in general. If that's
+    the case, the client can open a WebSocket connection to the server. The initial
+    request to establish a WebSocket connection is a standard HTTP request. The server
+    should then respond with a 101 status code. It tells the browser that it agrees
+    to change the protocols from HTTP to WebSockets. If the connection is successful,
+    the server can send updates through this connection to the client. These updates
+    are also called messages or frames. There are no further requests needed by the
+    client to let the server speak with the browser, unlike HTTP, where you always
+    need a request first so that the server can respond to it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using WebSockets or Apollo subscriptions would fix the issue we encounter when
+    using polling. We have one connection that stays open all the time. The server
+    can send messages to the client whenever data is added or updated. WebSocket `ws`
+    or `wss` instead of the ordinary `http` or `https`. With WebSockets, you can also
+    save valuable bandwidth for the users, but these are not included for WebSocket
+    messages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One disadvantage is that WebSockets are not a standard approach for implementing
+    APIs. If you make your API public to third parties at some point, a standard HTTP
+    API would likely fit better. Also, HTTP is much more optimized. HTTP requests
+    can be cached and proxied easily with common web servers, such as nginx or Apache,
+    but also by the browser itself, which is hard for WebSockets to do. The most significant
+    impact on performance is that WebSocket connections are kept open as long as the
+    user stays on your site. It's not a problem for one or a few hundred users, but
+    scaling this to more people is likely to present you with some problems. However,
+    it's still a very efficient solution to real-time web communication in contrast
+    to polling, for example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Most GraphQL client libraries are specialized and optimized for the standard
+    HTTP protocol. It's the most common approach, so that's understandable. The people
+    behind Apollo have got you covered; they've built-in support for WebSockets and
+    for the implementation of GraphQL subscriptions. You can use those packages not
+    only with Apollo but also with many other libraries. Let's get started with implementing
+    Apollo subscriptions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Digging deeper into Apollo subscriptions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: With the earlier versions of Apollo Client, it was required that you install
+    further packages to support WebSockets. Now, the only requirement is one further
+    package that implements the WebSocket support on the server side.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find an excellent overview and more details about Apollo subscriptions
+    in the official documentation at [https://www.apollographql.com/docs/react/data/subscriptions/](https://www.apollographql.com/docs/react/data/subscriptions/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first step is to install all the required packages to get GraphQL subscriptions
+    working. Install them using `npm`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following two packages provide the necessary modules for a subscription
+    system:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `graphql-subscriptions` package provides the ability to connect our GraphQL
+    backend with a **publish-subscribe** (**PubSub**) system. It gives the client
+    the option to subscribe to specific channels and lets the backend publish new
+    data to the client. It is an in-memory implementation that only works with one
+    instance of our backend. It is discouraged for production use but it will help
+    us to get it working locally.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `subscriptions-transport-ws` package gives our Apollo Server or other GraphQL
+    libraries the option to accept WebSocket connections and accept queries, mutations,
+    and subscriptions over WebSockets. Let's take a look at how we can implement subscriptions.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: First, we are going to create a new subscription type next to the `RootQuery`
+    and `RootMutation` types inside the GraphQL schema. You can set up events or entities
+    that a client can subscribe to and receive updates inside the new subscription
+    type. It only works by adding the matching resolver functions as well. Instead
+    of returning real data for this new subscription type, you return a special object
+    that allows the client to subscribe to events for the specific entity. These entities
+    can be things such as notifications, new chat messages, or comments on a post.
+    Each of them has got its own subscription channel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The client can subscribe to these channels. It receives updates any time the
+    backend sends a new WebSocket message—because data has been updated, for example.
+    The backend calls a `publish` method that sends the new data through the subscription
+    to all clients. You should be aware that not every user should receive all WebSocket
+    messages since the content may include private data such as chat messages. There
+    should be a filter before the update is sent to target only specific users. We'll
+    see this feature later in the *Authentication with Apollo subscriptions* section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Subscriptions on Apollo Server
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We have now installed all the essential packages. Let''s start with the implementation
+    for the backend, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As mentioned previously, we are going to rely on WebSockets as they allow real-time
+    communication between the frontend and the backend. We are first going to set
+    up a new transport protocol for the backend.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Open the `index.js` file of the server. Import a new Node.js interface at the
+    top of the file, like this:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `http` interface is included in Node.js by default. It handles the traditional
+    HTTP protocol, making the use of many HTTP features easy for the developer.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We are going to use the interface to create a standardized Node.js HTTP `server`
+    object because the Apollo `SubscriptionServer` module expects such an object.
+    We''ll cover the Apollo `SubscriptionServer` module soon in this section. Add
+    the following line of code beneath the initialization of Express.js, inside the
+    `app` variable:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `createServer` function creates a new HTTP `server` object, based on the
+    original `Express.js` instance. We pass the Express instance, which we saved inside
+    the `app` variable. As you can see in the preceding code snippet, you only pass
+    the `app` object as a parameter to the `createServer` function.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We''re going to use the new `server` object instead of the `app` variable to
+    let our backend start listening for incoming requests. Remove the old `app.listen`
+    function call from the bottom of the file because we''ll be replacing it in a
+    second. To get our server listening again, edit the initialization routine of
+    the services. The `for` loop should now look like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Here, we have changed the old `if` statement to a `switch` statement. Furthermore,
+    we have added a second service beyond `graphql`, called `subscriptions`. We are
+    going to create a new `subscriptions` service next to the `graphql` services folder.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The `subscriptions` service requires the `server` object as a parameter to start
+    listening for WebSocket connections. Before initializing `SubscriptionServer`,
+    we need to have started listening for incoming requests. That is why we use the
+    `server.listen` method in the preceding code snippet before initializing the new
+    `subscriptions` service that creates an Apollo `SubscriptionServer` instance.
+    We pass the `server` object to the service after it has started listening. The
+    service has to accept this parameter, of course, so keep this in mind.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'To add the new service into the preceding `serviceNames` object, edit the `index.js`
+    services file with the following content:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `subscriptions` service also receives the `utils` object, as with the `graphql`
+    service.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Now, create a `subscriptions` folder next to the `graphql` folder. To fulfill
+    the import of the preceding `subscriptions` service, insert the service's `index.js`
+    file into this folder. There, we can implement the `subscriptions` service. As
+    a reminder, we pass the `utils` object and also the `server` object from before.
+    The `subscriptions` service must accept two parameters in separate function calls.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'If you have created a new subscription `index.js` file, import all the dependencies
+    at the top of the file, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The preceding dependencies are almost the same as those that we are using for
+    the `graphql` service, but we've added the `subscriptions-transport-ws` and `@graphql-tools/schema`
+    packages. Furthermore, we've removed the `apollo-server-express` package. `SubscriptionServer`
+    is the equivalent of `ApolloServer` but is used for WebSocket connections rather
+    than HTTP. It usually makes sense to set up Apollo Server for HTTP and `SubscriptionServer`
+    for WebSockets in the same file, as this saves us from processing `Schema` and
+    `Resolvers` twice. It's easier to explain the implementation of subscriptions
+    without the `ApolloServer` code in the same file, though. The last two things
+    that are new in the preceding code snippet are the `execute` and `subscribe` functions
+    that we import from the `graphql` package. You will see why we need these in the
+    next section.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We begin the implementation of the new service by exporting a function with
+    the `export default` statement and creating an `executableSchema` object (as you
+    saw in [*Chapter 2*](B17337_02_Final_ASB_ePub.xhtml#_idTextAnchor032), *Setting
+    up GraphQL with Express.js*), as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: As you can see, we use the `utils` object and the second one accepts the `server`
+    object that we create with the `createServer` function inside the `index.js` file
+    of the server. This approach fixes the problem of passing two parameters in separate
+    function calls. The schema is only created when both functions are called.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The second step is to start `SubscriptionServer` to accept WebSocket connections
+    and, as a result, be able to use the GraphQL subscriptions. Insert the following
+    code under `executableSchema`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We initialized a new `SubscriptionServer` instance in the preceding code. The
+    first parameter we pass is a general `options` object for GraphQL and corresponds
+    to the options of the `ApolloServer` class. The options are detailed as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: a. The `execute` property should receive a function that handles all the processing
+    and execution of incoming GraphQL requests. The standard is to pass the `execute`
+    function that we imported from the `graphql` package previously.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: b. The `subscribe` property also accepts a function. This function has to take
+    care of resolving a subscription to `asyncIterator`, which is no more than an
+    asynchronous `for` loop. It allows the client to listen for execution results
+    and reflect them to the user.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: c. The last option we pass is the GraphQL schema. We do this in the same way
+    as for `ApolloServer`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The second parameter our new instance accepts is the `socketOptions` object.
+    This holds settings to describe the way in which the WebSockets work, as outlined
+    here:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: d. The `server` field receives our `server` object, which we pass from the `index.js`
+    file of the server as a result of the `createServer` function. `SubscriptionServer`
+    then relies on the existing server.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: e. The `path` field represents the endpoint under which the subscriptions are
+    accessible. All subscriptions use the `/subscriptions` path.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Note
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The official documentation for the `subscriptions-transport-ws` package offers
+    a more advanced explanation of `SubscriptionServer`. Take a look to get an overview
+    of all its functionalities: [https://github.com/apollographql/subscriptions-transport-ws#subscriptionserver](https://github.com/apollographql/subscriptions-transport-ws#subscriptionserver).'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The client would be able to connect to the WebSocket endpoint at this point.
+    There are currently no subscriptions, and the corresponding resolvers are set
+    up in our GraphQL API.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Open the `schema.js` file to define our first subscription. Add a new type
+    called `RootSubscription` next to the `RootQuery` and `RootMutation` types, including
+    the new subscription called `messageAdded`, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Currently, if a user sends a new message to another user, this isn't shown to
+    the recipient right away.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The first option I showed you was to set an interval to request new messages.
+    Our backend is now able to cover this scenario with subscriptions. The event or
+    channel that the client can subscribe to is called `messageAdded`. We can also
+    add further parameters, such as a chat **identifier** (**ID**), to filter the
+    WebSocket messages if necessary. When creating a new chat message, it is publicized
+    through this channel.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We have added `RootSubscription`, but we need to extend the schema root tag
+    too. Otherwise, the new `RootSubscription` type won''t be used. Change the schema,
+    as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We have successfully configured the tree GraphQL main types. Next, we have
+    to implement the corresponding resolver functions. Open the `resolvers.js` file
+    and perform the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import all dependencies that allow us to set up our GraphQL API with a `PubSub`
+    system, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `PubSub` system offered by the `graphql-subscriptions` package is a simple
+    implementation based on the standard Node.js `EventEmitter` class. When going
+    to production, it's recommended to use an external store, such as Redis, with
+    this package.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We''ve already added the third `RootSubscription` type to the schema, but not
+    the matching property on the `resolvers` object. The following code snippet includes
+    the `messageAdded` subscription. Add it to the resolvers:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `messageAdded` property isn't a function but just a simple object. It contains
+    a `subscribe` function that returns `AsyncIterable`. It allows our application
+    to subscribe to the `messageAdded` channel by returning a promise that's only
+    resolved when a new message is added. The next item that's returned is a promise,
+    which is also only resolved when a message has been added. This method makes `asyncIterator`
+    great for implementing subscriptions.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Note
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: You can learn more about how `asyncIterator` works by reading through the proposal
+    at [https://github.com/tc39/proposal-async-iteration](https://github.com/tc39/proposal-async-iteration).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'When subscribing to the `messageAdded` subscription, there needs to be another
+    method that publicizes the newly created message to all clients. The best location
+    is the `addMessage` mutation where the new message is created. Replace the `addMessage`
+    resolver function with the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: I have edited the `addMessage` mutation so that the correct user from the context
+    is chosen. All of the new messages that you send are now saved with the correct
+    user ID. This allows us to filter WebSocket messages for the correct users later
+    in the *Authentication with Apollo subscriptions* section.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We use the `pubsub.publish` function to send a new WebSocket frame to all clients
+    that are connected and that have subscribed to the `messageAdded` channel. The
+    first parameter of the `pubsub.publish` function is the subscription, which in
+    this case is `messageAdded`. The second parameter is the new message that we save
+    to the database. All clients that have subscribed to the `messageAdded` subscription
+    through `asyncIterator` now receive this message.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We've finished preparing the backend. The part that required the most work was
+    to get the Express.js and WebSocket transport working together. The GraphQL implementation
+    only involves the new schema entities, correctly implementing the resolver functions
+    for the subscription, and then publishing the data to the client via the `PubSub`
+    system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have to implement the subscription feature in the frontend to connect to
+    our WebSocket endpoint.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Subscriptions on Apollo Client
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As with the backend code, we also need to make adjustments to the Apollo Client
+    configuration before using subscriptions. In [*Chapter 4*](B17337_04_Final_ASB_ePub.xhtml#_idTextAnchor085),
+    *Hooking Apollo into React*, we set up Apollo Client with the normal `HttpLink`
+    link. Later, we exchanged it with the `createUploadLink` function, which enables
+    the user to upload files through GraphQL.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are going to extend Apollo Client by using `WebSocketLink` as well. This
+    allows us to use subscriptions through GraphQL. Both links work side by side.
+    We use the standard HTTP protocol to query data, such as the chat list or the
+    news feed; all of these real-time updates to keep the UI up to date rely on WebSockets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To configure Apollo Client correctly, follow these steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Open the `index.js` file from the `apollo` folder. Import the following dependencies:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: To get the subscriptions working, we need `SubscriptionClient`, which uses `WebSocketLink`
+    to subscribe to our GraphQL API using WebSockets.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We import the `getMainDefinition` function from the `@apollo/client/utilities`
+    package. It's installed by default when using Apollo Client. The purpose of this
+    function is to give you the operation type, which can be `query`, `mutation`,
+    or `subscription`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The `split` function from the `@apollo/client` package allows us to conditionally
+    control the flow of requests through different Apollo links based on the operation
+    type or other information. It accepts one condition and one link (or a pair of
+    links) from which it composes a single valid link that Apollo Client can use.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We are going to create both links for the `split` function. Detect the protocol
+    and port where we send all GraphQL subscriptions and requests. Add the following
+    code beneath the imports:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `protocol` variable saves the WebSocket protocol by detecting whether the
+    client uses `http` or `https`. The `port` variable is either an empty string if
+    we use port `80` to serve our frontend or any other port, such as `8000`, which
+    we currently use. Previously, we had to statically save `http://localhost:8000`
+    in this file. With the new variables, we can dynamically build the URL where all
+    requests should be sent.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The `split` function expects two links to combine them into one. The first
+    link is the normal `httpLink` link, which we must set up before passing the resulting
+    link to the initialization of Apollo Client. Remove the `createUploadLink` function
+    call from the `ApolloLink.from` function and add it before the `ApolloClient`
+    class, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We concatenate the `protocol` variable of the server, which is either `http:`
+    or `https:`, with two slashes. The `hostname` variable is, for example, the domain
+    of your application or, if in development, `localhost`. The result of the concatenation
+    is [http://localhost:8000/graphql](http://localhost:8000/graphql).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Add the WebSocket link that''s used for the subscriptions next to `httpLink`.
+    It''s the second one we pass to the `split` function. The code is illustrated
+    in the following snippet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We define the `SUBSCRIPTIONS_ENDPOINT` variable. It's built with the `protocol`
+    and `port` variables, which we detected earlier, and the application's `hostname`
+    variable. The URI ends with the specified endpoint of the backend with the same
+    port as the GraphQL API. The URI is the first parameter of `SubscriptionsClient`.
+    The second parameter allows us to pass options, such as the `reconnect` property.
+    It tells the client to automatically reconnect to the backend's WebSocket endpoint
+    when it has lost the connection. This usually happens if the client has temporarily
+    lost their internet connection or the server has gone down.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Furthermore, we use the `connectionParams` field to specify the `localStorage`
+    whenever the user logs in. It's sent when the WebSocket is created.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We initialize `SubscriptionClient` to the `subClient` variable. We pass it to
+    the `WebSocketLink` constructor under the `wsLink` variable with the given settings.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Combine both links into one. This allows us to insert the composed result into
+    our `ApolloClient` class at the bottom. To do this, we have imported the `split`
+    function. The syntax to combine the two links should look like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `split` function accepts three parameters. The first parameter must be a
+    function with a Boolean return value. If the return value is `true`, the request
+    is sent over the first link, which is the second required parameter. If the return
+    value is `false`, the operation is sent over the second link, which we pass via
+    the optional third parameter. In our case, the function that's passed as the first
+    parameter determines the operation type. If the operation is a subscription, the
+    function returns `true` and sends the operation over the WebSocket link. All other
+    requests are sent via the HTTP Apollo link. We save the result of the `split`
+    function in the `link` variable.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Insert the preceding `link` variable directly before the `onError` link. The
+    `createUploadLink` function shouldn't be inside the `Apollo.from` function.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We've now got the basic Apollo Client set up to support subscriptions via WebSockets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In [*Chapter 5*](B17337_05_Final_ASB_ePub.xhtml#_idTextAnchor123), *Reusable
+    React Components and React Hooks*, I gave you some homework to split the complete
+    chat feature into multiple subcomponents. This way, the chat feature would follow
+    the same pattern as we used for the post feed. We split it into multiple components
+    so that it's a clean code base. We're going to use this and have a look at how
+    to implement subscriptions for the chats.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you haven't implemented the chat functionality in multiple subcomponents,
+    you can get the working code from the official GitHub repository. I personally
+    recommend you use the code from the repository if it's unclear what the following
+    examples refer to.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using chats as an example makes sense because they are, by nature, real time:
+    they require the application to handle new messages and display them to the recipient.
+    We take care of this in the following steps.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We begin with the main file of our chats feature, which is the `Chats.js` file
+    in the client folder. I''ve reworked the `return` statement so that all the markup
+    that initially came directly from this file is now entirely rendered by other
+    child components. You can see all the changes in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'All the changes are listed here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have introduced a new `ChatItem` component that handles the logic of the
+    `for` loop. Extracting the logic into a separate file makes it more readable.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `ChatItem` component expects `user`, `chat`, and `openChat` properties.
+    Furthermore, we have edited the functions that this component uses to also leverage
+    the `user` object.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We extract the `user` property from the properties of the `Chats` component.
+    Consequently, we have to wrap the `Chats` component with the `UserConsumer` component
+    to let it pass the user. You can apply this change from within the `Chats.js`
+    file by wrapping the exported component into it.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The `openChat` and `closeChat` functions are executed either by `ChatItem`
+    or the `Chats` component. All other functions from the `Chats` component have
+    been moved to one or both components: `ChatItem` and `Chat`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The changes I have made here had nothing to do with the subscriptions directly,
+    but it's much easier to understand what I'm trying to explain when the code is
+    readable. If you need help implementing these changes by yourself, I recommend
+    you check out the official GitHub repository. All the following examples are based
+    on these changes, but they should be understandable without having the full source
+    code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: More important, however, is `useGetChatsQuery`, which has a special feature.
+    We want to subscribe to the `messageAdded` subscription to listen for new messages.
+    That's possible by using a new function of the Apollo `useQuery` Hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We need to extract a `subscribeToMore` function from the `useGetChatsQuery`
+    Hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `subscribeToMore` function is provided by default with every result of an
+    Apollo `useQuery` Hook. It lets you run an `update` function whenever a message
+    is created. It works in the same way as the `fetchMore` function. We can use this
+    function in the `Chats` component to listen for the new messages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s have a look at how we can use this function to implement subscriptions
+    on the frontend, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a new `subscriptions` folder inside the `apollo` folder.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Create a new `messageAdded.js` file inside this `subscriptions` folder. We
+    need to parse the GraphQL subscription string. The new `messageAdded` subscription
+    has to look like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The subscription looks exactly like all the other queries or mutations we are
+    using. The only difference is that we request the `__typename` field, as it isn't
+    included in the response of our GraphQL API when using subscriptions. From my
+    point of view, this seems like a bug in the current version of `SubscriptionServer`.
+    You should check whether you still need to do this at the time of reading this
+    book.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We specify the operation type of the request, which is `subscription`, as you
+    can see in the preceding code snippet. Otherwise, it attempts to execute the default
+    query operation, which leads to an error because there's no `messageAdded` query,
+    only a subscription. The subscription events the client receives when a new message
+    is added hold all fields, as shown in the preceding code snippet.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'In the `addMessage` mutation file, we need to rewrite one part of the code.
+    We extract the fragment that we pass to `writeFragment` to be an exported variable
+    itself so that we can reuse that. The code should look like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Import the new GraphQL query in the `Chats.js` file together with some other
+    dependencies, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The following properties should be extracted from the `useGetChatsQuery` Hook:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Import the `withApollo` HOC and `UserConsumer`, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We are going to use direct Apollo Client interaction. This is why we need to
+    export the `Chats` component to be wrapped into the `withApollo` HOC to pass the
+    client into a property. To export your component correctly, use the `withApollo`
+    HOC. The code is illustrated here:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We wrap the `Chats` component into the `UserConsumer` component to get access
+    to the client. Furthermore, we wrap it into the `withApollo` HOC to get access
+    to the client.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Here''s the crucial part. When the component is mounted, we need to subscribe
+    to the `messageAdded` channel. Only then is the `messageAdded` subscription used
+    to receive new data or, to be exact, new chat messages. To start subscribing to
+    the GraphQL subscription, we have to add a new `useEffect` Hook, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code snippet, we execute a new `subscribeToNewMessages` method
+    inside the `useEffect` Hook of our React component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `useEffect` method only executes on the client-side code as the SSR implementation
+    doesn't throw this event.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We have to add the corresponding `subscribeToNewMessages` method as well. We''re
+    going to explain every bit of this function in a moment. Insert the following
+    code into the `Chats` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding `subscribeToNewMessages` method looks very complex, but once we
+    understand its purpose, it's straightforward. We primarily rely on the `subscribeToMore`
+    function here, which we get from `useGetChatsQuery`. The purpose of this function
+    is to start subscribing to our `messageAdded` channel and to accept the new data
+    from the subscription and merge it with the current state and cache so that it's
+    reflected directly to the user.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `document` parameter accepts the parsed GraphQL subscription.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second parameter is called `updateQuery`. It allows us to insert a function
+    that implements the logic to update the Apollo Client cache with the new data.
+    This function needs to accept a new parameter, which is the previous data from
+    where the `subscribeToMore` function has been passed. In our case, this object
+    contains an array of chats that already exist in the client's cache.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second parameter holds the new message inside the `subscriptionData` index.
+    The `subscriptionData` object has a `data` property that has a further `messageAdded`
+    field under which the real message that's been created is saved.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll quickly go through the logic of the `updateQuery` function so that you
+    can understand how we merge data from a subscription to the application state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If `subscriptionData.data` is empty or there are no previous chats in the `prev`
+    object, there's nothing to update. In this case, we return the previous data because
+    a message was sent in a chat that the client doesn't have in their cache. Otherwise,
+    we loop through all the previous chats of the `prev` object and find the index
+    of the chat for which the subscription has returned a new message by comparing
+    the chat IDs. The found chat's index inside the `prev.chats` array is saved in
+    the `index` variable. If the chat cannot be found, we can check this with the
+    `index variable` and return the previous data. If we find the chat, we need to
+    update it with a new message. To do this, we compose the chat from the previous
+    data and set `lastMessage` to the new message's text. We do this by using the
+    `Object.assign` function, where the chat and the new message are merged. We save
+    the result in the `newValue` variable. It's important that we also set the returned
+    `__typename` property because otherwise, Apollo Client throws an error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have an object that contains the updated chat in the `newValue`
+    variable, we write it to the client's cache. To write the updated chat to the
+    cache, we return an array of all chats at the end of the `updateQuery` function.
+    Because the `prev` variable is read-only, we can't save the updated chat inside
+    it. We have to create a new array to write it to the cache. We set the `newValue`
+    chat object to the `newList` array at the index where we found the original chat.
+    At the end, we return the `newList` variable. We update the cache that's given
+    to us inside the `prev` object with the new array. Importantly, the new cache
+    has to have the same fields as before. The schema of the return value of the `updateQuery`
+    function must match the initial `chats` query schema.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can now test the subscription directly in your browser by starting the application
+    with `npm run server`. If you send a new chat message, it's shown directly in
+    the chat panel on the right-hand side.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have, however, got one major problem. If you test this with a second user,
+    you'll notice that the `lastMessage` field is updated for both users. That is
+    correct, but the new message isn't visible inside the chat window for the recipient.
+    We've updated the client store for the `chats` GraphQL request, but we haven't
+    added the message to the single `chat` query that's executed when we open a chat
+    window.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''re going to solve this problem by making use of the `withApollo` HOC. The
+    `Chats` component has no access to the `chat` query cache directly. The `withApollo`
+    HOC gives the exported component a `client` property, which allows us to interact
+    directly with Apollo Client. We can use it to read and write to the whole Apollo
+    Client cache, and it isn''t limited to only one GraphQL request. Before returning
+    the updated `chats` array from the `updateQuery` function, we have to read the
+    state of `chat` and insert the new data if possible. Insert the following code
+    right before the final `return` statement inside the `updateQuery` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code snippet, we use the `client.readQuery` method to read
+    the cache. This accepts the `GET_CHAT` query as one parameter and the chat ID
+    of the newly sent message to get a single chat in return. The `GET_CHAT` query
+    is the same request we sent in the `Chat.js` file when opening a chat window.
+    We wrap the `readQuery` function in a `try`-`catch` block because it throws an
+    unhandled error if nothing is found for the specified `query` and `variables`.
+    This can happen if the user hasn't opened a chat window yet, and so no data has
+    been requested with the `GET_CHAT` query for this specific chat. Furthermore,
+    the whole block is wrapped into an `if` condition to check if the new message
+    is from another user and not from ourselves because if we send a message on our
+    own, we do not need to add it into the cache as we already do that on submission
+    of a new message from our side.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If the message is from another user, we use the `client.cache.modify` function,
+    as we already know to add the new message to the array of messages in the cache
+    for this specific chat.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can test these new changes by viewing the chat window and sending a message
+    from another user account. The new message should appear almost directly for you
+    without the need to refresh the browser.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, we learned how to subscribe to events sent from a backend
+    through Apollo subscriptions. Currently, we use this feature to update the UI
+    on the fly with the new data. Later, in the *Notifications with Apollo subscriptions*
+    section, we''ll see another scenario where subscriptions can be useful. Nevertheless,
+    there''s one thing left to do: we haven''t authorized the user for the `messageAdded`
+    subscription through a JWT, such as our GraphQL API, and still, the user received
+    the new message without verifying its identity. We''re going to change this in
+    the next section.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Authentication with Apollo subscriptions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In [*Chapter 6*](B17337_06_Final_ASB_ePub.xhtml#_idTextAnchor141), *Authentication
+    with Apollo and React*, we implemented authentication through the local storage
+    of your browser. The backend generates a signed JWT that the client sends with
+    every request inside the HTTP headers. In [*Chapter 9*](B17337_09_Final_ASB_ePub.xhtml#_idTextAnchor176),
+    *Implementing Server-Side Rendering*, we extended this logic to support cookies
+    to allow SSR. Now that we've introduced WebSockets, we need to take care of them
+    separately, as we did with the SRR and our GraphQL API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How is it possible for the user to receive new messages when they aren't authenticated
+    on the backend for the WebSocket transport protocol?
+  prefs: []
+  type: TYPE_NORMAL
+- en: The best way to figure this out is to have a look at your browser's developer
+    tools. Let's assume that we have one browser window where we log in with user
+    A. This user chats with another user, B. Both send messages to each other and
+    receive the new updates directly in their chat window. Another user, C, shouldn't
+    be able to receive any of the WebSocket updates. We should play through this scenario
+    in reality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you use Chrome as your default browser, go to the `subscriptions` endpoint
+    of our backend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Try this scenario with the Developer Tools open. You should see the same WebSocket
+    frames for all browsers. It should look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 10.1 – WebSocket messages'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_10.01_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 10.1 – WebSocket messages
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the left panel, you can see all WebSocket connections. In our case, this
+    is only the `subscriptions` connection. If you click on the connection, you will
+    find all the frames that are sent over this connection. The first frame in the
+    preceding list is the initial connection frame. The second frame is the subscription
+    request to the `messageAdded` channel, which is initiated by the client. Both
+    frames are marked green because the client sends them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The last two are marked in red as the server sent them. The first of the red-marked
+    frames is the server's acknowledgment of the established connection. The last
+    frame was sent by our backend to publish a new message to the client. While the
+    frame might look alright at first glance, it represents a vital problem. The last
+    frame was sent to all clients, not just those who are members of the specific
+    chat in which the message was sent. Average users are not likely to notice it
+    since our `cache.modify` function only updates the UI if the chat was found in
+    the client store. Still, an experienced user or developer is able to spy on all
+    users of our social network as it's readable in the **Network** tab.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We need to take a look at the backend code that we have written and compare
+    the initialization of `ApolloServer` and `SubscriptionServer`. We have a `context`
+    function for `ApolloServer` that extracts the user from the JWT. It can then be
+    used inside the resolver functions to filter the results by the currently logged-in
+    user. For `SubscriptionServer`, there's no such `context` function at the moment.
+    We have to know the currently logged-in user to filter the subscription messages
+    for the correct users. We can use standard WebSockets events, such as `onConnect`
+    or `onOperation`, to implement the authorization of the user.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `onOperation` function is executed for every WebSocket frame that is sent.
+    The best approach is to implement the authorization in the `onConnect` event in
+    the same way as the `context` function that's taken from `ApolloServer` so that
+    the WebSocket connection is authenticated only once when it's established and
+    not for every frame that's sent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In `index.js`, from the `subscriptions` folder of the server, add the following
+    code to the first parameter of the `SubscriptionServer` initialization. It accepts
+    an `onConnect` parameter as a function, which is executed whenever a client tries
+    to connect to the `subscriptions` endpoint. Add the code just before the `schema`
+    parameter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: This code is very similar to the `context` function. We rely on the normal JWT
+    authentication but via the connection parameters of the WebSocket. We implement
+    the WebSocket authentication inside the `onConnect` event. In the original `context`
+    function of `ApolloServer`, we extract the JWT from the HTTP headers of the request,
+    but here, we are using the `params` variable, which is passed as the first parameter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before the client finally connects to the WebSocket endpoint, an `onConnect`
+    event is triggered where you can implement special logic for the initial connection.
+    With the first request, we send the JWT because we have configured Apollo Client
+    to read the JWT to the `authToken` parameter of the `connectionParams` object
+    when `SubscriptionClient` is initialized. That's why we can access the JWT not
+    from a `request` object directly but from `params.authToken` in the preceding
+    code snippet. The `socket` parameter is also given to us inside the `onConnect`
+    function; there, you can access the initial upgrade request inside the `socket`
+    object. After extracting the JWT from the connection parameters, we can verify
+    it and authenticate the user with that.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the end of this `onConnect` function, we return the `upgradeReq` variable
+    and the user, just as we do with a normal `context` function for Apollo Server.
+    Instead of returning the `req` object to `context` if the user isn't logged in,
+    we are now throwing an error. This is because we only implement subscriptions
+    for entities that require you to be logged in, such as chats or posts. It lets
+    the client try to reconnect until it's authenticated. You can change this behavior
+    to match your needs and let the user connect to the WebSocket. Don't forget, however,
+    that every open connection costs you performance and a user who isn't logged in
+    doesn't need an open connection, at least for the use case of **Graphbook**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We have now identified the user that has connected to our backend with the
+    preceding code, but we''re still sending every frame to all users. This is a problem
+    with the resolver functions because they don''t use the context yet. Replace the
+    `messageAdded` subscription with the following code in the `resolvers.js` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: Earlier in this chapter, we imported the `withFilter` function from the `graphql-subscriptions`
+    package. This allows us to wrap `asyncIterator` with a filter. The purpose of
+    this filter is to conditionally send publications through connections to users
+    who should see the new information. If one user shouldn't receive a publication,
+    the return value of the condition for the `withFilter` function should be `false`.
+    For all users who should receive a new message, the return value should be `true`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `withFilter` function accepts `asyncIterator` as its first parameter. The
+    second parameter is the function that decides whether a user receives a subscription
+    update. We extract the following properties from the function call:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `payload` parameter, which is the new message that has been sent in the
+    `addMessage` mutation.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `variables` field, which holds all GraphQL parameters that could be sent
+    with the `messageAdded` subscription, not with the mutation. For our scenario,
+    we are not sending any variables with the subscription.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `context` variable, which holds all the information that we implemented
+    in the `onConnect` Hook. It includes the regular `context` object with the user
+    as a separate property.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `filter` function is executed for every user that has subscribed to the
+    `messageAdded` channel. First, we check whether the user for which the function
+    is executed is the author of the new message by comparing the user IDs. In this
+    case, they don't need to get a subscription notification because they already
+    have the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If this isn't the case, we query the database for the chat where the new message
+    was added. To find out whether a user needs to receive the new message, we select
+    only chats where the logged-in user's ID and the chat ID are included. If a chat
+    is found in the database, the user should see the new message. Otherwise, they
+    aren't allowed to get the new message, and we return `false`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remember that the `withFilter` function is run for each connection. If there
+    are thousands of users, we would have to run the database query very frequently.
+    It's better to keep such filter functions as small and efficient as possible.
+    For example, we could query the chat once to get the attached users and loop through
+    them manually for all the connections. This solution would save us expensive database
+    operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is all you need to know about authentication with subscriptions. We now
+    have a working setup that includes SSR with cookies and real-time subscriptions
+    with JWT authentication. The SSR doesn't implement subscriptions because it doesn't
+    make sense to offer real-time updates for the initial rendering of our application.
+    Next, you will see another scenario where Apollo subscriptions can be useful.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notifications with Apollo subscriptions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, I'll quickly guide you through the second use case for subscriptions.
+    Showing notifications to a user is perfectly traditional and commonplace, as you
+    know from Facebook. Instead of relying on the `subscribeToMore` function, we use
+    the `Subscription` component that's provided by Apollo. This component works like
+    the `Query` and `Mutation` components, but for subscriptions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Follow these steps to get your first `Subscription` component running:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a `subscriptions` folder inside the client's `apollo` folder. You can
+    save all subscriptions that you implement using Apollo's `useSubscription` Hook
+    inside this folder.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Insert a `messageAdded.js` file into the folder and paste in the following
+    code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The general workflow for the `useSubscription` component is the same as for
+    the `useMutation` and `useQuery` Hooks. First, we parse the subscription with
+    the `gql` function. Then, we just return the `useSubscription` Hook with the parsed
+    GraphQL query.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Because we want to show notifications to the user when a new message is received,
+    we install a package that takes care of showing pop-up notifications. Install
+    it using `npm`, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'To set up `react-toastify`, add a `ToastContainer` component to a global point
+    of the application where all notifications are rendered. This container isn''t
+    only used for notifications of new messages but for all notifications, so choose
+    wisely. I decided to attach `ToastContainer` to the `Chats.js` file. Import the
+    dependency at the top of it, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Inside the `return` statement, the first thing to render should be `ToastContainer`.
+    Add it, like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In the `Chats.js` file, add one `import` statement to load the subscription
+    Hook, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, just call this subscription Hook inside the `Chats` component after the
+    other Hook statements, like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Add a small `react-toastify` package. Import the `CSS` file in the `App.js`
+    file, like this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, add these few lines to the custom `style.css` file:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You can see an example of a notification in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 10.2 – Notification'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_10.02_B17337.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 10.2 – Notification
+  prefs: []
+  type: TYPE_NORMAL
+- en: The entire subscriptions topic is complex, but we managed to implement it for
+    two use cases and thus provided the user with significant improvements to our
+    application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This chapter aimed to offer the user a real-time UI that allows them to chat
+    comfortably with other users. We also looked at how to make this UI extendable.
+    You learned how to set up subscriptions with any Apollo or GraphQL backend for
+    all entities. We also implemented WebSocket-specific authentication to filter
+    publications so that they are only received by the correct user.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, you'll learn how to verify and test the correct functionality
+    of your application by implementing automated testing for your code.
+  prefs: []
+  type: TYPE_NORMAL

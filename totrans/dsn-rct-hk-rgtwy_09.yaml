@@ -1,0 +1,1252 @@
+- en: '*Chapter 9*: Use Custom Hooks to Reuse Logic'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we learned how the `useRef` hook is designed and how
+    to use a ref for a state without updating the screen. In this chapter, we will
+    gather all the hooks we have learned about so far and see how to create a custom
+    hook for our own needs. We will introduce what a custom hook is and then write
+    some custom hooks step by step, including `useToggle`, `useWindow`, `useAsync`,
+    `useDebounced`, `useClickOutside`, `useCurrent`, and `useProxy`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will cover the following topics in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reviewing React hooks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useToggle`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useWindow`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useAsync`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useDebounced`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useClickOutside`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useCurrent`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useProxy`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Questions and answers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Reviewing React hooks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We have seen quite a few hooks provided by *React*. Let''s take a moment to
+    review what we have learned so far:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Update a state with the `useState` hook.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Handle a side effect with the `useEffect` hook.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Reuse the last value with the `useMemo` hook.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Update an area with the `useContext` hook.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Hide stuff from display with the `useRef` hook.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `useState` hook is the most popular one, which is used to define a state
+    and make it dispatchable to trigger a *UI* update. *React* wants us to use this
+    as the main mechanism to be in sync with the screen. A mental picture of using
+    it is that, as long as the state changes, the *UI* should produce an outcome accordingly.
+    Otherwise, the *UI* should stay intact. Essentially, what that is saying is to
+    make something happen on the screen, design a state and wire it with elements.
+    This is the *React* way. If you take this as a baseline, it can help you understand
+    anything else.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `useEffect` hook allows us to listen to state changes, and based on that,
+    we can perform an action such as a side effect. Therefore, with it, you are equipped
+    with two ways to make something happen on the screen, that is, either listen to
+    an event or a state change. The subtlety here is that the side effect doesn't
+    get applied until all the *DOM* elements settle after the update. Also, don't
+    forget to clean up the side effect, if any.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `useMemo` hook serves as an optimization so that we can use a value evaluated
+    in a previous update. The basic setup is that, if a state has changed, it should
+    drive another round of update. And in that update, all component variables should
+    get updated. But if we intentionally reuse an old value, the value can seem to
+    be "skipped" from the update. This way, we can suppress some high-frequency action
+    that is not relevant to the update of the component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `useContext` hook is a must-have when it comes to an area update. A `useState`
+    hook can dispatch a state to one place, but it lacks two things. One, it needs
+    to use props to send a state further down to the children, and two, it needs to
+    know which children it sends props to. A context, once established, can be consumed
+    by any child underneath it no matter how deep the level is. And it supports on-demand
+    usage – you use it when you consume it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `useRef` hook is a *React*-supported way to bypass the *React* engine. By
+    default, *React* will want to react to all state changes. The `useRef` hook allows
+    you to continue persisting this value without the update capability. So the `useRef`
+    hook can become very handy in places that *React* can't or doesn't allow us to
+    reach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The preceding hooks aren''t the entire *React* collection of hooks. In fact,
+    *React* has more than a dozen built-in hooks; to name some others: `useCallback`,
+    `useLayoutEffect`, `useTransition`, and `useDeferredValue`, and some of them are
+    also in the experimental stage for the future concurrent mode of *React*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: There's one thing unique about the hooks we have covered so far. Each hook is
+    unique and each is designed for an atomic purpose. There's not much overlapping
+    in between. This provides a solid foundation when we want to mix and match them
+    in our application, as we have already seen in previous chapters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When it comes to building a website, there might be times when you want to create
+    custom logic that might not be covered by these built-in hooks. You might think
+    about extending some of the hooks, or you might even want to rewrite one or two.
+    In that case, what option do we have? The answer to this question is in the next
+    section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Making a new hook
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Can we make a new hook? In each of the previous chapters, we have asked you
+    to read the source code, so by now, you should be familiar with how each is implemented
+    under the hood. So can we follow the same process and create one? Unfortunately,
+    it's not that easy, mostly because this process isn't open for extension on the
+    fly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using a game engine as an analogy, it allows you to work with animations, materials,
+    lights, and even game logic, but it doesn't allow you to change the engine. For
+    instance, you can't add a custom identity type that is not animation nor materials
+    and still expect the game engine to pick it up. You might ask "why not?" This
+    is because a custom identity type requires additional implementations for the
+    engine to support it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*React* is an open source project, which means anyone can contribute to the
+    engine. The source code is also actively maintained by the *Facebook React* team,
+    and they are constantly looking for new proposals and feature requests.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Although the engine is not easily to be extended, the door of creating a custom
+    hook isn''t closed. Most of the time, we do not need a new hook type, instead,
+    we want to have a hook with extended behavior. Let''s take a look at an example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Given the preceding function, we can easily encapsulate it in a new function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: A hook is a function. If a hook has been designed to manage a state, whenever
+    we need a state, we don't need to re-invent it; similarly, if a hook has been
+    designed to handle a side effect, whenever we need a side effect, we can adopt
+    these functionalities by invoking it. So, as long as the hook we designed so far
+    is useful and usable enough, we should be able to just use it in our own function.
+    This is the basic idea of reusability.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s take a look at the following example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding function, `useUsername` uses the `useState` hook twice, and
+    the output includes a joint `fullname` from two states, `firstName` and `lastName`,
+    as well as two separate dispatch functions to update each of them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's examine the `useUsername` function a bit more closely, because `useUsername`
+    is a custom hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Writing a custom hook
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We can now use the `userUsername` function we just created as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Comparing the preceding two versions with or without the `useUsername` hook,
+    we can see that the `useUsername` function is more or less an extracted utility
+    function through a code refactoring where the interface for the new `useUsername`
+    function emerges as two strings as input arguments and an object with a string
+    and two functions as the return value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is just how we create a new function in the first place. We create a function
+    because we need it or because we see some duplication in our code, and we can
+    avoid the duplication by doing some refactoring. This way, not only does the code
+    get cleaner afterward, but the function can also be used in some other places
+    in the future. Refactoring is more like a one-stone-shooting-two-birds kind of
+    approach, as long as there're multiple birds to shoot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is Computer Science 101, and the custom hook we created so far is one demonstration
+    of it. OK, let's go over some of the basics of the custom hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The reason why we call `useUsername` a custom hook is that it meets the following
+    requirements:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is a function.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It is named with the prefix `use`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It consumes at least one built-in hook.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Apparently, we can write a function and arbitrarily give it a name with the
+    prefix `use`, but does it qualify as a custom hook? Let''s take a look at the
+    following function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: A function like `useNotAHook` in the preceding setup is not a hook! Don't we
+    keep saying a hook is a function? Yes, but not all functions are hooks, even when
+    it gets invoked inside a functional component, such as in the `Title` component.
+    The `useNotAHook` is merely a plain function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You might be thinking "Okay, we need to make a function a bit more complicated
+    to qualify as a custom hook." Let''s try with the following function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: There are only two lines in the preceding function, so it's not complicated.
+    It takes the first part of the `useState` hook and returns the state only. That's
+    it. But is it a custom hook? Yes, it is. So, a custom hook doesn't have to be
+    complicated!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hopefully, by now, you don't feel dizzy from looking at these mind-bending examples.
+    In short, by convention, a custom hook needs to meet all the requirements listed
+    earlier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technically, the only thing that separates the custom hook from a regular function
+    is that it uses at least one of the built-in hooks at least once. What's so special
+    about the built-in hooks? The built-in hooks hook into *React* and provide functionalities
+    that you can't make without opening the engine. The functionalities here mostly
+    refer to managing a persistent state. This is where the name "custom" comes from,
+    to distinguish the hook you created and the built-in ones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we move into creating a custom hook, there's also one more unique thing
+    worth pointing out. Most of the custom hooks are designed without any visual representation
+    attached to them. So, a custom hook is essentially a piece of reusable algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is how the *React* team envisioned the hooks can bring to us. Hooks "let
+    you reuse logic between components." Keep this in mind when you create custom
+    hooks. If the logic smells generic enough to you, or at least you think there's
+    one more location where you could apply the same logic, it's time for us to experiment
+    with the idea of using a custom function, and if it turns out it uses one of the
+    built-in hooks, then here you go, you create a custom hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now with the basic idea in mind, retrospectively, if we review the code we have
+    written in this book so far, we would spot that we might have hopped on this boat
+    without knowing it. Let's revisit it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: useToggle
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Hooks used in this custom hook: `useState`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Taking one example, we have had this idea of switching a state between `true`
+    and `false` for a while. We use it in switchable cases, such as toggling a checkbox,
+    hovering over a text, raising an error, or anything that simulates a light switch.
+    See *Figure 9.1* for one of the usages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.1 – useToggle'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_9.1_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 9.1 – useToggle
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Can we abstract this idea to provide such boolean state as well as the toggle
+    functionality? Let''s start refactoring:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code block, the `useToggle` custom hook takes an `initialStatus`
+    as the input argument with `false` as the default value, and it returns the `status`
+    and a `toggle` function. Invoking the `toggle` function flips the `status` from
+    `false` to `true`, or `true` to `false`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `useToggle` hook has a very nice function designed with well-defined input
+    arguments and a return value and looks handy for supporting the toggle between
+    a boolean status. There''s a small improvement we can make here. Sometimes, we
+    also want to toggle into a specific status instead of the flip:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding revised version of `toggle`, when a `newStatus` is given,
+    it toggles to that specific status, otherwise, it flips as in the old `toggle`.
+    Notice we use a double arrow in a row, as in `() => () => {}`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: If we were to write it slowly, we could use the preceding equivalent version
+    where you can clearly see an inline function is returned from a function, since
+    in this case, we expect what's returned from the `toggle` to be an event handler.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A function returning a function is very common in **Functional Programming**
+    (**FP**). Although this book does not cry out for FP (or maybe it already did),
+    it's just natural to use FP in *React* code, especially when working with a function
+    component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Okay, now we have the custom hook designed, let's give it a spin.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Usages
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Say we apply this `useToggle` hook to an `Avatar` component where an `error`
+    can be toggled. The `Avatar` component was introduced in [*Chapter 4*](B17963_04_Epub.xhtml#_idTextAnchor113),
+    *Use State to Jumpstart Components*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Interesting! Though there's no drastic difference before and after applying
+    the `useToggle`, the logic becomes quite clear in that an `error` state gets toggled
+    after the image loading runs into an error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Avatar with useToggle
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/yLozOJQ](https://codepen.io/windmaomao/pen/yLozOJQ).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s try to apply `useToggle` in another place, such as the `Tooltip` component,
+    also introduced in [*Chapter 4*](B17963_04_Epub.xhtml#_idTextAnchor113), *Use
+    State to Jumpstart Components*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, we used a `useToggle` to return an `entered` state and
+    an `onEntered` function that feeds into the `onMouseEnter` and `onMouseLeave`
+    event handler neatly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Tooltip with useToggle
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/QWMqNKx](https://codepen.io/windmaomao/pen/QWMqNKx).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The concept of having a toggle mechanism is revealed vividly via the `useToggle`
+    hook. The function can be tested separately and can be extended with relatively
+    little effort. If we use this hook often, the cost of creating it and maintaining
+    it can become even cheaper.
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'There are a number of people who have written similar hooks to `useToggle`
+    on the internet. Here is a list of some of them as references in case you''d like
+    to learn more about this custom hook:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`useToggle`: [https://usehooks.com/useToggle/](https://usehooks.com/useToggle/).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`react-use-toggle`: [https://github.com/bsonntag/react-use-toggle](https://github.com/bsonntag/react-use-toggle).
+    It has a good test written.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: useWindow
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Hooks used in this custom hook: `useState` and `useEffect`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A text or image can adjust its appearance based on the current browser window
+    size. We experimented with this idea in [*Chapter 5*](B17963_05_Epub.xhtml#_idTextAnchor157),
+    *Use Effect to Handle Side Effects*. See *Figure 9.2*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.2 – useWindow custom hook'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_9.2_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 9.2 – useWindow custom hook
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now the question is: can we abstract this idea out and apply it to anything
+    on the screen as in a responsive design? Let''s refactor the code a bit to come
+    up with a custom `useWindow` hook:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding `useWindow` hook is taken out of our previous code and returns
+    the current width of the screen. A `useEffect` is used to handle the initialization
+    and cleanup of the system event upon a browser `resize`. During each screen resize,
+    the window's `innerWidth` is stored in the `width` state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to make it easy to use, we can provide the input argument `size` to
+    this custom hook, so that it can also tell us whether the `width` is beyond that
+    `size`, telling us whether the screen is wide enough to support a large-sized
+    version.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Usages
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let''s apply this custom hook to a text that can adjust to a large version
+    when the screen size reaches beyond 600 *px*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: This looks very easy to use, and moreover, the functionalities pertaining to
+    detecting the window size are entirely taken out and outsourced to the `useWindow`
+    hook, therefore reducing the code quite a bit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Responsive with useWindow
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/zYdEqog](https://codepen.io/windmaomao/pen/zYdEqog).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There''s one unique thing about this custom hook. Unlike a classical `media-query`
+    supported by *CSS*, the `wide` flag returned from `useWindow` is used to change
+    the layout entirely. This means we can support a very drastic screen change to
+    accommodate the screen size:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, `HeaderWide` and `HeaderMini` are two completely different
+    layout components to display a header for screen sizes of less than `725` and
+    larger than `725`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One thing we learned from making this custom hook is that the functionalities
+    can be tailored to your own purpose. Here, we export a flag, `width > size`, because
+    we believe it's useful for the current project. However, the responsiveness setting
+    isn't fixed, and it can vary from project to project. This doesn't stop us from
+    creating something useful at the moment. And this is the point of code refactoring,
+    to improve the quality of the code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Our version of `useWindow` monitors the window width only, but we can track
+    both the width and height of the screen, as implemented in the following references:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`useWindowSize`: [https://usehooks.com/useWindowSize/](https://usehooks.com/useWindowSize/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useWindowSize`: [https://github.com/jaredLunde/react-hook/tree/master/packages/window-size](https://github.com/jaredLunde/react-hook/tree/master/packages/window-size)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: useAsync
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Hooks used in this custom hook: `useState`, `useEffect`, `useRef`, and `useMemo`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One hook everyone wants to get their hands dirty with is `useAsync`, which
+    is used to fetch an async resource as we introduced in [*Chapter 5*](B17963_05_Epub.xhtml#_idTextAnchor157),
+    *Use Effect to Handle Side Effects*. See *Figure 9.3*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.3 – useAsync hook'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_9.3_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 9.3 – useAsync hook
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As simple as it sounds, everyone comes with different requirements and implementations
+    for their projects. Here are a few features that we would like to have:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Support a loading indicator.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Can execute on demand.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Support error handling.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Can cancel async call.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Can cache async data.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The feature list can go on and on. In this book, I will provide a basic version
+    that supports the first two items.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At any point, the call should be aware of the `loading` state, and when the
+    resource is resolved, the `data` should be available to use. Also, we''d like
+    to keep a handle on the `execute` function in case we want to fetch the resource
+    again. Let''s design it in a custom hook:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code block, the `useAsync` hook takes three input arguments,
+    `asyncFunc`, `initialParams`, and `immediate`, and returns three properties, `execute`,
+    `loading`, and `data`. The `asyncFunc` function is a user-provided async function,
+    such as a *Promise*, defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding `fn` promise, an `id` is sent as the input argument. This
+    is where the second input argument of `useAsync` becomes useful, and it can be
+    used to provide the `initialParams` in key/value pairs as in `{ id: 3 }`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `useAsync` hook also supports an optional flag, `immediate`, and when set
+    as `true`, it invokes the async call immediately after the component mount. Although
+    this is the most popular case, we can set it as `false` so we manually invoke
+    `execute` later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Inside the hook, we use states to model `loading` and `data`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: A `useRef` is used for `mountedRef` to know when this component is dismounted;
+    we explained this in [*Chapter 8*](B17963_08_Epub.xhtml#_idTextAnchor278), *Use
+    Ref to Hide Stuff*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To provide the capability of fetching the resource on demand, an `execute`
+    function is created and accepts a `params` object:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding `execute` function sets the `loading` to `true` so that if we
+    have a spinner wired with it, it can start to spin. And then it invokes the `asyncFunc`
+    with the combination of `params` and `initialParams` so the `params` can overwrite
+    any keys set by `initialParams`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When the resource is resolved and returned, we first check if the component
+    is still mounted by `mountedRef`, and if not, we skip to avoid the memory leak.
+    Otherwise, it sets the `data` accordingly and dismisses the spinner by setting
+    `loading` to `false`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There''s also a subtlety here that we want to use one version of this `execute`
+    function instead of a new instance in each update, therefore, we can apply `useMemo`
+    here to make that happen:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When `immediate` is set to `true`, we want to invoke the fetch right after
+    the mount and this is supported through a `useEffect` hook:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To make sure we don''t run into a memory leak, we also need to set the `mountedRef`
+    to `false` when it''s unmounted. This is done through another `useEffect`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: With these changes, this custom `useAsync` hook is quite feature-rich for fetching
+    a resource in general. Let's give it a spin.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Usages
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now let''s apply the `useAsync` custom hook to a `Title` component and see
+    how we can preload some info from an *API*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code, the async function is invoked immediately. After the
+    mount, it displays `null`, and during the fetching, it displays `loading...`,
+    and displays `loaded` after the fetch is successful. In this simple case, we added
+    two short circuit pathways:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Upon loading, we switch to a loading status; this is the place where you can
+    install a pretty (inline) loader or spinner:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Regardless of whether the loading hasn''t started or the fetch has failed,
+    as long as the data isn''t available, we display nothing on the screen:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: This logic is effective to prevent the user from seeing any incomplete or wrong
+    data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Fetch with useAsync
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/jOLaOxO](https://codepen.io/windmaomao/pen/jOLaOxO).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Okay, let''s try a case without fetching initially. Instead, we fetch a resource
+    of an arbitrary `id` from a user interaction, such as a **Delete** button in a
+    table row:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding example, the `fetch` promise is amended to accept `id` as input.
+    We used `execute` manually inside an event handler, `onClick`, where we fetched
+    the resource with a given `id`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Manual Fetch with useAsync
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/GRvOgoa](https://codepen.io/windmaomao/pen/GRvOgoa).
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The `useAsync` hook we provided here serves as a basic template for learning
+    purposes. If you are interested in more functionalities to serve your project
+    needs, you can find more at the following references:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`useAsync`: [https://usehooks.com/useAsync/](https://usehooks.com/useAsync/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Hooks Async: [https://github.com/dai-shi/react-hooks-async](https://github.com/dai-shi/react-hooks-async)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Fetching Library: [https://github.com/marcin-piela/react-fetching-library](https://github.com/marcin-piela/react-fetching-library)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Vercel SWR: [https://swr.vercel.app/](https://swr.vercel.app/) – supports caching
+    and server integration'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'React Query: [https://github.com/tannerlinsley/react-query](https://github.com/tannerlinsley/react-query)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: useDebounced
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Hooks used in this custom hook: `useState`, `useEffect`, and `useRef`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In [*Chapter 6*](B17963_06_Epub.xhtml#_idTextAnchor203), *Use Memo to Boost
+    Performance*, we ran into a very interesting implementation where we debounced
+    the user keystroke so that we don't invoke a heavy operation (such as search)
+    too frequently.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.4 – useDebounced hook'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_9.4_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 9.4 – useDebounced hook
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A pattern that emerged is that for a given state, whenever we change it via
+    dispatch, we want to wait for a period of time before we are assured that it''s
+    the right time to act upon it. So essentially we want to design a new state as
+    a debounced version of a given state. Let''s try to capture this pattern in a
+    custom `useDebounced` hook:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code block, the `useDebounced` hook is designed to take two
+    input arguments, the `oldState` and the time `duration` for the debounce duration.
+    The hook returns a new `state` with a debounced value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It actually can't reuse the `debounce` function from the *Lodash* library, so
+    the `debounce` functionality is recreated here. The frequency of the new state
+    is controlled by a `useEffect`. Upon each change from `oldState`, it kicks off
+    a `setTimeout`, which is asking to run a callback after a certain `duration`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, we used a `useRef` to make sure we can keep track of a persistent function
+    handle for `setTimeout` during the lifetime of the component. Between now and
+    the duration ends, if another change comes in, it cancels the previous `setTimeout`
+    via `clearTimeout`, thus preventing the change to apply to the `state`. Only when
+    one of the `setTimeout` manages to get invoked does the change of `oldState` get
+    applied to `state`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In a way, the `oldState` and the `state` lags a bit in between. Let's give it
+    a spin and see how we can use this `useDebounced` hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Usages
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let''s take a look at how it''s used in the `Title` component where we need
+    to perform a search based on the user typing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code, a `text` state is sent to `useDebounced` to form a new
+    `query` state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: Because the `query` state is less frequently updated, we can wire it to the
+    `filter` via `useMemo`, since otherwise, the `text` state can get updated very
+    rapidly via `onChange`. In a way, we created a state event out of `query` so the
+    *UI* updates according to two data streams with different frequencies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Search with useDebounced
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/bGrYNmB](https://codepen.io/windmaomao/pen/bGrYNmB).
+  prefs: []
+  type: TYPE_NORMAL
+- en: From this `useDebounced` custom hook, we can see an artificial event created
+    out of listening to a state change that can be as useful as a physical event.
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'To learn more about the `useDebounced` hook, here are the reference links for
+    you:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`useDebounce`: [https://usehooks.com/useDebounce/](https://usehooks.com/useDebounce/).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useDebounce`: [https://github.com/xnimorz/use-debounce](https://github.com/xnimorz/use-debounce).
+    This supports all debounce options.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: useClickOutside
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Hooks used in this custom hook: `useEffect`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In [*Chapter 8*](B17963_08_Epub.xhtml#_idTextAnchor278), *Use Ref to Hide Stuff*,
+    we learned about a case where we can detect when a user clicks outside a component.
+    This feature is pretty generic and we want to take advantage of this in various
+    parts of the project, such as dismissing a modal or tooltip – see *Figure 9.5*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.5 – useClickOutside hook'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_9.5_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 9.5 – useClickOutside hook
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s see if we can refactor the old code a bit and turn it into a custom
+    `useClickOutside` hook:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `useClickOutside` hook accepts two input arguments, the first one is a `ref`
+    to the element, and the second is the callback `handler` to invoke after detecting
+    clicking outside. Notice the hook doesn't return any value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A `useEffect` is used to manage a `mousedown` event, and if the click is inside
+    the component, the handler is prevented from being invoked. We basically take
+    our old code into a separate function. Let's give it a spin.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Usages
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We can try out the `useClickOutside` on a `Menu` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This time we set up the `Menu` to support two input arguments. One is the `on`
+    flag and the other is the `dismiss` function. Both are provided via props so the
+    `Menu` can be driven by the parent component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding `App` component, we used an `on` state from a custom hook we
+    just built earlier to provide us with a boolean as well as a `toggle` function.
+    We used them to drive a `Menu`. Cool, we started using our own custom hook in
+    no time. Initially, the `on` is set to `true`, indicating the `Menu` is displayed.
+    Clicking anywhere outside of it would dismiss it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Menu with useClickOutside
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/qBXVdOe](https://codepen.io/windmaomao/pen/qBXVdOe).
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To learn more about the `useClickOutside` hook, here are some reference links
+    for you:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`useOnClickOutside`: [https://usehooks.com/useOnClickOutside/](https://usehooks.com/useOnClickOutside/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useClickOutside`: [https://github.com/ElForastero/use-click-outside](https://github.com/ElForastero/use-click-outside)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: useCurrent
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Built-in hooks used in this custom hook: `useState`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When using the `useState`, we encountered quite a few issues that prevented
+    a newcomer     from understanding how to use it properly, mainly from the inherited laggy behavior
+    due to the fact that the state value does not change right after the dispatch.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding line, if we understand the `dispatchState` function is to
+    dispatch and request a change, then there''s not much we need to do because that''s
+    how *React* designs the `useState`. However, most often we tend to think differently:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding `setState` name is the main reason we push ourselves into trouble,
+    because here we would expect the `state` to change right after the `setState`
+    statement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In [*Chapter 8*](B17963_08_Epub.xhtml#_idTextAnchor278), *Use Ref to Hide Stuff*,
+    we used a `useRef` to locate the current value. There are two different ways to
+    solve this problem: one is to design a container to keep pointing to the current
+    value, the other is to design an access function to give us the current one when
+    needed. Let''s give the second method a shot this time:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding custom `useCurrent` hook, it stores the state under a `state`
+    property of an `obj`. When you need to find out the state, you can invoke `getState`
+    function, and when you need to update the state, you perform `dispatch` as used
+    to be. Here, we have to manage the `obj` manually, and if we find out the `newState`
+    is not different than the current `obj.state`, we skip this dispatch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Usages
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let''s give it a spin for our 3-second-delayed clicks example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding code shows that this time, the code is simplified a bit since
+    we don't need a ref to track the current value. Instead, we use a custom `useCurrent`
+    to manage the state. The big difference is that anytime we need to find out the
+    `count`, we need to invoke `getCount` returned from the hook. The plus side is
+    that we don't have to always wonder what the current `count` is anymore.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Current State with useCurrent
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/VwzrvBX](https://codepen.io/windmaomao/pen/VwzrvBX).
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Check these links out to see how people approach this problem from different
+    angles:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Use Ref State: [https://scastiel.dev/posts/2019-02-19-react-hooks-get-current-state-back-to-the-future/.](https://scastiel.dev/posts/2019-02-19-react-hooks-get-current-state-back-to-the-future/'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: )
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`useStateRef`: [https://github.com/Aminadav/react-useStateRef](https://github.com/Aminadav/react-useStateRef)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useRefState`: [https://github.com/alex-cory/urs](https://github.com/alex-cory/urs).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: "Use Safe State: [https://ahooks.js.org/hooks/advanced/use-safe-state/](https://ahooks.js.org/hooks/advanc\uFEFF\
+    ed/use-safe-state/). This implements a safe state."
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: useProxy
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Built-in hooks used in this custom hook: `useState`, `useEffect`, and `useRef`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The thinking behind either fixing or improving the *React* state never ends.
+    One cool idea originates from the question "why can''t we just do a plain assignment
+    for states instead of using the dispatch approach?" One of the technical issues
+    blocking us is that the assignment can''t be done unless there''s an object or
+    something to hold the state. So, if we were to allow the storing of properties
+    under an object like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then we could turn a dispatch into an assignment like the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s take a look at how we can design such things with the help of the *Proxy*
+    introduced by *ES6*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding custom `useProxy` hook takes a similar approach as the `useCurrent`
+    hook and stores the `initialObj` into a state but at the same time creates another
+    special object with the Proxy. Without going into too much detail about the Proxy
+    usage, the special object basically captures the moment of reading and writing
+    any property into two function calls, `get` and `set`. Here, we don''t really
+    care about the `get` so it reverts to the default behavior, whereas the `set`
+    overrides the default behavior with a new version:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding code gets invoked for any statement like `obj.prop = value`. The
+    implementation is quite similar to that of the `getCurrent` hook, where it checks
+    if the new `value` is any different than the stored `obj[prop]` and makes a dispatch
+    if that's the case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since we are tracking a couple of states under the properties with an object,
+    it''s worthwhile adding a `mountRef` flag in case things go wrong after the component
+    is dismounted:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Given a `mountRef`, we can modify the `set` to disable it to avoid a memory
+    leak:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: Okay, with all these features built, let's put them together and give them a
+    spin.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Usages
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The `useProxy` hook is a lot more powerful , but it requires you to put all
+    values under an object and it can be really useful especially for form handling:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding `Form` component, we define a `form` object to hold two states,
+    `count` and `text`. Let''s first take a look how we can increment a number now:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code, the count is displayed from `form.count`, but when it
+    comes to incrementing it, we simply do `++form.count`. Essentially, this is equivalent
+    to either of the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: From the usage experience, we don't have to remember what a dispatch is; all
+    we need to do is a plain assignment. The custom `useProxy` hook takes care of
+    the dispatch for us.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There''s another advantage coming from this custom hook, that is, from now
+    on, both `set` and `get` are done through the same object, `form`. This means
+    if we need to ask a child to handle one form element, we do not have to send two
+    pieces as we normally do. Let''s take a look at one example with the other `text`
+    state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding example, we define a `Text` component to handle the text input.
+    Notice we only need to send the `form` through a prop. And inside the `Text` component,
+    both the display and assignment of this text are managed via `form.text`. Crazily
+    handy, isn't it?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Form with useProxy
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/eYEeZmL](https://codepen.io/windmaomao/pen/eYEeZmL).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `useProxy` hook does ask us to use an object to manage states, but once
+    you are onboard with this approach, you might feel more like coding normally without
+    the *React* state hassle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Valtio: [https://github.com/pmndrs/valtio](https://github.com/pmndrs/valtio)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Use State Proxy: [https://github.com/beenotung/use-state-proxy](https://github.com/beenotung/use-state-proxy)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Proxy States: [https://github.com/windmaomao/proxy-state](https://github.com/windmaomao/proxy-state)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we summarized all the *React* built-in hooks that we've introduced
+    so far and then went on to how to create a custom hook. Then, once we understood
+    the concept, we went over all the code we wrote in this book and turned some of
+    it into custom hooks, including `useToggle`, `useWindow`, `useAsync`, `useDebounced`,
+    `useClickOutside`, `useCurrent`, and `useProxy`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will get to know how *React* pulls together all different
+    types of web resources and orchestrates them to build a website.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions and answers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Here are some questions and answers to refresh your knowledge:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What are *React* built-in hooks?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*React* built-in hooks refers to all hooks designed by *React*, including `useState`,
+    `useEffect`, and so on. You can''t create a built-in hook on the fly, but you
+    can contribute your idea and send a pull request to the *React* core team to review.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: What is a custom hook?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We can create a custom hook by consuming one of the *React* built-in hooks and
+    giving the hook name prefixed with `use`. A custom hook can be as powerful as
+    a built-in hook. The purpose of the built-in hook is to address atomic core capability
+    whereas the custom hook is normally created to address practical project problems.
+    There're hundreds of custom hooks on the internet you might find useful or inspiring.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: What's the best practice for creating a hook?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A custom hook can be, and most times is, created naturally out of the code refactoring
+    process. As long as you feel a bundle of code can be reused involving a hook,
+    that's the time you can extract those functionalities out and make it generic
+    to be referenced by other parts of the project. In a way, you can think of a custom
+    hook as a utility function, except it involves a built-in hook.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL

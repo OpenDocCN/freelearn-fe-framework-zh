@@ -1,0 +1,546 @@
+- en: '15'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Advanced Session Management
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Session management is crucial to building good user experiences. Persisting
+    session data can increase the user’s experience and productivity by remembering
+    user settings, selections, and preferences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We learned how to manage user sessions in [*Chapter 8*](B17399_08.xhtml#_idTextAnchor119),
+    *Session Management*. In this chapter, we will work on advanced session management
+    patterns.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter is split into two sections:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Managing visitor sessions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Implementing pagination
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: First, we will implement visitor sessions and use Remix’s cookie helper to redirect
+    the user to the right page after login or signup. Next, we will learn how to add
+    pagination with Remix and Prisma. We will practice pagination by applying it to
+    the expense and invoice lists in BeeRich.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After reading this chapter, you will know how to use cookies to persist arbitrary
+    session data in Remix. You will also understand the difference between Remix’s
+    session cookie and cookie helpers. Additionally, you'll learn when to store session
+    data in a cookie versus in a database. Finally, you will understand how to implement
+    pagination with Remix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'You can find the code for this chapter here: [https://github.com/PacktPublishing/Full-Stack-Web-Development-with-Remix/tree/main/15-advanced-session-management](https://github.com/PacktPublishing/Full-Stack-Web-Development-with-Remix/tree/main/15-advanced-session-management).
+    No extra setup is required for this chapter.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Managing visitor sessions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In [*Chapter 8*](B17399_08.xhtml#_idTextAnchor119), *Session Management*, we
+    used Remix’s session cookie helpers to implement a login and signup flow. In this
+    section, we will use Remix’s cookie helper to persist additional session data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You might remember from [*Chapter 8*](B17399_08.xhtml#_idTextAnchor119), *Session
+    Management*, that cookies are added on the server to an HTTP response using the
+    **Set-Cookie** header. Once received, the browser attaches the cookie to all subsequent
+    HTTP requests using the **Cookie** header.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In Remix, we can access incoming HTTP requests in our `loader` and `action`
+    functions. In our loaders and actions, we can use Remix’s cookie helper functions
+    to parse the cookie data from the request headers and use it to improve the user
+    experience.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In BeeRich, we already utilize a cookie to handle the authentication of our
+    users. However, there are plenty of other use cases for cookies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider the following advanced use case: we aim to offer visitors a taste
+    of our app’s functionality without requiring an account. Visitors should be able
+    to directly interact with the content. At some point, the visitor decides to create
+    an account. Now, we want to ensure that the data associated with the visitor is
+    transferred to the new user account. How can we make this work?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Depending on the use case, session data can be persisted using local storage,
+    cookies, memory, or databases. We could store all generated data directly in local
+    storage or a cookie and only commit it to the database once the user account has
+    been created. However, this only works if the data is not meant to be visible
+    to other users.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What if we want to treat the visitor-generated content like the content of any
+    other user? First, we must assign the visitor a unique identifier that can be
+    tracked across different page transitions. Whenever the visitor triggers a mutation,
+    we associate the persisted data with the unique identifier. Once the visitor signs
+    up, we migrate all data associated with the visitor identifier to the new user
+    account.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating a unique session identifier is a common pattern when handling sessions,
+    and storing it in a cookie is a great way to ensure we have access to the identifier
+    on the server. This example illustrates how powerful cookies are. Cookies can
+    be utilized to implement complex user interfaces and features. However, cookies
+    can also be used to persist short-living session data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s practice working with Remix’s cookie helpers by implementing a redirect
+    flow after login and signup in BeeRich. If a user attempts to visit a dashboard
+    page without authorization, we currently redirect to the login page. Once the
+    user logs in or signs up, we navigate the user to `/dashboard`. We now want to
+    update this logic and navigate the user to the initially requested dashboard page.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’ll start by creating a visitor cookie:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a `visitors.server.ts` file in `app/modules`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Next, import `createCookie` from Remix and create a `visitorCookie` object:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The `createCookie` function receives a cookie name parameter and a configuration
+    object. A list of possible configuration options can be found in the Remix documentation:
+    [https://remix.run/docs/en/2/utils/cookies#createcookie](https://remix.run/docs/en/2/utils/cookies#createcookie).'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Rember that Remix offers both a cookie helper utility and a session cookie
+    helper utility. Refer to `session.server.ts`, where we utilize Remix’s `createCookieSessionStorage`
+    function. `createCookieSessionStorage` provides three functions:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '`getSession`'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`commitSession`'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`destroySession`'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'In comparison, Remix’s `createCookie` function only provides two functions:
+    `parse` and `serialize`.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Session cookies are one of many implementations of Remix’s session abstraction.
+    On the other hand, `createCookie` provides a simple helper to read (`parse`) and
+    write (`serialize`) a cookie to and from cookie headers.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We use Remix’s session helpers to implement user session flows, while `createCookie`
+    is a utility for reading and writing to and from cookies.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, define the type of data that we will store in the visitor cookie:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Our goal is to persist the URL the visitor wants to visit before we redirect
+    them to the login page.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: For instance, imagine a user is logged in and working on the dashboard of BeeRich.
+    The user then returns a few days later and wants to continue managing their finances
+    with BeeRich. Since the session has expired, BeeRich redirects the user to the
+    login page. So far, we’ve navigated the user back to the dashboard after a successful
+    login but do not remember where exactly the user left off. Let’s change that!
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'In `visitors.server.ts`, create a function to get the cookie data from a request:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We use the cookie object to parse the `Cookie` header and extract the visitor
+    cookie data.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Similarly, create a function to write the visitor cookie data to the `Set-Cookie`
+    header:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: With these utilities in place, we can read the cookie data on incoming requests
+    and write the cookie to the response when the user is redirected to login.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Import `setVisitorCookieData` in `app/modules/session/session.server.ts`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, update the `requireUserId` function to add the visitor cookie when redirecting
+    to log in:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, open the `_layout.login.tsx` route module and import the `getVisitorCookieData`
+    function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Update the `_layout.login.tsx` route module’s `action` function so that it
+    reads `redirectUrl` from the visitor cookie:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Test the implementation by running BeeRich locally.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Start by logging in and visiting a route on the dashboard. For instance, navigate
+    to an expense details page. Copy the URL from the URL bar for easy access and
+    log out from BeeRich.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now, enter the copied URL into the URL bar. Since we are logged out, we are
+    redirected to log in.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Next, log in to your account and notice the redirect back to the requested dashboard
+    page.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Play around with the implementation a bit more. Notice that it doesn’t matter
+    how often you leave the login page, close the browser tab, or reload it. For the
+    five minutes before the cookie expires, the cookie persists and remembers the
+    user’s latest requested URL.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Great job! Would the same flow also make sense for signup? In BeeRich, not as
+    much, as all dashboard URLs are account specific. However, imagine an application
+    where you can invite your coworkers to collaborate. You may share an invite link
+    for a project. A coworker joining for the first time would then be redirected
+    to log in but navigate to sign up to create a new account. From there, we could
+    take advantage of the visitor cookie to read the invite URL and navigate the new
+    user to the collaborative project.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Practice working with the visitor cookie by implementing the same flow on the
+    signup page. Follow the implementation from the `_layout.login.tsx action` function
+    and read the visitor cookie data in the `_layout.signup.tsx action` function to
+    navigate the user accordingly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, you practiced working with Remix’s `createCookie` helper and
+    learned more about advanced session management implementations. You now know the
+    difference between Remix’s session cookie and cookie utilities. Next, we will
+    implement pagination with Remix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing pagination
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Pagination is an important pattern when working with large and user-generated
+    lists of objects. Pagination divides the content into separate pages and thereby
+    limits the number of objects that must be loaded for a given page. Pagination
+    aims to reduce load times and improve performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, we will implement pagination in BeeRich for expenses and invoices:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, open the `dashboard.expenses.tsx` route module and define a constant
+    for the page size:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The page size defines the number of expenses we will show at once in the expenses
+    overview list. To see more expenses, the user has to navigate to the next page.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Update the `loader` function in `dashboard.expenses.tsx` and access a new search
+    parameter named `page`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: import type { Prisma } from '@prisma/client';
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, update the expenses database query so that it only queries a total of
+    10 expenses for the current page, skipping all previous pages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Update the `loader` function’s return statement so that it returns both the
+    expenses list and the count:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Update the `useLoaderData` call so that it reads the updated loader data:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: const [searchParams] = useSearchParams();const searchQuery = searchParams.get('q')
+    || '';showPagination to either show or hide the pagination buttons.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Add the following form below the expenses list (`<ul>…</ul>`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, update the search form to reset the pagination whenever the search
+    filter changes:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The number of expenses may change when updating the search filter. Hence, we
+    need to reset the pagination.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Run BeeRich locally and play around with the implementation. Notice that the
+    URL is updated on every navigation between the pages.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What happens if an expense is created or deleted?
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Remix revalidates all loader data after every mutation. When we add an expense,
+    the `loader` function is called, and the `count` loader data is updated. This
+    ensures that the pagination buttons are added if the expenses exceed the first
+    page. It turns out that the `loader` revalidation fixes stale data issues in almost
+    every chapter of this book!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similarly, the count value is updated on deletion. However, because we redirect
+    the user back to their current page after deletion, the user may remain on a page
+    without expenses. For instance, if we have 11 expenses and delete the last remaining
+    expense on the second page, the user ends up on an empty page.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is fine if we keep the pagination **Previous** button on the page so that
+    the user can navigate to the previous page. We ensure this by always showing the
+    pagination buttons if the user is not currently on the first page:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: It seems like we have all the edge cases covered! Nice work!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s take a moment to reflect on our development journey with BeeRich. We
+    have come a long way since kicking off our work on BeeRich. From the ground up,
+    we''ve built an extensive feature set, including:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A routing hierarchy with nested routes
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: SQLite database integration with multiple schemas
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Forms for managing expenses and income
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: User login, signup, and logout flows
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Server-side access authorization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: File upload capabilities
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Pending, optimistic, and real-time UIs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Various caching techniques
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Deferred data loading with React streaming and Remix’s `defer`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Pagination for expense and invoice lists
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Congratulations on completing BeeRich, a full stack web application that fully
+    utilizes Remix and the web platform. Now is your chance to take over BeeRich and
+    keep practicing. You could start by adding the two search parameters: `q` and
+    `page` to more links and redirects to persist them across different user actions
+    and navigations. Or maybe there is something you wanted to change for a while
+    already? Now is the time!'
+  prefs: []
+  type: TYPE_NORMAL
+- en: And as always, practice what you have learned in this chapter by implementing
+    the same pagination logic on the income route for the invoices list. Refer to
+    the Prisma and Remix documentation if you get stuck. If you need more guidance,
+    refer
+  prefs: []
+  type: TYPE_NORMAL
+- en: to the implementation on the expense routes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we implemented pagination in Remix using URL search parameters.
+    You learned how to carry over search parameters across different form submissions
+    and practiced advanced session management in Remix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you learned about advanced session management patterns with
+    Remix and wrapped up your work on BeeRich.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remix offers a `createCookie` helper function for working with cookie data.
+    The function returns a cookie abstraction for parsing and serializing cookie data
+    to and from request headers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After reading this chapter, you know how to use `createCookie` to store and
+    access arbitrary user session data in a cookie. You practiced working with cookies
+    by adding a visitor cookie to the login and signup flow in BeeRich that persists
+    the URL the visitor wants to access.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You also learned how to implement a simple pagination feature with Remix and
+    Prisma. Pagination is a pattern that can improve performance and avoid long loading
+    times when working with data lists. Utilizing pagination limits the amount of
+    data that needs to be fetched for each page load.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn more about deploying Remix applications on
+    the edge.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'You can find more information about working with search parameters via MDN
+    Web Docs: [https://developer.mozilla.org/en-US/docs/Web/API/URL/searchParams](https://developer.mozilla.org/en-US/docs/Web/API/URL/searchParams).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can reference the Remix documentation to learn more about the `createCookie`
+    helper function: [https://remix.run/docs/en/2/utils/cookies](https://remix.run/docs/en/2/utils/cookies).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can read more about pagination with Prisma in the Prisma documentation:
+    [https://www.prisma.io/docs/concepts/components/prisma-client/pagination](https://www.prisma.io/docs/concepts/components/prisma-client/pagination).'
+  prefs: []
+  type: TYPE_NORMAL

@@ -1,0 +1,2268 @@
+- en: '8'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Testing React Query Hooks and Components
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You have almost mastered React Query! By now, you are well aware of how queries
+    and mutations work and are ready to leverage React Query in a server-side, rendered
+    project as well. Now, we’ll look at the last skill you need to be a full-on React
+    Query hero – testing React Query using code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter will teach you how to test your `useQuery` and `useMutation` using
+    components and hooks. But before that, you will get to know a super useful library
+    to help you test your React Query code called Mock Service Worker.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You will then learn some restructuring tips and tricks you can leverage to make
+    your React Query code more readable and reusable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With this knowledge, you can start testing your code. You will start with testing
+    your components that leverage React Query and see what testing from a user-centric
+    approach looks like for queries and mutations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we will dive into implementation details and see when and how we should
+    test our hooks that use React Query.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we’ll be covering the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Configuring Mock Service Worker
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Organizing code
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Testing components that use React Query
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Testing custom hooks that use React Query
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: All the code examples for this chapter can be found on GitHub at [https://github.com/PacktPublishing/State-management-with-React-Query/tree/feat/chapter_8](https://github.com/PacktPublishing/State-management-with-React-Query/tree/feat/chapter_8).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Configuring Mock Service Worker
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'When testing React applications, one question often asked is how to test API
+    calls. This question often leads to a follow-up question: “*How can I make sure
+    my network requests return the data I expect so that my tests always receive the
+    same data and don’t become flaky?*” There are many ways to answer these questions,
+    and many implementations we can follow. The most common implementation often leveraged
+    is mocking your data-fetching clients.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: While this approach works, one thing that I’ve seen often in all the projects
+    that I have worked on that followed this method is that the more tests you write,
+    the more unmaintainable they become. This is due to the fact that mocking things
+    such as `fetch` or `axios` comes with a lot of boilerplate code to take care of
+    things such as different routes being hit, different responses for the same route,
+    and cleaning up your client mocks to avoid tests leaking on each other. Let us
+    not forget that if we use GraphQL and REST in the same application, we must mock
+    an extra client, depending on the component you are testing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What if I told you there is an alternative you can use to intercept your network
+    requests and return predefined data without having to mock any client? What if
+    I told you this alternative supports REST and GraphQL? What if I told you that
+    this alternative could also be used in your application to provide some dummy
+    data for a route your backend team has not yet implemented? You can do all this
+    with **Mock Service** **Worker** (**MSW**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As the MSW docs say: “*Mock Service Worker is an API mocking library that uses
+    Service Worker API to intercept actual* *requests*” ([https://mswjs.io/docs/](https://mswjs.io/docs/)).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: MSW leverages service workers to intercept requests on the network level and
+    return some predefined data for that specific request. This means that just by
+    having a defined API contract, you can return mocked data even before that endpoint
+    exists. Also, leveraging this predefined data in your tests means you no longer
+    need to mock `axios` or `fetch`. It is important to mention that service workers
+    only work in the browser. In your tests, MSW uses a request interceptor library
+    to allow you to reuse the same mock definitions you have in your browser.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While leveraging MSW in the browser is super helpful, it sits outside this chapter’s
+    scope. In this chapter, we will only use MSW in our tests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is how to add MSW to your project:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you are running npm in your project, run the following command:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'If you are using Yarn, run the following command:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'If you are using pnpm, run the following command:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Once MSW is installed, we must create our request handlers and response resolvers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Request handlers allow you to specify the method, path, and response when handling
+    a request. They are often paired with response resolvers. A response resolver
+    is a function you pass to the request handler that allows you to specify the mocked
+    response when intercepting a request.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let us now create some handlers to handle some routes. Here is what we have
+    to do.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Inside the `src/mocks` folder, create a `handlers.js` file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the `handlers.js` file, add the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding snippet, we do the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We import the `rest` namespace containing a set of request handlers to handle
+    `REST` requests.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We create a `handlers` array that will contain all of our request handlers.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The first mock we create is for a `GET` request to any route that contains `/api/`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When a request hits this request handler, it will return a response that will,
+    in turn, return a `200 OK` response code with an object that, inside the `data`
+    property, will include a `"value"` string .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have created our `handlers`, we need to ensure that MSW will intercept
+    our requests using our previously created `handlers`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is what we have to do.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Inside the `src/mocks` folder, create a `server.js` file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the `server.js` file, add the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding snippet, we leverage the `setupServer` function and our created
+    `handlers` array to create an object responsible for intercepting our requests
+    with our given `handlers`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have created our server file, we need to ensure `Jest` uses them.
+    To do this, inside our `setupTests.js` file, add the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is what we do in the preceding snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We import our created `server` object.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We leverage the `beforeAll` global hook to ensure that MSW is intercepting our
+    requests before any of our tests are executed.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We then leverage the `afterEach` global hook so that after every single test,
+    we reset our handlers. This considers a scenario where we add a custom handler
+    for one of our tests so that they don’t leak into another test.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Finally, we leverage the `afterAll` global hook so that after all our tests
+    run, we clean up and stop intercepting requests.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now, any API requests made by our tests will be intercepted by MSW.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before seeing how we can test our components and React Query using hooks, let
+    us see a couple of patterns we can apply to make our code more structured and
+    easier to test.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Organizing code
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'There are many ways you can organize your code. Now, one thing we need to be
+    aware of is choosing patterns that save you some time and make your code better
+    in the long run. This section will discuss three different patterns that we can
+    leverage together or independently to make our code more structured, readable,
+    and organized. Here’s what we will discuss in this section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating an API file
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Leveraging query key factories
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating a hooks folder
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating an API file
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Creating an API file to contain all my requests for a specific domain is a pattern
+    that I follow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this file, I leverage my API client and create the functions responsible
+    to make a request to a given route and return the request data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is particularly useful because it avoids repeating the logic for the same
+    request in your code and focuses all the domain-specific requests in the same
+    file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For all the requests made in the scope of this book, I would prefer to create
+    a file for my user domain, given that the scope seems to be focused on users.
+    So, inside our `api` folder, we will create a `userAPI.js` file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.1 – Adding userAPI.js to our API folder](img/Figure_8.1_B18501.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.1 – Adding userAPI.js to our API folder
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Inside that file, we can now move all of our requests inside our code. This
+    is how it might look:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding snippet, we can see an example of a `userAPI` file containing
+    our `axios` client instance, a `getUser` function (to fetch data from a given
+    user), and a `createUser` function (to create a user).
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, this pattern improves the code reusability and readability in
+    the components that end up using the functions from our API file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One extra thing you can do that we didn’t do in the preceding snippet is add
+    the specific logic from your query functions. This makes these functions more
+    accessible in your application if you only use React Query. I prefer to keep my
+    query functions and these API functions separated because I often use different
+    query functions with the same API function. Still, it will improve your code readability
+    if you choose to use it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Leveraging query key factories
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Managing query keys is often a nuisance. We forget which ones we have already
+    used and need to go through most of our queries to remember them. This is where
+    query key factories shine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A query key factory can be a single object that, inside each property, will
+    include a function responsible for generating a query key. This way, you keep
+    all your query keys in the same place and stop wasting time trying to remember
+    them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is what your query key factory can look like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see from the preceding snippet, we create a `userKey` object, which
+    will be our query key factory. In each property, we have a function that will
+    be responsible for returning our query key.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a hooks folder
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The name here also speaks for itself. One recommendation for organizing code
+    I like to follow is creating a hooks folder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: I like to create custom hooks in this folder that contain some of the queries
+    and mutations I often repeat, or ones that end up having too much logic and impact
+    my code readability. This makes it easier for me to test a specific hook in isolation
+    and make the components that use them more readable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For instance, remember when we performed optimistic updates in [*Chapter 6*](B18501_06.xhtml#_idTextAnchor159)?
+    The `useMutation` hook we created is a great candidate to move to a custom hook.
+    I will create a `useOptimisticUpdateUserCreation` custom hook and move my code
+    in there. This is what that hook will look like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding snippet, we create the `useOptimisticUpdateUserCreation` hook
+    and move the code from our `OptimisticMutation` component there. As you can also
+    see from the code, we already applied our API file and query factory pattern.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the component using our hook, all we have to do now is import the hook and
+    use it like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Applying all the patterns of this section, this is what your project structure
+    can end up looking like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.2 – What the project structure may look like after following these
+    three patterns](img/Figure_8.2_B18501.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.2 – What the project structure may look like after following these
+    three patterns
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we’ve seen these patterns, let us finally move to start testing our
+    code. We’ll start with one of the most recommended approaches – testing components
+    using React Query hooks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Testing components that use React Query
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When the React Testing Library was first introduced, it was under a main guiding
+    principle that changed how we wrote tests going forward. That guiding principle
+    is, “*The more your tests resemble the way your software is used, the more confidence
+    they can give* *you*” ([https://testing-library.com/docs/guiding-principles/](https://testing-library.com/docs/guiding-principles/)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: From that point on, many things changed in our tests. Focusing on a user-centric
+    approach meant avoiding implementation details in our tests at all costs. This
+    meant no more shallow rendering, no more state and prop references, and a more
+    user-centric way of querying the DOM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reading the last paragraph, you might be wondering how to test your components
+    following a user-centric approach. Well, the answer is straightforward – a user
+    doesn’t have to know the page they are using leverages React Query. If you write
+    your tests like you are just using the page, this means that you will find issues
+    that your user might find as well accidentally, and if for some reason you change
+    your implementation, your tests won’t break.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There will be some scenarios where you might have to tie your tests to some
+    implementation details to help you do some assertions, but we will try to avoid
+    them at all costs in this section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we start writing our tests, we need to do some setting up.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up testing utils
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: When testing components that leverage React Query, we must ensure we wrap up
+    those components with our `QueryClientProvider`. Now, we could create a custom
+    wrapper for each test and wrap our component with it when rendering, but remember
+    that you will most likely end up with many components that will use React Query
+    in some way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is where setting up some testing utils will help you. A pattern that I
+    really like to follow is overwriting the `render` function from the testing library
+    and wrapping every component that is rendered, using this function automatically
+    with our React Query `QueryClientProvider`. To do that, I create a `test-utils.js`
+    file inside a `utils` folder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is what we can add to our `test-utils.js` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is what we do in the preceding snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We import the `render` function from the React Testing Library.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We import our `QueryClient` and our `QueryClientProvider` from React Query.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We create a custom `render` function (`customRender`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: This function will receive a `ui` parameter, which will be the component we
+    want to render. It will also receive an `options` object, which we can forward
+    to the `render` function.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We create our `queryClient` instance. Here, we override our `logger` `error`
+    property to avoid showing up errors from React Query. This is because we might
+    want to test error scenarios, and we don’t want React Query to pollute our `console`
+    with the errors we expect. We also define our queries to never attempt to retry
+    a query after it fails, and we set our `cacheTime` to `Infinity` to avoid `Jest`
+    error messages in scenarios where we manually set a `cacheTime` value.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We create a `CombinedProviders` wrapper that will be responsible for wrapping
+    our components with our `QueryClientProvider`.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We call the React Testing Library `render` function, pass it the `ui` parameter,
+    wrap it with our `CombinedProviders`, and send it the `options` we received.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We export all of the React Testing Library and our `customRender` function,
+    which will now be the main `render` function. This means we now import this file
+    instead of the React Testing Library in our tests.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Note in the snippet that we create our `queryClient` inside the `customRender`
+    function instead of outside it. You can follow this approach if you want to avoid
+    having to clean up the query cache between tests. If you want to have the same
+    `QueryClient` between tests, you can create the `queryClient` instance outside
+    the function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that our `render` function is ready to render React Query using components,
+    we can start writing tests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Testing queries
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In the following subsections, we will see some common testing scenarios you
+    might find in your day-to-day activities when using React Query.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Checking whether data is fetched
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'One of the most common tests we have to write is ensuring that our data was
+    fetched properly. Let us start with this scenario and revisit our parallel queries
+    example from [*Chapter 5*](B18501_05.xhtml#_idTextAnchor140). We will also rewrite
+    the code to adjust to some of the practices mentioned in this chapter. Let’s start
+    by looking at our `ParallelQueries` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see from the preceding snippet, the code is pretty much the same
+    as the one presented in [*Chapter 5*](B18501_05.xhtml#_idTextAnchor140)*,* with
+    the exception of the part where we fetch our data. Here, we applied one of the
+    patterns mentioned in this chapter and moved this logic to a custom hook inside
+    our custom hooks folder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let us now look at what sits inside our `useMultipleQueriesV2` hook file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As you can see from the preceding snippet, we basically just move what we had
+    in our component to our `useMultipleQueriesV2` hook. Note also that we leverage
+    the other two patterns we mentioned in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We create an entry inside the `userKeys` factory and leverage it to set our
+    `useQueries` hook, `queryKey`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We create an API file to gather our user API functions and add our `getUser`
+    function
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'This is what our `getUser` function looks like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `getUser` function shown in this snippet is responsible for making a `GET`
+    request for our given endpoint and aborting that request if our `signal` tells
+    `axios` to do so.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that you are reacquainted with this component and how it works, let's start
+    to test it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first thing we need to do before we write our test is to make sure we have
+    MSW intercepting the `GET` request and returning the data we want:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding snippet, we create a request handler to add to our `handlers`
+    array, which does the following.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Whenever we intercept a `GET` request to an endpoint that includes the `/react-query-api/`
+    path, we return a `200 OK` response that will be delayed by 500 milliseconds,
+    and it will have in its body an object with a `hello` property that will contain
+    the parameter in the second position of the request parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This means that a `GET` request for the [https://danieljcafonso.builtwithdark.com/react-query-api/userOne](https://danieljcafonso.builtwithdark.com/react-query-api/userOne)
+    endpoint will return a `200 OK` response with the following object:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now that we are sure that our components will always receive the same data after
+    a request, we can write our tests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, I suggest you look at the `ParallelQueries` component from a user-centric
+    perspective and consider the scenarios you might want to test. The rule of thumb
+    here is to think, “*If I was a user interacting with this code, what would I interact
+    with or expect* *to happen?*”
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Following the preceding analysis, I came up with two test scenarios:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`userOne`, `userTwo`, and `userThree`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`"Fetching data…"` message for each of our requests.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'With those scenarios in mind, we can write our tests. Let us see what our test
+    file would look like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let us now review what we do in the preceding snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We import our `ParallelQueries` component and, from our `test-utils`, our custom
+    `render` function and the `screen` object.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We create our test suite and, inside it, our tests:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `"component should fetch and render multiple data"` test, we do the
+    following:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our `ParallelQueries` component.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Since we need to wait for the data to be fetched, we leverage an `async` query
+    variant (`findBy`) from the React Testing Library and `await` until the `userOne`
+    text shows up on the DOM.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Once our query finds the `userOne` text, we assert that it is in the DOM and
+    repeat the same assertion for `userTwo` and `userThree`. In these last two examples
+    (`userTwo` and `userThree`), we won’t need to leverage the `findBy` variant because
+    the data will already be on the DOM, so we use the `getBy` variant instead.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `"component should show loading indicator for each query"` test, we
+    do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our `ParallelQueries` component.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Due to the 500 millisecond delay we added to our mocked response, we won’t have
+    our data immediately available to be rendered, so we should have our loading indicators
+    showing up instead. Since we will have multiple indicators, we leverage the `getAllBy`
+    variant to get an array of elements that match our query.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We then assert that our array of elements has a length of `3` to ensure that
+    we have a `"Fetching data…"` message for each query.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: With these tests, we have followed an approach that reflects our user behavior
+    when interacting with our component and, at the same time, got 100% coverage on
+    our `ParallelQueries` component and our `useMultipleQueriesV2` custom hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In most scenarios, to deal with data-fetching scenarios, you only need to wait
+    for the data you fetch to be rendered on the DOM. Got a single query? Wait for
+    the data to be displayed on the DOM. Got some parallel queries? Wait for the data
+    to be displayed on the DOM. Got some dependent queries? Wait for the first query
+    data to be displayed on the DOM. Then, repeat this step for the following queries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, in some scenarios, you will have to fire some actions to get to your test
+    assertion. Some of those scenarios might even involve query invalidation or query
+    cancelation. Due to the similarity of these scenarios, let us now see what we
+    can test with query invalidation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Checking whether a query was invalidated
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As you should remember from [*Chapter 5*](B18501_05.xhtml#_idTextAnchor140),
+    query invalidation is when you manually mark your query as stale so that React
+    Query can refetch it if it is being rendered.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let us review the `QueryInvalidation` component we saw in [*Chapter 5*](B18501_05.xhtml#_idTextAnchor140):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see from the preceding snippet, the code is still very similar to
+    the one from [*Chapter 5*](B18501_05.xhtml#_idTextAnchor140). The only changes
+    we made here were to apply the API file pattern and leverage the `getUser` function
+    we saw previously in this chapter and change our query key to leverage the query
+    key factory pattern.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that you are reacquainted with this component and how it works, let us start
+    to test it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we are leveraging our `getUser` function, we don’t need to create a new request
+    handler in MSW due to the fact we are using the same endpoint.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, looking at the `QueryInvalidation` component from a user-centric perspective,
+    here are the three test scenarios that you might identify:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`userOne`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`"``Loading…"` message.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**As a user, I want my query to be refetched when I click the Invalidate Query
+    button**: In this scenario, we want our component to be rendered, and we wait
+    for it to render a hello message, click the **Invalidate Query** button, wait
+    for the hello message to disappear, wait for the loading indicator to disappear,
+    and wait for the hello message to reappear. This way, we are sure our query was
+    invalidated.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'With those scenarios in mind, we can write our tests for our `QueryInvalidation`
+    component. Let us see what our test file would look like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let us now review what we are doing in the preceding snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We import our `QueryInvalidation` component, and from our `test-utils`, we import
+    our custom `render` function, the `screen` object, the `fireEvent` util, and the
+    `waitFor` function.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We create our test suite, and inside it, our tests:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `"component should display fetched data"` test, we do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our `QueryInvalidation` component.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Since we need to wait for the data to be fetched, we leverage an `async` query
+    variant (`findBy`) from the React Testing Library and `await` until the `userOne`
+    text shows up on the DOM.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Once our query finds the `userOne` text, we assert it is in the DOM.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `"component should show a loading indicator"` test, we do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our `QueryInvalidation` component.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Due to the 500 millisecond delay we added to our mocked response, we won’t have
+    our data immediately available to be rendered, so we should have our loading indicators
+    showing up instead. We then leverage a `getBy` query variant to help assert that
+    the `"Loading…"` text is in the DOM.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `"component should invalidate query"` test, we do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our `QueryInvalidation` component.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We wait for our data to be fetched and consequently assert it is on the DOM.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We find our `getByRole` query that will help us find the button with the `Invalidate`
+    `Query` text.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We then leverage the `fireEvent` util to fire a `click` event on our button.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We then leverage the `waitFor` function to wait until an assertion evaluates
+    to `true`. In this scenario, we wait for our query data to disappear from the
+    DOM.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We then leverage the `waitFor` function once again, this time to wait for the
+    loading indicator to disappear from the DOM.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Finally, we assert that our query has finished refetching by checking whether
+    our data is back on the DOM again.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Now, we have checked how we can test query invalidation. You might be wondering
+    how query cancelation differs from query invalidation. At the end of the day,
+    testing query cancelation would differ on the following things:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our query function would need to receive the `AbortController` signal and forward
+    it to our `getUser` function.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Instead of calling the `invalidateQuery` function from `queryClient`, we call
+    `cancelQueries`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In our tests, the first two scenarios are exactly the same. In the third scenario,
+    we immediately click the **cancel** button after rendering the component. After
+    doing this, the DOM should not show either the data or the loading indicator.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Now that you know how to test most scenarios in a user-centric approach, let's
+    put this knowledge to the test and see how we would test a paginated scenario.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Testing paginated queries
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In [*Chapter 5*](B18501_05.xhtml#_idTextAnchor140), we learned how `useQuery`
+    allowed us to create paginated queries and consequently used it to build a paginated
+    UI component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let us review the `PaginatedQuery` component we saw in [*Chapter 5*](B18501_05.xhtml#_idTextAnchor140):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As you can see from the preceding snippet, it is pretty much the same as what
+    we saw in [*Chapter 5*](B18501_05.xhtml#_idTextAnchor140). Note also that we leveraged
+    two patterns we mentioned in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We created an entry into our `userKeys` factory and leveraged it to set our
+    `useQuery` hook, `queryKey`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We created an API file to gather our user API functions and added our `getPaginatedData`
+    function
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'This is what our `getPaginatedData` function looks like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `getPaginatedData` function shown in the preceding snippet is responsible
+    for making a `GET` request for our given endpoint for a given page.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that you are reacquainted with this component and how it works, let's test
+    it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will start by creating our MSW request handler:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding snippet, we create a request handler to add to our `handlers`
+    array, which does the following.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Whenever we intercept a `GET` request to an endpoint that includes the `/react-query-paginated`
+    path, we get the `page` query parameter to help us define what data we will return.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We return a `200 OK` response that will have in its body an object with the
+    data for page one or page two, depending on the received page query parameter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This means that a `GET` request for the [https://danieljcafonso.builtwithdark.com/react-query-paginated?page=0&results=10](https://danieljcafonso.builtwithdark.com/react-query-paginated?page=0&results=10)
+    endpoint will return a `200 OK` response with the `pageOneData` object, while
+    a `GET` request for the [https://danieljcafonso.builtwithdark.com/react-query-paginated?page=1&results=10](https://danieljcafonso.builtwithdark.com/react-query-paginated?page=1&results=10)
+    endpoint will return a `200 OK` response with the `pageTwoData` object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we are sure that our components will always receive the same data
+    after a request, we can write our tests and look at the `PaginatedQuery` component
+    from a user-centric perspective; here are the test scenarios that you might identify:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**As a user, I want to see that my data has loaded after opening the page**:
+    In this scenario, we want our component to be rendered and check whether the initial
+    loading data message shows up.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**As a user, I want to see an error message if my data fails to load**: In
+    this scenario, we want our component to render and see whether it shows the error
+    message when the request fails.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**As a user, I want to see the initially fetched data**: In this scenario,
+    we want our component to render and wait until the data of the first page is fetched.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**As a user, I want to click on the** **Next Page** **button and see the data
+    from the next page**: In this scenario, we want our component to be rendered,
+    ensure we have the initial data, and after clicking on the **Next Page** button,
+    wait until the data of the second page is fetched.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**As a user, I want to see a fetching indicator while fetching new data**:
+    In this scenario, we want our component to be rendered, ensure we have the initial
+    data, and after clicking on the **Next Page** button, ensure that the fetching
+    indicator is rendered.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**As a user, I want my data to show up while clicking on** **Next Page** **and**
+    **Previous Page**: In this scenario, we want our component to be rendered, ensure
+    we have the initial data, and after clicking on the **Next Page** button, ensure
+    the second page shows up. We then click on the **Previous Page** button and ensure
+    that the data of the first page is rendered again.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**As a user, I want my** **Previous Page** **button to be disabled when I’m
+    on the first page**: In this scenario, we want our component to be rendered and
+    ensure we have the initial data. Since we are on the first page, we want our **Previous
+    Page** button to be disabled.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**As a user, I want my** **Next Page** **button to be disabled while waiting
+    for new data to show up**: In this scenario, we want our component to render and
+    ensure we have the initial data. After clicking the **Next Page** button, we need
+    to ensure that this button is disabled.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'With these scenarios in mind, this is the code we would write to test the `PaginatedQuery`
+    component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We start by doing the necessary imports:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Our `PaginatedQuery` component.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Our `render` and `screen` utils from `test-utils`.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The `userEvent` util from the `user-event` companion from the testing library.
+    One thing to be aware of here is that we are using a user-event version before
+    v14.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Our MSW `server` so that we can create a custom response mock for one of our
+    test scenarios.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The MSW `rest` namespace to create relevant request handlers for one of our
+    test scenarios.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We create our test suite and, inside it, our tests:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `"should render loading indicator on start"` test, we do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our `PaginatedQuery` component.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Leverage the `getByText` query to assert that the `"Loading initial data…"`
+    message is on the DOM.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `"should render error on failed fetching"` test, we do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Leverage our `server` `use` function to add a request handler to our current
+    server instance. In this scenario, we add a handler that will catch every `GET`
+    request (`"*"` indicates that this handler will match every route) and return
+    `403 Forbidden` so that our request fails. Don’t worry about this leaking into
+    other tests because we made sure to call the `resetHandlers` function in our `setupTests`
+    file. This will ensure that this custom request handler will only be used on this
+    test.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our `PaginatedQuery` component.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Leverage the `findByText` query to `await` until the error message shows up
+    on the DOM.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `"should render first page data"` test, we do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our `PaginatedQuery` component.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Wait until the data from the first name property from the first page shows up
+    on the DOM.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Assert that the last name property also shows up on the DOM.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `"should render second page data"` test, we do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our `PaginatedQuery` component.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Wait until the data from the first page shows up on the DOM.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Leverage the `getByRole` query to get a button with the text `"should show
+    fetching indicator while fetching data"` test, we do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our `PaginatedQuery` component.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Wait until the data from the first page shows up on the DOM.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Leverage the `getByRole` query to get a button with the text `getByText` query
+    to check whether the `"Loading…"` indicator shows up on the DOM.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `"should change pages back and forth and render expected data"` test,
+    we do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our `PaginatedQuery` component.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Wait until the data from the first page shows up on the DOM and assert that
+    it is there.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Leverage the `getByRole` query to get a button with the text `getByRole` query
+    to get a button with the text `"should have previous page button disabled on first
+    page"` test, we do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our `PaginatedQuery` component.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Leverage the `findByRole` query to wait until the `"should have next page button
+    disabled while changing pages"` test, we do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our `PaginatedQuery` component.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Leverage the `findByRole` query to wait until the **Next Page** button shows
+    up on the DOM and click on it.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Assert that the **Next Page** button is now disabled.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: As you can see, we can test our queries in a fully user-centric approach and
+    forget the implementation details. Now, let’s move into the mutation section and
+    see how it gets a bit harder to follow a user-centric approach.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Testing mutations
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'You can definitely follow a user-centric approach with mutations, although,
+    in some scenarios, this might be harder. Let us review a component we wrote in
+    [*Chapter 6*](B18501_06.xhtml#_idTextAnchor159) and see how it might be harder
+    for us to test it following a user-centric approach:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In the preceding snippet, we can see our `SimpleMutation` component. Now, let
+    us try to do our user-centric approach exercise and understand which test scenarios
+    we could write:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '**As a user, I want to see a paused indicator when my mutation enters the paused
+    state**: In this scenario, we want to render our component and, when we attempt
+    to perform our mutation, the paused indicator message to appear.'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**As a user, I want to create data on the server**: In this scenario, we want
+    to render our component, fill out the form, and then perform our mutation. But
+    wait – how does our user assert this?'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: As you can see, the last scenario had an issue – a lack of information from
+    the UI that our mutation was performed successfully.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Usually, an issue of this sort would be fixed by adding a notification for
+    a user, informing them that the mutation was performed successfully. Letting the
+    user know the mutation succeeded is always a good practice. Following this approach,
+    our test would resemble something like this:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '**As a user, I want to create data on the server successfully**: In this scenario,
+    we want to render our component, fill out the form, press the **Add** button,
+    and wait for a success message to appear'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'As you can see, now we have a user-centric way to test our mutation. However,
+    for some reason, let us assume that we cannot perform changes to our `SimpleMutation`
+    component. How would we ensure that our mutation was performed? We would have
+    to resort to implementation details. Our test scenario would resemble something
+    like this:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '**As a user, I want to perform a mutation**: In this scenario, we want to render
+    our component, fill out the form, press the **Add** button, and assert that our
+    mutation was triggered'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In this section, we will show you how to write tests for instances where the
+    ideal (user-centric) approach is not something we can employ.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The first thing we need to do before we write our test is to make sure MSW
+    intercepts our request and is successful:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding snippet, we create a request handler to add to our `handlers`
+    array, which does the following.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Whenever we intercept a `POST` request to an endpoint that includes the `/name-api/`
+    path, we return a `201 Created` response that will have an object in its body,
+    with a `hello` property containing a string.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We can now write our tests for our `SimpleMutation` component. Just to recap,
+    here are the tests we will be performing:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: As a user, I want to see a paused indicator when my mutation enters the paused
+    state
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: As a user, I want to perform a mutation
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let us now see our created test file:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let us now review what we are doing in the preceding snippet:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We import our `axiosInstance` from our API file, as well as the `SimpleMutation`
+    component we saw in [*Chapter 6*](B18501_06.xhtml#_idTextAnchor159), our custom
+    `render` function, the `screen` object, and the `waitFor` function from our `test-utils`.
+    Finally, we import the `userEvent` util from the `user-event` companion in the
+    testing library.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: One thing to be aware of here is that we are using a user-event version before
+    v14.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Since we will tie one of our tests to implementation details, we create `jest`
+    `spy` over the `post` function of our `axiosInstance`. This means we can check
+    whether our `post` function was called without replacing its implementation.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We create our test suite, and inside it, our tests:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `"data should be sent to the server"` test, we do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a variable to hold the name we will use in our mutation.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our `SimpleMutation` component.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Leverage a `getByRole` query to get our name input.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Leverage the `type` event from `userEvent` and type our name inside our input.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Leverage the `click` event from `userEvent` and click on the `post` function
+    of our `axiosInstance` is called with the data from our mutation.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `"on no network should display paused information"` test, we do the
+    following:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Since we want to make sure that we simulate being offline, we leverage the `mockReturnValue`
+    function from the `spyOn` function to make sure we force our `navigator` `onLine`
+    property to return `false`. This will make sure that our code is aware of being
+    offline.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our `SimpleMutation` component.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Leverage the `click` event from the `userEvent` and click on the `isPaused`
+    property is `true`. Therefore, we wait until the `"Waiting for network to come
+    back"` message appears. We then assert it is on the DOM.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: From the previous test, we learned that we can leverage `Jest` spies to check
+    whether our function was called and make sure our mutation is performed. This
+    doesn’t guarantee how our component will behave when our mutation is successful
+    because we don’t have anything rendered in there to let us know. In the first
+    case scenario, always ensure you have all the information your user needs so they
+    can know that your mutation was successful. If you do this, you can test it in
+    a user-centric way and avoid implementation details.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: One mutation case that might be relevant for testing is when we perform an optimistic
+    update. However, since we applied one of the aforementioned patterns in this chapter
+    to it, we will be able to test it with the **React Hooks Testing Library** in
+    the next section.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Testing custom hooks that use React Query
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: During development, there will be times when your custom hooks are too complex
+    to test alongside the component that leverages them. This can be due to the size
+    of the hook, complex logic, or just too many scenarios that would increase your
+    test complexity if you focused on a user-centric approach. To fix this issue,
+    the React Hooks Testing Library was created.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Now, it might be very tempting to go ahead and use this everywhere, but don’t
+    forget that a user-centric approach will ultimately help you to find issues faster
+    and save time if you decide to refactor the way your hooks work. Either way, if
+    your hook is not used alongside a component or is too complex, the React Hooks
+    Testing Library is definitely something to consider.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Here is how to add the React Hooks Testing Library to your project:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'If you are running npm in your project, run the following command:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'If you are using Yarn, run the following command:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'If you are using pnpm, run the following command:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_PRE
+- en: If you are using React from version 18 and above, there is something to be aware
+    of here. You don’t need to install the React Hooks Testing Library, as from version
+    13.1.0 onward, the React Testing Library includes `renderHook`, which works similarly
+    to the one from the React Hooks Testing Library.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: As mentioned at the end of the last section, we will see how to test optimistic
+    updates. Before we write our tests, let us see how our code looks after applying
+    the patterns mentioned in this chapter.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'To do this, we will leverage the `useOptimisticUpdateUserCreation` hook shown
+    previously:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_PRE
+- en: Considering we already have the route leveraged in this hook handled by MSW,
+    we can start considering our tests.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'These are the scenarios we will be considering:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '**I want to perform an optimistic update right after triggering my mutation**:
+    In this scenario, we render our hook, trigger our mutation, and wait until the
+    query data affected by our mutation is updated.'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**I want my optimistic update data to be reverted after my mutation fails**:
+    In this scenario, we render our hook and trigger our mutation, and when our mutation
+    fails, our query data must stay the same as before the mutation was triggered.'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**I want my query to be invalidated after my mutation settles**: In this scenario,
+    we render our hook and trigger our mutation. Once our mutation settles, we check
+    whether our query was invalidated.'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'With these scenarios in mind, we can create our tests. This is what our test
+    file would look like:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let us now review what we do in the preceding snippet:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We start by doing the necessary imports:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Our `useOptimisticUpdateUserCreation` custom hook.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Our `QueryClient` and `QueryClientProvider`. Remember that we won’t use the
+    previously created `customRender`, so we must create a new wrapper here.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`renderHook` from the React Hooks Testing Library. If you use `renderHook`
+    from the React Testing Library, import it there instead.'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Our `userKeys` factory.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Our MSW `server` so that we can create a custom response mock for one of our
+    test scenarios.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The MSW `rest` namespace to create relevant request handlers for one of our
+    test scenarios.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We create our `QueryClient` instance and pass it to our `wrapper`. This will
+    be used to wrap our hook to use React Query.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We create our test suite and, inside it, our tests:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `"should perform optimistic update"` test, we do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Ensure our cached query data for the query key under the `userKeys.all()` key
+    is an empty array.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create the `name` and `age` variables to avoid magic numbers in our test.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our hook and destructure the `waitFor` function and the `result` object
+    from it.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We leverage our `result` object to access our `mutate` function and perform
+    our mutation.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We use the `waitFor` function to loop our assertion until it evaluates to `true`.
+    In this scenario, we wait until the query cache has the optimistically updated
+    data cached under the `userKeys.all()` query key.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `"should revert optimistic update"` test, we do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Ensure our cached query data for the query key under the `userKeys.all()` key
+    is an empty array.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Leverage our `server use` function to add a request handler to our current server
+    instance. In this scenario, we add a handler that will catch every `POST` request
+    (`"*"` indicates that this handler will match every route) and return a `403 Forbidden`
+    so that our request fails. Don’t worry about this leaking into other tests because
+    we made sure to call the `resetHandlers` function in our `setupTests` file. This
+    will ensure that this custom request handler will only be used on this test.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create the `name` and `age` variables to avoid magic numbers in our test.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our hook and destructure the `waitFor` function and the `result` object
+    from it.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Leverage our `result` object to access our `mutate` function and perform our
+    mutation.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use the `waitFor` function to wait until our hook’s `isError` property is `true`.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Once we are sure our mutation has failed, we again leverage the `waitFor` function
+    to wait until the query data cached under the `userKeys.all()` key is the empty
+    array we had before our mutation.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `"should invalidate query on settled"` test, we do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Ensure our cached query data for the query key under the `userKeys.all()` key
+    is an empty array.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Since we are not rendering a query to make sure it is updating after our mutation,
+    we create `invalidateQueriesSpy` over our `queryClient` `invalidateQueries` method.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create the `name` and `age` variables to avoid magic numbers in our test.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Render our hook and destructure the `waitFor` function and the `result` object
+    from it.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Leverage our `result` object to access our `mutate` function and perform our
+    mutation.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Wait until our `isSuccess` is `true`. This means our mutation was successful.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If our mutation is successful, we can assert that `invalidateQueriesSpy` was
+    called with the `userKeys.all()`. This means that our `onSettled` function was
+    called, and our query would be invalidated afterward.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We have now handled how to test custom hooks with React Hooks Testing Library.
+    It is all about rendering your hook and leveraging its result to access what your
+    hook returns to perform your actions and assertions.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Just for the sake of convenience and so that you can see a scenario where we
+    test a query, let us see how we would test the `useMultipleQueriesV2` hook we
+    saw in the *Checking whether data is* *fetched* section.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'For this hook, we would only need a single test scenario:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '**I want my parallel queries to fetch data**: In this scenario, we render our
+    hook and wait until it returns the data for the three queries it fetches'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Like the previous hook, we have already set up our MSW request handlers previously,
+    so we don’t need to worry about them.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Let us look at the test file for our `useMultipleQueriesV2` hook:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let us now review what we are doing in the preceding snippet:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We start by doing the necessary imports:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Our `useMultipleQueriesV2` custom hook.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Our `QueryClient` and `QueryClientProvider`.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`renderHook` from the React Hooks Testing Library. If you are using `renderHook`
+    from the React Testing Library, import it from there instead.'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We create our `QueryClient` instance and pass it to our `wrapper`. This will
+    be used to wrap our hook to use React Query.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We create our test suite and, inside it, our test:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For the `"should fetch all data"` test, we do the following:'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Render our hook with the `renderHook` function and destructure the `result`
+    object and the `waitFor` function from it.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Wait until the data for the first query is defined.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Given that the data is now defined, we assert that the `hello` property from
+    the returned object on the first query has `userOne`.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We also assert that the `hello` property from the returned object on the second
+    query has `userTwo`.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We also assert that the `hello` property from the returned object on the third
+    query has `userThree`.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: As you can see, testing hooks and leveraging queries is much simpler, as it
+    mostly only involves rendering and asserting. This a test example, where I did
+    not test the hook because testing the component using it is much easier. Just
+    check the test we did for it in the *Checking whether data is* *fetched* section.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: With all this knowledge in mind, you should be able to write your code and then
+    sleep amazingly well at night because you also wrote valuable tests, ensuring
+    that nothing will break.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned how to test our components and hooks that leverage
+    React Query. Congratulations! Thanks to this chapter, you have become a full-on
+    React Query master!
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: You learned how MSW can save you a lot of time developing and testing your React
+    Query code by having a couple of request handlers.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: You got to meet the three patterns you can apply to make your code more readable
+    and reusable (creating an API file, leveraging query key factories, and creating
+    a hooks folder) and saw how valuable they were in adapting the code we saw in
+    previous chapters.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Finally, you learned when to use the React Testing Library and the React Hooks
+    Testing Library to test your queries and mutations, and you will keep the user-centric
+    approach at the forefront of your mind when writing tests from now on.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Once again, congratulations! You should now be able to leverage React Query
+    in every scenario and sleep better at night because you can write valuable tests
+    for it. Now, run with this knowledge, and go ahead and convince your teammates
+    about the value of the amazing TanStack Query and how its React Adapter, called
+    React Query, will make their server state management much easier.
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_IND
+  type: TYPE_NORMAL

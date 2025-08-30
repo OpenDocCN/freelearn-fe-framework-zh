@@ -1,0 +1,1301 @@
+- en: '5'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Implementing the Micro-Apps Pattern for Microfrontends
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we saw the multi-SPA pattern for building microfrontends,
+    which is ideal for building large-scale applications where each SPA contains its
+    own user journey.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The primary advantage of this pattern is that each app is completely independent
+    of the others, and they are connected via a namespaced primary route that is external
+    to the app. As a user, while navigating through the app, you will have also noticed
+    that when you move from one SPA to another, you are redirected via the browser
+    and the page reloads. If this is something you’d like to avoid, and if you want
+    a consistent SPA experience, then we can explore the micro-apps-pattern that uses
+    Module Federation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will go about building a micro-apps microfrontend, where
+    we will learn about the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is Module Federation, and why is it a key to building microfrontends?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Setting up a microfrontend app with host and remote apps
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Breaking down the app into smaller micro apps that are loaded via Module Federation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Setting up routing between the different pages
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Sharing state between the different micro apps
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: By the end of this chapter, we will have converted our multi-SPA microfrontend
+    into a micro-apps microfrontend using Module Federation. In doing so, we will
+    have also learned about Zustand, an easy-to-use state management library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As we go through the code examples in this chapter, we will need the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A PC, Mac, or Linux desktop or laptop with at least 8 GB of RAM (16 GB preferred)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: An Intel chipset i5+ or a Mac M1 + chipset
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: At least 256 GB of free hard disk storage
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'You will also need the following software installed on your computer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Node.js version 18+ (use **nvm** to manage different versions of Node.js if
+    you have to)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Terminal: iTerm2 with OhMyZsh (you will thank me later)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'IDE: We strongly recommend VS Code as we will be making use of some of the
+    plugins that come with it for an improved developer experience'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: NPM, Yarn, or PNPM. We recommend PNPM because it’s fast and storage-efficient
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Browser: Chrome, Microsoft Edge, or Firefox'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A basic understanding of Nx.dev monorepos and a basic understanding of using
+    the NX console plugin in VS Code
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Working knowledge of React
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The code files for this chapter can be found here: [https://github.com/PacktPublishing/Building-Micro-Frontends-with-React](https://github.com/PacktPublishing/Building-Micro-Frontends-with-React).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We also assume you have a basic working knowledge of Git, including branching,
+    committing code, and raising a pull request.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why do we need Module Federation for Microfrontends?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the multi-SPA approach to microfrontends, you may have noticed that we end
+    up duplicating some of the common dependencies across the different micro apps.
+    In the grand scheme of things, when the primary goal is to keep things simple,
+    this would be an acceptable trade-off. However, when the number of dependencies
+    being duplicated and the number of apps being built are high, you need to optimize
+    things and minimize duplication. Trying to achieve this before Webpack 5 would
+    have led to having to deal with complex dependency management. It would also have
+    made it difficult to maintain and evolve microfrontend applications. Module Federation
+    helps us solve these challenges.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next sections, we will learn more about what Module Federation is and
+    how it helps with building microfrontends.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is Module Federation?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Module Federation** is a new feature introduced in Webpack 5 that allows
+    us to load external JS bundles in real time.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before Module Federation, the standard way to import all the necessary modules
+    for an application was only during build time, where it created a large JS bundle
+    or smaller chunks that got loaded based on page routes, but it wasn’t quite possible
+    to dynamically load an app bundle in real time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Module Federation provides us with a radically new way to architect our apps,
+    build and deploy shared components, and update them without the need to rebuild
+    the entire application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Traditionally, we build most of our shared components, such as UI component
+    libraries or `npm` modules, and import them into our application during build
+    time. With Module Federation, these modules can be hosted at an independent URL
+    and imported into the application at runtime. We take advantage of this very same
+    feature to build our microfrontend architecture, where we have our micro apps
+    independently hosted and loaded into the host or shell app in real time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we get into how to go about doing it, let us look at some basic terminology
+    associated with Module Federation. Module Federation revolves around a few concepts.
+    Here are some of them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: ModuleFederationPlugin
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: All of Module Federation’s features are made available in Webpack 5+ via the
+    `ModuleFederationPlugin` plugin. This is where you define the settings of how
+    Module Federation should work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This plugin allows a build to provide or consume modules during **runtime**
+    with other independent builds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can read in detail about `ModuleFederationPlugin` and its specs here: [https://webpack.js.org/plugins/module-federation-plugin/](https://webpack.js.org/plugins/module-federation-plugin/).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In its simplest form, the code for `ModuleFederationPlugin` should look like
+    this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding code is the skeleton that holds all the configurations required
+    to enable Module Federation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Host apps
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This is the root application within which *remote* or external apps are loaded.
+    The host app’s Module Federation configuration stores the list of remote apps
+    that need to load within it. In our use cases of microfrontends, the host app
+    also contains information about the different routes and the mapping of the routes
+    to the respective remote apps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Webpack’s configuration for Module Federation in the host app should look like
+    this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding code is simple to understand. We let Module Federation know the
+    name of the host app and provide a list of remote apps and the path to their corresponding
+    `remoteEntry` file in the `remotes` object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remote Apps
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Remote apps, as you would have guessed, are apps that load dynamically within
+    the host app. These remote apps are also referred to as *containers* in Module
+    Federation terminology. The JS bundle of these remote apps is usually exposed
+    via a single `.js` file usually called `remoteEntry.js`, which the host app looks
+    out for.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Every remote app is exposed in Webpack’s Module Federation configuration in
+    the following way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Every remote app needs to have a unique name defined in its `name` property,
+    and this name needs to match the names that are part of the `remotes` object defined
+    in the host app’s Module Federation configuration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: remoteEntry.js
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The `remoteEntry.js` file is a small JS file that is created by Module Federation
+    at runtime. It contains metadata for each of the remote apps. The host app relies
+    on the `remoteEntry.js` file to know which modules to load into.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Use cases for Module Federation are not just limited to building microfrontends;
+    they can also be used to dynamically load common libraries or a module such as
+    a design system, for example, negating the need to publish these common libraries
+    as `npm` packages and having to rebuild and re-deploy every time a common library
+    has changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram helps to explain how Module Federation works:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.1 – Module Federation with three micro apps loaded in real time](img/Figure_5.01_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.1 – Module Federation with three micro apps loaded in real time
+  prefs: []
+  type: TYPE_NORMAL
+- en: From the diagram, we see that we have apps running on ports `3001`, `3002`,
+    and `3003`. Each of them has its metadata exposed in its respective `remoteEntry.js`
+    files. These apps are dynamically loaded into the host app that is running on
+    port `3000` via Module Federation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It may be prudent to know that it is not just apps. Any kind of JS module can
+    be dynamically imported into Module Federation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will put all of this into practice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up Microfrontends with a Host and Remote app
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We are going to take our multi-SPA app and convert it into a microfrontend with
+    a Host and Remote app using Module Federation. As mentioned earlier, the main
+    benefit of this approach is that users get a true single-page experience while
+    still ensuring that each app is independently built and deployed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let us see what it takes for us to do this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.2 – Module Federation setup](img/Figure_5.02_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.2 – Module Federation setup
+  prefs: []
+  type: TYPE_NORMAL
+- en: You will notice that *Figure 5**.2* is similar to *Figure 5**.1* and explains
+    the implementation details of Module Federation. We see that the Host app contains
+    the header component and runs on port `4200`. We then have our Catalog and Checkout
+    apps running on ports `4202` and `4201`. We aim to load these remote apps dynamically
+    whenever the correct route is called.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To convert our multi-SPA into a module-federated microfrontend, we will need
+    to make the following changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a new Host app that we’ll call App-shell.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Remove the header component from each SPA and move it into App-shell.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Define the remote apps, namely Catalog and Checkout, that need to be loaded
+    into the host app.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Define the remote entry for the Catalog and Checkout micro apps.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Let us get started. Open up the e-buy app that you built in the previous chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You may also download it from the Git repo:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://github.com/PacktPublishing/Building-Micro-Frontends-with-React/tree/main/ch4/ebuy](https://github.com/PacktPublishing/Building-Micro-Frontends-with-React/tree/main/ch4/ebuy)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the coming subsections, we will see how to create our host and remote apps,
+    but first, we will clean up our existing apps and prep them to use Module Federation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Clean up
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: With Module Federation, the host app takes care of routing, and there is no
+    need for us to use the proxy configurations we defined in the `proxy.conf.json`
+    file. So, we will delete this file and remove the unnecessary configuration from
+    the `project.json` file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Go ahead and delete `/apps/catalog/proxy.conf.json` and, in the `catalog/project.json`
+    file, delete the following line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'While we’re at it, we can also get rid of `baseRef`, which we defined in our
+    `checkout/project.json` file. Locate this line and delete it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Setting up the App-shell host app
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: With this, we are now set to start migrating our multi-SPA apps to Module Federation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Nx Console has a nifty generator for creating a host and remote apps for Module
+    Federation. Follow these steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create a React host app:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Nx Console** | **Generate** | **@nrwl/react – host Generate a host** **react
+    application**'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 5.3 – Selecting the host app generator from Nx Dev Console](img/Figure_5.03_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.3 – Selecting the host app generator from Nx Dev Console
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Enter the following information in this form:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Name**: **app-shell**'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**devServerPort**: **4200**'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**e2eTestrunner**: **none**'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**remotes**: We will leave this blank and add it manually due to a bug that
+    doesn’t allow multiple app names'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: After you hit the `apps/app-shell/module-federation.config.js`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Open up the file and, in the **remotes** array, add Catalog and Checkout as
+    the remote apps:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now let us open up the `React.Suspence` and React Router’s `Route`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We will tweak this boilerplate file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: As you can see from the preceding code, we first import the `Header` component
+    into App-shell.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: You will also notice that we are using dynamic imports to import our Catalog
+    and Checkout apps using `React.lazy`. These lines will currently be throwing errors
+    as it is unable to find the module.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'To solve this, create a file called **/apps/app-shell/src/remotes.d.ts** with
+    the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `remotes.d.ts` file is used to provide TypeScript type declarations for
+    remotes in a Module Federation setup.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Further down in the JSX, you will notice that we import the Catalog app on the
+    `/` and `/catalog` routes while we import the Checkout app on the `/``checkout`
+    route.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: This more or less completes the setup for the host app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up our Remote apps
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Setting up our remote apps will take a bit of work. Let us crack on and work
+    on them one at a time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s what we need to do in order to convert an existing React app within
+    Nx to a remote app:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create remote entries in the **module-federation.config.js** file.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Swap the app builder in **project.json** to use the module-federation plugin.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Add a **serve-static** executor.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Use a custom Webpack configuration that defines the remote entry modules.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let us carry out the preceding changes in the Catalog app to start with. Follow
+    these steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the **apps/catalog** folder, create a new file called **module-federation.config.js**
+    and add the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This is where we define the Catalog remote app and the module path that it exposes.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Next, we need to make a couple of changes to the **apps/catalog/project.json**
+    file.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'First, we add a new command under the targets and call it **serve-static**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Notice that we intend to run our app on `4201`, so let’s also make sure the
+    `serve` command also uses port `4201`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Make sure the port under the regular **serve** command is defined within the
+    **options** object:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This is because the Module Federation plugin expects the port to be defined
+    within the `options` object. If not, it will use a default port, which can lead
+    to very interesting bugs.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Refer to this line in the source code: [https://github.com/nrwl/nx/blob/master/packages/react/src/module-federation/with-module-federation.ts#L29](https://github.com/nrwl/nx/blob/master/packages/react/src/module-federation/with-module-federation.ts#L29).'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, under the **serve** object, we update the executor to use **module-federation
+    dev-server**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, ensure we have **WebpackConfig** with a custom Webpack configuration:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now let us update **webpack.config.js** with the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now let us repeat the same steps for the Checkout app:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the **apps/checkout/** folder, create a new file called **module-federation.config.js**
+    with the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: As you can see, it is identical to what we had on the Catalog app. The only
+    difference is that we changed the `name` value to `checkout`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, let us add the **serve-static** command to the **targets** object in
+    the **apps/checkout/project.json** file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In the same file, we continue to update the executor:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Then under the **serve.options** update the port number to **4202**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We also update **webpackConfig**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Since there are no changes to the `webpack.config.js` file, we can simply copy
+    and paste this file from the Catalog app.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Finally, we will update the **Header** component to use the **Link** component
+    from **ReactRouter** so that we get that single-page experience.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Open up the **/libs/ui/src/lib/header.tsx** file and update the following to
+    use **<Link>** instead of **<a>**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Don’t forget to import the **<****Link>** command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Before we try testing, let us not forget to remove the header component from
+    the respective Catalog app located at **/apps/catalog/src/app/app.tsx** and the
+    Checkout app at **/****apps/checkout/src/app/app.tsx**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Let’s do a quick test on the terminal. Run the following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Once everything is running without any errors, open up `/assets` folder of the
+    App-shell app.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In the multi-SPA approach, the Catalog app was the default route and was sort
+    of acting like the host app. Since App-shell is now our host, we will need to
+    copy the images from the **/catalog/src/assets** folder into the **app-shell/src/assets**
+    folder. Once you have done this, the images should load up into the app.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Navigate between the Catalog and Checkout apps. Add items to your cart and enjoy
+    seeing the apps work nicely.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Since everything is going well, and since each micro app team should be able
+    to work on their individual apps, let us also make sure that we can run each app
+    individually.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Run **pnpm nx serve catalog** and you’ll notice you get an error:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This is due to Module Federation treating the Catalog app as a bidirectional
+    host and not being able to eagerly load the shared modules.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'You can read more about it here:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[https://webpack.js.org/concepts/module-federation/#uncaught-error-shared-module-is-not-available-for-eager-consumption](https://webpack.js.org/concepts/module-federation/#uncaught-error-shared-module-is-not-available-for-eager-consumption)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: To overcome this issue, we need to define an asynchronous boundary to split
+    out the initialization code of a larger chunk and avoid any additional roundtrips
+    to the server.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: To solve it, we need to make a couple of tweaks. In the Catalog app, let us
+    first rename **/apps/catalog/src/main.tsx** to **bootstrap.tsx**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Next, we create a new file called **main.ts** within the same **src** folder
+    and have a single line importing bootstrap:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we need to ensure that this newly created **main.ts** file is what is
+    being used as the entry point, so now, in our **project.json** file for the Catalog
+    app, we update the **main** property within the **build >** **options** object:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Repeat the same steps for the Checkout app. Now, you should be able to run the
+    apps as a module-federated microfrontend or each app individually.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: You may have also noticed that at the start of this chapter, we referred to
+    the `remoteEntry.js` file as the entry file for the remote apps and that we didn’t
+    really define one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, if you look at your dev tools’ network tab, you will notice there are
+    two `remoteEntry.js` files being called from ports `4201` and `4202` respectively.
+    This is Nx and Module Federation doing a bit of magic here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you dig into the source code in this file, you will notice the filename being
+    defined as part of the **ModuleFederationPlugin** configuration ([https://github.com/nrwl/nx/blob/master/packages/react/src/module-federation/with-module-federation.ts](https://github.com/nrwl/nx/blob/master/packages/react/src/module-federation/with-module-federation.ts)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The screenshot in *Figure 5**.4* shows the `remoteEntry.js` file being called
+    from the respective apps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.4 – RemoteEntry.js](img/Figure_5.04_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.4 – RemoteEntry.js
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you are keen to explicitly define the file and stay as close as possible
+    to the native workings of Module Federation, then go ahead and create a file in
+    `apps/catalog/src/remote-entry.js` with the following line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Update the `exposes` value in the `apps/catalog/module-federation.js` file
+    to read as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: With that, we have completed the section on using Module Federation and successfully
+    converted our multi-SPA app into a module-federated microfrontend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we saw what minimal steps are required to get Module Federation
+    working and what extra steps, such as defining the remotes and exposing the module
+    names, are needed to allow each app to work independently.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will see how to further break down a remote app into
+    a true micro-app microfrontend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Extending Module Federation to a true Micro-apps Pattern
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Imagine you are part of a team that manages a very large e-Commerce app (think
+    of Amazon.com). For such large sites, it is a common practice to have teams that
+    own a single organism-level component ([https://atomicdesign.bradfrost.com/chapter-2/#organisms](https://atomicdesign.bradfrost.com/chapter-2/#organisms))
+    instead of the entire mini app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, we have a dedicated team that works exclusively on the Product
+    Recommendations component. This component is injected into, say, the Catalog app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In such a case, it would be prudent to create another micro app called Recommendations
+    and dynamically import it into the Catalog app. This would allow for true, federated,
+    micro-app pattern architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.5 – Tree of remote apps with Module Federation](img/Figure_5.05_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.5 – Tree of remote apps with Module Federation
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see from the preceding diagram, we can further break down our Catalog
+    and Checkout apps into smaller organism-level components and have each of them
+    load into the Catalog app remotely via Module Federation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remember, while this may seem very cool, it is important that we don’t overdo
+    it by converting every single organism into a module-federated micro app. It is
+    important to follow the principles of microfrontends mentioned in [*Chapter 2*](B18987_02.xhtml#_idTextAnchor029),
+    namely, *breaking down the app into the largest independently deployable app owned
+    by a single team* and not necessarily the smallest.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having said that, and assuming you do have an independent team owning the Recommendations
+    micro app, let us go about creating the micro app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating the Recommendations Remote Micro app
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let us use our trusted Nx dev console and the `GENERATE` command and follow
+    these steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Select **@nrwl/react - remote Generate a remote application** and use the following
+    information while leaving the rest as their defaults:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Name**: **recommendations**'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**e2eTestRunner**: **none**'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**host**: **catalog**'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**devServerPort**: **4203**'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Use the **Generate** command and verify that the **recommendations** app has
+    been successfully created.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Let us quickly edit **apps/recommendations/src/app.tsx** to remove the boilerplate
+    code and leave it with a simple message:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building a full-fledged Recommendations micro app is beyond the scope of this
+    book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run **npx nx serve recommendations** and verify that the app loads up properly
+    on port **4203**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Keep it running while we work on adding it as a remote to our Catalog app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adding Recommendations as a Remote app to Catalog
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Since we want the Recommendations micro app to load within Catalog, as a remote
+    app, we need to convert Catalog to behave like a host. We do this using the following
+    steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Open up the **apps/catalog/module-federation.config.js** file and add the **remotes**
+    entry to it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, let us create a **remotes.d.ts** file within the **apps/catalog/src**
+    folder using the following line:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, let us import and call the Recommendations app into our **apps/catalog/src/app/app.tsx**
+    file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In the **jsx** part of the component, here is how we call our Recommendations
+    component:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Open up a new terminal window and run the following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: If everything goes as planned, you will see the Catalog app with the Recommendations
+    component loaded within it. With this, we come to the end of this section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we saw how we can use Module Federation to further break down
+    a host app into smaller micro apps and have them all working together as a tree
+    of remote apps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will see how to set up state management within our micro
+    apps microfrontend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: State management with Module Federation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As you may have noticed by now, our custom state management system, which uses
+    `sessionStorage`, continues to work seamlessly with Module Federation. This is
+    because, from a React perspective, it all looks like a regular React application,
+    with modules being lazy-loaded. So, one of the benefits of Module Federation is
+    that we can use any of the regular state management concepts, such as prop drilling,
+    context API, or libraries such as Redux or Zustand, to manage the state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will make use of the Zustand state management library as
+    it is extremely user-friendly and has zero boilerplate code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, logically, especially for those who use a lot of context API, we would
+    be inclined to have the store within App-shell and have the other micro apps consume
+    it. However, with Module Federation, this would not be ideal, because the store
+    would need to be exposed as a remote app and imported into other micro apps that
+    act as hosts. If you try plotting this, it kind of feels like a cyclic dependency
+    of sorts, where App-shell acts as a host for all other components but the store
+    located in it is a remote for other components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram better illustrates the problem of this cyclic flow:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.6 – Cyclic flow between App-shell and the store](img/Figure_5.06_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.6 – Cyclic flow between App-shell and the store
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When working with Module Federation, it is preferable to have a unidirectional
+    flow of how the remote and host apps are loaded in. With that in mind, it would
+    be more prudent to have our store as its own independent micro app and have it
+    defined as a remote app to all the other apps that consume it. With this new structure,
+    the diagram in *Figure 5**.6* can be redrawn:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.7 – Unidirectional remotes for the Store app](img/Figure_5.07_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.7 – Unidirectional remotes for the Store app
+  prefs: []
+  type: TYPE_NORMAL
+- en: As evident from *Figure 5**.7*, the unidirectional flow of remotes for the Store
+    app looks a lot cleaner, and it ensures that App-shell isn’t getting unnecessarily
+    bloated with business logic and state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since we are going to use Zustand for state management, this would be a good
+    time for us to install it. Run the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let us now create our Store remote app using the steps we used to create our
+    Recommendations remote app:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using Nx Console and the **@nrwl/react - remote Generate a remote application**
+    file, create the Store micro app.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Fill in the form with the following information, and leave the rest as their
+    defaults:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Name**: **store**'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**e2eTestRunner**: **none**'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**host**: (leave this blank because we will manually add the hosts)'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**devServerPort**: **4204**'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Once the app has been created, let us go about setting up our store. To demonstrate
+    the working of the state and store across the different micro apps, we will have
+    a **Like** button in the host app. Clicking it will increment the like count.
+    We will also display the count within the Recommendations app. Then, we will have
+    a **Reset** button in the Recommendations micro app that will reset the store
+    and verify that the like count has reset in all places.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let us get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Navigate to the **/apps/store/src** folder and create a new file called **store.tsx**.
+    This is where we will define our store and hooks.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Zustand is super easy to work with. Have a look at the documentation at [https://docs.pmnd.rs/zustand/getting-started/introduction](https://docs.pmnd.rs/zustand/getting-started/introduction).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Begin in the **store.tsx** file by importing Zustand and defining the **LikeCount**
+    interface:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we create our **useStore** hook and define the **initial state**, **increment**,
+    and **reset** functions. This is the standard way to do so:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: And that is it! Our store with the `useStore` hook is ready to be consumed.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, we need to expose this as a remote app. We will do this by making two
+    additional changes. In the **apps/store/src/remote-entry.ts** file, modify the
+    following line to the following text:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we let App-shell and the Recommendations app know that they need to use
+    Store as a remote app. We do this by adding Store to the remote array in the respective
+    **module-federation.config.js** files in App-shell and the Recommendations app:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Here is what we have in the `apps/recommendations/module-federation.config.js`
+    file:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The next thing we need to do is declare the **store** module in the **remotes.d.ts**
+    file app-shell file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We will need to do the same in the Recommendations app. Since the **remotes.d.ts**
+    file doesn’t exist, we can create a new file with the following line in **/apps/recommendations/src/remotes.d.ts**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We now have the store hooked up so that Recommendations and App-shell can read
+    and write to our Store micro app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adding the Like button to the host app
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this section, we will create a **Like** button that increments the like count
+    and gets stored in the store.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have set up the remotes, let us import the store into our app shell
+    and create the `/apps/app-shell/src/app/app.tsx` file. Follow these steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import **useStore**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, de-structure the count and increment within the **App** function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, in our JSX, we add our button after the **<****Header/>** component:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Restart all the apps. You can also make use of the following custom command
+    that we created to serve all apps:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We’ve got the state working with Zustand within the host app, and as you can
+    tell, it is refreshingly simple and devoid of any boilerplate code. But the true
+    purpose of us setting up the state and store is to ensure that this state can
+    be shared with other micro apps. In our case, it will be the Recommendations app,
+    right at the bottom of the federation hierarchy.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'In the **apps/recommendations/src/app/app.tsx** file, our code should look
+    very similar to the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: That’s it!
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Run your apps and play around with the **Like** button. Reset it and verify
+    that the count stays in sync between the host and the Recommendations app:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 5.8 – Complete working app with shared state across micro apps](img/Figure_5.08_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.8 – Complete working app with shared state across micro apps
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our app works great, but let us make sure it’s performant as well!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Avoiding Unnecessary Re-rendering
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: When working with the state, a very important performance-related point to check
+    is avoiding unnecessary re-rendering. This is especially true when the state is
+    being shared between different components or when it is being prop drilled.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One way to verify that is to go into **Developer Tools**, open up the **Rendering**
+    pane, select **Paint flashing** and **Frame Rendering Stats**, and verify that
+    when you click on the buttons, only the necessary items within the components
+    are updating.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In Chrome, you can access this panel by opening up **Developer Tools**, going
+    into **More Tools**, and then selecting the **Rendering** pane:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.9 – Rendering pane in the developer consoles](img/Figure_5.09_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.9 – Rendering pane in the developer consoles
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see from *Figure 5**.9*, once we have **Paint flashing** enabled,
+    you will see a green rectangle encapsulating the sections of the page that re-render
+    due to a change or user interaction. The ideal state is when only a small part
+    of the page flashes when the user interacts with it. **Frame Rendering Stats**
+    displays the frame rate as the user is interacting with the page. The frame rate
+    should ideally stay close to 60 fps for a smooth user experience.
+  prefs: []
+  type: TYPE_NORMAL
+- en: And with that, we come to the end of this section regarding state management
+    with Zustand in a module-federated application. In this section, we learned the
+    benefits of defining the Store app as a separate micro app. It is then dynamically
+    imported into the other micro apps. We learned how to go about setting up the
+    store as a module-federated module. We then saw how the host app and the Recommendations
+    app can share state via the shared store. Finally, we were also able to turn on
+    paint flashing and frame rendering to verify that as the state changes, only the
+    necessary elements within the apps update, and it doesn’t cause components that
+    haven’t changed to be re-rendered.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We’ve finally come to the end of another interesting chapter. We started by
+    learning about Module Federation and how it is a game-changer in the way we build
+    and maintain apps. We learned some of the basic concepts of Module Federation,
+    such as host apps, remote apps, `remoteEntry`, and more.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We then saw how to convert our multi-SPA app into a module-federated app with
+    an app shell and how to load the Catalog and Checkout apps as remote apps. Then,
+    we further broke things down to include smaller micro apps within these apps to
+    create a tree of module-federated micro apps. Finally, we saw some of the best
+    practices of managing the state and saw how we can look at tools such as Zustand
+    to manage the state between these different micro apps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapters, we will see how to build these apps for production and
+    how to deploy them to static storage on the cloud.
+  prefs: []
+  type: TYPE_NORMAL

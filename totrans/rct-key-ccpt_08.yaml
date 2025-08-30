@@ -1,0 +1,1457 @@
+- en: '8'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Handling Side Effects
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Learning Objectives
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By the end of this chapter, you will be able to do the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Identify side effects in your React apps
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understand and use the `useEffect()` Hook
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Utilize the different features and concepts related to the `useEffect()` Hook
+    to avoid bugs and optimize your code
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Handle side effects related and unrelated to state changes
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introduction
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While all React examples previously covered in this book have been relatively
+    straightforward, and many key React concepts were introduced, it is unlikely that
+    many real apps could be built with those concepts alone.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Most real apps that you will build as a React developer also need to send HTTP
+    requests, access the browser storage and log analytics data, or perform any other
+    kind of similar task, and with components, props, events, and state alone, you’ll
+    often encounter problems when trying to add such features to your app. Detailed
+    explanations and examples will be discussed later in this chapter, but the core
+    problem is that tasks like this will often interfere with React’s component rendering
+    cycle, leading to unexpected bugs or even breaking the app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter will take a closer look at those kinds of actions, analyze what
+    they have in common, and most importantly, teach you how to correctly handle such
+    tasks in React apps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What’s the Problem?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before exploring a solution, it’s important to first understand the concrete
+    problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Actions that are not directly related to producing a (new) user interface state
+    often clash with React’s component rendering cycle. They may introduce bugs or
+    even break the entire web app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider the following example code snippet (important: don’t execute this
+    code as it will cause an infinite loop and send a large number of HTTP requests
+    behind the scenes):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: So what’s the problem with this code? Why does it create an infinite loop?
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this example, a React component ( `BlogPosts` ) is created. In addition,
+    a non-component function ( `fetchPosts()` ) is defined. That function uses the
+    built-in `fetch()` function (provided by the browser) to send an HTTP request
+    to an external **application programming interface** ( **API** ) and fetch some
+    data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `fetch()` function is made available by the browser (all modern browsers
+    support this function). You can learn more about `fetch()` at [https://academind.com/tutorials/xhr-fetch-axios-the-fetch-api](https://academind.com/tutorials/xhr-fetch-axios-the-fetch-api)
+    .
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `fetch()` function yields a **promise** , which, in this example, is handled
+    via `async` / `await` . Just like `fetch()` , promises are a key web development
+    concept, which you can learn more about (along with `async` / `await` ) at [https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function)
+    .
+  prefs: []
+  type: TYPE_NORMAL
+- en: An API, in this context, is a site that exposes various paths to which requests
+    can be sent—either to submit or to fetch data. [jsonplaceholder.typicode.com](https://jsonplaceholder.typicode.com)
+    is a dummy API, responding with dummy data. It can be used in scenarios like the
+    preceding example, where you just need an API to send requests to. You can use
+    it to test some concept or code without connecting or creating a real backend
+    API. In this case, it’s used to explore some React problems and concepts. Basic
+    knowledge about sending HTTP requests with `fetch()` and APIs is expected for
+    this chapter and the book overall. If needed, you can use pages such as MDN (
+    [https://developer.mozilla.org/](https://developer.mozilla.org/) ) to strengthen
+    your knowledge of such core concepts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding code snippet, the `BlogPosts` component utilizes `useState()`
+    to register a `loadedPosts` state value. The state is used to output a list of
+    blog posts. Those blog posts are not defined in the app itself though. Instead,
+    they are fetched from the external API mentioned in the note box.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`fetchPosts()` , which is the utility function that contains the code for fetching
+    blog posts data from that backend API using the built-in `fetch()` function, is
+    called directly in the component function body. Since `fetchPosts()` is an `async`
+    function (using `async` / `await` ), it returns a promise. In `BlogPosts` , the
+    code that should be executed once the promise resolves is registered via the built-in
+    `then()` method.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`async` / `await` is not used directly in the component function body because
+    regular React components must not be `async` functions. Such functions automatically
+    return a promise as a value (even without an explicit `return` statement), which
+    is an invalid return value for a React component.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: That being said, there are indeed React components that are allowed to use `async`
+    / `await` and return a promise. So-called **React Server Components** are not
+    restricted to returning JSX code, strings, etc. This feature will be discussed
+    in detail in *Chapter 16* , *React Server Components & Server Actions* .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once the `fetchPosts()` promise resolves, the extracted posts data ( `fetchedPosts`
+    ) is set as the new `loadedPosts` state (via `setLoadedPosts(fetchedPosts)` ).
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you were to run the preceding code (which you should not do!), it would at
+    first seem to work. But behind the scenes, it would actually start an infinite
+    loop, hammering the API with HTTP requests. This is because, as a result of getting
+    a response from the HTTP request, `setLoadedPosts()` is used to set a new state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Earlier in this book (in *Chapter 4* , *Working with Events and State* ), you
+    learned that whenever the state of a component changes, React re-evaluates the
+    component to which the state belongs. “Re-evaluating” simply means that the component
+    function is executed again (by React, automatically).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since this `BlogPosts` component calls `fetchPosts()` (which sends an HTTP request)
+    directly inside the component function body, this HTTP request will be sent every
+    time the component function is executed. And as the state ( `loadedPosts` ) is
+    updated as a result of getting a response from that HTTP request, this process
+    begins again, and an infinite loop is created.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The root problem, in this case, is that sending an HTTP request is a side effect—a
+    concept that will be explored in greater detail in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding Side Effects
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Side effects are actions or processes that occur in addition to another *main
+    process* . At least, this is a concise definition that helps with understanding
+    side effects in the context of a React app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you want to dive deeper into the concept of *side effects* , you can also
+    explore the following discussion about side effects on Stack Overflow: [https://softwareengineering.stackexchange.com/questions/40297/what-is-a-side-effect](https://softwareengineering.stackexchange.com/questions/40297/what-is-a-side-effect)
+    .'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the case of a React component, the main process would be the component render
+    cycle in which the main task of a component is to render the user interface that
+    is defined in the component function (the returned JSX code). The React component
+    should return the final JSX code, which is then translated into DOM-manipulating
+    instructions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For this, React considers state changes as the trigger for updating the user
+    interface. Registering event handlers such as `onClick` , adding refs, or rendering
+    child components (possibly by using props) would be other elements that belong
+    to this main process—because all these concepts are directly related to the main
+    task of rendering the desired user interface.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sending an HTTP request, as in the preceding example, is not part of this main
+    process, though. It doesn’t directly influence the user interface. While the response
+    data might eventually be output on the screen, it definitely won’t be used in
+    the exact same component render cycle in which the request is sent (because HTTP
+    requests are asynchronous tasks).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since sending the HTTP request is not part of the main process (rendering the
+    user interface) that’s performed by the component function, it’s considered a
+    side effect. It’s invoked by the same function (the `BlogPosts` component function),
+    which primarily has a different goal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If the HTTP request were sent upon a click of a button rather than as part
+    of the main component function body, it would not be a side effect. Consider this
+    example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This code is almost identical to the previous example, but it has one important
+    difference: a `<button>` was added to the JSX code. And it’s this button that
+    invokes a newly added `handleFetchPosts()` function, which then sends the HTTP
+    request (and updates the state).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: With this change made, the HTTP request is *not* sent every time the component
+    function re-renders (that is, is executed again). Instead, it’s only sent whenever
+    the button is clicked, and therefore, this does not create an infinite loop. The
+    HTTP request, in this case, also doesn’t postulate a side effect, because the
+    primary goal of `handleFetchPosts()` (i.e., the main process) is to fetch new
+    posts and update the state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Side Effects Are Not Just about HTTP Requests
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In the previous example, you learned about one potential side effect that could
+    occur in a component function: an HTTP request. You also learned that HTTP requests
+    are not always side effects. It depends on where they are created.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In general, any action that’s started upon the execution of a React component
+    function is a side effect if that action is not directly related to the main task
+    of rendering the component’s user interface.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s a non-exhaustive list of examples of side effects:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sending an HTTP request (as shown previously)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Storing data to or fetching data from browser storage (for example, via the
+    built-in `localStorage` object)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Setting timers (via `setTimeout()` ) or intervals (via `setInterval()` )
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Logging data to the console via `console.log()`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Not all side effects cause infinite loops, however. Such loops only occur if
+    the side effect leads to a state update.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s an example of a side effect that would not cause an infinite loop:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, `console.log(…)` is a side effect because it’s executed as
+    part of every component function execution and does not influence the rendered
+    user interface (neither for this specific render cycle nor indirectly for any
+    future render cycles in this case, unlike the previous example with the HTTP request).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course, using `console.log()` like this is not causing any problems. During
+    development, it’s quite normal to log messages or data for debugging purposes.
+    Side effects aren’t necessarily a problem and, indeed, side effects like this
+    can be used or tolerated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But you also often need to deal with side effects such as the HTTP request from
+    before. Sometimes, you need to fetch data when a component renders—probably not
+    for every render cycle, but typically the first time it is executed (that is,
+    when its generated user interface appears on the screen for the first time).
+  prefs: []
+  type: TYPE_NORMAL
+- en: React offers a solution for this kind of problem as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dealing with Side Effects with the useEffect() Hook
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In order to deal with side effects such as the HTTP request shown previously
+    in a safe way (that is, without creating an infinite loop), React offers another
+    core Hook: the `useEffect()` Hook.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first example can be fixed and rewritten like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In this example, the `useEffect()` Hook is imported and used to control the
+    side effect (hence the name of the Hook, `useEffect()` , as it deals with side
+    effects in React components). The exact syntax and usage will be explored in the
+    next section, but if you use this Hook, you can safely run the example and get
+    some output like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_08_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.1: A list of dummy blog posts and no infinite loop of HTTP requests'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding screenshot, you can see the list of dummy blog post titles,
+    and most importantly, when inspecting the sent network requests, you find no infinite
+    list of requests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`useEffect()` is therefore the solution for problems like the one outlined
+    previously. It helps you deal with side effects so that you can avoid infinite
+    loops and extract them from your component function’s main process.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: But how does `useEffect()` work, and how is it used correctly?
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to Use useEffect()
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As shown in the previous example code snippet, `useEffect()` , like all React
+    Hooks, is executed as a function inside the component function ( `BlogPosts` ,
+    in this case).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although, unlike `useState()` or `useRef()` , `useEffect()` does not return
+    a value, though it does accept an argument (or, actually, two arguments) like
+    those other Hooks. The first argument is *always* a function. In this case, the
+    function passed to `useEffect()` is an anonymous function, created via the `function`
+    keyword.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alternatively, you could also provide an anonymous function created as an arrow
+    function ( `useEffect(() => { … })` ) or point at some named function ( `useEffect(doSomething)`
+    ). The only thing that matters is that the first argument passed to `useEffect()`
+    *must* be a function. It must not be any other kind of value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the preceding example, `useEffect()` also receives a second argument: an
+    empty array ( `[]` ). The second argument must be an array, but providing it is
+    *optional* . You could also omit the second argument and just pass the first argument
+    (the function) to `useEffect()` . However, in most cases, the second argument
+    is needed to achieve the correct behavior. Both arguments and their purpose will
+    be explored in greater detail as follows.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first argument is a function that will be executed by React. It will be
+    executed *after* every component render cycle (that is, after every component
+    function execution).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the preceding example, if you only provide this first argument and omit
+    the second, you will therefore still create an infinite loop. There will be an
+    (invisible) timing difference because the HTTP request will now be sent after
+    every component function execution (instead of as part of it), but you will still
+    trigger a state change, which will still trigger the component function to execute
+    again. Therefore, the effect function will run again, and an infinite loop will
+    be created. In this case, the side effect will be extracted out of the component
+    function technically, but the problem with the infinite loop will not be solved:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Extracting side effects out of React component functions is the main job of
+    `useEffect()` , and so only the first argument (the function that contains the
+    side effect code) is mandatory. But, as mentioned previously, you will also typically
+    need the second argument to control the frequency with which the effect code will
+    be executed, because that’s what the second argument (an array) will do.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The second parameter received by `useEffect()` is *always* an array (unless
+    it’s omitted). This array specifies the dependencies of the effect function. Any
+    dependency specified in this array will, once it changes, cause the effect function
+    to execute again. If no array is specified (that is, if the second argument is
+    omitted), the effect function will be executed again for every component function
+    execution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding example, the second argument was not omitted, but it’s an empty
+    array. This informs React that this effect function has no dependencies. Therefore,
+    the effect function will never be executed again. Instead, it will only be executed
+    once, when the component is rendered for the first time. If you set no dependencies
+    (by providing an empty array), React will execute the effect function *once* —directly
+    after the component function was executed for the first time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It’s important to note that specifying an empty array is very different from
+    omitting it. If it is omitted, no dependency information is provided to React.
+    Therefore, React executes the effect function after every component re-evaluation.
+    If an empty array is provided instead, you explicitly state that this effect has
+    no dependencies and therefore should only run once.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This brings up another important question, though: when should you add dependencies?
+    And how exactly are dependencies added or specified?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Effects and Their Dependencies
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Omitting the second argument to `useEffect()` causes the effect function (the
+    first argument) to execute after every component function execution. Providing
+    an empty array causes the effect function to run only once (after the first component
+    function invocation). But is that all you can control?
+  prefs: []
+  type: TYPE_NORMAL
+- en: No, it isn’t.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The array passed to `useEffect()` can and should contain all variables, constants,
+    or functions that are used inside the effect function—if those variables, constants,
+    or functions were defined inside the component function (or in some parent component
+    function, passed down via props).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider this example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This example is based on the previous example, but was adjusted in one important
+    place: `BlogPosts` now accepts a `url` prop.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, this component can now be used and configured by other components.
+    Of course, if some other component sets a URL that doesn’t return a list of blog
+    posts, the app won’t work as intended. This component therefore might be of limited
+    practical use, but it does show the importance of effect dependencies quite well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But if that other component changes the URL (e.g., due to some user input there),
+    a new request should be sent, of course. So `BlogPosts` should send another fetch
+    request every time the `url` prop value changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That’s why `url` was added to the dependencies array of `useEffect()` . If the
+    array had been kept empty, the effect function would only run once (as described
+    in the previous section). Therefore, any changes to `url` wouldn’t have any effect
+    (no pun intended) on the effect function or the HTTP request executed as part
+    of that function. No new HTTP request would be sent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By adding `url` to the dependencies array, React registers this value (in this
+    case, a prop value, but any value can be registered) and re-executes the effect
+    function whenever that value changes (that is, whenever a new `url` prop value
+    is set by the component that uses `BlogPosts` ).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The most common types of effect dependencies are state values, props, and functions
+    that might be executed inside of the effect function. The latter will be analyzed
+    in greater depth later in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As a rule, you should add all values (including functions) that are used inside
+    an effect function to the effect dependencies array.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With this new knowledge in mind, if you take another look at the preceding
+    `useEffect()` example code, you might spot some missing dependencies:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Why are `fetchPosts` , `fetchedPosts` , and `setLoadedPosts` not added as dependencies?
+    These are, after all, values and functions used inside of the effect function.
+    The next section will address this in detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unnecessary Dependencies
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In the previous example, it might seem as if `fetchPosts` , `fetchedPosts`
+    , and `setLoadedPosts` should be added as dependencies to `useEffect()` , as shown
+    here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: However, for `fetchPosts` and `fetchedPosts` , this would be incorrect. And
+    for `setLoadedPosts` , it would be unnecessary.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`fetchedPosts` should not be added because it’s not an external dependency.
+    It’s a local variable (or argument, to be precise), defined and used inside the
+    effect function. It’s not defined in the component function to which the effect
+    belongs. If you try to add it as a dependency, you’ll get an error:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screen shot of a computer  Description automatically generated](img/B31339_08_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.2: An error occurred—fetchedPosts could not be found'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`fetchPosts` , the function that sends the actual HTTP request, is not a function
+    defined inside of the effect function. But it still shouldn’t be added because
+    it is defined outside the component function.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, there is no way for this function to change. It’s defined once (in
+    the `BlogPosts.jsx` file), and it can’t change. That said, this would not be the
+    case if it were defined inside the component function. In that case, whenever
+    the component function executes again, the `fetchPosts` function would be recreated
+    as well. This is a scenario that will be discussed later in this chapter (in the
+    *Functions as Dependencies* section).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this example though, `fetchPosts` can’t change. Therefore, it doesn’t have
+    to be added as a dependency (and consequently should not be). The same would be
+    true for functions, or any kind of values, provided by the browser or third-party
+    packages. Any value that’s not defined inside a component function shouldn’t be
+    added to the dependencies array.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It may be confusing that a function could change—after all, the logic is hardcoded,
+    right? But in JavaScript, functions are actually just objects and therefore may
+    change. When the code that contains a function is executed again (e.g., a component
+    function being executed again by React), a new function object will be created
+    in memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If this is not something you’re familiar with, the following resource should
+    be helpful: [https://academind.com/tutorials/javascript-functions-are-objects](https://academind.com/tutorials/javascript-functions-are-objects)
+    .'
+  prefs: []
+  type: TYPE_NORMAL
+- en: So `fetchedPosts` and `fetchPosts` should both not be added (for different reasons).
+    What about `setLoadedPosts` ?
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`setLoadedPosts` is the state updating function returned by `useState()` for
+    the `loadedPosts` state value. Therefore, like `fetchPosts` , it’s a function.
+    Unlike `fetchPosts` , though, it’s a function that’s defined inside the component
+    function (because `useState()` is called inside the component function). It’s
+    a function created by React (since it’s returned by `useState()` ), but it’s still
+    a function. Theoretically, it should therefore be added as a dependency. And indeed,
+    you can add it without any negative consequences.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But state updating functions returned by `useState()` are a special case: React
+    guarantees that those functions will never change or be recreated. When the surrounding
+    component function ( `BlogPosts` ) is executed again, `useState()` also executes
+    again. However, a new state updating function is only created the first time a
+    component function is called by React. Subsequent executions don’t lead to a new
+    state updating function being created.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because of this special behavior (i.e., React guaranteeing that the function
+    itself never changes), state updating functions may (and actually should) be omitted
+    from the dependencies array.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For all these reasons, `fetchedPosts` , `fetchPosts` , and `setLoadedPosts`
+    should all not be added to the dependencies array of `useEffect()` . `url` is
+    the only dependency used by the effect function that may change (that is, when
+    the user enters a new URL into the input field) and therefore should be listed
+    in the array.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To sum it up, when it comes to adding values to the effect dependencies array,
+    there are three kinds of exceptions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Internal values (or functions) that are defined and used inside the effect (such
+    as `fetchedPosts` )
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: External values that are not defined inside a component function (such as `fetchPosts`
+    )
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: State updating functions (such as `setLoadedPosts` )
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In all other cases, if a value is used in the effect function, it *must be added*
+    to the dependencies array! Omitting values incorrectly can lead to unexpected
+    effect executions (that is, an effect executing too often or not often enough).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Cleaning Up after Effects
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To perform a certain task (for example, sending an HTTP request), many effects
+    should simply be triggered when their dependencies change. While some effects
+    can be re-executed multiple times without issue, there are also effects that,
+    if they execute again before the previous task has finished, are an indication
+    that the task performed needs to be canceled. Or, maybe there is some other kind
+    of cleanup work that should be performed when the same effect executes again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s an example, where an effect sets a timer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This `Alert` component is used in the `App` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the `App` component, the `Alert` component is shown conditionally. The `showAlert`
+    state is toggled via the `handleShowAlert` function (which is triggered upon a
+    button click).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the `Alert` component, a timer is set using `useEffect()` . Without `useEffect()`
+    , an infinite loop would be created, since the timer, upon expiration, changes
+    some component state (the `alertDone` state via the `setAlertDone` state updating
+    function).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The dependency array is an empty array because this effect function does not
+    use any component values, variables, or functions. `console.log()` and `setTimeout()`
+    are functions built into the browser (and therefore external functions), and `setAlertDone()`
+    can be omitted because of the reasons mentioned in the previous section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you run this app and then start toggling the alert (by clicking the button),
+    you’ll notice strange behavior. The timer is set every time the `Alert` component
+    is rendered. But it’s not clearing the existing timer. This is due to the fact
+    that multiple timers are running simultaneously, as you can clearly see if you
+    look at the JavaScript console in your browser’s developer tools:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_08_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.3: Multiple timers are started'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This example is deliberately kept simple, but there are other scenarios in which
+    you may have an ongoing HTTP request that should be aborted before a new one is
+    sent. There are cases like that, where an effect should be cleaned up first before
+    it runs again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'React also provides a solution for those kinds of situations: the effect function
+    passed as a first argument to `useEffect()` can return an optional cleanup function.
+    If you do return a function inside your effect function, React will execute that
+    function every time *before* it runs the effect again.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s the `useEffect()` call of the `Alert` component with a cleanup function
+    being returned:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this updated example, a new `timer` variable (a local variable that is only
+    accessible inside the effect function) is added. That variable stores a reference
+    to the timer that’s created by `setTimeout()` . This reference can then be used
+    together with `clearTimeout()` to remove a timer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The timer is removed in a function returned by the effect function—which is
+    the cleanup function that will be executed automatically by React before the effect
+    function is called the next time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can see the cleanup function in action if you add a `console.log()` statement
+    to it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In your JavaScript console, this looks as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_08_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.4: The cleanup function is executed before the effect runs again'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the preceding screenshot, you can see that the cleanup function is executed
+    (indicated by the `Cleanup!` log) right before the effect function is executed
+    again. You can also see that the timer is cleared successfully: the first timer
+    never expires (there is no `Timer expired!` log for the first timer in the screenshot).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The cleanup function is not executed when the effect function is called for
+    the first time. However, it will be called by React whenever a component that
+    contains an effect unmounts (that is, when it’s removed from the DOM).
+  prefs: []
+  type: TYPE_NORMAL
+- en: If an effect has multiple dependencies, the effect function will be executed
+    whenever any of the dependency values change. Therefore, the cleanup function
+    will also be called every time some dependency changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dealing with Multiple Effects
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Thus far, all the examples in this chapter have dealt with only one `useEffect()`
+    call. You are not limited to only one call per component though. You can call
+    `useEffect()` as often as needed—and can therefore register as many effect functions
+    as needed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But how many effect functions do you need?
+  prefs: []
+  type: TYPE_NORMAL
+- en: You could start putting every side effect into its own `useEffect()` wrapper.
+    You could put every HTTP request, every `console.log()` statement, and every timer
+    into separate effect functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That said, as you can see in some of the previous examples—specifically, the
+    code snippet in the previous section—that’s not necessary. There, you have multiple
+    effects in one `useEffect()` call (three `console.log()` statements and one timer).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A better approach would be to split your effect functions by dependencies.
+    If one side effect depends on state A and another side effect depends on state
+    B, you could put them into separate effect functions (unless those two states
+    are related), as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: But the best approach is to split your effect functions by logic. If one effect
+    deals with fetching data via an HTTP request and another effect is about setting
+    a timer, it will often make sense to put them into different effect functions
+    (that is, different `useEffect()` calls).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Functions as Dependencies
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Different effects have different kinds of dependencies, and one common kind
+    of dependency is functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As mentioned previously, functions in JavaScript are just objects. Therefore,
+    whenever some code that contains a function definition is executed, a new function
+    object is created and stored in memory. When calling a function, it’s that specific
+    function object in memory that is executed. In some scenarios (for example, for
+    functions defined in component functions), it’s possible that multiple objects
+    based on the same function code exist in memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because of this behavior, functions that are referenced in code are not necessarily
+    equal, even if they are based on the same function definition.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider this example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, instead of creating a timer directly inside the effect function,
+    a separate `setAlert()` function is created in the component function. That `setAlert()`
+    function is then used in the effect function passed to `useEffect()` . Since that
+    function is used there, and because it’s defined in the component function, it
+    should be added as a dependency to `useEffect()` .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another reason for this is that every time the `Alert` component function is
+    executed again (e.g., because some state or prop value changes), a new `setAlert`
+    function object will be created. In this example, that wouldn’t be problematic
+    because `setAlert` only contains static code. A new function object created for
+    `setAlert` would work exactly in the same way as the previous one; therefore,
+    it would not matter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But now consider this adjusted example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete app can be found on GitHub at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/08-effects/examples/function-dependencies](https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/08-effects/examples/function-dependencies)
+    .
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, a new `alertMsg` state is used for setting the actual alert message that’s
+    logged to the console. In addition, the `setAlert` dependency was removed from
+    `useEffect()` .
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you run this code, you’ll get the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_08_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.5: The console log does not reflect the entered value'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this screenshot, you can see that, despite a different value being entered
+    into the input field, the original alert message is output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The reason for this behavior is that the new alert message is not picked up.
+    It’s not used because, despite the component function being executed again (because
+    the state changed), the effect is not executed again. And the original execution
+    of the effect still uses the old version of the `setAlert` function—the old `setAlert`
+    function object, which has the old alert message locked in. That’s how JavaScript
+    functions work, and that’s why, in this case, the desired result is not achieved.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The solution to the problem is simple though: add `setAlert` as a dependency
+    to `useEffect()` . You should always add all values, variables, or functions used
+    in an effect as dependencies, and this example shows *why* you should do that.
+    Even functions can change.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you add `setAlert` to the effect dependency array, you’ll get a different
+    output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Please note that only a pointer to the `setAlert` function is added. You don’t
+    execute the function in the dependencies array (that would add the return value
+    of the function as a dependency, which is typically not the goal).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_08_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.6: Multiple timers are started'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, a new timer is started for every keystroke, and as a result, the entered
+    message is output in the console.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Of course, this might also not be the desired result. You might only be interested
+    in the final error message that was entered. This can be achieved by adding a
+    cleanup function to the effect (and adjusting `setAlert` a little bit):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: As shown in the *Cleaning Up after Effects* section, the timer is cleared with
+    the help of a timer reference and `clearTimeout()` in the effect’s cleanup function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After adjusting the code like this, only the final alert message that was entered
+    will be output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Seeing the cleanup function in action again is helpful; the main takeaway is
+    the importance of adding all dependencies, though—including function dependencies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'An alternative to including the function as a dependency would be to move the
+    entire function definition into the effect function, because any value that’s
+    defined and used inside of an effect function must not be added as a dependency:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: Of course, you could also get rid of the `setAlert` function altogether then
+    and just move the function’s code into the effect function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Either way, you will have to add a new dependency, `alertMsg` , which is now
+    used inside of the effect function. Even though the `setAlert` function isn’t
+    a dependency anymore, you still must add any values used (and `alertMsg` is used
+    in the effect function now):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Hence, this alternative way of writing the code just comes down to personal
+    preferences. It does not reduce the number of dependencies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You would get rid of a function dependency if you were to move the function
+    out of the component function. This is because, as mentioned in the *Unnecessary
+    Dependencies* section, external dependencies (for example, those built into the
+    browser or defined outside of component functions) should not be added as dependencies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, in the case of the `setAlert` function, this is not possible because
+    `setAlert` uses `alertMsg` . Since `alertMsg` is a component state value, the
+    function that uses it must be defined inside the component function; otherwise,
+    it won’t have access to that state value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This can all sound quite confusing, but it comes down to two simple rules:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Always add all non-external dependencies—no matter whether they’re variables
+    or functions.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Functions are just objects and can change if their surrounding code executes
+    again.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Avoiding Unnecessary Effect Executions
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Since all dependencies should be added to `useEffect()` , you sometimes end
+    up with code that causes an effect to execute unnecessarily.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider the example component below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete example can be found on GitHub at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/08-effects/examples/unnecessary-executions](https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/08-effects/examples/unnecessary-executions)
+    .
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: This component contains a form with two inputs. The entered values are stored
+    in two different state values ( `enteredEmail` and `enteredPassword` ). The `validateEmail()`
+    function then performs some email validation and, if the email address is invalid,
+    logs a message to the console. `validateEmail()` is executed with the help of
+    `useEffect()` .
+  prefs: []
+  type: TYPE_NORMAL
+- en: The problem with this code is that the effect function will be executed whenever
+    `validateEmail` changes because, correctly, `validateEmail` was added as a dependency.
+    But `validateEmail` will change whenever the component function is executed again.
+    And that’s not just the case for state changes to `enteredEmail` but also whenever
+    `enteredPassword` changes—even though that state value is not used at all inside
+    of `validateEmail` .
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This unnecessary effect execution can be avoided with various solutions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You could move the code inside of `validateEmail` directly into the effect function
+    ( `enteredEmail` would then be the only dependency of the effect, avoiding effect
+    executions when any other state changes).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You could avoid using `useEffect()` altogether since you could perform email
+    validation inside of `handleUpdateEmail` . Having `console.log()` (a side effect)
+    in there would be acceptable since it wouldn’t cause any harm.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You could call `validateEmail()` directly in the component function—since it
+    doesn’t change any state, it wouldn’t trigger an infinite loop.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There is an article in the official React documentation that highlights scenarios
+    where you might not need `useEffect()` : [https://react.dev/learn/you-might-not-need-an-effect](https://react.dev/learn/you-might-not-need-an-effect)
+    .'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In addition, I created a video that summarizes the most important situations
+    in which you do or do not need `useEffect()` : [https://www.youtube.com/watch?v=V1f8MOQiHRw](https://www.youtube.com/watch?v=V1f8MOQiHRw)
+    .'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Of course, in some other scenarios, you might need to use `useEffect()` . Fortunately,
+    React also offers a solution for situations like this: you can wrap the function
+    that’s used as a dependency with another React Hook, the `useCallback()` Hook.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The adjusted code would look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`useCallback()` , like all React Hooks, is a function that’s executed directly
+    inside the component function. Like `useEffect()` , it accepts two arguments:
+    another function (which can be anonymous or a named function) and a dependencies
+    array.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unlike `useEffect()` , though, `useCallback()` does not execute the received
+    function. Instead, `useCallback()` ensures that a function is only recreated if
+    one of the specified dependencies has changed. The default JavaScript behavior
+    of creating a new function object whenever the surrounding code executes again
+    is (synthetically) disabled.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`useCallback()` returns the latest saved function object. Hence, that returned
+    value (which is a function) is saved in a variable or constant ( `validateEmail`
+    in the previous example).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since the function wrapped by `useCallback()` now only changes when one of the
+    dependencies changes, the returned function can be used as a dependency for `useEffect()`
+    without executing that effect for all kinds of state changes or component updates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the case of the preceding example, the effect function would then only execute
+    when `enteredEmail` changes—because that’s the only change that will lead to a
+    new `validateEmail` function object being created.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Another common reason for unnecessary effect execution is the usage of objects
+    as dependencies, like in this example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This `Error` component is used in another component, the `Form` component,
+    like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `Error` component receives an error message via props ( `props.message`
+    ) and displays it on the screen. In addition, with the help of `useEffect()` ,
+    it does some error logging. In this example, the error is simply output to the
+    JavaScript console. In a real app, the error might be sent to some analytics API
+    via an HTTP request. Either way, a side effect that depends on the error message
+    is performed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `Form` component contains two state values, tracking the entered email address
+    as well as the error status of the input. If an invalid input value is submitted,
+    `errorMessage` is set and the `Error` component is displayed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The interesting part about this example is the dependency array of `useEffect()`
+    inside the `Error` component. It contains the `props` object as a dependency (
+    `props` is always an object, grouping all prop values together). When using objects
+    (props or any other object; it does not matter) as dependencies for `useEffect()`
+    , unnecessary effect function executions can be the result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can see this problem in this example. If you run the app and enter an invalid
+    email address (e.g., `test@test.de` ), you’ll notice that subsequent keystrokes
+    in the email input field will cause the error message to be logged (via the effect
+    function) for every keystroke.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The full code can be found on GitHub at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/08-effects/examples/objects-as-dependencies](https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/08-effects/examples/objects-as-dependencies)
+    .
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B31339_08_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.7: A new error message is logged for every keystroke'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Those extra executions can occur because component re-evaluations (i.e., component
+    functions being invoked again by React) will produce brand-new JavaScript objects.
+    Even if the values of properties of those objects did not change (as in the preceding
+    example), technically, a brand-new object in memory is created by JavaScript.
+    Since the effect depends on the entire object, React only “sees” that there is
+    a new version of that object and hence runs the effect again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding example, a new props object (for the `Error` component) is
+    created whenever the `Form` component function is called by React—even if the
+    error message (the only prop value that’s set) did not change.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this example, that’s just annoying since it clutters the JavaScript console
+    in the developer tools. However, if you were sending an HTTP request to some analytics
+    backend API, it could cause bandwidth problems and make the app slower. Therefore,
+    it’s best if you get into the habit of avoiding unnecessary effect executions
+    as a general rule.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the case of object dependencies, the best way to avoid unnecessary executions
+    is to simply destructure the object so that you can pass only those object properties
+    as dependencies that are needed by the effect:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the case of props, you could also destructure the object right in the component
+    function parameter list:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using this approach, you ensure that only the required property values are set
+    as dependencies. Therefore, even if the object gets recreated, the property value
+    (in this case, the value of the `message` property) is the only thing that matters.
+    If it doesn’t change, the effect function won’t be executed again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Effects and Asynchronous Code
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Some effects deal with asynchronous code (sending HTTP requests is a typical
+    example). When performing asynchronous tasks in effect functions, there is one
+    important rule to keep in mind, though: the effect function itself should not
+    be asynchronous and should not return a promise. This does not mean that you can’t
+    work with promises in effects—you just must not return a promise.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You might want to use `async` / `await` to simplify asynchronous code, but
+    when doing so inside of an effect function, it’s easy to accidentally return a
+    promise. For example, the following code would work but does not follow best practices:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: Adding the `async` keyword in front of `function` unlocks the usage of `await`
+    inside the function—which makes dealing with asynchronous code (that is, with
+    promises) more convenient.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But the effect function passed to `useEffect()` should only return a normal
+    function, if anything. It should not return a promise. Indeed, React actually
+    issues a warning when trying to run code like the preceding snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*![A screenshot of a computer code  Description automatically generated](img/B31339_08_08.png)*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 8.8: React shows a warning about async being used in an effect function'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To avoid this warning, you can use promises without `async` / `await` , like
+    this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: This works because the effect function doesn’t return the promise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Alternatively, if you want to use `async` / `await` , you can create a separate
+    wrapper function inside of the effect function, which is then executed in the
+    effect:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: By doing that, the effect function itself is not asynchronous (it does not return
+    a promise), but you can still use `async` / `await` .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Rules of Hooks
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In this chapter, two new Hooks were introduced: `useEffect()` and `useCallback()`
+    . Both Hooks are very important— `useEffect()` especially, as this is a Hook you
+    will typically use a lot. Together with `useState()` (introduced in *Chapter 4*
+    , *Working with Events and State* ) and `useRef()` (introduced in *Chapter 7*
+    , *Portals and Refs* ), you now have a solid set of key React Hooks.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When working with React Hooks, there are two rules (the so-called **rules of
+    Hooks** ) you must follow:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Only call Hooks at the top level of component functions. Don’t call them inside
+    of `if` statements, loops, or nested functions.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Only call Hooks inside of React components or custom Hooks (custom Hooks will
+    be covered in *Chapter 12* , *Building Custom React Hooks* ).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: These rules exist because React Hooks won’t work as intended if used in a non-compliant
+    way. Fortunately, React will generate a warning message if you violate one of
+    these rules; hence, you will notice if you accidentally do so.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary and Key Takeaways
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Actions that are not directly related to the main process of a function can
+    be considered side effects.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Side effects can be asynchronous tasks (for example, sending an HTTP request),
+    but can also be synchronous (for example, `console.log()` or accessing browser
+    storage).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Side effects are often needed to achieve a certain goal, but it’s a good idea
+    to separate them from the main process of a function.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Side effects can become problematic if they cause infinite loops (because of
+    the update cycles between effect and state).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useEffect()` is a React Hook that should be used to wrap side effects and
+    perform them in a safe way.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useEffect()` takes an effect function and an array of effect dependencies.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The effect function is executed directly after the component function is invoked
+    (not simultaneously).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Any value, variable, or function used inside of an effect should be added to
+    the dependencies array.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Dependency array exceptions are external values (defined outside of a component
+    function), state updating functions, or values defined and used inside of the
+    effect function.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If no dependency array is specified, the effect function executes after every
+    component function invocation.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If an empty dependency array is specified, the effect function runs once when
+    the component first mounts (that is, when it is created for the first time).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Effect functions can also return optional cleanup functions that are called
+    right before an effect function is executed again (and right before a component
+    is removed from the DOM).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Effect functions must not return promises.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For function dependencies, `useCallback()` can help reduce the number of effect
+    executions.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For object dependencies, destructuring can help reduce the number of effect
+    executions.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What’s Next?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Dealing with side effects is a common problem when building apps because most
+    apps need some kind of side effects (for example, sending an HTTP request) to
+    work correctly. Therefore, side effects aren’t a problem themselves, but they
+    can cause problems (for example, infinite loops) if handled incorrectly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the knowledge gained in this chapter, you know how to handle side effects
+    efficiently with `useEffect()` and related key concepts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Many side effects are triggered because of user input or interaction—for example,
+    because some form was submitted. The next chapter will revisit the concept of
+    form submissions by exploring React’s **form actions** feature.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Test Your Knowledge!
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Test your knowledge of the concepts covered in this chapter by answering the
+    following questions. You can then compare your answers to examples that can be
+    found at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/blob/08-effects/exercises/questions-answers.md](https://github.com/mschwarzmueller/book-react-key-concepts-e2/blob/08-effects/exercises/questions-answers.md)
+    :'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How would you define a side effect?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What’s a potential problem that could arise with some side effects in React
+    components?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does the `useEffect()` Hook work?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which values should *not* be added to the `useEffect()` dependencies array?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which value can be returned by the effect function? And which kind of value
+    *must not* be returned?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Apply What You Learned
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that you know about effects, you can add even more exciting features to
+    your React apps. Fetching data via HTTP upon rendering a component is just as
+    easy as accessing browser storage when some state changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the following section, you’ll find an activity that allows you to practice
+    working with effects and `useEffect()` . As always, you will need to employ some
+    of the concepts covered in earlier chapters (such as working with state).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Activity 8.1: Building a Basic Blog'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this activity, you must add logic to an existing React app to render a list
+    of blog post titles fetched from a backend web API and submit newly added blog
+    posts to that same API. The backend API used is [https://jsonplaceholder.typicode.com/](https://jsonplaceholder.typicode.com/)
+    , which is a dummy API that doesn’t actually store any data you send to it. It
+    will always return the same dummy data, but it’s perfect for practicing sending
+    HTTP requests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As a bonus, you can also add logic to change the text of the submit button while
+    the HTTP request to save the new blog post is on its way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Use your knowledge about effects and browser-side HTTP requests to implement
+    a solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find the starting code for this activity at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/08-effects/activities/practice-1-start](https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/08-effects/activities/practice-1-start)
+    . When downloading this code, you’ll always download the entire repository. Make
+    sure to then navigate to the subfolder with the starting code ( `activities/practice-1-start`
+    , in this case) to use the right code snapshot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For this activity, you need to know how to send HTTP requests ( `GET` , `POST`
+    , and so on) via JavaScript (for example, via the `fetch()` function or with the
+    help of a third-party library). If you don’t have that knowledge yet, this resource
+    can get you started: [http://packt.link/DJ6Hx](http://packt.link/DJ6Hx) .'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After downloading the code and running `npm install` in the project folder
+    to install all required dependencies, the solution steps are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Send a `GET` HTTP request to the dummy API to fetch blog posts inside the `App`
+    component (when the component is first rendered).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Display the fetched dummy blog posts on the screen.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Handle form submissions and send a `POST` HTTP request (with some dummy data)
+    to the dummy backend API.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Bonus: Set the button caption to `Saving…` while the request is on its way
+    (and to `Save` when it’s not).'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The expected result should be a user interface that looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![img](img/B31339_08_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.9: The final user interface'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You will find a full example solution here: [https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/08-effects/activities/practice-1](https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/08-effects/activities/practice-1)
+    .'
+  prefs: []
+  type: TYPE_NORMAL

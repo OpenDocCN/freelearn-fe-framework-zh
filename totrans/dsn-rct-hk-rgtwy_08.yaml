@@ -1,0 +1,1104 @@
+- en: '*Chapter 8*: Use Ref to Hide Stuff'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we learned how the *React* context is designed and
+    how to use a `useContext` hook to make an update for an area. In this chapter,
+    we will introduce another *React* entity, a ref. We will learn how to access a
+    *DOM* element via a ref and walk through the design and source code behind the
+    `useRef` hook. We will also describe how to work with a persistent value without
+    dispatching an update. In the end, we'll apply refs to a couple of practical problems,
+    such as clicking outside of the menu, avoiding memory leaks, setting up a mule,
+    and locating the current value. And we'll also reveal two bonus topics in the
+    *Appendix* section, the callback ref and forward ref.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will cover the following topics in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Accessing *DOM* elements
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding `useRef` design
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: State without an update
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Test driving `useRef`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`useRef` examples'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Questions and answers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Appendix
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Accessing DOM elements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Before a modern *UI* framework is introduced, to make a change to the screen,
+    we work directly with a *DOM* element:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding *HTML* file defines an `h1` element tagged with a specific `id`
+    value. So we can use the `id` value to find the `el` element and make a change
+    to its `textContent`. This is how a *DOM* element gets updated:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.1 – HTML displaying the Hello World title'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_8.01_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 8.1 – HTML displaying the Hello World title
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With React, we can achieve the preceding functionality by wrapping elements
+    in a component, such as a function component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The benefits of using the preceding functional approach are that it provides
+    an abstraction on top of the physical *DOM* and allows us to focus our development
+    in a localized space. This way, we can safely put our logic and design without
+    worrying that other code might accidentally touch this space. It makes our development
+    more productive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is a good thing, and here''s a question. Can we still get hold of the
+    *DOM* element using `id` as it used to be? Because the job of *React* isn''t to
+    reinvent all *DOM* functionalities, and sometimes we do need to work with the
+    elements directly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, we add `id` to the `h1` element. But we run into some
+    problems quickly. First, the `Title` component is made to be reused. This means
+    we can have multiple `<Title />` instances on the current screen. Suppose we want
+    to operate on one of them – how do know which instance to find by using `id`?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Secondly, and more importantly, say we find the element we want. Since it's
+    wrapped in a component now, *React* manages its life cycle, so how do we know
+    the moment when it gets mounted and unmounted precisely? If we're not sure about
+    this, how can we safely operate on it?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Both problems are tricky but need to be addressed before we can directly work
+    with an element under a component. Let's see how *React* solves them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Attach and de-attach
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'So, when exactly does the element in a component mount and unmount? To answer
+    this question, we need to first look at the element returned from a component
+    closely:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'What does the preceding statement return? Is it a *DOM* element, as we put
+    in the *HTML* file? Though it looks quite like one, the compiler says otherwise:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Actually, what the compiler sees is a *JavaScript* statement with a `createElement`
+    function returning a *React* element. It takes three input arguments, the element
+    type (`h1`), the props (`null`), and the children (`title`), and the returned
+    element is commonly referred to as a virtual *DOM*. If you are interested in learning
+    more about `createElement` usage, check out the *Adopting CSS-in-JS approach*
+    section of [*Chapter 10*](B17963_10_Epub.xhtml#_idTextAnchor363), *Building a
+    Website with React*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When the first update starts, *React* takes this element, reconciles it into
+    a fiber, and appends it to the tree. It then moves on to its children. For all
+    child elements, it reconciles them and appends them as children fibers. This continues
+    until all elements are reconciled into the tree.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After all the fibers are prepared, *React* performs a one-time commit to create
+    all *DOM* elements on the screen. So, essentially, the physical *DOM* elements
+    aren''t created until the full tree is updated in memory. So, only by then, *React*
+    hands us the element instance if we ask for it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code, a `ref` object is passed to the `h1` element as a prop
+    and it behaves as a storage container, asking *React* to store the element instance
+    once available. This `ref` container takes a specific format:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After the instance of the *DOM* element is created, the preceding `ref` is
+    populated in the `commitAttachRef` function during the **Commit** phase:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding `commitAttachRef` function, when `ref` is provided and initialized,
+    its `current` property gets assigned from the *DOM* instance. This is for the
+    mount. Similarly, when the *DOM* element is about to be removed, `current` gets
+    assigned back to `null` in the `commitDetachRef` function during the **Commit**
+    phase:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: With this capability, as long as we provide `ref` to an element, React assigns
+    the element's instance into `ref.current` upon the mount and unmount. We can use
+    `ref.current` to work on the element as it used to be. This is the *React* way
+    of accessing *DOM* elements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There's a subtlety here. Note that when passing the element's instance over
+    when it's ready, the assignment is done with `ref.current = instance` instead
+    of `ref = instance`. This is because *React* designs `ref` as a container to be
+    available during the life cycle of the component. Put simply, the container is
+    always valid, whereas the value under the `current` property can change along
+    the way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `ref` prop we used so far is a ref in an object format, which is the most
+    popular and easy-to-use format. Other than this, *React* supports one more format
+    in other situations. If you are interested, you can check out *Appendix A – Callback
+    ref* at the end of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now we know what a *React* ref is, let's take a look at how to create one under
+    a function component with a `useRef` hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding useRef design
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*React* provides a `useRef` hook to create a ref:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `useRef` hook takes an initial value as its only input argument and returns
+    a `ref` object, putting that initial value under the `current` property.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There''s no additional data structure required for `useRef`, other than the
+    basic fiber hook support:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.2 – useRef design'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_8.02_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 8.2 – useRef design
+  prefs: []
+  type: TYPE_NORMAL
+- en: Just like `useState` and `useEffect` uses `state` to store state and the effect,
+    `useRef` uses `state` to store the ref. Next, let's take a look at how it's implemented.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `useRef` hook follows a typical hook setup where it takes a path of either
+    `mountRef` or `updateRef`, depending on whether the fiber is under mount or update
+    via the `isFiberMounting` flag, as explained in [*Chapter 3*](B17963_03_Epub.xhtml#_idTextAnchor080),
+    *Hooking into React*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When under mount, it first gets the hook by creating one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Before returning the `ref` object, the initial value is stored under the `current`
+    property and `ref` is stored under `state` of the hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After the component is mounted, the next time it gets updated and arrives at
+    the `useRef` hook, it gets the hook by cloning one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: Once we have the hook, we can get `ref` from `state` and return it. Also, note
+    that the hook doesn't accept any input argument after the mount.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By far, this is the shortest hook implementation we have seen. The following
+    diagram shows the workflow:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.3 – useRef workflow'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_8.03_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 8.3 – useRef workflow
+  prefs: []
+  type: TYPE_NORMAL
+- en: In short, the `useRef` hook provides the basic storage for persisting a ref.
+    A `ref` stored in the hook never gets updated after the mount where the `current`
+    value is initialized. Basically, the `useRef` hook essentially lets us manage
+    the state out of the box.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If `ref` is wired as a prop to an element, when the element gets mounted or
+    unmounted, its *DOM* instance gets updated in the `current` property.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now we know the design of the `useRef` hook. If the ref created is used to hold
+    a value, how is it different from the `useState` hook? Since they both can hold
+    a value, let's spend some time comparing them to understand more about the `useRef`
+    hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: State without an update
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The `ref` created via `useRef` can be used to hold not only a DOM instance
+    but also any value. At any time, we can change its `current` property with a new
+    assignment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The assignment can be a *JavaScript* expression. What''s special about this
+    is that *the ref assignment doesn''t do anything more than an assignment*. This
+    implies that it does not trigger an update. Let''s take a look at how it impacts
+    the UI when we wire it to a user action:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code, an event handler is wired with the `Child` component,
+    and when the user clicks, it assigns a color into `ref.current`. It looks pretty
+    similar to the case using a `useState` hook. If we were using a `useState` hook,
+    the code would look like the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When comparing these two cases, we can see that the main difference is the
+    following line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the ref case, it is a plain assignment, whereas in the state case, it dispatches
+    an update to schedule the state change. This means that the state case is a lot
+    more complicated than the ref case. We can even simulate the ref case with a state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding experiment, we made the state an `obj` with a `color` property.
+    And this `obj` is quite comparable to `ref` from `useRef`, because `obj.color
+    =` is also a plain assignment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: You might wonder, for plain assignments, what happens to the `color` prop wired
+    with either `ref` or `obj`? Interestingly, in both cases, nothing happens. Because
+    with a plain assignment, there's no dispatch to the `Title` component, thus there
+    isn't any update to the `Child` component. Therefore, even though the content
+    gets changed, *React* wouldn't respond to that.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, essentially, a ref can be taken to hold a value without the update capability.
+    This also explains why the source code of `useRef` is so compact, because it doesn't
+    do much other than returning a persistent value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we've gone over the design of a ref and the `useRef` hook, let's take
+    it for a test drive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Test driving useRef
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'There''s always a chance that *React* runs short in terms of controlling the
+    internals of a *DOM* element. Say there''s an input and a button, as in *Figure
+    8.4*. Upon a button click, we want to manually focus on the input:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.4 – Focus input'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_8.04_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 8.4 – Focus input
+  prefs: []
+  type: TYPE_NORMAL
+- en: Normally, if we click the button, it gets focused, and if we click somewhere
+    else, it loses focus. But in this case, after we click the **Focus** button, we
+    want to focus the input instead of the button so that the user can type right
+    away.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s see how we can apply `useRef` to make this happen:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding example, after `input` is mounted, its instance is stored in
+    `ref.current`. When we click the button, the event handler uses the ref to invoke
+    a native *DOM* `focus` method to make the input focused. That's it!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Though the `ref` object is always valid, the `current` property is not necessarily
+    valid all the time. Before the mount finishes, it can store a `null` value. After
+    the unmount, it can store a `null` value as well. So, to make sure that we don''t
+    run into any runtime error, we normally add a check before using it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Sometimes, you see the following short-circuit way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It''s important to note that, although we get to use `ref` to control the *DOM*
+    element, React wouldn''t know the impact of your code. For instance, in our example,
+    *React* can''t tell whether the input gets focused or not. In order for React
+    to know that, we still need to add a state to keep track of this change:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: In a way, getting hold of the raw DOM elements gives us the extra capability
+    to manipulate the element behind React's back.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Focusing Input
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/WNZwoje](https://codepen.io/windmaomao/pen/WNZwoje)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Controlling a child ref
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Since a ref is basically an object, it can be passed around as a prop to a
+    child component. Therefore, a passed-in `ref` object can be attached to a DOM
+    element inside a child:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Utilizing this `childRef`, the `Child` component allows the parent to operate
+    on it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, the `Title` component creates a `ref` object via `useRef`
+    and passes it to `Child` via a `childRef` prop. When `Child` mounts, it populates
+    the `input` instance into `ref.current`. And when we click on the button, it invokes
+    the `focus` method of the input element of `Child`. This allows a parent component
+    to control a *DOM* element of `Child`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that the prop we used is named `childRef` instead of `ref` because `ref`
+    is a reserved prop name to attach a *DOM* instance, whereas `childRef` is merely
+    a regular prop to pass in an object. Although both are props, the `ref` prop is
+    a special one. It would be wrong if we mistakenly used `ref` instead of `childRef`
+    in this example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding line would ask the `Child` function component to assign its instance
+    to `ref`. But a function component cannot have a ref by default. Therefore, avoid
+    using the ref name when passing it around. There's actually a way to attach a
+    ref to a function component with some work; if you are interested, you can find
+    out more in the *Appendix B – Forward ref* section at the end of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have used a ref to control the element in the component, let's take
+    a look at more examples of using `useRef`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: useRef examples
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A ref is powerful. Because *React* makes things very reactive, if we want to
+    either disable this reactiveness or add a tweak to it, the ref gives us the opportunity
+    to do that. In this section, we'll look into more examples of how it can be used
+    to solve interesting problems in *React*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Clicking outside the menu
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Say you have a component, and you want to know when the user clicks outside
+    of it. This is a very popular feature for a popup menu or a modal. Once the menu
+    is visible, we want to dismiss it when the user clicks anywhere outside of it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.5 – Click outside to dismiss'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_8.05_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 8.5 – Click outside to dismiss
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s say we have a `Menu` component displaying a list of menu items:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, an `on` state is created and set to `true` initially,
+    thus making a list of the menu items visible. But when we click outside of this
+    list, we'd want to set `on` to `false` to hide it. For simplicity, here we define
+    the `on` flag inside the `Menu` component, but in practice, it could be passed
+    from the parent as a prop.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We know how to find out when the user clicks the `Menu` component using an event
+    handler, but how do we know when the user clicks somewhere outside? Do we need
+    to know the location of all the components on the entire screen?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is the place we can attach a `ref` to the `ul` element:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Instead of attaching the click event handler to one element, we can listen
+    to a `mousedown` window event. This way, we are aware of any user click, regardless
+    of whether it''s inside or outside the `Menu` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, we registered an event handler for a `mousedown` window
+    event, so with any mouse click, it'll invoke our `listener` function. Upon the
+    unmount, we also make sure that we remove this event handler via a `destroy` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When the `mousedown` handler is fired, we can use `ref` to find out whether
+    the mouse location is contained inside the boundary of the `ul` element:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding `listener` handler, upon each `mousedown` event, we check whether
+    the element has been mounted via `ref.current`, and then we check whether the
+    element under the mouse, via `e.target`, is a child of the `ul` element. If the
+    user clicks any children inside the `ul`, then we know they have clicked inside.
+    And if not, we know the user has clicked outside, and then we can dispatch to
+    set the `on` state to be `false`, thus dismissing the display of the menu.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Click Outside of Menu
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/XWaerGm](https://codepen.io/windmaomao/pen/XWaerGm).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In short, with the help of the ref, we can invoke `contains` functions to find
+    out whether an element is inside another element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Avoiding memory leaks
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Historically speaking, a ref was created to hold a DOM element, but people later
+    found it very effective in addressing tricky problems. One problem is memory leaks,
+    which happen when performing an async action. The thing about an async operation
+    is that the callback function gets invoked later. By the time the callback is
+    handled, there's a chance the component (or any variable associated with the component)
+    is not valid anymore.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s say we fetch an API and display the result as `text`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding code is a common fetch process, but there''s a memory leak lurking
+    out there. When it happens, the browser outputs the following message:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.6 – Memory leak warning message'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_8.06_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 8.6 – Memory leak warning message
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although *React* is nice enough to display it as a warning message under development
+    build, it's actually an error, as it says **indicates a memory leak** in the message.
+    The strange thing about this leak is that most of time, the *UI* continues to
+    function even after the message. So, shall we ignore this message? Absolutely
+    not.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s build the crime scene and try to understand what exactly happens under
+    this message:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: Say you have an `App` parent component that displays `Title` based on a `flag`.
+    For one update, the `flag` becomes `false`, thus `Title` gets unmounted and the
+    screen turns blank. This is valid business logic, so why is it a problem?
+  prefs: []
+  type: TYPE_NORMAL
+- en: The problem lies inside the `Title` component instead of `App`. Precisely, when
+    `Title` mounts, the *API* fetch starts, but the fetch might not finish soon enough
+    before the unmount. The `flag` and the fetch are two independent things. Therefore,
+    `Title` can have unfinished business after the unmount. Say the time arrives to
+    handle the unfinished business, such as the callback function – what happens to
+    the `setText` statement? Should it raise another update when the component has
+    gone?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technically, if the component is unmounted, it can't be updated anymore. Moreover,
+    every hook is registered under the fiber, and if the fiber has been removed, then
+    nothing registered under it should be accessed anymore. Otherwise, inconsistency
+    would emerge, such as a memory leak.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So back to our case, when an async call returns after the unmount – this becomes
+    a solid bug that we can't just ignore. This bug happens quite often in situations
+    when a conditional statement makes the code to switch to another branch of update,
+    such as a route switch. Most of the memory leaks are difficult to debug, so we
+    should try to avoid them at all costs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Memory Leak
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/VwzMYNL](https://codepen.io/windmaomao/pen/VwzMYNL).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to see the memory leak message, you need to open the **Browser developer**
+    panel and switch to the **Console** tab.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To resolve this bug, what we need to do is to carefully guard the content of
+    the callback function, based on whether the `Title` component is still mounted
+    or not:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, we add `mountedRef` to indicate whether `Title` is mounted
+    or not. We initially set it to `true`, because when the component gets updated,
+    we assume it's safe to dispatch more updates. And after the unmount via `useEffect`,
+    we set the `mountedRef` flag to be `false` in the `destroy` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, in the callback handler of the fetch, we check if it's still mounted by
+    reading `mountedRef`. And if it's `false`, we cancel the handler operation without
+    moving forward to access any internal method, such as `setText`. This means even
+    when the *API* is successful, there's no update to bring this value to the screen
+    anymore.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Avoid Memory Leaks
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/wvqraKP](https://codepen.io/windmaomao/pen/wvqraKP).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You might wonder why we can''t use a state instead of a ref for the `mountRef`
+    purpose. Let''s say we replace `mountRef` with a `mounted` state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: Although creative, the preceding code wouldn't work. Because, essentially, you
+    ask to dispatch a new update after the unmount, it's the exact memory leak we
+    want to avoid. In [*Chapter 5*](B17963_05_Epub.xhtml#_idTextAnchor157), *Use Effect
+    to Handle Side Effects*, we learned that the `destroy` function of a passive effect
+    is last called after all DOM elements settle, so by then, we shouldn't be allowed
+    to access any internal method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This example also tells us that a change from a ref is not meant to be reflected
+    in the UI, whereas a state is designed to be in sync with the UI at all times.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up a mule
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: When we design a web application, we tend not to have a global variable, because
+    we know it's so easy that their usage can lead to some unmanageable side effects.
+    On the other hand, if we have some global information that is valid for the entire
+    site, it's still handy if we want to share it with the rest of the app behind
+    the scenes. So, what kind of compromise can we have in this situation?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In [*Chapter 7*](B17963_07_Epub.xhtml#_idTextAnchor237), *Use Context to Cover
+    an Area*, we learned to create a context to share info for a site. We can provide
+    the info at the very top of the tree, the `App` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A fact of using the state in the preceding code is that, when changing a value
+    through the `setValue` dispatch function, it causes the whole site to update,
+    which can be a very expensive operation. If we don''t need to notify the user
+    of this change, we can use a ref instead:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code, a ref is created with `useRef` to hold a custom `count`
+    value under the `current` property. We can increment it as used to be with a button
+    click via `onIncrement`. We also add a `Title` component underneath to consume
+    this `count` value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding `Title` component, it consumes `current` from `AppContext`,
+    and displays the stored `count` value. With this setup, if you click `onIncrement`
+    in the `App` component, the `number` value always stays at `0`. It seems our `count`
+    is broken.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To reveal what''s happened, let''s add a manual update to the `Title` component
+    with a button:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code, we put the `count` value into a local `number` state,
+    so we can use `setNumber` to make an update. Now, upon clicking `number` via `onClick`,
+    you will see the latest `current.count` value on the screen, as shown in *Figure
+    8.7*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.7 – A count state with a separate update'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_8.07_B17963.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 8.7 – A count state with a separate update
+  prefs: []
+  type: TYPE_NORMAL
+- en: It's a bit intriguing here to see the process of how the number got displayed
+    on the screen. First, we incremented it, and then we revealed it. Therefore, `current.count`
+    isn't broken; it's just not in sync with the screen.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Mule Context
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/YzxrXQN](https://codepen.io/windmaomao/pen/YzxrXQN).
+  prefs: []
+  type: TYPE_NORMAL
+- en: With a context like `AppContext`, we can store the value and use it freely decoupled
+    from the display. In a way, the ref context becomes a mule that can move any data
+    (or functionalities) from one component to another one under *React*'s nose. Practically,
+    this kind of context is an effective approach when you need to bring in a third-party
+    library that does not necessarily wire with *React* that tightly but that you
+    want to be operational along with *React*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Locating the current value
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The `current` property being current is the unique thing about a ref. The property
+    name *current* under the ref is given for a reason because, technically, there's
+    nothing more current than a ref in React.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When we use a `useState` hook, we want to find out the current updated value
+    of a state. Although we use the same word, current, the state can't be that current
+    in some situations. We will use an example to demonstrate that.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s say we have a button to increment a count, but instead of incrementing
+    it right away, it waits for 3 seconds after the click:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, `setTimeout` is used in the event handler to deliberately
+    delay the `setCount` function by 3 seconds. What we expect to see is that each
+    click should behave like a delayed click where the `count` value increments to
+    `1`, `2`, and `3` on the screen 3 seconds later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When we run the code, it shows differently, as shown in the next timeline:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: After we clicked the buttons three times in a row and waited for 3 seconds,
+    we didn't see `count` incremented to `3` on screen. Instead, we saw it incremented
+    to `1`. Quite surprising?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Where is the Current Value?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/ZEJXbEG](https://codepen.io/windmaomao/pen/ZEJXbEG).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'How could three dispatches end up with one dispatch? Let''s debug by adding
+    two more series to the timeline, the `"x"` click and the `"R"` update:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: When we clicked the button for the first time (at about `t=0.5s`), what was
+    the `count` value from the event handler? It was `0`, our initial state. Then,
+    when we clicked the button the second time, what was the `count` value from the
+    event handler? You would say, it's got to be `1`, right, since I clicked it? But
+    unfortunately, it wasn't the case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Looking at the `"updated"` series, the second update didn''t arrive right away
+    after the click. If there was no new update, `count` continued to hold an old
+    state. Since the new update didn''t arrive until three seconds later (at about
+    `t=3.5s`), during this period, any event handler would still carry the same `count`.
+    Okay, that explains why the `"clicked"` series printed `0` upon each click. It
+    was almost like all the three clicks performed the same dispatch statement:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: Essentially, we dispatched to request a change to `1` three times. In our case,
+    all clicks happened before the second update. This created an out-of-sync moment.
+    This is not a design flaw, since `count` is only designed for pointing to a copy
+    in the current update. Unless it's made of a pointer pointing to the same memory
+    space, it can't be pointing to the current value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A common misconception is to refer to `setState` as an assignment. By now, you
+    should see that it's incorrect, since it actually requests an assignment instead
+    of executing the assignment. The request takes time to be handled and executed,
+    and moreover, the assignment can be revoked due to optimization. The fate of this
+    assignment from `setState` isn't crystal clear, whereas in the ref case, the assignment
+    is plain, instant, and can't be missed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s apply a ref to fix this problem:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can confirm this via the following timeline sketch:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: Okay, now everything works after we used a ref to store the number along with
+    the `count` state. The `ref.count++` statement increments the current number and
+    continues to store the updated number. Here, we used both a state and a ref to
+    keep track of a single number. It's overkill, and we do it here to merely demonstrate
+    the solution. In the *useCurrent hook* section of [*Chapter 9*](B17963_09_Epub.xhtml#_idTextAnchor314),
+    *Use Custom Hooks to Reuse Logic*, we will refine this approach into something
+    more practical.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Playground – Locate the Current Value
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to play with this online example at [https://codepen.io/windmaomao/pen/eYEGpJJ](https://codepen.io/windmaomao/pen/eYEGpJJ).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There''s a simpler solution to this problem and it doesn''t involve a ref.
+    Remember, a `useState` hook supports another functional format:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code, a functional format setter is used so that we can read
+    out the current state through `v`, because we want to know exactly what the current
+    state is before committing it. The `v => v + 1` statement becomes essential, and
+    sometimes we can even put some logic inside this function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: It doesn't seem like the preceding location is the right place to perform other
+    business logic than the value update; however, based on the `useState` design,
+    this actually is the only supported location where you can read the current state
+    consistently. We even returned the current `v` value back, which implies that
+    we only want to get the current value but are not interested in a new update.
+    You can take this as a made-up `getCount` access function for a state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All in all, both solutions reveal the fact that in the current update, the state
+    value can get out of sync with its underlying current value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You might have a question at this point – if a ref is that powerful and flexible,
+    why don't we just use it to replace the state? The answer to this question lies
+    in the dilemma that the state that *React* wants developers to use is a managed
+    state that takes care of the dispatch upon any state change. However, a ref is
+    a raw state with which the developers still have to manage every other aspect
+    of the *UI* update. In a way, if we were using refs for everything, then we would
+    not need to use *React* at all because the point of a ref is to hide stuff without
+    catching the engine's attention.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we first learned what a *React* ref is. We then went over how
+    to access a *DOM* element by using a ref and went through the design of the `useRef`
+    hook, and saw how to persist a value without triggering a *UI* update. We also
+    gave `useRef` a test drive by walking through an input focus example. In the end,
+    we went through how special it is by showing more examples of its use, including
+    clicking outside of a menu, avoiding memory leaks, setting up a mule, and locating
+    the current value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will put all the hooks we have learned so far together
+    and see how to finally create your custom hook, tailored to solve your own problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions and answers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Here are some questions and answers to refresh your knowledge:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is a ref?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A *React* ref is a container to hold a persistent value. In general, you can
+    use the value as a raw state with no update capability.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: What is `useRef`?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A `useRef` hook can be used to create a ref in a function component. Once created,
+    it can be used as a persistent container during the life cycle of the component.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: What are the common usages of `useRef`?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: One major usage of `useRef` is to hold a *DOM* instance that can be used to
+    invoke native *DOM* functionalities. Another major usage of `useRef` is to sneak
+    behind React to do something without kicking off the engine accidentally.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Appendix
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Appendix A – Callback ref
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'React comes with two ways of receiving an element instance via the `ref` prop.
+    The easiest one is the one we introduced, the object format. But there''s another
+    one called a callback ref that takes a functional format:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Similarly, this functional format is supported when the *DOM* element is unmounted:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'During the DOM attachment or de-attachment, if it finds out the `ref` prop
+    is provided as a functional format, it invokes it and passes the instance to it.
+    Here''s the usage:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, an `onRef` function is wired to the `ref` prop. Both
+    ways of setting the ref, either object or callback, are comparable. And the functional
+    way seems to involve more work. So how is this functional format any more useful?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Although the `ref` object gives us the assigned *DOM* element, it doesn''t
+    tell us exactly when the *DOM* element is attached or de-attached. So, to capture
+    these moments, we can use a ref callback:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, based on a condition, we could decide where we want to
+    store this ref or which ref we want to store. The example only gives a very naïve
+    implementation, but you can see that this provides us more room for custom logic
+    in terms of managing the DOM instance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Appendix B – Forward ref
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'A ref is created to store an instance of a class, whether the class is a *DOM*
+    element or a class component. But not all components are written using a class,
+    such as a function component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, we have declared `Title` as a function component. But
+    since it's not declared with a class, we do not use `new` to create an instance.
+    Instead, we invoke it via `Title()` at the update. Similarly, because of that,
+    there's no way we can access the internal variables with an instance method such
+    as `ATitle.dosomething()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is why we mentioned earlier that we can''t attach a ref to a function
+    component; by default, it''s not what a function component can provide:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'However, from a practical point of view, it does make sense for the developer
+    to get hold of the `Title` instance and perform some action toward it. So, to
+    address this need and to apply the ref idea consistently to all components, React
+    provides one option called the forward ref:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding setup, by using a `fowardRef` function provided by *React*,
+    we can promote `ref` defined for an `h1` element as the ref of the `Title` component.
+    What does this mean? Let''s take a look at one usage:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding `App` component, we can now treat `Title` similar to an `h1`
+    element; when we change its content, it literally changes the `h1` text content
+    inside `Title`. Essentially, a ref is passed from the child to the parent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A function component, unlike a class component, does not have an instance method
+    in *React*, so even when we have a ref now, we need to set up a custom method
+    if we want to support one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code, React provides a built-in hook called `useImperativeHandle`
+    to allow us to customize the instance value. In this example, we add a `go` custom
+    method for ref:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: This way, when we ask the `Title` instance to go, it focuses on the `h1` element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, with `forwardRef` and `useImperativeHandle`, we add a ref to a function
+    component. This provides more opportunity for the developer to add manual control
+    to the function component. However, we need to understand that a ref passed from
+    the child to the parent originates from a single element, so technically speaking,
+    a ref done this way is still a ref of that element, not a real ref for the function
+    component.
+  prefs: []
+  type: TYPE_NORMAL

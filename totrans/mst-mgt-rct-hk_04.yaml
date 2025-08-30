@@ -1,0 +1,469 @@
+- en: '*Chapter 2*: Using Local and Global States'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: React components form a tree structure. In the tree structure, creating a state
+    in a whole subtree is straightforward; you would simply create a local state in
+    a higher component in a tree and use the state in the component and its child
+    components. This is good in terms of locality and reusability and is why it's
+    generally recommended to follow this strategy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, in some scenarios, we have a state in two or more components that are
+    far apart in the tree. In such cases, this is where global states come in. Unlike
+    local states, global states do not conceptually belong to a specific component,
+    and so where we store a global state is an important point to consider.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will learn about local states, including some lifting-up
+    patterns that may be worth considering. Lifting up is a technique to put information
+    higher in the component tree. Then, we will dive into global states and consider
+    when to use them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We are going to cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding when to use local states
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Effectively using local states
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using global states
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To run the code snippets in this chapter, you need a React environment—for example,
+    Create React App ([https://create-react-app.dev](https://create-react-app.dev))
+    or CodeSandbox ([https://codesandbox.io](https://codesandbox.io)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: You are expected to have basic knowledge of React and React hooks, especially
+    the concept around the component tree ([https://reactjs.org/docs/components-and-props.html](https://reactjs.org/docs/components-and-props.html))
+    and the `useState` hook ([https://reactjs.org/docs/hooks-reference.html#usestate](https://reactjs.org/docs/hooks-reference.html#usestate)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The code in this chapter is available on GitHub at [https://github.com/PacktPublishing/Micro-State-Management-with-React-Hooks/tree/main/chapter_02](https://github.com/PacktPublishing/Micro-State-Management-with-React-Hooks/tree/main/chapter_02).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding when to use local states
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before we consider React, let's see how JavaScript functions work. JavaScript
+    functions can either be pure or impure. A pure function depends only on its arguments
+    and returns the same value as long as the arguments are the same. A state holds
+    a value outside arguments, and functions that depend on the state become impure.
+    React components are also functions and can be pure. If we use a state in a React
+    component, it will be impure. However, if the state is local to the component,
+    it doesn't affect other components, and we call this characteristic "contained."
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we learn JavaScript functions, and how similar React components
+    are to JavaScript functions. We then discuss how a local state is conceptually
+    implemented.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Functions and arguments
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: "In JavaScript, a function takes an argument and returns a value. For example,\
+    \ here's \La simple function:"
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is a pure function that always returns the same value for the same argument.
+    It is often the case that pure functions are preferred because their behavior
+    is predictable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A function can depend on global variables, such as the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `addBase` function works exactly the same as `addOne`, as long as `base`
+    isn't changed. However, if at some point we change `base` to `base=2`, it behaves
+    differently. This is not a bad thing at all, and it's actually a powerful feature
+    as you can change the function behavior from outside. The downside is that you
+    can't simply grab the `addBase` function and use it arbitrarily somewhere else
+    without knowing it depends on an outside variable. As you can tell, it's a trade-off.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is not a preferred pattern if `base` is a **singleton** (a single value
+    in memory) because the code becomes less reusable. To avoid the singleton and
+    mitigate the downside a little, a more modular approach would be to create a container
+    object, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is no longer a singleton, and you can create as many containers as you
+    want. Unlike having a `base` global variable as a singleton, containers are isolated
+    and are more reusable. You can use a container in one part of your code without
+    affecting other parts of your code with a different container.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A small note: although `addBase` in a container is not a mathematically pure
+    function, you can get the same result by calling `addBase` if `base` is not changed
+    (this characteristic is sometimes called **idempotent**).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: React components and props
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: React is conceptually a function that converts a state to a **user interface**
+    (**UI**). When you code with React, the React component is literally a JavaScript
+    function, and its arguments are called props.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A function component that shows a number will look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: This component takes a `number` argument and returns a `number` on screen.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What Is a JSX Element?
+  prefs: []
+  type: TYPE_NORMAL
+- en: JSX is a syntax with angle brackets to produce React elements. A React element
+    is a data structure to represent a part of the UI. We may refer to React elements
+    as JSX elements, especially when React elements are in JSX syntax.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s make another component that shows a `number + 1`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: This component takes `number` and returns the `number + 1`. This behaves exactly
+    like `addOne` in the previous section, and this is a pure function. The only differences
+    are that the argument is a props object and the return value is in JSX format.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding useState for local states
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'What if we use `useState` for a local state? Let''s make `base` a state and
+    display a `number` that we can add to it, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: This function is not technically pure as it depends on `base`, which is not
+    in the function arguments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What does `useState` in `AddBase` do? Let's remind ourselves of `createContainer`
+    in the previous section. As `createContainer` returns `base` and `changeBase`,
+    `useState` returns `base` and `changeBase` in a tuple (meaning a structure of
+    two or more values—in this case, two). We don't explicitly see how `base` and
+    `changeBase` are created in this code, but it's conceptually similar.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we assume the `useState` behavior, meaning it returns `base` unless changed,
+    the `AddBase` function is idempotent, as we saw with `createContainer`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This `AddBase` function with `useState` is contained because `changeBase` is
+    only available within the scope of the function declaration. It's impossible to
+    change `base` outside the function. This usage of `useState` is a local state,
+    and because it's contained and doesn't affect anything outside the component,
+    it ensures locality; this usage is preferred whenever appropriate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Limitation of local states
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: When is a local state not appropriate? It isn't appropriate when we want to
+    break the locality. In the `AddBase` component example, it's when we want to change
+    `base` from a totally different part of the code. If you need to change `state`
+    from outside the function component, that's when a global state comes in.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The state variable is conceptually a global variable. A global variable is useful
+    to control a JavaScript function's behavior from outside the function. Likewise,
+    a global state is useful to control React component behavior from outside the
+    component. However, using a global state makes the component behavior less predictable.
+    It's a trade-off. We shouldn't use global states more than we need to. Consider
+    using local states as a primary means and only use global states for a secondary
+    mean. In this sense, it's important to learn how many use cases local states can
+    cover.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we learned about a local state in React, alongside JavaScript
+    functions. Coming up, we will learn some patterns to use local states.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Effectively using local states
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: There are some patterns you should know to be able to use a local state effectively.
+    In this section, we will learn how to lift states up, which means defining a state
+    higher in the component tree, and lifting content up, which means defining a content
+    higher in the component tree.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Lifting state up
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let''s suppose we have two counter components, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Because there are two separate local states defined in the two components, these
+    two counters work separately. In case we want to share the state and make it work
+    for a single shared counter, we can create a parent component and lift the state
+    up.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is an example with a single parent component that contains both `Component1`
+    and `Component2` as children and passes props to them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Because the count state is defined just once in `Parent`, the state is shared
+    between `Component1` and `Component2`. This is still a local state in a component;
+    its child components can use the state from the parent component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This pattern would work in most use cases with a local state; however, there's
+    a slight concern about performance. If we lift up the state, `Parent` will render
+    as well as the entire subtree, including all its child components. This may be
+    a performance issue in some use cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Lift content up
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: With complex component trees, we may have a component that doesn't depend on
+    the state we are lifting up.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the following example, we add a new `AdditionalInfo` component to `Component1`
+    from the previous example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: If the count is changed, the `Parent` re-renders, and then `Component1`, `Component2`,
+    and `AdditionalInfo` re-render too. However, `AdditionalInfo` doesn't have to
+    re-render in this case because it doesn't depend on `count`. This is an extra
+    re-render that should be avoided if it has an impact on performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To avoid extra re-renders, we can lift up content. In this case, `Parent` re-renders
+    with `count`, hence, we create `GrandParent`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `GrandParent` component has `additionalInfo` (a JSX element), which is passed
+    down to the children. By doing this, `AdditionalInfo` doesn't re-render when `count`
+    changes. This is a technique we should consider not only for performance but also
+    for organizing your component tree structure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A variant of this is to use `children` props. The following example using `children`
+    props is equivalent to the previous example, but with a different coding style:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`children` is a special prop name that is represented as nested children elements
+    in JSX format. If you have several elements to pass, naming your props would fit
+    better. It''s mostly a stylistic choice, and developers can take whichever approach
+    they prefer.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we learned some patterns to effectively use local states. If
+    we lift up states and content properly, we should be able to solve various use
+    cases with only local states. Coming up, we will learn how to use global states.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using global states
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we will learn what a global state is again and when we should
+    use it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is a global state?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this book, a global state simply means that it's *not* a local state. If
+    a state conceptually belongs to a single component and is encapsulated by the
+    component, it is a local state. Hence, if a state doesn't belong to a single component
+    and can be used by multiple components, it is a global state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There could be an application-wide local state that all components depend on.
+    In this case, the application-wide local state can be seen as a global state.
+    In this sense, we can't clearly divide local states and global states. In most
+    cases, if you consider where a state conceptually belongs, you can work out whether
+    it's local or global.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are two aspects when people talk about a global state, as outlined here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: One is a singleton, meaning that in some contexts, the state has one value.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The other is a shared state, which means that the state value is shared among
+    different components, but it doesn't have to be the single value in JavaScript
+    memory. A global state that is not a singleton can have multiple values.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'To illustrate how a non-singleton global state works, here is an example to
+    show a non-singleton variable in JavaScript:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, `base` is a scoped variable in a container. As `base` is isolated
+    in each container, changing `base` in `container1` doesn't affect `base` in `container2`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In React, the concept is similar. If a global state is a singleton, we have
+    only one value in memory. If a global state is non-singleton, we may have multiple
+    values for different parts (subtrees) of a component tree.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When to use global states
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'There are two guidelines for when we need a global state in React, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When passing a prop is not desirable
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: When we already have a state outside of React
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let's discuss each of them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Prop passing is not desirable
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: If you need a state in two components that are far away in the component tree,
+    it would not be desirable to have a state in the common root component and then
+    pass the state all the way down to the two components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, if our tree is three levels deep and we need to lift up the state
+    to the top, it would look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is totally fine and recommended for locality; however, it could be too
+    tedious to have your intermediate components used to pass props. Passing props
+    through multi-level intermediate components might not result in a good developer
+    experience, because it could seem like unnecessary extra work. Furthermore, the
+    intermediate components re-render when the state is updated, which may impact
+    performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In such cases, having a global state is more appropriate, and no intermediate
+    components need to take care of passing the state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is some pseudo code showing how a global state would work with the previous
+    example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, the only component that uses a global state is `Component1`.
+    Unlike with local states and prop passing, no intermediate components, `Parent`
+    and `GrandParent`, know about a global state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Already have a state outside of React
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In some cases, you would already have a global state outside of React, as having
+    a global state outside is more straightforward. For example, your app might have
+    user-authenticated information that you obtained without React somehow. In such
+    an example, a global state should exist outside React, and the authentication
+    information could be stored in a global state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is some pseudo code showing such an example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, `globalState` exists and is defined outside React. `useGlobalState`
+    is a hook that would connect to `globalState` and that could provide `authInfo`
+    in `Component1`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, we learned that a global state is a state that can''t be a
+    local state. Global state is mainly used secondary to local states, and there
+    are two patterns where using a global state works well: one is in a case where
+    prop passing doesn''t make sense, and the other is where a global state already
+    exists in an app.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we discussed local states and global states. Local states are
+    preferable whenever possible, and we learned some techniques to use local states
+    effectively. However, global states play a role where local states do not, which
+    is why we looked at when you should use global states instead.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next three chapters, we will learn three patterns to implement a global
+    state in React; in the next chapter specifically, we will start with utilizing
+    React context.
+  prefs: []
+  type: TYPE_NORMAL

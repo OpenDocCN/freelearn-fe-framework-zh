@@ -1,0 +1,972 @@
+- en: '*Chapter 3*: Sharing Component State with Context'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: React has provided Context since version 16.3\. Context has nothing to do with
+    states, but it's a mechanism for passing data from component to component instead
+    of using props. By combining Context with a component state, we can provide a
+    global state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition to the Context support provided since React 16.3, React 16.8 introduced
+    the `useContext` hook. By using `useContext` and `useState` (or `useReducer`),
+    we can create custom hooks for a global state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Context is not fully designed for global states. One of the known limitations
+    is that all Context consumers re-render upon updates, which can lead to extra
+    re-renders. It's a general recommendation to split a global state into pieces.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we discuss the general recommendations for using Context and
+    show some concrete examples. We also discuss some techniques to use Context with
+    TypeScript. The goal is to make you feel confident with using Context for a global
+    state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring `useState` and `useContext`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding Context
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating a Context for a global state
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Best practices for using Context
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: If you are new to React Context, it's highly recommended to learn some basics;
+    check out the official documentation ([https://reactjs.org/docs/context.html](https://reactjs.org/docs/context.html))
+    and the official blog ([https://reactjs.org/blog/2018/03/29/react-v-16-3.html](https://reactjs.org/blog/2018/03/29/react-v-16-3.html)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: You are also expected to have general knowledge around React including React
+    hooks; you can refer to the official site ([https://reactjs.org](https://reactjs.org))
+    to learn more.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In some code, we use TypeScript, which you should have basic knowledge of;
+    you can find out more here: [https://www.typescriptlang.org](https://www.typescriptlang.org).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The code in this chapter is available on GitHub at [https://github.com/PacktPublishing/Micro-State-Management-with-React-Hooks/tree/main/chapter_03](https://github.com/PacktPublishing/Micro-State-Management-with-React-Hooks/tree/main/chapter_03).
+  prefs: []
+  type: TYPE_NORMAL
+- en: To run the code snippets in this chapter, you need a React environment—for example,
+    Create React App ([https://create-react-app.dev](https://create-react-app.dev))
+    or CodeSandbox ([https://codesandbox.io](https://codesandbox.io)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring useState and useContext
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: By combining `useState` and `useContext`, we can create a simple global state.
+    Let's recap on how to use `useState` without `useContext`, how `useContext` works
+    for static values, and how we combine `useState` and `useContext`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using useState without useContext
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Before diving into `useContext`, let's be reminded of how to `useState`, with
+    a concrete example. This example is going to be a reference for the following
+    examples in the chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, we define a `count` state with `useState` higher in the component tree
+    and pass the state value and the update function down the tree.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the `App` component, we use `useState` and get `count` and `setCount`, which
+    are passed to the `Parent` component. The code is illustrated in the following
+    snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is a very basic pattern, which we know as *lifting the state up*, from
+    [*Chapter 2*](B17780_02_Final_VK_ePub.xhtml#_idTextAnchor035), *Using Local and
+    Global States*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s define a `Parent` component. It passes the two props to `Component1`
+    and `Component2`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: This passing of props from parent to children is a repetitive task and is often
+    referred to as **prop drilling**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Component1` and `Component2` display the `count` state and a button to increase
+    the `count` state with `setCount`, as illustrated in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: These two components are pure components, which means they receive props and
+    display things based only on those props. `Component2` is slightly different from
+    `Component1`, which increases the count by two. If it were identical, we wouldn't
+    need to define two components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is nothing wrong with this example. Only when the app gets bigger, passing
+    props down the tree, will this not make sense. In this case, the `Parent` component
+    doesn't necessarily need to know about the `count` state, and it may make sense
+    to hide the existence of the `count` state in the `Parent` component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using useContext with a static value
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: React Context helps to eliminate props. It's a means to pass a value from a
+    parent component to its children under the tree, without using props.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following example shows how to use React Context with a static value. It
+    has multiple providers to provide different values. Providers can be nested, and
+    a consumer component (a consumer component means a component with `useContext`)
+    will pick the closest provider in the component tree to get the Context value.
+    There is only one component with `useContext` to consume the Context, and the
+    component is used in multiple places.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Firstly, we define a color Context with `createContext`, which takes a default
+    value, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this case, the default value for the color Context is `'black'`. The default
+    value is used if a component is not in any providers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we define a consumer component. It reads the color Context and displays
+    a text in that color. The code is illustrated in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`Component` reads the `color` Context value, but at this point, we don''t know
+    what the color is, and it literally depends on the Context.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we define an `App` component. The component tree in the `App` component
+    has multiple `ColorContext.Provider` components with different colors. The code
+    is illustrated in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first `Component` instance shows the color `"black"` because it's not wrapped
+    by any providers. The second and the third show `"red"` and `"green"` respectively.
+    The fourth `Component` instance shows `"blue"`, and the last `Component` instance
+    shows `"skyblue"`, because the closest provider has the value `"skyblue"` even
+    though it's inside the provider with `"blue"`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multiple providers and reusing the consumer component is an important capability
+    of React Context. If this capability is not important for your use case, you might
+    not need React Context. We will discuss the subscription method without Context
+    in [*Chapter 4*](B17780_04_Final_VK_ePub.xhtml#_idTextAnchor066), *Sharing Module
+    State with Subscription*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using useState with useContext
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Now, let's learn how the combination of `useState` and `useContext` structure
+    our code. We can pass the `state` value and `update` function in Context instead
+    of props.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following example implements a simple `count` state with `useState` and
+    `useContext`. We define a Context that holds both the `count` state value and
+    the `setCount` update function. The `Parent` component doesn't take props, and
+    `Component1` and `Component2` use `useContext` to get the state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we create a Context for the `count` state. The default value holds a
+    static `count` value and a fallback empty `setCount` function. The code is illustrated
+    in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: The default value helps to infer types in TypeScript. However, in most cases,
+    we need a state instead of a static value, as the default value is not very useful.
+    Using the default value is almost unintentional in such cases, so we may throw
+    an error instead. We will discuss some best practices later in the *Best practices
+    for using Context* section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `App` component has a state with `useState`, and passes `count` and `setCount`
+    to the created Context provider component, as illustrated in the following code
+    snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: The Context value we pass to `CountStateContext.Provider` is an object containing
+    `count` and `setCount`. This object has the same structure as the default value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We define a `Parent` component. Unlike the example in the previous section,
+    we don''t need to pass props. The code is illustrated in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: Even though the `Parent` component is in the Context provider in `App`, it does
+    not know about the existence of the `count` state. The components inside `Parent`
+    can still use the `count` state through the Context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we define `Component1` and `Component2`. They take `count` and `setCount`
+    from the Context value instead of props. The code is illustrated in the following
+    snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: What is the Context value these components get? They get the Context value from
+    the closest provider. We can use multiple providers to provide isolated count
+    states, which, again, is an important capability of using React Context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we learned about React Context and how to create a simple global
+    state with it. Coming up, we will dive into React Context behavior.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding Context
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When a Context provider has a new Context value, all Context consumers receive
+    the new value and re-render. This means the value in the provider is propagated
+    to all the consumers. It is important for us to understand how Context propagation
+    works and its limitations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How Context propagation works
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: If you use a Context provider, you can update the Context value. When a Context
+    provider receives a new Context value, it triggers *all* the Context consumer
+    components to re-render.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It's sometimes the case that a child component re-renders for two reasons—one
+    because of the parent, and the other because of the Context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To stop re-rendering without Context value changes, in this case, we can use
+    the *lift content up* technique, or `memo`. `memo` is a function to wrap a component
+    and is used to prevent re-renders if the component props don't change.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's see an example with some components wrapped with `memo` to understand
+    its behavior.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As with previous examples, we again use a simple Context that holds a color
+    string, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`''black''` is the default value, which will be used if there are no Context
+    providers found in the component tree.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We then define `ColorComponent`, which is similar to previous examples, but
+    it also has `renderCount` to show how many times this component is rendered, as
+    illustrated in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: We use `useRef` for `renderCount`. `renderCount.current` is a number indicating
+    the render count. The `renderCount.current` number is incremented by one with
+    `useEffect`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next is `MemoedColorComponent`, which is `ColorComponent` wrapped by `memo`.
+    The code is illustrated in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `memo` function is to create a memoized component from a base component.
+    The memoized component produces a stable result for the same props.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We define another component, `DummyComponent`, which doesn''t use `useContext`.
+    The code is illustrated in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: This component is to compare the behavior against `ColorComponent`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We also define `MemoedDummyComponent` for `DummyComponent` with `memo`, as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we define a `Parent` component; it has four kinds of components we defined
+    previously. The code is illustrated in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, the `App` component has a color state with `useState` and passes the
+    value to `ColorContext.Provider`. It also shows a text field to change the color
+    state. The code is illustrated in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This example behaves in the following way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Initially, all the components render.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If you change the value in the text input, the `App` component renders because
+    of `useState`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Then, `ColorContext.Provider` gets a new value, and at the same time, the `Parent`
+    component renders.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`DummyComponent` renders but `MemoedDummyComponent` doesn''t.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`ColorComponent` renders for two reasons—firstly, the parent renders, and secondly,
+    the Context changes.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`MemoedColorComponent` renders because the Context changes.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What's important to learn here is that `memo` doesn't stop the internal Context
+    consumer from re-rendering. This is obviously unavoidable because otherwise, components
+    could have inconsistent Context values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Limitations when using Context for objects
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Using primitive values for Context values is intuitive, but using object values
+    may require caution due to their behavior. An object may contain several values,
+    and Context consumers may not use all of them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following example is to reproduce such a case where a component uses only
+    part of an object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we define a Context whose value is an object with two counts, `count1`
+    and `count2`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Using this count Context, we define a `Counter1` component is to show `count1`.
+    We have `renderCount` to show the render count. We also define a `MemoedCounter1`
+    component, which is the memoized component. The code is illustrated in the following
+    snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice that the `Counter1` component uses only `count1` from the Context value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Likewise, we define a `Counter2` component that shows `count2` and the memoized
+    `MemoCounter2` component, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `Parent` component has two memoized components, as illustrated in the following
+    code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, the `App` component has two counts with two `useState` hooks and provides
+    the two counts with one Context. It has two buttons to increment two counts respectively,
+    as illustrated in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice again that the place of two buttons is not very important.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The two counts, `count1` and `count2`, are totally separate—`Counter1` uses
+    only `count1` and `Counter2` uses only `count2`. Hence, ideally, `Counter1` should
+    re-render only when `count1` is changed. If `Counter1` re-renders without changing
+    `count1`, it produces the same result, which means that was just an extra re-render.
+    In this example, `Counter1` re-renders even when only `count2` is changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is the extra re-render limitation in the behavior that we should be aware
+    of when we utilize React Context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Extra Re-Renders
+  prefs: []
+  type: TYPE_NORMAL
+- en: Extra re-renders are a pure overhead that should be technically avoided. However,
+    this would be fine unless performance is a big concern because users wouldn't
+    notice a few extra re-renders. Overengineering to avoid a few extra re-renders
+    might not be worth resolving in practice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we learned about the behavior of React Context and why it's
+    limited to being used with objects. Coming up, we learn some typical patterns
+    for implementing a global state with Context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a Context for a global state
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Based on the React Context behavior, we will discuss two solutions regarding
+    using Context with a global state, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating small state pieces
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating one state with `useReducer` and propagating with multiple Contexts
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let's take a look at each solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating small state pieces
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The first solution is to split a global state into pieces. So, instead of using
+    a big combined object, create a global state and a Context for each piece.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following example creates two `count` states, with a Context and a provider
+    component for each `count` state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Firstly, we define two Contexts, `Count1Context` and `Count2Context`, one for
+    each piece, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: The Context value is a tuple of a `count` value and an updating function. We
+    specified a static value and a dummy function as a default value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We then define a `Counter1` component that only uses `Count1Context`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice the implementation of `Counter1` only depends on `Count1Context`, and
+    it doesn't know about any other Contexts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Likewise, we define a `Counter2` component that uses only `Count2Context`,
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `Parent` component has `Counter1` and `Counter2` components, as illustrated
+    in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `Parent` component has two counters each, just for demonstration purposes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We define a `Count1Provider` component for `Count1Context`. The `Count1Provider`
+    component has a `count` state with `useState` and passes the count value and `update`
+    function to the `Count1Context.Provider` component, as illustrated in the following
+    code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Likewise, we define a `Count2Provider` component for `Count2Context`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `Count1Provider` and `Count2Provider` components are similar; the only difference
+    is the Context to provide a value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, the `App` component has a `Parent` component with two provider components,
+    as illustrated in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice the `App` component has two provider components nested. Having more provider
+    components lead to deeper nesting. We will discuss mitigating nesting in the *Best
+    practices for using Context* section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This example doesn't suffer from the extra re-render limitation we described
+    in the previous section. This is because Contexts hold only primitive values.
+    The `Counter1` and `Counter2` components only re-render when `count1` and `count2`
+    are changed respectively. It is necessary to create a provider for each state;
+    otherwise, `useState` would return a new tuple object and a Context would trigger
+    re-renders.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you are sure that an object is used at once and the usage doesn''t hit the
+    limitation of the Context behavior, putting an object as a Context value is totally
+    acceptable. Here''s an example of a `user` object that would be used at once:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this case, it doesn't make sense to split it into Contexts. Using a single
+    Context for a `user` object would be better.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, let's look at another solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating one state with useReducer and propagating with multiple Contexts
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The second solution is to create a single state and use multiple Contexts to
+    distribute state pieces. In this case, distributing a function to update the state
+    should be done with a separate Context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following example is based on `useReducer`. It has three Contexts; two are
+    for state pieces, and the last one is for a dispatch function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we create two value Contexts for two counts, and one Context for the
+    dispatch function that will be used to update the two counts, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this case, if we have more counts, we create more count Contexts, but the
+    dispatch Context will remain just one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We define a reducer for the dispatch function later in this example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we define a `Counter1` component that uses two Contexts—one for the value
+    and another for the dispatch function, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `Counter1` component reads `count1` from `Count1Context`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We define a `Counter2` component, which is just like `Counter1` except that
+    it reads `count2` from a different Context. The code is illustrated in the following
+    snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: Both `Counter1` and `Counter2` components use the same `DispatchContext` Context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `Parent` component is the same as the previous example, as we can see here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we define a `Provider` component that is unique in this example. The `Provider`
+    component uses `useReducer`. The reducer function handles two action types—`INC1`
+    and `INC2`. The `Provider` component includes providers from three Contexts that
+    we defined previously. The code is illustrated in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: The code is a bit long because of the reducer, which can be more complex. The
+    point is nested providers, providing each state piece and one dispatch function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, the `App` component just has the `Provider` component and the `Parent`
+    component in it, as illustrated in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: This example also doesn't suffer from the extra re-render limitation; changing
+    `count1` in the state only triggers `Counter1` to re-render, while `Counter2`
+    is not affected.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The benefit of using a single state over using multiple states in the previous
+    example is that the single state can update multiple pieces with one action. For
+    example, you can add something like this in the reducer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: As we discussed in the first solution, it is acceptable to create a Context
+    for an object (such as the `user` object) in this solution too.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we learned two solutions to use Context for a global state.
+    They are typical solutions, but there would be many variants. The key point is
+    to use multiple Contexts to avoid extra re-renders. In the next section, we learn
+    some best practices to deal with a global state based on multiple Contexts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Best practices for using Context
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this section, we will learn three patterns to deal with Contexts for a global
+    state, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating custom hooks and provider components
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A factory pattern with a custom hook
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Avoiding provider nesting with `reduceRight`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let's take a look at each one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating custom hooks and provider components
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In the previous examples in this chapter, we directly used `useContext` to get
+    Context values. Now, we will explicitly create custom hooks to access Context
+    values as well as provider components. This allows us to hide Contexts and restrict
+    their usage.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following example creates custom hooks and provider components. We make
+    a default Context value `null` and check if the value is `null` in the custom
+    hooks. This checks if the custom hooks are used under the providers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first thing we do, as always, is to create a Context; this time, the default
+    value of the Context is `null`, which indicates that the default value can''t
+    be used and the provider is always is required. The code is illustrated in the
+    following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We then define `Count1Provider`, which creates a state with `useState` and
+    passes it to `Count1Context.Provider`, as illustrated in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice that we use `useState(0)` in the `const [count, setCount] = useState(0);`
+    and `return <Count1Context.Provider value={[count, setCount]}>` in one line.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we define a `useCount1` hook to return a value from `Count1Context`.
+    Here, we check that `null` from the Context value throws a meaningful error. Developers
+    often make mistakes, and having explicit errors would make it easier for us to
+    detect bugs. The code is illustrated in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Following on, we create `Count2Context`, define a `Count2Provider` component
+    and a `useCount2` hook (they are the same as `Count1Context`, `Count1Provider`,
+    and `useCount1`, except for the names). The code is illustrated in the following
+    snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we define a `Counter1` component to use the `count1` state and show the
+    count and a button. Notice in the following code snippet that this component doesn''t
+    know about a Context, which is hidden in the `useCount1` hook:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Likewise, we define a `Counter2` component, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice the `Counter2` component is almost similar to the `Counter1` component.
+    The major difference is that the `Counter2` component uses the `useCount2` hook
+    instead of the `useCount1` hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We define a `Parent` component that has `Counter1` and `Counter2` defined previously,
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, an `App` component is defined to complete the example. It wraps the
+    `Parent` component with two provider components, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: Although it's not very explicit with this snippet, we typically have a separate
+    file such as `contexts/count1.jsx` for each Context and export only custom hooks
+    such as `useCount1` and provider components such as `Count1Provider`. In this
+    case, `Count1Context` is not exported.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Factory pattern with a custom hook
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Creating a custom hook and a provider component is a somewhat repetitive task;
+    however, we can create a function that does the task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following example shows `createStateContext` as a concrete implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `createStateContext` function takes a `useValue` custom hook that takes
+    an initial value and returns a state. If you use `useState`, it returns a tuple
+    of the `state` value and the `setState` function. The `createStateContext` function
+    returns a tuple of a provider component and a custom hook to get the state. This
+    is the pattern we learned in the previous sections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In addition, this provides a new feature; the provider component accepts an
+    optional `initialValue` prop that is passed into `useValue`. This allows you to
+    set the initial value of the state at runtime instead of defining an initial value
+    at creation. The code is illustrated in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, let''s see how to use `createStateContext`. We define a custom hook, `useNumberState`;
+    it takes an optional `init` parameter. We then invoke `useState` with `init`,
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'By passing `useNumberState` to `createStateContext`, we can create as many
+    state Contexts as we want; we created two sets of them. The types of `useCount1`
+    and `useCount2` are inferred from `useNumberState`. The code is illustrated in
+    the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice we avoid the repetitive definition thanks to `createStateContext`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We then define `Counter1` and `Counter2` components. The way to use `useCount1`
+    and `useCount2` is identical to the previous example, as we can see in the following
+    code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we create `Parent` and `App` components. The way to use `Count1Provider`
+    and `Count2Provider` is also the same, as we can see here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice how we reduce our code from the previous example. The whole point of
+    `createStateContext` is to avoid repetitive code and provide the same functionality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Instead of `useNumberState` with `useState`, we could make the custom hook
+    with `useReducer`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We could also create a more complex hook. The following example has `inc1`
+    and `inc2` custom action functions. It uses `useEffect` to show an updated log
+    in the console:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can still use the `createStateContext` function for these `useMyState` hooks
+    and any other custom hooks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It''s worth noting that this factory pattern works well in TypeScript. TypeScript
+    provides extra checks with types, and developers can get better experience from
+    type checking. The following code snippet shows the typed version of `createStateContext`
+    and `useNumberState`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: If we use the typed version of `createStateContext` and `useNumberState`, the
+    result is also typed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Avoiding provider nesting with reduceRight
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'With the `createStateContext` function, it''s very easy to create many states.
+    Let''s suppose we created five of them, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Our `App` component would then look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is absolutely correct, and it captures how a component tree is structured.
+    However, too much nesting is not very comfortable while coding. To mitigate this
+    coding style, we could use `reduceRight`. The `App` component can be refactored,
+    as shown in the following example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: There could be some variations of this technique, such as creating a `reduceRight`
+    to construct a provider tree.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This technique is not only for a global state with Context but also for any
+    components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we learned some best practices to work with a global state
+    with Contexts. These are not something you must follow. As long as you understand
+    the behavior of Context and its limitations, any pattern would work fine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned how to create global states with React Context.
+    The Context propagation works to avoid passing props. If you understand the Context
+    behavior correctly, implementing global states with Context is straightforward.
+    Basically, we should create a Context for each state piece to avoid extra re-renders.
+    Some best practices will help in the implementation of a global state with Context,
+    particularly the concrete implementation of `createStateContext`, which will help
+    when organizing your app code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn another pattern of implementing a global
+    state with subscriptions.
+  prefs: []
+  type: TYPE_NORMAL

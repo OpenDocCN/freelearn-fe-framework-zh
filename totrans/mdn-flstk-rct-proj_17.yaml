@@ -1,0 +1,1030 @@
+- en: '13'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Building an Event-Based Backend Using Express and Socket.IO
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we will learn about event-based applications and the tradeoffs
+    of using such an architecture versus a more traditional one. Then, we are going
+    to learn about WebSockets and how they work. Afterward, we are going to implement
+    a backend using Socket.IO and Express. Finally, we are going to learn how to integrate
+    authentication by using JWT with Socket.IO.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we are going to cover the following main topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What are event-based applications?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Setting up Socket.IO
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating a backend for a chat app using Socket.IO
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Adding authentication by integrating JWT with Socket.IO
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before we start, please install all the requirements from [*Chapter 1*](B19385_01.xhtml#_idTextAnchor016),
+    *Preparing For Full-Stack Development*, and [*Chapter 2*](B19385_02.xhtml#_idTextAnchor028),
+    *Getting to Know Node.js* *and MongoDB*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The versions listed in those chapters are the ones used in this book. While
+    installing a newer version should not be an issue, please note that certain steps
+    might work differently. If you are having an issue with the code and steps provided
+    in this book, please try using the versions mentioned in *Chapters 1* and *2.*
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can find the code for this chapter on GitHub: [https://github.com/PacktPublishing/Modern-Full-Stack-React-Projects/tree/main/ch13](https://github.com/PacktPublishing/Modern-Full-Stack-React-Projects/tree/main/ch13).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you cloned the full repository for this book, Husky may not find the `.git`
+    directory when running `npm install`. In that case, just run `git init` in the
+    root of the corresponding chapter folder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The CiA video for this chapter can be found at: [https://youtu.be/kHGvkopIHf4](https://youtu.be/kHGvkopIHf4).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What are event-based applications?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In contrast to traditional web applications, where we have a request-response
+    pattern, in event-based applications, we are dealing with events. The server and
+    client stay connected and each side can send events, which the other side listens
+    to and reacts to.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram shows the difference between implementing a chat app
+    in a request-response pattern versus an event-based pattern:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.1 – A chat app implementation with request-response and event-based
+    patterns](img/B19385_13_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.1 – A chat app implementation with request-response and event-based
+    patterns
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, to implement a chat application in a request-response pattern,
+    we would need to regularly send a request to a `GET /chat/messages` endpoint to
+    refresh the list of messages sent in a chat room. This process of periodically
+    sending requests is called short polling. To send a chat message, we would make
+    a request to `POST /chat/messages`. In an event-based pattern, we could instead
+    send a `chat.message` event from the client to the server, which then sends a
+    `chat.message` event to all connected users. The clients then listen to `chat.message`
+    events and display the messages as they come in; no periodic requests are required!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Of course, each pattern comes with its advantages and disadvantages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'REST/request-response:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Good for when data does not change frequently
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Responses can be cached easily
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Requests are stateless, making it easy to scale backends
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Bad at real-time updates (requires periodic polling)
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: More overhead per request (bad when sending many short responses)
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'WebSockets/event-based:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Good for applications that require frequent updates
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: More efficient because a persistent connection between the client and server
+    is re-used for multiple requests
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Less overhead per request
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: There might be connection issues with (corporate) proxies
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: They are stateful, which can make it harder to scale an app
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: As we can see, for fetching data that does not change so frequently (and can
+    be cached), such as blog posts, a request-response pattern fits better. For applications
+    where data is frequently changing, such as a chat room, an event-based pattern
+    fits better.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What are WebSockets?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The WebSocket API is a browser feature that allows web applications to create
+    an open connection between the client and the server, similar to Unix-style sockets.
+    With WebSockets, communication can happen in both directions at the same time.
+    This is in contrast to HTTP requests, where both parties can communicate, but
+    not simultaneously.
+  prefs: []
+  type: TYPE_NORMAL
+- en: WebSockets use HTTP to establish a connection between the client and the server,
+    and then upgrade the protocol from HTTP to the WebSocket protocol. While both
+    HTTP and WebSockets depend on the **Transmission Control Protocol** (**TCP**),
+    they are distinct protocols on the application layer (Layer 7) of the **Open Systems
+    Interconnection** (**OSI**) model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A connection to a WebSocket is established by sending an HTTP request with
+    the `Upgrade: websocket` header and other parameters to establish a secure WebSocket
+    connection. The server then responds with an `HTTP 101 Switching Protocols` response
+    code and information to establish the connection. Then, the client and server
+    continue talking on the WebSocket protocol.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is Socket.IO?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Socket.IO is an implementation of an event-based server and client library.
+    In most cases, it establishes a connection to the server using a WebSocket. If
+    a WebSocket connection is not possible (due to lacking browser support or firewall
+    settings), Socket.IO can also fall back to HTTP long-polling. However, Socket.IO
+    isn’t a pure WebSocket implementation as it adds additional metadata to each packet.
+    It only uses WebSockets internally to transmit data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In addition to providing a way to send events between the client and server,
+    Socket.IO offers the following features over plain WebSockets:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Fallback to HTTP long-polling**: This occurs if the WebSocket connection
+    cannot be established. This can be especially useful for companies using proxies
+    or firewalls that block WebSocket connections.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Automatic reconnection**: If the WebSocket connection is interrupted.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Buffering packets**: When the client gets disconnected, packets can be re-sent
+    again automatically upon reconnection.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Acknowledgments**: A convenient way to send events in a request-response
+    pattern, which can sometimes be useful even in event-based applications.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Broadcasting**: Sending an event to all (or a subset of all) connected clients.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Multiplexing**: Socket.IO implements namespaces, which can be used to create
+    “channels” that only certain users can send events to and receive events from,
+    such as an “admin-only channel.”'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Now that we have learned the essentials of what Socket.IO is, let’s dive deeper
+    into how the connection and emitting/receiving events work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Connecting to Socket.IO
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The following diagram shows how a connection is established with Socket.IO:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.2 – Establishing a connection with Socket.IO](img/B19385_13_2.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.2 – Establishing a connection with Socket.IO
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, Socket.IO sends a handshake from the client (on the frontend) to the
+    server (on the backend), which can contain information to authenticate with the
+    server, or query parameters to provide additional information when establishing
+    the connection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If a connection via WebSockets cannot be established, Socket.IO connects to
+    the server via HTTP long polling, which means making a request to the server that
+    is kept active until an event occurs, at which point the server sends a response
+    to the request. This allows waiting for events without having to periodically
+    make a request to see if there are any new events. Of course, this is not as performant
+    as WebSockets, but it is a good fallback for when WebSockets aren’t available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Emitting and receiving events
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Once connected to Socket.IO, we can start **emitting** (sending) and receiving
+    events. Events are handled by registering event handler functions, which are called
+    when a certain type of event is received by either the client or the server. Both
+    the client and the server can emit and receive events. Additionally, events can
+    be **broadcast** from the server to multiple clients. The following diagram shows
+    an example of how events are emitted and received in a chat application:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.3 – Emitting and receiving events with Socket.IO](img/B19385_13_3.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.3 – Emitting and receiving events with Socket.IO
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we can see, **User 1** sends a **Hello everyone** message, which the server
+    (backend) then broadcasts to all other clients (frontend). In this case, the message
+    gets broadcast back to **User 1**, as well as to **User 2**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we want to restrict the clients that receive certain events, Socket.IO allows
+    the creation of **rooms**. Clients can join a room, and on the server, we can
+    also broadcast events to only specific rooms. This concept can be used for chat
+    rooms, but also for collaborating on a specific project (such as editing a document
+    together in real time).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition to emitting and receiving events asynchronously, Socket.IO offers
+    a way to send an event that expects a response via `user.info` event and synchronously
+    wait for the server response (acknowledgment). We can see this in the preceding
+    diagram, where **User 2** requests information about a certain user, and then
+    gets a response containing the user’s information.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we’ve learned about event-based applications, WebSockets, and Socket.IO,
+    let’s put this theory into practice and set up Socket.IO.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up Socket.IO
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'To set up the Socket.IO server, we are going to base our code on what we had
+    in [*Chapter 6*](B19385_06.xhtml#_idTextAnchor119), *Adding Authentication and
+    Roles with JWT*, as it already includes some boilerplate for a backend and frontend
+    with JWT authentication. Later in this chapter, in the *Adding authentication
+    by integrating JWT with Socket.IO* section, we are going to make use of JWT to
+    add authentication to Socket.IO:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Copy the existing **ch6** folder to a new **ch13** folder, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Open the **ch13** folder in VS Code.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Now, we can start setting up Socket.IO. First, install the **socket.io** package
+    in the backend folder by running the following commands:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Edit **backend/.env** and change **DATABASE_URL** so that it points to a new
+    **chat** database:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Edit **backend/src/app.js** and import the **createServer** function from **node:http**
+    and the **Server** function from **socket.io**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We are going to need to create a `node:http` server as we cannot directly connect
+    Socket.IO to Express. Instead, Socket.IO attaches to a `node:http` server.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Thankfully, Express can also be easily attached to a **node:http** server.
+    Edit **backend/src/app.js** and, before **app** is exported, create a new **node:http**
+    server from the Express app, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, create a new Socket.IO server from the **node:http** server:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Warning
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting the origin to ***** makes it possible for phishing sites to imitate
+    your website and send requests to your backend. In production, the origin should
+    be set to the deployed URL of your frontend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can use the Socket.IO server to listen to connections from clients and print
+    a message:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The active client connection can be tracked by using the **socket** object.
+    For example, we can listen to disconnect events from the client like so:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Lastly, change the export so that it uses the **node:http** server instead
+    of the Express app directly:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Start the backend by running the following commands:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Don’t forget to get Docker and the database container up and running before
+    starting the backend. Keep the backend running for the rest of this chapter.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Now that we have set up a simple Socket.IO server, let’s continue by setting
+    up the client.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up a simple Socket.IO client
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We are going to use the existing frontend for now. In the next chapter, [*Chapter
+    14*](B19385_14.xhtml#_idTextAnchor262), *Creating a Frontend to Consume and Send
+    Events*, we are going to remove the blog components and create a new React frontend
+    for our chat app. Let’s start setting up a simple Socket.IO client:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the root of the project, install the **socket.io-client** package for the
+    frontend by running the following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Edit **src/App.jsx** and import the **io** function from **socket.io-client**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define a new instance of the Socket.IO client by using the **io** function
+    and passing a hostname and port:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Here, we will be passing `localhost:3001` through an environment variable. We
+    cannot pass the HTTP URL here as Socket.IO will try to connect to the hostname
+    and port using WebSockets.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Listen to the **connect** event and print out a message if we successfully
+    connected to the Socket.IO server:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Additionally, listen to the **connect_error** event and log an error message
+    in case connecting to the Socket.IO server failed:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Edit **.env** and add the following environment variable:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Run the frontend, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now, open the frontend in your browser by going to **http://localhost:5173/**.
+    Keep the frontend running for the rest of this chapter.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'You will see a message stating **connected to socket.io** in the browser console.
+    In the server output, you will see that the client connected successfully. Try
+    refreshing the page to see it disconnecting and connecting again (with a new socket
+    ID):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 13.4 – Seeing the Socket.IO client connect to and disconnect from
+    our server](img/B19385_13_4.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.4 – Seeing the Socket.IO client connect to and disconnect from our
+    server
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have successfully set up a Socket.IO server, let’s continue by creating
+    a backend for a chat app using Socket.IO.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a backend for a chat app using Socket.IO
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We can now start implementing a chat app using Socket.IO. We will be developing
+    the following functionality for our chat app:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Emitting** events to send chat messages from the client to the server'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Broadcasting** chat messages from the server to all clients'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Joining **rooms** to send messages in
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using **acknowledgments** to get information about a user
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let’s get started!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Emitting events to send chat messages from the client to the server
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We’ll start by `chat.message` event from the client to the server. For now,
+    we are going to emit this event right after connecting. Later, we are going to
+    integrate this into a frontend. Follow these steps to send chat messages from
+    the client and receive them on the server:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Edit **backend/src/app.js** and *cut*/*remove* the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Create a new **backend/src/socket.js** file, define a **handleSocket** function
+    there, and paste the following code inside it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, add a new listener that listens to the **chat.message** event and logs
+    the message sent from the client:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Edit **backend/src/app.js** and import the **handleSocket** function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Once the Socket.IO server has been created, call the **handleSocket** function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Edit **src/App.jsx** and emit a **chat.message** event with some text, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Info
+  prefs: []
+  type: TYPE_NORMAL
+- en: Socket.IO allows us to send any kind of serializable data structures in an event,
+    not just strings! For example, it is possible to send objects and arrays.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The backend and frontend should automatically refresh and the server will log
+    the following message:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: If not, make sure you (re-)start the backend and frontend and refresh the page
+    manually.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, it is quite simple to send and receive events asynchronously
+    in real time using Socket.IO.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Broadcasting chat messages from the server to all clients
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now that the backend server can receive messages from a client, we need to
+    **broadcast** the messages to all other clients so that others can see the chat
+    messages that were sent. Let’s do that now:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Edit **backend/src/socket.js** and extend the **chat.message** event listener
+    so that it calls **io.emit** and sends the chat message to everyone:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alternatively, you can use **socket.broadcast.emit** to send an event to every
+    client except the one that sent the message.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We also need to add a listener for chat messages on the client side. This works
+    the same way as on the server. Edit **src/App.jsx** and add the following event
+    listener:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now, you should see the message being logged on the server and the client. Try
+    opening a second window; you will see messages from both clients in your browser!
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 13.5 – Receiving messages from another client](img/B19385_13_5.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.5 – Receiving messages from another client
+  prefs: []
+  type: TYPE_NORMAL
+- en: Joining rooms to send messages in
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'While having a working chat where messages get relayed to everyone is nice,
+    often, we don’t want to broadcast our messages to everyone. Instead, we might
+    want to only send messages to a certain group of people. To facilitate this, Socket.IO
+    provides **rooms**. Rooms can be used to group clients together so that events
+    are only sent to all other clients in the room. This feature can be used to create
+    chat rooms, but also for collaborating on a project together (by creating a new
+    room for each project). Let’s learn how rooms can be used in Socket.IO:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Socket.IO allows us to pass a query string during the handshake. We can access
+    this query string to get the room that the client wants to join. Edit **backend/src/socket.js**
+    and get the room from the handshake query:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, use **socket.join** to join the client into the selected room:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, inside the **chat.message** handler, use **.to(room)** to make sure chat
+    messages from that client are only sent to a certain room:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In the client, we need to pass a query string to tell the server which room
+    we would like to join. Edit **src/App.jsx**, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Open **http://localhost:5173/** and **http://localhost:5173/?room=test** in
+    two separate browser windows and send messages from both. You will see that the
+    message from the second window doesn’t get sent to the first window. However,
+    if you open another window with the **?room=test** query string and send a message
+    there, you will see the message being forwarded to the second window (but not
+    the first).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: As we can see, we can use rooms to have more fine-grained control over which
+    clients receive certain events. As the server controls which rooms a client joins,
+    we can also add permission checks before allowing a client to join a room.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using acknowledgments to get information about a user
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As we have seen, events are a great way to send asynchronous messages. Sometimes,
+    however, we want a more traditional synchronous request-response API, like we
+    had with REST. In Socket.IO, we can implement synchronous events by using **acknowledgments**.
+    We can use acknowledgments to, for example, get more information about a user
+    in the current chat room. For now, we are only going to return the rooms that
+    the user is in. Later, when we add authentication, we are going to fetch the user
+    object from the database here. Let’s get started implementing acknowledgments:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Edit **backend/src/socket.js** and define a new event listener:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note how we are passing a callback function as the last argument. This is what
+    makes the event an acknowledgment.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'In this event listener, we are going to fetch all sockets in the room with
+    the ID of our socket:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Internally, Socket.IO creates a room for each connected socket, to make it possible
+    to send events to a single socket.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: We could directly access the sockets of the current instance, but that wouldn’t
+    work anymore when we scale our service to multiple instances in a cluster. To
+    make it work even in a cluster, we need to use the room functionality to get a
+    socket by ID.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we must check if we found a socket with the given ID. If not, we return
+    **null**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Otherwise, we return the socket ID and a list of rooms that the user is in:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, we can emit the **user.info** event on the client. Edit **src/App.jsx**
+    and start by making the **connect** event listener an **async** function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'To emit an event with an acknowledgment, we can use the **emitWithAck** function,
+    which returns a Promise that we can **await**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'After saving the code, go to the browser window; you will see the user’s information
+    being logged in the console:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 13.6 – Getting user information with an acknowledgment](img/B19385_13_6.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.6 – Getting user information with an acknowledgment
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have learned how to send various kinds of events, let’s get into
+    a more advanced topic: authentication with Socket.IO.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adding authentication by integrating JWT with Socket.IO
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'So far, all chat messages have been sent with the socket ID as the “username.”
+    This is not a very good way to identify users in a chat room. To fix this, we
+    are going to introduce user accounts by authenticating sockets with JWT. Follow
+    these steps to implement JWT with Socket.IO:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Edit **backend/src/socket.js** and import **jwt** from the **jsonwebtoken**
+    package and **getUserInfoById** from our service functions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Inside the **handleSocket** function, define a new Socket.IO middleware by
+    using **io.use()**. Middleware in Socket.IO works similarly to middleware in Express
+    – we define a function that runs before requests are processed, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Inside this function, we check if the token was sent via the **auth** object
+    (similar to how we passed **room** earlier via the query string). If no token
+    was passed, we pass an error to the **next()** function and cause the connection
+    to fail:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is important not to pass a JWT via the query string since this is part of
+    the URL. It is exposed in the browser address bar and thus potentially stored
+    in the browser history, where it could be extracted by a potential attacker. Instead,
+    the **auth** object is sent via the request payload during the handshake, which
+    is not exposed in the address bar.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Otherwise, we call **jwt.verify** to verify the token by using the existing
+    **JWT_SECRET** environment variable:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'If the token is invalid, we once again return an error in the **next()** function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Otherwise, we save the decoded token to **socket.auth**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Additionally, we fetch the user information from the database and, for convenience,
+    store it in **socket.user**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Make sure that **next()** is always called in Socket.IO middleware. Otherwise,
+    Socket.IO will keep the connection open until it is closed after a given timeout.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The **user** object contains a **username** value. Now, we can *replace* the
+    socket ID in the chat message with the username:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We can also return the user information from the **user.info** event:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We still need to send the auth object from the client side, edit **src/App.jsx**,
+    and get the token from **localStorage**, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: For simplicity, we store and read the JWT in **localStorage** for this example.
+    However, it is not a good idea to store a JWT like this in production as **localStorage**
+    could be read by an attacker if they find a way to inject JavaScript. A better
+    way to store a JWT would be by using a cookie with the **Secure**, **HttpOnly**,
+    and **SameSite="Strict"** attributes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that the server side is set up, we can try logging in on the client. Initially,
+    we are going to see an error message:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 13.7 – An error message from Socket.IO because no JWT was provided](img/B19385_13_7.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.7 – An error message from Socket.IO because no JWT was provided
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To get a token, we can sign up and log in normally using the existing blog
+    frontend. Then, we can check the **Network** tab of the inspector to find the
+    **/login** request with a token inside the response:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 13.8 – Copying the JWT from the Network tab](img/B19385_13_8.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.8 – Copying the JWT from the Network tab
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Copy this token and add it to **localStorage** by running **localStorage.setItem(''token'',
+    ''<JWT>'')** in the browser console (replacing **<JWT>** with the copied token).
+    Upon refreshing the page, it should work! As we can see, when logged in with two
+    different users, we can see their messages with their respective usernames:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 13.9 – Receiving messages from different users](img/B19385_13_9.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 13.9 – Receiving messages from different users
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our chat backend is now fully functional! In the next chapter, we are going
+    to create a frontend to complete our chat app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned about event-based applications, WebSockets, and
+    Socket.IO. Then, we set up Socket.IO on the backend (server) and frontend (client).
+    Afterward, we learned how to send messages between the server and client, how
+    to join rooms, and how to broadcast messages. We also used acknowledgments to
+    get information about a user in a request-response pattern with Socket.IO. Finally,
+    we implemented authentication using JWT in Socket.IO, finalizing our chat app
+    backend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, [*Chapter 14*](B19385_14.xhtml#_idTextAnchor262), *Creating
+    a Frontend to Consume and Send Events*, we are going to create a frontend for
+    our chat app, which is going to interact with the backend we created in this chapter.
+  prefs: []
+  type: TYPE_NORMAL

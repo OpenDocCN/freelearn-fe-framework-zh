@@ -1,0 +1,616 @@
+- en: '12'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Caching Strategies
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '“*There are only two hard things in computer science: cache invalidation and
+    naming things.*” – Phil Karlton'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Caching can significantly enhance a website’s performance by eliminating or
+    shortening network roundtrips and reusing previously stored data and content.
+    However, caching is also hard to get right. As usual, Remix provides a thin abstraction
+    layer on top of the web platform and eases the usage of HTTP caching strategies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will learn about different caching strategies and how to
+    utilize them with Remix. This chapter is divided into two sections:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Working with HTTP caching
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exploring in-memory caching
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: First, we will learn about HTTP caching. We will study different HTTP caching
+    headers and see how we can utilize HTTP caching in the browser and with CDNs.
+    Next, we will focus on in-memory caching. We will refer to [*Chapter 3*](B17399_03.xhtml#_idTextAnchor043),
+    *Deployment Targets, Adapters, and Stacks*, to understand when and where we can
+    cache data in memory. We will also discuss using services such as Redis to cache
+    data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After reading this chapter, you will understand how to utilize caching with
+    Remix to improve the user experience. You will have also practiced working with
+    HTTP headers and know when to use different caching strategies, such as CDN, browser,
+    **entity tags** (**ETags**), and in-memory caching.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'You can find the code for this chapter here: [https://github.com/PacktPublishing/Full-Stack-Web-Development-with-Remix/tree/main/12-caching-strategies](https://github.com/PacktPublishing/Full-Stack-Web-Development-with-Remix/tree/main/12-caching-strategies).
+    You can go ahead and use the end solution from the previous chapter. No additional
+    setup steps are required for this chapter.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Working with HTTP caching
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The web platform utilizes HTTP headers to control caching behavior. Web clients
+    can read caching directives specified in response headers to reuse previously
+    fetched data. This allows web clients to avoid unnecessary network requests and
+    improve response times. In this section, you will learn about popular HTTP caching
+    headers and strategies and how to use them in Remix. First, we will see how we
+    can define HTTP headers for document responses.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adding HTTP headers in Remix
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Remix’s route module API includes a `headers` export that we can use to add
+    HTTP headers to the route’s document response. Like the `links` function, the
+    `headers` function is only ever executed on the server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `headers` function is called after all `loader` functions and all parent
+    `headers` functions. The `headers` function has access to the `parentsHeaders`,
+    `errorHeaders`, `actionHeaders`, and `loaderHeaders` objects to update document
+    headers based on the headers added via parent `header` functions, loader data
+    responses, action data responses, and error responses. Remix utilizes the most
+    deeply exported `headers` function available and allows you to mix and merge the
+    headers as required.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loader data-based cache control
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remix’s `headers` function receives the `loaderHeaders` parameter, which allows
+    us to specify caching directives for each route based on the loader data for fine-grained
+    cache control.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have a theoretical understanding of how to apply HTTP headers with
+    Remix, let’s run through our BeeRich routes to investigate how to utilize caching.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Caching public pages in shared caches
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Public pages without user-specific information can be stored in a shared cache
+    such as a CDN. Adding a CDN in front of your (Remix) web server distributes cached
+    content globally and closer to your users. It reduces the request response time
+    for cached content and the number of requests the web server has to process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you aren’t sure what a CDN is, the MDN Web Docs provide a great introduction:
+    [https://developer.mozilla.org/en-US/docs/Glossary/CDN](https://developer.mozilla.org/en-US/docs/Glossary/CDN).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will use Remix’s `headers` route module API to add HTTP
+    caching headers to our public pages on BeeRich.
+  prefs: []
+  type: TYPE_NORMAL
+- en: BeeRich consists of public and private routes. The public pages are nested inside
+    the `_layout` segment and include the BeeRich home page (`_layout._index.tsx`)
+    and the login and signup pages. We can identify that these pages are static and
+    do not depend on user-specific data. We’re okay if the user occasionally sees
+    a stale page version. We can specify HTTP headers so that we keep serving a cached
+    version of the page for one hour before requesting a new version.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s see what this would look like in action. Add the following `headers`
+    function export to the `_layout.tsx` pathless layout route module:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: With these changes, we apply a caching header to all child routes that do not
+    themselves export a `headers` function. The specified caching header includes
+    a `public` value and a `max-age` directive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `max-age` directive defines the number of seconds the available response
+    can be reused before it must be regenerated. This means the nested routes, such
+    as `/`, `/login`, and `/signup`, are now cached for 3,600 seconds (1 hour).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `public` value communicates that the response data can be stored in a public
+    cache. We can differentiate between public (shared) and private caches. Private
+    caches exist on web clients (for example, browsers), while shared caches live
+    on proxy services and CDNs. By specifying that a document can be cached publicly,
+    we also allow proxies and CDNs to cache the document for all future requests.
+    This means the cache not only serves one browser (user) but may improve the response
+    times for any subsequent user requests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s investigate this caching behavior:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run `npm run dev` in the root of the project.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Next, open the login page in a new browser window ([http://localhost:3000](http://localhost:3000)).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Open the developer tools of your browser and navigate to the **Network** tab.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Make sure you uncheck the **Disable cache** option if it’s checked.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Now, hard-refresh the page to emulate an initial page load:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 12.1 – Initial page load of the login page](img/Figure_12.01_B17399.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 12.1 – Initial page load of the login page
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice that the specified caching header is returned as part of the response
+    headers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Refresh the page again; you may see that the document was restored from the
+    disk cache. Some browsers disable document request caching headers on localhost
+    for a better developer experience. So, don’t worry if you can’t seem to make it
+    work on localhost.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Be cautious not to publicly cache documents with user-specific information.
+    While CDNs often automatically remove `Set-Cookie` headers, you likely want to
+    avoid caching altogether when a user session cookie is in the server's response.
+    If you're using a CDN, make sure to cache only for visitors, not logged-in users,
+    to avoid caching conditionally rendered UIs for logged-in users. For example,
+    the navigation bar in `_layout.tsx` shows a Logout button if a user is logged
+    in. Caching this could cause layout shifts when the `Logout` button is replaced
+    by `Log in` and `Sign up` after React hydrates on the client and re-renders the
+    page.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s investigate how Remix uses HTTP caching headers for the public assets
+    of our pages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding Remix’s built-in caching
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Remix optimizes many of the served assets out of the box. In this section, we
+    will review how Remix utilizes HTTP caching headers on static assets to optimize
+    our app’s performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Follow the steps from the previous section to open the login page of BeeRich
+    in a browser window. Click on any downloaded JavaScript bundles in the **Network**
+    tab and review the response headers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.2 – Remix’s built-in caching behavior](img/Figure_12.02_B17399.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 12.2 – Remix’s built-in caching behavior
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As visible in *Figure 12**.2*, the `manifest-*.js` file was retrieved from
+    the browser’s memory or disk cache. Remix adds a cache control header to each
+    JavaScript bundle (`Cache-Control: public, max-age=31536000, immutable`). Each
+    JavaScript bundle is defined to be publicly cached for up to one year – the maximum
+    possible `max-age` value. The `immutable` directive further indicates that the
+    content of the assets never changes, which helps us avoid potential revalidation
+    requests.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, review the `tailwind.css` stylesheet from the `root.ts` file’s `links`
+    export. Compare the cache control header of the linked stylesheet and the JavaScript
+    bundles. They match!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, review the names of the static assets. Notice that all JavaScript bundles
+    and linked assets include a hash postfix. The hash is computed based on the content
+    of the asset. Any time we update any assets, a new version is created. The hash
+    ensures that there are never two assets with the same name but different content.
+    This allows Remix to allow clients to cache each asset indefinitely.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remix’s built-in HTTP caching
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hash-based filenames of static assets ensure that new versions automatically
+    result in new assets. This allows Remix to add aggressive caching directives to
+    all linked assets returned from the `links` route module API. Remix adds the same
+    directives to all its JavaScript bundles.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The aggressive caching directives used by Remix allow browsers and CDNs to cache
+    all static assets of your Remix app. This can significantly improve performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will discuss how to cache personalized pages and content.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Caching personalized pages in private caches
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Controlling HTTP caching is not only about caching responses but also about
+    controlling when not to cache. Remix offers full control over what should be cached
+    by providing access to the `Response` object of each document and data request.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `dashboard` routes of BeeRich are personalized pages that are made up of
+    user-specific data. User-specific data must not be stored in a shared cache to
+    avoid leakage of private user information. The content on the `dashboard` routes
+    is highly dynamic, and we should only cache it briefly to avoid stale UI states.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s utilize the `no-cache` and `private` directives on the `dashboard.tsx`
+    route to apply a default for all `dashboard` routes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The added cache control header specifies that the HTML documents on the `dashboard`
+    routes can only be cached in private caches (for example, the browser) and that
+    any request should go to the server for revalidation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the `no-cache` directives still allow the browser to reuse content
+    when using the browser's back and forward buttons. This is different from `no-store`,
+    which forces the browser to fetch new content even during back and forward navigation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Great – we've now learned how to apply caching headers to document responses.
+    But how about `loader` and `action` data responses?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Caching immutable data responses
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In Remix, we can also control HTTP headers for data responses from `loader`
+    and `action` functions. Thus, we can set caching controls not only for documents
+    but also for data responses.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Most of the data in BeeRich is highly dynamic. The invoice and expense data
+    can be edited and must always be fresh. However, this is different for the expense
+    and invoice attachments. Each attachment has a unique filename (identifier), which
+    is part of the request URL. Conclusively, two attachments are never served via
+    the same URL.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s update the attachment logic in BeeRich to take advantage of HTTP caching:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, update the `buildFileResponse` function in `app/modules/attachments.server.ts`
+    so that it supports passing in custom headers:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, update the `loader` function in the `dashboard.expenses.$id.attachments.$.tsx`
+    resource route module:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Start BeeRich by executing `npm run dev` and, in your browser, navigate to an
+    expense details page.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Next, download an attachment twice and inspect the second network payload in
+    the **Network** tab:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 12.3 – Attachment cached on disk](img/Figure_12.03_B17399.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 12.3 – Attachment cached on disk
+  prefs: []
+  type: TYPE_NORMAL
+- en: Great! As visible in *Figure 12**.3*, we avoided a request to the web server
+    for the second download request. Instead, the attachment was downloaded from the
+    disk cache of the browser.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Caching is hard, especially when you’re trying to cache user-specific data.
+    Can you think of any potential security concerns with the current implementation?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Imagine a user logging in to BeeRich from a public computer to access expense
+    attachments. The user downloads one of the attachments to print it. The user then
+    deletes the attachment from the public computer and logs themselves out from BeeRich.
+    Now, could a malicious actor retrieve the attachment from the browser cache? Potentially.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Copy and paste the **Request URL** property to your attachment from the **Headers**
+    **Network** tab. Now, log out from BeeRich to be redirected to the login page.
+    Copy and paste the copied request URL into the address bar and hit *Enter*. Since
+    we allow the browser to cache the document on its private disk cache, the request
+    will not go to the resource route where we would authenticate the user. Instead,
+    the browser retrieves the document from the memory or disk cache and serves it
+    to the user, a potential security vulnerability.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, you learned about the potential security risks of leaking user
+    data using private and public cache control directives. We can use a different
+    caching strategy instead of caching private data in the browser cache. Next, we
+    will have a look at entity tags.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Caching dynamic data responses with entity tags
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: An HTTP request for a document can result in different HTTP responses. A response
+    with status code 200 usually includes an HTTP body containing the requested document
+    – for instance, an HTML document, PDF, or image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The HTTP request-response flow allows us to authorize user access and potentially
+    turn down requests with 401 (Unauthorized) responses. In the previous section,
+    we cached data in private and shared caches, which cuts the request-response flow
+    short from reaching our server on a cache hit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will explore how to utilize the `ETag` and `If-None-Match`
+    headers so that we can avoid resending full responses but still execute authorization
+    functions on the server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `ETag` header may carry a unique identifier (entity tag) for a response,
+    which the client can use to append subsequent requests to the same URL with the
+    `If-None-Match` header. The server can then compute the new response and compare
+    the new tag with the request `If-None-Match` header.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s update the `loader` function in the `dashboard.expenses.$id.attachments.$.tsx`
+    resource route module to see how this looks like in action:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: We use the attachment identifier as the entity tag and append it to the response
+    headers. If a client requests the same attachment twice, we can access the previously
+    sent `ETag` header through the `If-None-Match` request header.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After authorizing the user in the `loader` function, we can check whether the
+    request contains an `If-None-Match` header. In that case, we can communicate to
+    the client that there has been no change to the response using the 304 status
+    code. The client can then use the cached response body instead of redownloading
+    the attachment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Investigate the new implementation by repeating the steps from the previous
+    sections to download the same attachment twice. Note that your browser’s guest
+    and incognito modes reset caches on each session, which makes them great tools
+    for testing initial page load times:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.4 – ETag-based caching of attachments](img/Figure_12.04_B17399.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 12.4 – ETag-based caching of attachments
+  prefs: []
+  type: TYPE_NORMAL
+- en: As visible in *Figure 12**.4*, any subsequent download of the attachment now
+    triggers a request that receives a 304 response. When inspecting the `ETag` (response)
+    and `If-None-Match` (request) headers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, copy the **Request URL** property and log out. Now, attempt to access
+    the attachment by navigating to the request URL. Notice that BeeRich redirects
+    to the login page. This is because ETag-based caching triggers a request to the
+    server. The server then checks for the session cookie and redirects accordingly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: ETags come with a different set of trade-offs. When using ETags to revalidate
+    content, we can’t avoid the roundtrip to the web server, but we can still avoid
+    downloading the same response body twice. This serves as a good middle ground
+    as we can execute authorization and authentication functions on the server but
+    also improve performance by reusing existing response bodies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Great! We implemented three HTTP caching strategies in BeeRich: public caching
+    of public pages, no caching for the dynamic dashboard pages, and ETags for private
+    static assets. You also learned how Remix uses HTTP caching for static assets
+    out of the box.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Ensure you update the `dashboard.income.$id.attachments.$.tsx` resource route
+    to take advantage of ETag-based caching for invoice attachments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: HTTP caching has much to offer. In this chapter, you learned about a few common
+    strategies, but there are many more, such as stale-while-revalidate caching strategies.
+    Refer to the *Further reading* section for more information about HTTP caching
+    strategies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, let’s discuss how to utilize caching on our Remix server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring in-memory caching
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Caching effectiveness increases the closer the cache is to the users. In-browser
+    caching avoids network requests altogether. CDN-based caching can significantly
+    shorten network requests. However, we may also give up more control over the cache
+    the further it is away from our Remix server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will discuss in-memory caching strategies and learn about
+    the advantages and disadvantages of in-memory caching options.
+  prefs: []
+  type: TYPE_NORMAL
+- en: HTTP caching might not always be the right strategy. For instance, we already
+    discussed privacy issues when caching user-specified information. In some cases,
+    it might make sense to implement a custom caching layer on the web server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The easiest way is to store computation results or fetched responses in memory
+    on the server itself. However, as we learned in [*Chapter 3*](B17399_03.xhtml#_idTextAnchor043),
+    *Deployment Targets, Adapters, and Stacks*, this may not always be possible. Runtime
+    environments such as the edge and serverless may shut down after every request
+    and may not be capable of sharing memory between requests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In BeeRich, we utilize a long-running Express.js server. Long-running environments
+    are capable of sharing memory between requests. Hence, we can use our server’s
+    memory to cache data. Caching data in memory allows us to avoid database queries
+    and downstream fetch requests. Caching data in memory is a great way to improve
+    performance. However, we must also consider memory limitations and overflows.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alternatively, we can utilize services such as Redis, low-latency in-memory
+    databases, to store computation or fetch results. Utilizing Redis as a cache is
+    also a great solution when running on serverless or edge runtimes, where memory
+    might not be shared between requests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But what about BeeRich? BeeRich utilizes a SQLite database, which provides very
+    fast responses for simple queries (a few milliseconds). Using Redis would likely
+    not improve the performance as it would introduce a network request to the Redis
+    server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unfortunately, in the real world, database and API requests may be much slower.
+    In these cases, it may make sense to cache the results in Redis or in-memory on
+    the server to reuse fetched results and avoid subsequent slow requests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One great example is our user object. We fetch the user object on every incoming
+    request in the `root.tsx loader` function. We can identify that we read the user
+    object disproportionally more often than updating it. If responses become slow,
+    this may be a good indication to store the user object in an in-memory cache.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In-memory caching requires us to implement custom cache invalidation logic,
+    but it may also improve performance when HTTP caching is not the right tool for
+    the job. Conclusively, adding a service such as Redis could be a good consideration
+    in case our responses become slow, and we identify that slow database or API queries
+    are the root cause.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you learned about different caching strategies and how to implement
+    them with Remix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remix’s `headers` route module API export lets us specify HTTP headers for the
+    HTML document on a per-route level. We also have access to `loaderHeaders` and
+    `parentHeaders`, which allows us to merge HTTP headers and specify headers based
+    on the loader data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You also learned how to cache both document and data requests in Remix. You
+    learned how to use the `Cache-Control` header to specify and prevent caching.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, you applied the `private`, `public`, `max-age`, `no-cache`, and `immutable`
+    directives. Additionally, you reviewed how Remix implements HTTP caching for static
+    assets out of the box.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, you learned about the privacy concerns of caching user-specific data and
+    how to use ETags to avoid downloading full responses while sending requests to
+    the server where the user authorization can be checked.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we discussed in-memory caching and using services such as Redis to
+    avoid requests to slow third-party services or databases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn about deferring loader data. Like caching,
+    deferring loader data is a great lever to improve the user experience and performance
+    of web applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'You can learn more about CDNs in the MDN Web Docs: [https://developer.mozilla.org/en-US/docs/Glossary/CDN](https://developer.mozilla.org/en-US/docs/Glossary/CDN).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can also find an overview of HTTP caching concepts in the MDN Web Docs:
+    [https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching](https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The MDN Web Docs also provide detailed information about each HTTP caching
+    header:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`ETag`: [https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`Cache-Control`: [https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Refer to the Remix documentation for more information about Remix’s `headers`
+    route module API: [https://remix.run/docs/en/2/route/headers](https://remix.run/docs/en/2/route/headers).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Ryan Florence recorded two great videos about caching on the Remix YouTube
+    channel. Fun fact – they were the very first videos that were uploaded on the
+    Remix YouTube channel, and they are worth checking out:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Remix Run – Introduction to HTTP* *Caching*: [https://www.youtube.com/watch?v=3XkU_DXcgl0](https://www.youtube.com/watch?v=3XkU_DXcgl0)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*CDN Caching, Static Site Generation, and Server Side* *Rendering*: [https://www.youtube.com/watch?v=bfLFHp7Sbkg](https://www.youtube.com/watch?v=bfLFHp7Sbkg)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'You can also find a great guide for using ETags with Remix on Sergio’s blog:
+    [https://sergiodxa.com/articles/use-etags-in-remix](https://sergiodxa.com/articles/use-etags-in-remix).'
+  prefs: []
+  type: TYPE_NORMAL

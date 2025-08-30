@@ -1,0 +1,946 @@
+- en: '10'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Working with File Uploads
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Uploading files is something we do all the time on the web. The web provides
+    built-in support for uploading files. However, uploading and processing files
+    as part of a form submission still requires some additional considerations that
+    we will cover in this chapter. This chapter is split into four sections:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using multi-part form data in Remix
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Processing files on the server
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Authorizing access to assets with resource routes
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Forwarding files to third-party services
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In this chapter, we will iterate on BeeRich to support file uploads. First,
+    we will update the creation and edit forms to allow adding and removing attachments.
+    Next, we will refactor the `action` functions to process the attached files on
+    the server. Further, we will investigate how to authorize access to uploaded files.
+    Finally, we will learn about file size considerations and discuss different file
+    storage solutions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After reading this chapter, you will understand how to work with multi-part
+    form data in Remix. You will know how to use Remix’s file upload helpers and how
+    to use resource routes to authorize access to uploaded files. You will have also
+    gained a theoretical understanding of what to consider when processing files and
+    how to forward files to third-party services.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'You can find the code for this chapter here: [https://github.com/PacktPublishing/Full-Stack-Web-Development-with-Remix/blob/main/10-working-with-file-uploads/](https://github.com/PacktPublishing/Full-Stack-Web-Development-with-Remix/blob/main/10-working-with-file-uploads/).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before starting this chapter, follow the instructions in the `README.md` file
+    in this chapter’s folder on GitHub to clean up the experiments from [*Chapter
+    9*](B17399_09.xhtml#_idTextAnchor137), *Assets and* *Metadata Handling*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using multi-part form data in Remix
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: By default, form data is encoded using the `application/x-www-form-urlencoded`
+    encoding type. URL-encoded form data appends the form data as key-value pairs
+    to the request URL as search parameters. To attach files to HTML forms, we need
+    to change the form’s encoding type. Appending form data to the URL is not the
+    right approach when transferring binary data such as files. In this section, you
+    will learn how to use multi-part encoding to support file uploads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are three different encoding types for HTML form elements:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`application/x-www-form-urlencoded`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`multipart/form-data`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`text/plain`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`text/plain` is not what we are looking for. Plaintext encoding is not used
+    for client-server communication as it submits the data in a human-readable format.
+    Instead, we want to use `multipart/form-data` encoding, which places the form
+    data into the request body, making it possible to include and stream binary files.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s update the expense creation and edit forms to allow users to attach files.
+    First, let’s go ahead and make the changes to the expense creation form:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Open the `dashboard.expenses._index.tsx` route module in an editor.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The route component currently renders a form with input fields for the expense’s
+    title, description, and amount.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Update the form encoding type to `multipart/form-data` and add a file input
+    field:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now, run the app locally (`npm run dev`) and inspect the updated UI.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: As visible in *Figure 10**.1*, the expense creation form now contains an attachment
+    input field.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Fill out and submit the expense creation form.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Note that the form submission still works. The `request.formData` function
+    can parse both URL-encoded and multi-part form data. One downside of `request.formData`
+    is that it loads all the form data into server memory. We will see what alternatives
+    we have later in this chapter:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 10.1 – Screenshot of a form with an attachment input field](img/Figure_10.01_B17399.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 10.1 – Screenshot of a form with an attachment input field
+  prefs: []
+  type: TYPE_NORMAL
+- en: Great! Just like that, we added an attachment to the expense creation form.
+    As always, apply the same changes to the invoice creation form.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The expense creation form can now include an optional file attachment. In the
+    next section, we will read the uploaded file on the server and persist it to the
+    filesystem. However, we also need to associate saved attachments with the expenses.
+    Let’s update the database schema so that it supports adding attachments to expenses
+    and invoices:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, open the `prisma/schema.prisma` file in your editor.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Add the following line to the `Expense` and `Invoice` database models:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Save the changes and run `npx prisma format` in the terminal at the project’s
+    root to format the `schema.prisma` file.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Next, execute `npm run build` to update the Prisma client and types.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Under the hood, Prisma generates types based on the `schema.prisma` file. After
+    running `npm run build`, the expense and invoice types include the optional `attachment`
+    property.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Finally, run `npm run update:db` to synchronize your local SQLite database schema
+    with the updated Prisma schema.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Once an expense has been created, we want to let users view and remove their
+    current attachment. If no attachment is set, we further want users to be able
+    to upload a new attachment. Next, let’s update the expense edit form to add this
+    functionality:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Open the `dashboard.expenses.$id.tsx` route module in your editor.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Update the route component’s form encoding type so that it supports file uploads:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Open the `app/components/forms.tsx` file in your editor and inspect the implementation
+    of the `Attachment` component.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The `Attachment` component expects a `label` property and an `attachmentUrl`
+    property and renders an anchor tag linking to the attachment. It further includes
+    a submit button and a hidden input field named `attachmentUrl`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Let's use the `Attachment` component within the edit forms to let users view
+    and delete their expense and invoice attachments.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Import the reusable `Attachment` component in `dashboard.expenses.$id.tsx`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '{expense.attachment ? (  <Attachment    label="Current Attachment"  attachmentUrl={`/dashboard/expenses/${expense.id}/attachments/${expense.attachment}`}  />)
+    : (  <Input label="New Attachment" type="file" name="attachment" />)}'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Run the application locally and inspect the new file input field on the expense
+    edit form.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We need to add a new route module that handles access to file attachments.
+    The new route module will be a resource route nested within the `dashboard/expenses/$id`
+    path. Let’s create the necessary route structure for the new route module:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Rename the `dashboard.expenses.$id.tsx` file to `dashboard.expenses.$id._index.tsx`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The route module still matches the same path as before. As an index route, it
+    now acts as the default child route for the `$id` path segment.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Update the `action` attribute on all forms that are submitted to `dashboard.expenses.$id._index.tsx`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We moved the `action` function in `dashboard.expenses.$id.tsx` to `dashboard.expenses.$id._index.tsx`.
+    This changes the `action` function’s path.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Open the `dashboard.expenses.tsx` parent route module and update the `deleteProps`
+    property of the `ListLinkItem` component:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Next, create a new splat route module named `dashboard.expenses.$id.attachments.$.tsx`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Splats are wildcard route parameters that match the rest of the URL path starting
+    from its location. Regardless of what subpath follows `/dashboard/expenses/$id/attachments/`,
+    the splat parameter matches and stores the subpath in `params['*']`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: For instance, if a user visits the `/dashboard/expenses/$id/attachments/bees/cool-bees.png`
+    URL path, then the `params['*']` splat parameter contains the `bees/cool-bees.png`
+    string.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Add the following code to the `dashboard.expenses.$id.attachments.$.tsx` splat
+    route module:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Sign or log in to BeeRich and create a new expense.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Navigate to an expense details page by clicking on an expense in the expense
+    overview list on the dashboard.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Append the: `/attachments/bees/cool-bees.png` path to the URL in the browser
+    window.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: You should see the `loader` functions, not just data for our route components.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Investigate the terminal and review the output of `console.log({ id, slug })`.
+    Change the URL in the browser window to see how the output changes.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Great! We created the required route module structure for our file upload functionality.
+    As always, make sure to update the income route files to practice what you’ve
+    learned in this section. Run the application locally to debug your implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, you learned how to set the encoding type on an HTML form element
+    and add file input fields. You further practiced working with splat route modules
+    and resource routes. Next, we will utilize Remix’s file upload helper functions
+    on the server to write the incoming files to the filesystem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Processing files on the server
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: There are several important considerations when handling file uploads on the
+    server, most importantly the file size. In this section, we will learn how to
+    process files in Remix’s `action` functions. We will start with a naïve implementation
+    before refactoring the code and taking more concerns into account.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading files into memory
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let’s get started by implementing some utilities for working with files:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a new `app/modules/attachments.server.ts` file.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Add the following code to `attachments.server.ts`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The added `writeFile` function accepts a file and writes it to the `public`
+    folder. Note that this is not our end solution but an intermediate step.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The way we access the filesystem depends on the underlying server runtime. BeeRich
+    runs on a Node.js runtime. Hence, in BeeRich, we use Node.js libraries to write
+    to the filesystem.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Open the `dashboard.expenses._index.tsx` route module.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Update the route module’s `action` function, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Run BeeRich locally to test the current implementation.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Fill out the expense creation form, attach a file, and click `public` folder
+    in your editor. Just like that, we can upload a file to the server and write it
+    to the filesystem.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: You can now access the file by navigating to [http://localhost:3000/$file-name](http://localhost:3000/$file-name).
+    Note that you must also add the file extension to the path.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Theoretically, we could now read the filename on the server and save it to the
+    expense object in the database. Since all files in the `public` folder are already
+    accessible over the web, we could let users access their files by linking to `/$filename`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Unfortunately, there are some limitations to the current naïve implementation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Filename collisions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: File size limitations
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Privacy concerns
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: With the current implementation, we do not manage filenames to avoid collisions.
+    What if two users upload a file with the same name? We also don’t handle file
+    size limitations. Large files can easily eat up the runtime memory on a server.
+    Hence, it is important that we either limit the file size a user can upload or
+    better implement the file upload handler in a way that it processes the incoming
+    file as a stream of data where the file is handled in chunks rather than trying
+    to load the whole file into memory at once.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Further, by storing files in the `public` folder, we make the files publicly
+    accessible. Anyone can try to guess filenames until they are lucky and able to
+    access a file of another user – this is a huge security concern, especially when
+    we are talking about sensitive data such as invoices and expenses.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Luckily, we can solve all these problems by taking advantage of Remix’s primitives
+    and conventions. Let’s solve the first two concerns first using Remix’s upload
+    handler helper functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using Remix’s upload handler helper functions
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Remix offers a set of helper functions to manage file uploads. We will use
+    the following ones to improve the current naïve implementation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`unstable_composeUploadHandlers`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`unstable_createFileUploadHandler`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`unstable_createMemoryUploadHandler`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`unstable_parseMultipartFormData`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Note that the functions currently include an `unstable_` prefix. This means
+    their implementation may be up to change in future releases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, create a new folder in the project’s root called `attachments`. This
+    is where we will store all attached files on the server.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Next, open the `app/modules/attachments.server.ts` file in your editor.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Remove the `writeFile` function.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Instead, use the `unstable_createFileUploadHandler` function to create a new
+    file upload handler:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `unstable_createFileUploadHandler` function takes a configuration object
+    to specify where to store the uploaded files. It also lets us set the `avoidFileConflicts`
+    flag to create unique filenames.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The `standardFileUploadHandler` function is responsible for writing the uploaded
+    files to the filesystem. Refer to the Remix documentation for more information
+    about the available configuration options: [https://remix.run/docs/en/2.0.0/utils/unstable-create-file-upload-handler](https://remix.run/docs/en/2.0.0/utils/unstable-create-file-upload-handler).'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, create a custom file upload handler function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Use Remix’s `unstable_composeUploadHandlers` function to compose our `attachmentsUploadHandler`
+    helper function and Remix’s `unstable_createMemoryUploadHandler`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: With that, we’ve created a higher-level `uploadHandler` helper function composed
+    of two upload handlers.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '`uploadHandler` calls the two handlers for each form data entry. First, we
+    attempt to handle the form data entry with `attachmentsUploadHandler`. If `attachmentsUploadHandler`
+    returns `null`, then we also attempt to handle the form data entry with `unstable_createMemoryUploadHandler`.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: As its name suggests, Remix’s `unstable_createMemoryUploadHandler` will handle
+    all other form data fields and upload them to server memory so that we can access
+    it, as usual, using the `FormData` interface.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Great work! Let’s update our `action` functions so that they utilize the new
+    upload handler:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Open the `dashboard.expenses._index.tsx` route module.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Remove the `writeFile` import and naïve implementation in the route module’s
+    `action` function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Import `unstable_parseMultipartFormData` from Remix:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'import { parseMultipartFormData to replace request.formData():'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Here, we let `unstable_parseMultipartFormData` handle the multipart form data
+    using our custom `uploadHandler`. `unstable_parseMultipartFormData` calls our
+    higher-order upload handler for every form data entry. The composed upload handler
+    loops through our upload handlers until one of them returns neither `null` nor
+    `undefined`. The attachment form data entry is processed by the file upload handler,
+    returning the file name of the uploaded file, or null if no file has been submitted.
+    `unstable_createMemoryUploadHandler` handles all other form data for us.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, add the code to read the attachment form data and update the database
+    query:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Congratulations! You successfully added a file upload to the expense creation
+    form. Make sure you apply the same changes to the income routes before moving
+    on to the next section. Reuse the helper functions in `attachments.server.ts`
+    to update the invoice creation `action` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preventing server memory overflows
+  prefs: []
+  type: TYPE_NORMAL
+- en: When working with file uploads, we must keep memory limitations in mind. Large
+    file sizes can easily overwhelm our servers. This is why it’s important to handle
+    incoming files in chunks instead of loading them fully into memory. Remix’s file
+    upload helpers help us avoid filenaming collisions and let us stream file data
+    to avoid server memory overflows.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we will update the expense edit form so that it can also handle file
+    uploads:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Open the `dashboard.expenses.$id._index.tsx` file in your editor.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Again, import `unstable_parseMultipartFormData` and `uploadHandler`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'export async function action({ params, request }: ActionFunctionArgs) {  const
+    userId = await requireUserId(request);  const { id } = params;  if (!id) throw
+    Error(''id route parameter must be defined'');action function distinguishes between
+    delete and update form submissions. The delete form submission originates from
+    the ListLinkItem component, while the update submission originates from the expense
+    edit form in the dashboard.expenses.$id._index.tsx route module.Earlier in the
+    chapter, we updated the expense edit form encoding to multi-part encoding, but
+    we did not do the same to the expense deletion form. Hence, the `action` function
+    must be able to support both multipart and URL-encoded form data. For this, we
+    use the `content-type` header to distinguish which form encoding has been used
+    and only use `parseMultipartFormData` for `multipart/form-data`.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, update the `updateExpense` function so that it reads the `attachment`
+    form data entry and adds the value to the database update query:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Add the following function to the `attachments.server.ts` file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`deleteAttachment` receives a `fileName` and deletes the associated file from
+    the `attachments` folder.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Import `deleteAttachment` in `dashboard.expenses.$id._index.tsx`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'async function removeAttachment(formData: FormData, id: string, userId: string):
+    Promise<Response> {  const attachmentUrl = removeAttachment is called within the
+    route module’s action function when the submit button carries the remove-attachment
+    value, which is implemented in the Attachment component.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Update the route module’s `action` function so that it handles the `remove-attachment`
+    form’s action intent:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, update the `deleteExpense` function in the same file to remove the
+    attachment when an expense is deleted:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Create an expense with an attachment. Check the `attachments` folder in your
+    editor.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Remove the attachment by clicking the `attachments` folder to see whether the
+    file was deleted successfully.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Next, add a new attachment to the same expense using the edit form and investigate
+    the `attachments` folder again.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Finally, delete the expense by clicking the **X** button in the expense overview
+    list and check whether the file was deleted:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 10.2 – Screenshot of the updated expense edit form](img/Figure_10.02_B17399.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 10.2 – Screenshot of the updated expense edit form
+  prefs: []
+  type: TYPE_NORMAL
+- en: As visible in *Figure 10**.2*, the expense edit form should now correctly switch
+    between the current attachment and the attachment input field if no attachment
+    is set. The `attachments` folder. Deleting an expense should also remove the associated
+    attached file from the `attachments` folder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before moving on, update the `income` routes to practice what you have learned
+    in this section. Once the `income` routes have been updated, you can move on to
+    the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, you learned how to work with Remix’s file upload helper functions.
+    You now understand the considerations that come into play when managing file uploads
+    and how to use Remix’s utilities to avoid memory and filenaming collisions. Next,
+    we will implement the splat route to give BeeRich users secure access to their
+    attachments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Authorizing access to assets with resource routes
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In [*Chapter 9*](B17399_09.xhtml#_idTextAnchor137), *Assets and Metadata Handling*,
+    you practiced exposing assets via resource routes. We will now expand on that
+    by dynamically creating a file download for the requested expense attachment.
+    We will implement the splat route responsible for exposing the attachments and
+    ensure that only authorized users can access their files:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let’s add one more helper function to the `attachments.server.ts` file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, open the `dashboard.expenses.$id.attachments.$.tsx` splat route module
+    and replace its content with the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: It’s time to test the implementation. Try to download a current attachment.
+    Clicking on the **Current Attachment** link should initiate a file download.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Great work! You implemented a full stack file upload feature in BeeRich that
+    spans several different forms, routes, and utilities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before moving on, make sure you implement the income splat route. Repeating
+    this work on the income routes will help you practice all the new concepts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Restricting access to user files
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is important to remember that files in the `public` folder are publicly accessible
+    over the internet. We must ensure that private user data is protected by authorization
+    code. In Remix, we can use resource routes to dynamically check access rights
+    before granting access to user files.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, you learned how to create dynamic responses and expose assets
+    via resource routes. You now understand how to authorize users in resource routes
+    to restrict access. Next, we will discuss forwarding files to third-party services.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Forwarding files to third-party services
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we are hosting our user files on the server’s filesystem. This is sufficient
+    for the educative scope of BeeRich. However, when working with user files, we
+    should also consider hosting them on a dedicated file storage service. This section
+    quickly outlines what else we need to consider when working with user files.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hosting user files directly on a web server may not be sufficient for most use
+    cases. Hosting files locally may be hard to scale and requires you to secure sensitive
+    user files and backups on your systems. Additionally, reading and writing to disk
+    might create a lot of overhead for the web server that can be avoided by delegating
+    the reads and writes to a third-party service.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Most popular third-party storage services offer APIs to stream files. This allows
+    us to receive the file upload as a stream of data so that we can forward the stream
+    to a third-party service. After the upload is completed, the storage API usually
+    provides a URL to the uploaded file, which we can use in our database to link
+    to the new file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remix’s upload handler primitives let you create custom handlers for different
+    third-party services. Instead of writing to the local filesystem, we can create
+    an upload handler that streams the data to a cloud provider.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Popular file hosting providers include AWS S3, Cloudflare, Cloudinary, Firebase,
+    and Vercel. You can find an example implementation that uses Cloudinary in the
+    *Further* *reading* section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you learned how to add files to HTML forms and how to handle
+    file uploads in Remix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: HTML forms support different encoding types. Multipart form encoding adds the
+    form data to the response body. This is required when appending binary data, such
+    as files. On the server, we can then stream in the response body and handle the
+    uploaded files in chunks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By reading this chapter, you now understand that Remix provides a set of file
+    upload utilities for handling file uploads. Remix utilities help us avoid filenaming
+    collisions and allow us to configure file size limits and file streaming. We can
+    further compose several file upload handlers together and implement custom wrappers
+    by implementing the `UploadHandler` type.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, you learned how to restrict access to a resource route by authenticating
+    user sessions and ensuring authorized database queries that query for a unique
+    combination of entity `id` and user `id`. We must not place user files in the
+    `public` folder. Instead, we must leverage resource routes and custom authorization
+    logic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we discussed the usage of third-party file hosting services. You now
+    understand that using a third-party service may be more scalable and allow us
+    to offload much of the complexity of storing files to a third-party service.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Congratulations! Just like that, you made it through the second part of this
+    book. In the next chapter, we’ll kick off the advanced topics of this book and
+    learn more about optimistic UIs. Keep going to unlock the full potential of the
+    web platform with Remix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'You can learn more about the HTML form element’s `enctype` property via MDN
+    Web Docs: [https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/enctype](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/enctype).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can find additional information about HTTP POST requests via MDN Web Docs:
+    [https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/POST](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/POST).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Review this example implementation from Remix’s example repository for uploading
+    files to Cloudinary: [https://github.com/remix-run/examples/tree/main/file-and-cloudinary-upload](https://github.com/remix-run/examples/tree/main/file-and-cloudinary-upload).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can learn more about Remix’s file upload helpers by reading the Remix documentation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://remix.run/docs/en/2.0.0/utils/parse-multipart-form-data](https://remix.run/docs/en/2.0.0/utils/parse-multipart-form-data)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[https://remix.run/docs/en/2.0.0/utils/unstable-create-file-upload-handler](https://remix.run/docs/en/2.0.0/utils/unstable-create-file-upload-handler)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[https://remix.run/docs/en/2.0.0/utils/unstable-create-memory-upload-handler](https://remix.run/docs/en/2.0.0/utils/unstable-create-memory-upload-handler)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Part 3 – Advanced Concepts of Full Stack Web Development with Remix
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this final part, you will practice advanced concepts of full stack web development,
+    such as optimistic UI, caching strategies, HTML streaming, and real-time data
+    updates. You will again iterate on BeeRich to practice the studied concepts. You
+    will also dig deeper into session management and understand what it means to deploy
+    to the edge. Finally, you will learn about migration strategies to Remix and learn
+    how to keep a Remix application up to date.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This part has the following chapters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[*Chapter 11*](B17399_11.xhtml#_idTextAnchor167), *Optimistic UI*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[*Chapter 12*](B17399_12.xhtml#_idTextAnchor181), *Caching Strategies*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[*Chapter 13*](B17399_13.xhtml#_idTextAnchor194), *Deferring Loader Data*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[*Chapter 14*](B17399_14.xhtml#_idTextAnchor204), *Real-Time with Remix*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[*Chapter 15*](B17399_15.xhtml#_idTextAnchor214)*,* *Advanced Session Management*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[*Chapter 16*](B17399_16.xhtml#_idTextAnchor221), *Developing for the Edge*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[*Chapter 17*](B17399_17.xhtml#_idTextAnchor230), *Migration and Upgrade Strategies*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

@@ -1,0 +1,1287 @@
+- en: '*Chapter 9*: Implementing Server-Side Rendering'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: With our progress from the last chapter, we are now serving multiple pages under
+    different paths with our **React** application. Currently, all of the routing
+    happens directly on the client. In this chapter, we will look at the advantages
+    and disadvantages of **server-side rendering** (**SSR**). By the end of the chapter,
+    you will have configured **Graphbook** to serve all pages as pre-rendered HTML
+    from the server instead of the client.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter covers the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing SSR
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Setting up SSR in **Express.js** to render React on the server
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Enabling **JSON Web Token** (**JWT**) authentication in connection with SSR
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Running all of our **GraphQL** queries in the React tree
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The source code for this chapter is available in the following **GitHub** repository:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://github.com/PacktPublishing/Full-Stack-Web-Development-with-GraphQL-and-React-Second-Edition/tree/main/Chapter09](https://github.com/PacktPublishing/Full-Stack-Web-Development-with-GraphQL-and-React-Second-Edition/tree/main/Chapter09)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing SSR
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: First, you have to understand the differences between using a server-side-rendered
+    and a client-side-rendered application. There are numerous things to bear in mind
+    when transforming a pure client-side-rendered application to support SSR. In our
+    application, the current user flow begins with the client requesting a standard
+    `index.html` file. This file includes only a small number of things, such as a
+    small `body` object with one `div` element, a `head` tag with some very basic
+    `meta` tags, and a vital `script` tag that downloads the bundled `index.html`
+    and the `bundle.js` files. Then, the client's browser begins processing the React
+    markup that we wrote. When React has finished evaluating the code, we see the
+    HTML of the application that we wanted to see. All CSS files or images are also
+    downloaded from our server, but only when React has inserted the HTML into the
+    browser's **Document Object Model** (**DOM**). During the rendering by React,
+    the **Apollo** components are executed and all of the queries are sent. These
+    queries are, of course, handled by our backend and database.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In comparison with SSR, the client-side approach is straightforward. Before
+    the development of **Angular**, **Ember**, **React**, and other JavaScript frameworks,
+    the conventional approach was to have a backend that implemented all of the business
+    logic and also a high number of templates or functions that returned valid HTML.
+    The backend queried the database, processed the data, and inserted the data into
+    the HTML. The HTML was directly served at the request of the client. The browser
+    then downloaded the JavaScript, CSS, and image files according to the HTML. Most
+    of the time, the JavaScript was only responsible for allowing dynamic content
+    or layout changes, rather than rendering the entire application. This could include
+    drop-down menus, accordions, or just pulling new data from the backend via **Ajax**.
+    The main HTML of the application, however, was directly returned from the backend,
+    which resulted in a monolith application. A significant benefit of this solution
+    is that the client does not need to process all of the business logic, as it has
+    already been done on the server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, when we talk about SSR in the context of React applications, we are
+    referring to something different. At this point in the book, we have written a
+    React application that renders on the client. We do not want to re-implement the
+    rendering for the backend in a slightly different way. We also don't want to lose
+    the ability to change data, pages, or the layout dynamically in the browser, as
+    we already have an excellent working application with many interaction possibilities
+    for the user.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An approach that allows us to make use of the pre-rendered HTML – as well as
+    the dynamic features provided by React – is called **universal rendering**. With
+    universal rendering, the first request of the client includes a pre-rendered HTML
+    page. The HTML should be the exact HTML that the client generates when processing
+    it on its own. If this is the case, React can reuse the HTML provided by the server.
+    Since SSR not only involves reusing HTML but also saving requests made by Apollo,
+    the client also needs a starting cache that React can rely on. The server makes
+    all of the requests before sending the rendered HTML and inserts a state variable
+    for Apollo and React into the HTML. The result is that on the first request by
+    the client, our frontend should not need to rerender or refresh any HTML or data
+    that is returned by the server. For all following actions, such as navigating
+    to other pages or sending messages, the same client-side React code from before
+    is used. In other words, SSR is only used on the first page load. Afterward, these
+    features do not require SSR because the client-side code continues to work dynamically,
+    as it did before.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's get started with writing some code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up SSR in Express.js to render React on the server
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this example, the first step is to implement basic SSR on the backend. We
+    are going to extend this functionality later to validate the authentication of
+    the user. An authenticated user allows us to execute Apollo or GraphQL requests
+    rather than only render the pure React markup. First, we need some new packages.
+    Because we are going to use universally rendered React code, we require an advanced
+    webpack configuration. Therefore, we will install the following packages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s quickly go through the packages that we are installing. We only need
+    these packages for development:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first webpack module, called `webpack-dev-middleware`, allows the backend
+    to serve bundles that are generated by webpack, but from memory and without creating
+    files. This is convenient for cases in which we need to run JavaScript directly
+    and do not want to use separate files.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The second package, called `webpack-hot-middleware`, only handles client-side
+    updates. If a new version of a bundle is created, the client is notified, and
+    the bundle is exchanged.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The last package, called `@babel/cli`, allows us to introduce the great features
+    that **Babel** provides to our backend. We are going to use React code that has
+    to be transpiled.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In a production environment, it is not recommended to use these packages. Instead,
+    the bundle is built once before deploying the application. The client downloads
+    the bundle when the application has gone live.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For development with SSR enabled, the backend uses these packages to distribute
+    the bundled React code to the client after the SSR has finished. The server itself
+    relies on the plain `src` files and not on the webpack bundle that the client
+    receives.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We also depend on one further essential package, shown as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: To set up `window.fetch` method. Apollo Client uses this to send GraphQL requests,
+    which is why we install `node-fetch` as a polyfill. We are going to set up Apollo
+    Client for the backend later in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before starting with the primary work, ensure that your `NODE_ENV` environment
+    variable is set to `development`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, head over to the server's `index.js` file, where all of the Express.js
+    magic happens. We didn't cover this file in the previous chapter because we are
+    going to adjust it now to support SSR including the routing directly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we will set up the development environment for SSR, as this is essential
+    for our next tasks. Follow these steps to get your development environment ready
+    for SSR:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first step is to import two new webpack modules: `webpack-dev-middleware`
+    and `webpack-hot-middleware`. These should only be used in a development environment,
+    so we should require them conditionally by checking the environment variables.
+    In a production environment, we generate the webpack bundles in advance. In order
+    to only use the new packages in development, put the following code underneath
+    the setup for the Express.js helmet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: After loading these packages, we will also require webpack, as we will parse
+    a new webpack configuration file. The new configuration file is only used for
+    the SSR.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: After both webpack and the configuration file have been loaded, we will use
+    the `webpack(config)` command to parse the configuration and create a new webpack
+    instance.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Next, we are going to create the webpack configuration file. To do this, we
+    pass the created webpack instance to our two new modules. When a request reaches
+    the server, the two packages take action according to the configuration file.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The new configuration file has only a few small differences as compared to
+    the original configuration file, but these have a big impact. Create the new `webpack.server.config.js`
+    file, and enter the following configuration:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We have made three changes in the preceding configuration in comparison to
+    the original `webpack.client.config.js` file, and these are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the `entry` property, we now have multiple entry points. The `index` file
+    for the frontend code, as before, is one entry point. The second one is the new
+    `webpack-hot-middleware` module, which initiates the connection between the client
+    and the server. The connection is used to send the client notifications to update
+    the bundle to a newer version.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: I removed the `devServer` field, as this configuration does not require webpack
+    to start its own server. Express.js is the web server, which we are already using
+    when loading the configuration.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The plugins are entirely different from those of the client's webpack configuration.
+    We do not need `CleanWebpackPlugin`, as this cleans the `dist` folder, nor the
+    `HtmlWebpackPlugin` plugin, which inserts the webpack bundles into the `index.html`
+    file; this is handled by the server differently. These plugins are only useful
+    for client-side development. Now, we have `HotModuleReplacementPlugin` , which
+    enables `NamedModulesPlugin` displays the relative paths for modules injected
+    by HMR. Both plugins are only recommended for use in development.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The webpack preparation is now finished.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we have to focus on how to render React code and how to serve the generated
+    HTML. However, we cannot use the existing React code that we have written. First,
+    there are specific adjustments that we have to make to the main files: `index.js`,
+    `App.js`, `router.js`, and `apollo/index.js`. Many packages that we use, such
+    as **React Router** or Apollo Client, have default settings or modules that we
+    have to configure differently when they are executed on the server.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will begin with the root of our React application, which is the `index.js`
+    file. We are going to implement an individual SSR `index` file, as there are server-specific
+    adjustments to do.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create a new folder called `ssr` inside the `server` folder. Then, insert the
+    following code into an `index.js` file inside the `ssr` folder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding code is a modified version of our client `index.js` root file.
+    The changes that the file has gone through are listed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Instead of using the `ReactDOM.render` function to insert the HTML into the
+    DOMNode with the `root` ID, we are now exporting a React component. The returned
+    component is called `ServerClient`. There is no DOM that we can access to let
+    `ReactDOM` render anything, so we skip this step when rendering on the server.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `ApolloProvider` component now receives Apollo Client directly from the
+    `ServerClient` properties, whereas we previously set up Apollo Client directly
+    inside this file by importing the `index.js` file from the `apollo` folder and
+    passing it to the provider. You will soon see why we are doing this.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The last change we made was to extract a `location` and a `context` property.
+    We pass these properties to the `App` component. In the original version, there
+    were no properties passed to the `App` component. Both properties are required
+    in order to configure React Router to work with SSR. We are going to implement
+    the properties later in the chapter.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Before looking at why we made these changes in more detail, let''s create the
+    new `App` component for the backend. Create an `app.js` file next to the `index.js`
+    file in the `ssr` folder, and insert the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following are a few changes that we made:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first change, in comparison to the original client-side `App` component,
+    was to adjust the `import` statements to load the router and the `fontawesome`
+    component from the `client` folder, as they do not exist in the `server` folder.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The second change was to remove the `useEffect` Hooks and the `localStorage`
+    access. We did this because the authentication that we built uses the `localStorage`
+    access. This is fine for client-side authentication. Neither `useEffect` Hook
+    is only called on the client side. This is why we remove the authentication when
+    moving our application to SSR. We are going to replace the `localStorage` implementation
+    with cookies in a later step. For the moment, the user stays logged out of the
+    server.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The last change involves passing the two new properties, `context` and `location`,
+    to the `Router` component in the preceding code.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'React Router provides instant support for SSR. Nevertheless, we need to make
+    some adjustments. The best way is that we use the same router for the backend
+    and frontend, so we do not need to define routes twice, which is inefficient and
+    can lead to problems. Open the `router.js` file inside the `client` folder and
+    follow these steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Change the `import` statement for the `react-router-dom` package to look like
+    the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Insert the following code to extract the correct router:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: After importing the React Router package, we check whether the file is executed
+    on the server or the client by looking for the `window` object. Since there is
+    no `window` object in Node.js, this is a sufficient check. An alternative approach
+    would be to set up the `Switch` component, including the routes, in a separate
+    file. This approach would allow us to import the routes directly into the correct
+    router if we create two separate router files for client-side and server-side
+    rendering.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: If we are on the client side, we use `BrowserRouter`, and if not, we use `StaticRouter`.
+    Here, the logic is that with `StaticRouter`, we are in a stateless environment,
+    where we render all routes with a fixed location. The `StaticRouter` component
+    does not allow for the location to be changed by redirects because no user interaction
+    can happen when using SSR. The other components, `Route`, `Redirect`, and `Switch`,
+    can be used as before.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Regardless of which routers are extracted, we save them in the `Router` variable.
+    We then use them in the return statement of the `routing` component.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We prepared the `context` and `location` properties, which are passed from
+    the top `ServerClient` component to the `Router` variable. If we are on the server,
+    these properties should be filled, because the `StaticRouter` object requires
+    them. You can replace the `Router` tag in the bottom `Routing` component, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `location` object holds the path that the router should render. The `context`
+    variable stores all of the information the `Router` component processes, such
+    as redirects. We can inspect this variable after rendering the `Router` component
+    to trigger the redirects manually. This behavior is the big difference between
+    `BrowserRouter` and `StaticRouter`. In the first case, `BrowserRouter` redirects
+    the user automatically, but `StaticRouter` does not.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The crucial components to render our React code successfully have now been prepared.
+    However, there are still some modules that we have to initialize before rendering
+    anything with React. Open the `index.js` server file again. At the moment, we
+    are serving the `dist` path statically on the root/path for `http://localhost:8000`.
+    When moving to SSR, we have to serve the HTML generated by our React application
+    at the `/` path instead.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Furthermore, any other path, such as `/app`, should also use SSR to render
+    those paths on the server. Remove the current `app.get` method at the bottom of
+    the file, which is right before the `app.listen` method. Then, insert the following
+    code as a replacement:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first line of the code should replace the old static route. It introduces
+    a new option called `index`, which will disable serving the `index.html` file
+    at the root path.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The asterisk (`*`) that we are using in the preceding code can overwrite any
+    path that is defined later in the Express.js routing. Always remember that the
+    `services` routine that we use in Express.js can implement new paths, such as
+    `/graphql`, that we do not want to overwrite. To avoid this, put the code at the
+    bottom of the file, below the `services` setup. The route catches any requests
+    sent to the backend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can try out this route by running the `npm run server` command. Just visit
+    `http://localhost:8000` to do this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Currently, the preceding catch-all route only returns an empty site, with a
+    status of `200`. Let's change this. The logical step would be to load and render
+    the `ServerClient` component from the `index.js` file of the `ssr` folder, as
+    it is the starting point of the React SSR code. The `ServerClient` component,
+    however, requires an initialized Apollo Client instance, as we explained before.
+    We are going to create a special Apollo Client instance for SSR next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create a `ssr/apollo.js` file, as it does not exist yet. We will set up Apollo
+    Client in this file. The content is nearly the same as the original setup for
+    the client:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'However, there are a few changes that we made to get the client working on
+    the server. These changes were pretty big, so we created a separate file for the
+    server-side Apollo Client setup. Take a look at the changes (as follows) to understand
+    the differences between the frontend and the SSR setup for Apollo Client:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Instead of using the `createUploadLink` function that we introduced to allow
+    the user to upload images or other files, we are now using the standard `HttpLink`
+    class again. You could use the `UploadClient` function, but the functionalities
+    it provides won't be used on the server, as the server won't upload files.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `AuthLink` function skips to the next link, as we have not implemented server-side
+    authentication yet.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `HttpLink` object receives the `fetch` property, which is filled by the
+    `node-fetch` package that we installed at the beginning of the chapter. This is
+    used instead of the `window.fetch` method, which is not available in Node.js.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Rather than exporting the `client` object directly, we export a wrapping function
+    that accepts a `request` object. We pass it as a parameter in the Express.js route.
+    As you can see in the preceding code example, we haven't used the object yet,
+    but that will change soon.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Import the `ApolloClient` component at the top of the server `index.js` file,
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: The imported `ApolloClient` function accepts the `request` object of our Express.js
+    server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Add the following line to the top of the new Express.js catch-all route:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: This way, we set up a new `client` instance that we can hand over to our `ServerClient`
+    component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can continue and implement the rendering of our `ServerClient` component.
+    To make the future code work, we have to load React and, of course, the `ServerClient`
+    component itself:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `ServerClient` component is imported under the `Graphbook` name. We import
+    React because we use the standard **JSX** syntax when rendering our React code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have access to Apollo Client and the `ServerClient` component,
+    insert the following two lines below the `ApolloClient` setup in the Express.js
+    route:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: We pass the initialized `client` variable to the `Graphbook` component. We use
+    the regular React syntax to pass all properties. Furthermore, we set the `location`
+    property to the request object's `url` object, to tell the router which path to
+    render. The `context` property is passed as an empty object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, why do we pass an empty object as `context` to the router at the end?
+  prefs: []
+  type: TYPE_NORMAL
+- en: The reason is that after rendering the `Graphbook` component to HTML, we can
+    access the `context` object and see whether a redirect (or something else) would
+    have been triggered regularly. As we mentioned before, redirects have to be implemented
+    by the backend code. The `StaticRouter` component of React Router does not make
+    assumptions about the Node.js web server that you are using. That is why `StaticRouter`
+    does not execute them automatically. Tracking and post-processing these events
+    is possible with the `context` variable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The resulting React object is saved to a new variable, which is called `App`.
+    Now, there should be no errors if you start the server with `npm run server` and
+    visit `http://localhost:8000`. Still, we see an empty page. That happens because
+    we only return an empty HTML page; we haven''t rendered the React `App` object
+    to HTML. To render the object to HTML, import the following package at the top
+    of the server `index.js` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `react-dom` package not only provides bindings for the browser but also
+    provides a special module for the server, which is why we use the `/server` suffix
+    when importing it. The returned module provides a number of server-only functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: To learn some more advanced features of SSR and the dynamics behind it, you
+    should read up on the official documentation of the server package of `react-dom`
+    at [https://reactjs.org/docs/react-dom-server.html](https://reactjs.org/docs/react-dom-server.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can translate the React `App` object into HTML by using the `ReactDOM.rendertoString`
+    function. Insert the following line of code beneath the `App` object:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: This function generates HTML and stores it inside the `content` variable. The
+    HTML can be returned to the client now. If you return pre-rendered HTML from the
+    server, the client goes through it and checks whether its current state would
+    match the returned HTML. The comparison is made by identifying certain points
+    in the HTML, such as the `data-reactroot` property.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If, at any point, the markup between the server-rendered HTML and that which
+    the client would generate does not match, an error is thrown. The application
+    will still work, but the client will not be able to make use of SSR; the client
+    will replace the complete markup returned from the server by rendering everything
+    again. In this case, the server's HTML response is thrown away. This is, of course,
+    very inefficient and not what we are aiming for.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We have to return the rendered HTML to the client. The HTML that we have rendered
+    begins with the root `div` tag and not the `html` tag. We must wrap the `content`
+    variable inside a template that includes the surrounding HTML tags. So, create
+    a `template.js` file inside the `ssr` folder, and enter the following code to
+    implement the template for our rendered HTML:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding code is pretty much the same HTML markup as that in the `index.html`
+    file that we usually serve to the client. The difference is that here, we use
+    React and `ReactDOM` .
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, we export a function, which accepts the `content` variable with the rendered
+    HTML.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, we render a `link` tag inside the `head` tag, which downloads the CSS
+    bundle if we are in a production environment. For our current development scenario,
+    there is no bundled CSS.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The important part is that we use a new `ReactDOM` function called `rendertoStaticMarkup`
+    inside the `body` tag. This function inserts the React `root` tag into the body
+    of our HTML template. Before, we used the `renderToString` method, which included
+    special React tags, such as the `data-reactroot` property. Now, we use the `rendertoStaticMarkup`
+    function to generate standard HTML without special React tags. The only parameter
+    that we pass to the function is the `div` tag with the `root` ID and a new property,
+    `dangerouslySetInnerHTML`. This attribute is a replacement for the regular `innerHTML`
+    attribute, but for use in React. It lets React insert the HTML inside the root
+    `div` tag. As the name suggests, it is dangerous to do this, but only if it is
+    done on the client, as there is no possibility for `ReactDOM.renderToStaticMarkup`
+    function to make use of the attribute. The inserted HTML was initially rendered
+    with the `renderToString` function so that it would include all of the critical
+    React HTML attributes and the wrapping `div` tag with the `root` ID. It can then
+    be reused in the browser by the frontend code without any problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We require this `template.js` file in the server `index` file, at the top of
+    the file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The template function can now be used directly in the `res.send` method, as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: We do not only return a `doctype` object anymore; we also respond with the return
+    value of the `template` function. As you should see, the `template` function accepts
+    the rendered `content` variable as a parameter and composes it to a valid HTML
+    document.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At this point, we have managed to get our first version of a server-side-rendered
+    React application working. You can prove this by right-clicking in your browser
+    window and choosing to view the source code. The window shows you the original
+    HTML that is returned by the server. The output equals the HTML from the `template`
+    function, including the login and signup forms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Nevertheless, there are two problems that we face:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is no description meta `head` tag included in the server response. Something
+    must have gone wrong with React `Helmet`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: When logged in on the client side and, for example, viewing the news feed under
+    the `/app` path, the server responds without having rendered the news feed or
+    the login form. Normally, React Router would have redirected us to the login form
+    since we are not logged in on the server side. However, since we use `StaticRouter`,
+    we have to initiate the redirect separately, as we explained before. We are going
+    to implement the authentication in a separate step.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We will start with the first issue. To fix the problem with React `Helmet`,
+    import it at the top of the server `index.js` file, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, before setting the response status with `res.status`, you can extract
+    the React `Helmet` status, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `renderStatic` method is specially made for SSR. We can use it after having
+    rendered the React application with the `renderToString` function. It gives us
+    all of the `head` tags that would have been inserted throughout our code. Pass
+    this `head` variable to the `template` function as a second parameter, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Go back to the `template.js` file from the `ssr` folder. Add the `head` parameter
+    to the exported function''s signature. Then, add the following two new lines of
+    code to the HTML''s `head` tag:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `head` variable extracted from React `Helmet` holds a property for each
+    `meta` tag. These tags provide a `toString` function that returns a valid HTML
+    tag, which you can directly enter into the document''s `head` object. The first
+    problem should be fixed: all `head` tags are now inside the server''s HTML response.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's focus on the second problem. The server response returns an empty React
+    `root` tag when visiting a `PrivateRoute` component. As we explained previously,
+    the reason for this is that the naturally initiated redirect does not get through
+    to us, as we are using `StaticRouter`. We are redirected away from the `PrivateRoute`
+    component because the authentication is not implemented for the server-side-rendered
+    code. The first thing to fix is to handle the redirect, and we should also at
+    least respond with the login form, instead of an empty React `root` tag. Later,
+    we need to fix the authentication problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You would not notice this problem without viewing the source code of the server's
+    response. The frontend downloads the `bundle.js` file and triggers the rendering
+    on its own, as it knows about the authentication status of the user. The user
+    would not notice that. Still, it is more efficient if the server sends the correct
+    HTML directly. The HTML will be wrong if the user is logged in, but in the case
+    of an unauthenticated user, the login form is pre-rendered by the server as it
+    initiates the redirects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To fix this issue, we can access the `context` object that has been filled
+    by React Router after it has used the `renderToString` function. The final Express.js
+    route should look like the following code example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: The condition for rendering the correct route on the server is that we inspect
+    the `context.url` property. If it is filled, we can initiate a redirect with Express.js.
+    This will navigate the browser to the correct path. If the property is not filled,
+    we can return the HTML generated by React.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This route renders the React code correctly up to the point at which authentication
+    is required. The SSR route correctly renders all public routes, but none of the
+    secure routes. That means that we only respond with the login form at the moment,
+    as it is the only route that doesn't require authentication.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next step is to implement authentication in connection with SSR to fix this
+    huge issue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Authentication with SSR
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You should have noticed that we have removed most of the authentication logic
+    from the server-side React code. The reason for this is that `localStorage` cannot
+    be transmitted to the server on the initial loading of a page, which is the only
+    case where SSR can be used at all. This leads to the problem that we cannot render
+    the correct route because we cannot verify whether a user is logged in. The authentication
+    has to be transitioned to cookies, which are sent with every request.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is important to understand that cookies also introduce some security issues.
+    We will continue to use the regular HTTP authorization header for the GraphQL
+    API that we have written. If we use cookies for the GraphQL API, we will expose
+    our application to potential **cross-site request forgery** (**CSRF**) attacks.
+    The frontend code continues to send all GraphQL requests with the HTTP authorization
+    header.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will only use the cookies to verify the authentication status of a user and
+    to initiate requests to our GraphQL API for the SSR of the React code. The SSR
+    GraphQL requests will include the authorization cookie's value in the HTTP authorization
+    header. Our GraphQL API only reads and verifies this header and does not accept
+    cookies. As long as you do not mutate data when loading a page and only query
+    for the data to render, there will be no security issues.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Tip
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the topic of CSRF and XSS is important, I recommend that you read up on it
+    in order to fully understand how to protect yourself and your users. You can find
+    a great article at [https://www.owasp.org/index.php/Cross-Site_Request_Forgery_(CSRF)](https://www.owasp.org/index.php/Cross-Site_Request_Forgery_(CSRF)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, just follow these instructions to get authentcation on SSR running:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first thing to do is install a new package with `npm`, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Import the `cookies` and `jwt` packages, and also extract the `JWT_SECRET`
+    string from the environment variables at the top of the server `index.js` file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: To use the `cookies` package, we are going to set up a new middleware route.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Insert the following code before initializing the webpack modules and the services
+    routine:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This new Express.js middleware initializes the `cookies` package under the `req.cookies`
+    property for every request that it processes. The first parameter of the `Cookies`
+    constructor is the request, the second is the response object, and the last is
+    an `options` parameter. This takes an array of `keys` with which the cookies are
+    signed. The keys are required if you want to sign your cookies for security reasons.
+    You should take care of this in a production environment. You can also specify
+    a `secure` property, which ensures that the cookies are only transmitted on secure
+    HTTPS connections.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We can now extract the `authorization` cookie and verify the authentication
+    of the user. To do this, replace the beginning of the SSR route with the following
+    code in the server''s `index.js` file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Here, I have added the `async` declaration to the callback function because
+    we use the `await` statement inside it. The second step is to extract the `authorization`
+    cookie from the request object with `req.cookies.get`. Importantly, we specify
+    the `signed` field in the `options` parameter, because only then will it successfully
+    return the signed cookies.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The extracted value represents the JWT that we generate when a user logs in.
+    We can verify this with the typical approach that we implemented in [*Chapter
+    6*](B17337_06_Final_ASB_ePub.xhtml#_idTextAnchor141), *Authentication with Apollo
+    and React*. That is, we use the `await` statement when verifying the JWT. If an
+    error is thrown, the user is not logged in. The state is saved in the `loggedIn`
+    variable.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Pass the `loggedIn` variable to the `Graphbook` component, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now, we can access the `loggedIn` property inside `index.js` from the `ssr`
+    folder.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Extract the `loggedIn` state from the properties, and pass it to the `App`
+    component in the `ssr` folder''s `index.js` file, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Inside the `App` component, we do not need to set the `loggedIn` state directly
+    to `false`, but we can take the property's value because it is determined before
+    the `App` component is rendered. This flow is different from the client procedure,
+    where the `loggedIn` state is determined inside the `App` component.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Change the `App` component in the `app.js` file in order to match the following
+    code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Here, the result is that we pass down the `loggedIn` value from our Express.js
+    route, over the `Graphbook` and `App` components, to our `Router` component. This
+    already accepts the `loggedIn` property in order to render the correct path for
+    the user. At the moment, we still do not set the cookie on the backend when a
+    user successfully logs in.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Open the `resolvers.js` file of our GraphQL server to fix that. We will change
+    a few lines for the `login` and `signup` functions. Both resolver functions need
+    the same changes, as both set the authentication token after login or signup.
+    So, insert the following code directly above the return statement:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding function sets the cookies for the user''s browser. The context
+    object is only the Express.js `request` object where we have initialized the cookies
+    package. The properties of the `cookies.set` function are pretty self-explanatory,
+    but let''s describe them as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: a. The `signed` field specifies whether the keys entered during the initialization
+    of the `cookies` object should be used to sign the cookie's value.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'b. The `expires` property takes a `date` object. It represents the time until
+    which the cookie is valid. You can set the property to whatever date you want,
+    but I would recommend a short period, such as one day. Insert the following code
+    above the `context.cookies.set` statement in order to initialize the `expirationDate`
+    variable correctly:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: c. The `httpOnly` field secures the cookie so that it is not accessible by client-side
+    JavaScript.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: d. The `secure` property has the same meaning as it did when initializing the
+    `Cookie` package. It restricts cookies to SSL connections only. This is a must
+    when going to production, but it cannot be used when developing, as most developers
+    develop locally, without an SSL certificate.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: e. The `sameSite` field takes either `strict` or `lax` as a value. I recommend
+    setting it to `strict`, as you want your GraphQL API or server to receive the
+    cookie with every request, but you also want to exclude all cross-site requests,
+    as this could be dangerous.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Now, we should clean up our code. Since we are using cookies, we can remove
+    the `localStorage` authentication flow in the frontend code. Open the `App.js`
+    file in the `client` folder. Remove the `componentWillMount` method, as we are
+    reading from `localStorage` there.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The cookies are automatically sent with any request, and they do not need a
+    separate binding as `localStorage` does. That also means that we need a special
+    `logout` mutation that removes the cookie from the browser. JavaScript is not
+    able to access or remove the cookie because we specified it as `httpOnly`. Only
+    the server can delete it from the client.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Create a new `logout.js` file inside the `mutations` folder in order to create
+    a `logout` mutation Hook. The content should look like the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The preceding Hook only sends a simple `logout` mutation, without any parameters
+    or further logic.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We should use the function inside the `logout.js` file of the `bar` folder
+    in order to send the GraphQL request. Import the component at the top of the file,
+    as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Replace the `logout` method with the following code, in order to send the mutation
+    upon clicking the `logoutMutation` function. This sends the GraphQL request to
+    our server.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'To implement the mutation on the backend, add one line to the GraphQL `RootMutation`
+    type, inside `schema.js`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: It's required that the user that's trying to log out is authorized, so we use
+    the `@auth` directive.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The corresponding resolver function is as follows. Add it to the `resolvers.js`
+    file in the `RootMutation` property:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The resolver function is minimal. It removes the cookie by setting the expiration
+    date to the current time. This removes the cookie on the client when the browser
+    receives the response because it is expired at that point. This behavior is an
+    advantage in comparison to `localStorage`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We have completed everything to make the authorization work with SSR. It is
+    a very complex task, since authorization, SSR, and CSR have effects on the whole
+    application. Every framework out there has its own approach to implementing this
+    feature, so please take a look at them too.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you look at the source code returned from our server after the rendering,
+    you should see that the login form is returned correctly, as it was before. Furthermore,
+    the server now recognizes whether the user is logged in. However, the server does
+    not yet return the rendered news feed, the application bar, or the chats. Only
+    a loading message is included in the returned HTML. The client-side code also
+    does not recognize that the user is logged in. We will take a look at these problems
+    in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Running Apollo queries with SSR
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: By nature, GraphQL queries via `HttpLink` are asynchronous. We have implemented
+    a `loading` component to show the user a loading message while the data is being
+    fetched.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is the same thing that is happening while rendering our React code on the
+    server. All of the routing is evaluated, including whether we are logged in. If
+    the correct route is found, all GraphQL requests are sent. The problem is that
+    the first rendering of React returns the loading state, which is sent to the client
+    by our server. The server does not wait until the GraphQL queries are finished
+    and it has received all of the responses to render our React code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will fix this problem now. The following is a list of things that we have
+    to do:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We need to implement authentication for the SSR Apollo Client instance. We already
+    did this for the routing, but now, we need to pass the cookie to the server-side
+    GraphQL request too.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We need to use a React Apollo-specific method to render the React code asynchronously
+    in order to wait for all responses of the GraphQL requests.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Importantly, we need to return the Apollo cache state to the client. Otherwise,
+    the client will re-fetch everything, as its state is empty upon the first load
+    of the page.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let''s get started, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first step is to pass the `loggedIn` variable from the Express.js SSR route
+    to the `ApolloClient` function as a second parameter. Change the `ApolloClient`
+    call inside the server''s `index.js` file to the following line of code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Change the signature of the exported function from the `apollo.js` file to also
+    include this second parameter.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Replace the `AuthLink` function inside the Apollo Client''s setup for SSR with
+    the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This `AuthLink` adds the cookies to the GraphQL requests by using the `request`
+    object given by Express.js. The `request` object already holds the initialized
+    cookies package, which we use to extract the authorization cookie. This only needs
+    to be done if the user has been verified as logged in previously.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Import a new function from the Apollo package inside the server''s `index.js`
+    file. Replace the import of the `ReactDOM` package with the following line of
+    code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Originally, we used the `ReactDOM` server methods to render the React code
+    to HTML. These functions are synchronous; that is why the GraphQL request did
+    not finish. To wait for all GraphQL requests, replace all of the lines – beginning
+    from the `rendertoString` function until the end of the SSR route inside the server''s
+    `index.js` file. The result should look as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `renderToStringWithData` function renders the React code, including the
+    data received by the Apollo requests. Since the method is asynchronous, we wrap
+    the rest of our code inside a callback function.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Now, if you take a look at the HTML returned by your server, you should see
+    the correct markup, including chats, images, and everything else. The problem
+    is that the client does not know that all of the HTML is already there and can
+    be reused. The client would re-render everything.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'To let the client reuse the HTML that our server sends, we have to include
+    Apollo Client''s state with our response. Inside the preceding callback, access
+    Apollo Client''s state by inserting the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `client.extract` method returns a big object, holding all cache information
+    that the client has stored after using the `renderToStringWithData` function.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The state must be passed to the `template` function as a third parameter. So,
+    change the `res.send` call to the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Inside the `template.js` file, extend the function declaration and append the
+    `state` variable as a third parameter, after the `head` variable.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Insert the `state` variable, with the following line of code, inside the HTML
+    body and above the `bundle.js` file. If you add it below the `bundle.js` file,
+    it won''t work correctly:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We use the `renderToStaticMarkup` function to insert another `script` tag. It
+    sets a large, stringified JSON object as Apollo Client's starting cache value.
+    The JSON object holds all of the results of the GraphQL requests returned while
+    rendering our server-side React application. We directly store the JSON object
+    as a string in a new field inside the `window` object. The `window` object is
+    helpful since you can directly access the field globally.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Apollo has to know about the state variable. It can be used by Apollo Client
+    to initialize its cache with the specified data, instead of having to send all
+    of the GraphQL requests again. Open the `index.js` file from the client''s `apollo`
+    folder. The last property of the initialization process is the cache. We need
+    to set our `__APOLLO_STATE__` instance as the starting value of the cache. Replace
+    the `cache` property with the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We create the `InMemoryCache` instance and run its `restore` method, where we
+    insert the value from the window object. Apollo Client should recreate its cache
+    from this variable.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We have now set up the cache for Apollo. It will no longer run unnecessary requests
+    for which the results already exist. Now, we can finally reuse the HTML, with
+    one last change. We have to change `ReactDOM.render` to `ReactDOM.hydrate` in
+    the client's `index.js` file. The difference between these functions is that React
+    reuses the HTML if it was correctly rendered by our server. In this case, React
+    only attaches some necessary event listeners. If you use the `ReactDOM.render`
+    method, it dramatically slows down the initial rendering process, as it compares
+    the initial DOM with the current DOM and may change it accordingly.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The last problem that we have is that the client-side code does not show the
+    logged-in state of our application after refreshing a page. The server returns
+    the correct markup with all the data, but the frontend redirects us to the login
+    form. The reason for this is that we statically set the `loggedIn` state variable
+    to `false` in the `App.js` file of the client-side code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The best way to check whether the user is authenticated is to verify whether
+    the `__APOLLO_STATE__` field on the window object is filled and has a `currentUser`
+    object attached. If that is the case, we can assume that the user was able to
+    fetch their own data record, so they must be logged in. To change our `App.js`
+    file accordingly, add the following condition to the `loggedIn` state variable:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see in the preceding code, we verify whether the Apollo starting
+    cache variable includes a `ROOT_QUERY` property with the `currentUser` subfield
+    . The `ROOT_QUERY` property is filled if any query can be fetched successfully.
+    The `currentUser` field is only filled if the authenticated user was successfully
+    requested.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you execute `npm run server`, you will see that everything now works perfectly.
+    Take a look at the markup that's returned; you will see either the login form
+    or, when logged in, all of the content of the page that you are visiting. You
+    can log in on the client, the news feed is fetched dynamically, you can refresh
+    the page, and all of the posts are directly there, without the need for a single
+    GraphQL request, as the server returned the data side by side with the HTML. This
+    works not only for the `/app` path but for any path that you implement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are now finished with the SSR setup.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we have only looked at the developmental part of SSR. When we get to
+    the point where we want to make a production build and publish our application,
+    there are a few other things that we will have to consider, which we will look
+    at in [*Chapter 12*](B17337_12_Final_ASB_ePub.xhtml#_idTextAnchor204), *Continuous
+    Deployment with CircleCI and AWS*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we changed a lot of the code that we have programmed so far.
+    You learned the advantages and disadvantages of offering SSR. The main principles
+    behind React Router, Apollo, and authentication with cookies while using SSR should
+    be clear by now. It takes a lot of work to get SSR running, and it needs to be
+    managed with every change made to your application. Nevertheless, it has excellent
+    performance and user experience benefits for your users.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will look at how to offer real-time updates through
+    **Apollo Subscriptions**, instead of using the old and inefficient polling approach.
+  prefs: []
+  type: TYPE_NORMAL

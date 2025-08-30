@@ -1,0 +1,1047 @@
+- en: '*Chapter 8*: Use Case Scenario 2 – Jotai'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Jotai ([https://github.com/pmndrs/jotai](https://github.com/pmndrs/jotai)) is
+    a small library for the global state. It's modeled after `useState`/`useReducer`
+    and with what are called atoms, which are usually small pieces of state. Unlike
+    Zustand, it is a component state, and like Zustand, it is an immutable update
+    model. The implementation is based on the Context and Subscription patterns we
+    learned about in [*Chapter 5*](B17780_05_Final_VK_ePub.xhtml#_idTextAnchor073),
+    *Sharing Component State with Context and Subscription*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will learn about the basic usage of the Jotai library and
+    how it deals with optimizing re-renders. With atoms, the library can track dependencies
+    and trigger re-renders based on the dependencies. Because Jotai internally uses
+    Context and atoms themselves do not hold values, atom definitions are reusable,
+    unlike the module state. We will also discuss a novel pattern with atoms, called
+    **Atoms-in-Atom**, which is a technique to optimize re-renders with an array structure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding Jotai
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exploring render optimization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding how Jotai works to store atom values
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Adding an array structure
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using the different features of Jotai
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You are expected to have moderate knowledge of React, including React hooks.
+    Refer to the official site, [https://reactjs.org](https://reactjs.org), to learn
+    more.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In some code, we use TypeScript ([https://www.typescriptlang.org](https://www.typescriptlang.org)),
+    and you should have basic knowledge of it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The code in this chapter is available on GitHub at [https://github.com/PacktPublishing/Micro-State-Management-with-React-Hooks/tree/main/chapter_08](https://github.com/PacktPublishing/Micro-State-Management-with-React-Hooks/tree/main/chapter_08).
+  prefs: []
+  type: TYPE_NORMAL
+- en: To run the code snippets in this chapter, you need a React environment—for example,
+    Create React App ([https://create-react-app.dev](https://create-react-app.dev))
+    or CodeSandbox ([https://codesandbox.io](https://codesandbox.io)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding Jotai
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To understand the Jotai **application programming interface** (**API**), let's
+    remind ourselves of a simple counter example and the solution with Context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is an example with two separate counters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: Because these `Counter1` and `Counter2` components have their own local states,
+    the numbers shown in these components are isolated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we want those two components to share a single count state, we can lift the
+    state up and use Context to pass it down, as we discussed in the *Effectively
+    using local states* section of [*Chapter 2*](B17780_02_Final_VK_ePub.xhtml#_idTextAnchor035),
+    *Using Local and Global States*. Let's see an example that is solved with Context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we create a `Context` variable to hold the count state, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice the `Context` value is the same state, `useState(0)`, as we used in the
+    previous example (marked **[1]**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, the following are the modified components, where we replace `useState(0)`
+    with `useContext(CountContext)`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we wrap those components with `CountProvider`, like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: This makes it possible to have a shared count state, and you will see that two
+    `count` numbers in `Counter1` and `Counter2` components are incremented at once.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s see how Jotai is helpful compared to Context. There are two benefits
+    when using Jotai, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Syntax simplicity
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Dynamic atom creation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let's start with the first benefit—how Jotai can help to simplify the syntax.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Syntax simplicity
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To understand syntax simplicity, let''s look at the same counter example with
+    Jotai. First, we need to import some functions from the Jotai library, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `atom` function and the `useAtom` hook are basic functions provided by Jotai.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'An atom represents a piece of a state. An atom is usually a small piece of
+    state, and it is a minimum unit of triggering re-renders. The `atom` function
+    creates a definition of an atom. The `atom` function takes one argument to specify
+    an initial value, just as `useState` does. The following code is used to define
+    a new atom:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice the similarity with `useState(0)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we use the atom in counter components. Instead of `useState(0)`, we use
+    `useAtom(countAtom)`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Because `useAtom(countAtom)` returns the same tuple, `[count, setCount]`, as
+    `useState(0)` does, the rest of the code doesn't need to be changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, our `App` component is the same as in the first example of this chapter,
+    which is without Context, as illustrated in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Unlike the second example of this chapter, which is with Context, we don't need
+    a provider. This is possible due to the "default store" in Context, as we learned
+    in the *Implementing the Context and Subscription pattern* section of [*Chapter
+    5*](B17780_05_Final_VK_ePub.xhtml#_idTextAnchor073), *Sharing Component State
+    with Context and Subscription*. We can optionally use a provider when we need
+    to provide different values for different subtrees.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To have a better understanding of the syntax simplicity in Jotai, let''s suppose
+    you want to add another global state—say, `text`; you would end up adding the
+    following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is not too bad. What we added is a Context definition and a provider definition,
+    and we wrapped `App` with the `Provider` component. You can also avoid provider
+    nesting, as we learned in the *Best practices for using Context* section of [*Chapter
+    3*](B17780_03_Final_VK_ePub.xhtml#_idTextAnchor049), *Sharing the Component State
+    with Context*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, the same example could be done with Jotai atoms, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is far simpler. Essentially, we added just a one-line atom definition.
+    Even if we had more atoms, we would just need a line for each atom definition
+    in Jotai. On the other hand, using Context would require creating a Context for
+    each piece of state. It's possible to do it with Context, but not trivial. Jotai's
+    syntax is much more simplified. This is the first benefit of Jotai.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While the syntax simplicity is great, it doesn't give any new capability. Let's
+    briefly discuss the second benefit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dynamic atom creation
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The second benefit of Jotai is a new capability—that is, dynamic atom creation.
+    Atoms can be created and destroyed in the React component lifecycle. This is not
+    possible with the multiple-Context approach, because adding a new state means
+    adding a new `Provider` component. If you add a new component, all its child components
+    will be remounted, throwing away their states. We will cover a use case of dynamic
+    atom creation in the *Adding an array structure* section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The implementation of Jotai is based on what we learned in [*Chapter 5*](B17780_05_Final_VK_ePub.xhtml#_idTextAnchor073),
+    *Sharing Component State with Context and Subscription*. Jotai's store is basically
+    a `WeakMap` object ([https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap))
+    of atom config objects and atom values. An `atom` function. An `useAtom` hook
+    returns. Subscription in Jotai is atom-based, which means the `useAtom` hook subscribes
+    to a certain atom in `store`. Atom-based Subscription gives the ability to avoid
+    extra re-renders. We will discuss this further in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we discussed the basic mental model and the API of the Jotai
+    library. Next up, we will dive into how the atom model solves render optimization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring render optimization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let's recap on selector-based render optimization. We will start by using an
+    example from [*Chapter 4*](B17780_04_Final_VK_ePub.xhtml#_idTextAnchor066), *Sharing
+    Module State with Subscription*, where we created `createStore` and `useStoreSelector`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s define a new `store` person with `createStore`. We define three properties:
+    `firstName`, `lastName`, and `age`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Suppose we would like to create a component that shows `firstName` and `lastName`.
+    One straightforward way is to select those properties. Here is an example with
+    `useStoreSelector`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: As we have selected only two properties from the `store`, when the non-selected
+    property, `age`, is changed, `PersonComponent` will not re-render.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This `store` and selector approach is what we call `store` that holds everything
+    and select pieces of state from the `store` as necessary.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, what would Jotai atoms look like for the same example? First, we define
+    atoms, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: Atoms are units of triggering re-renders. You can make atoms as small as you
+    want to control re-renders, like primitive values. But atoms can be objects too.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`PersonComponent` can be implemented with the `useAtom` hook, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Because this has no relationship with `ageAtom`, `PersonComponent` won't re-render
+    when the value of `ageAtom` is changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Atoms can be as small as possible, but that means we would probably have too
+    many atoms to organize. Jotai has a notion of derived atoms, where you can create
+    another atom from existing atoms. Let''s create a `personAtom` variable that holds
+    the first name, last name, and age. We can use the `atom` function, which takes
+    a `read` function to generate a derived value. The code is illustrated in the
+    following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `read` function takes an argument called `get`, with which you can refer
+    to other atoms and get their values. The value of `personAtom` is an object with
+    three properties—`firstName`, `lastName`, and `age`. This value is updated whenever
+    one of the properties is changed, which means when `firstNameAtom`, `lastNameAtom`,
+    or `ageAtom` is updated. This is called dependency tracking and is automatically
+    done by the Jotai library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Dependency tracking is dynamic and works for conditional evaluations. For example,
+    suppose a `read` function is `(get) => get(a) ? get(b) : get(c)`. In this case,
+    if the value of `a` is truthy, the dependency is `a` and `b`, whereas if the value
+    of `a` is falsy, the dependency is `a` and `c`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using `personAtom`, we could re-implement `PersonComponent`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: However, this is not what we expect. It will re-render when `ageAtom` changes
+    its value, hence causing extra re-renders.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To avoid extra re-renders, we should create a derived atom including only values
+    we use. Here is another atom, named `fullNameAtom` this time:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Using `fullNameAtom`, we can implement `PersonComponent` once again, like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: Thanks to `fullNameAtom`, this doesn't re-render even when the `ageAtom` value
+    is changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We call this a **bottom-up** approach. We create small atoms and combine them
+    to create bigger atoms. We can optimize re-renders by adding only atoms that will
+    be used in components. The optimization is not automatic, but more straightforward
+    with the atom model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'How could we do the last example with a store and selector approach? Here is
+    an example with an `identity` selector:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you might guess, this causes extra re-renders. When the `age` property in
+    the `store` is changed, the component re-renders.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A possible fix would be to select only `firstName` and `lastName`. The following
+    example illustrates this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Unfortunately, this doesn't work. When `age` is changed, the `selectFullName`
+    function is re-evaluated, and it returns a new object with the same property values.
+    `useStoreSelector` assumes the new object may contain new values and trigger re-renders,
+    which causes extra re-renders. This is a well-known issue with the selector approach,
+    and typical solutions are to use either a custom equality function or a memoization
+    technique.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The benefit of the atom model is that the composition of atoms can easily relate
+    to what will be shown in a component. Thus, it's straightforward to control re-renders.
+    Render optimization with atoms doesn't require the custom equality function or
+    the memoization technique.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at a counter example to learn more about the derived atoms. First,
+    we define two `count` atoms, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We define a component to use those `count` atoms. Instead of defining two counter
+    components, we define a single `Counter` component that works for both atoms.
+    To this end, the component receives `countAtom` in its `props`, as illustrated
+    in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is reusable for any `countAtom` configs. Even if we define a new `count3Atom`
+    config, we don't need to define a new component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we define a derived atom that calculates the total number of two counts.
+    We use `atom` with a `read` function as the first argument, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: With the `read` function, `atom` will create a derived atom. The value of the
+    derived atom is the result of the `read` function. The derived atom will re-evaluate
+    its `read` function and update its value only when dependencies are changed. In
+    this case, either `count1Atom` or `count2Atom` is changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `Total` component is a component to use `totalAtom` and show the `total`
+    number, as illustrated in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`totalAtom` is a derived atom and it''s read-only because its value is the
+    result of the `read` function. Hence, there''s no notion of setting a value of
+    `totalAtom`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we define an `App` component. It passes `count1Atom` and `count2Atom`
+    to `Counter` components, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: Atoms can be passed as `props`, such as the `Counter` atom in this example,
+    or they can be passed by any other means—constants at the module level, `props`,
+    contexts, or even as values in other atoms. We will learn about the use case of
+    putting atoms in another atom in the *Adding an array structure* section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When you run the app, you will see an equation of the first count, the second
+    count, and the total number. By clicking the buttons shown right after the counts,
+    you will see the count incremented as well as the total number, as illustrated
+    in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.1 – Screenshot of the counter app ](img/Figure_8.1_B17780.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.1 – Screenshot of the counter app
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we learned about the atom model and render optimization in
+    the Jotai library. Next up, we'll look into how Jotai stores atom values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding how Jotai works to store atom values
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we haven't discussed how Jotai uses Context. In this section, we'll
+    show how Jotai stores atom values and how atoms are reusable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let''s revisit a simple atom definition, `countAtom`. `atom` takes an
+    initial value of `0` and returns an atom config, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: Implementation-wise, `countAtom` is an object holding some properties representing
+    the atom behavior. In this case, `countAtom` is a primitive atom, which is an
+    atom with a value that can be updated with a value or an updating function. A
+    primitive atom is designed to behave like `useState`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is important is that atom configs such as `countAtom` don't hold their
+    values. We have a `store` that holds atom values. A `store` has a `WeakMap` object
+    whose key is an atom config object and whose value is an atom value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When we use `useAtom`, by default, it uses a default `store` defined at the
+    module level. However, Jotai provides a component named `Provider`, which lets
+    you create a `store` at the component level. We can import `Provider` from the
+    Jotai library along with `atom` and `useAtom`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s suppose we have the `Counter` component defined, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is the same component we defined in the *Understanding Jotai* section and
+    the *Exploring render optimization* section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We then define an `App` component using `Provider`. We use two `Provider` components
+    and put in two `Counter` components for each `Provider` component, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The two `Provider` components in `App` isolate stores. Hence, `countAtom` used
+    in `Counter` components is isolated. The two `Counter` components under the first
+    `Provider` component share the `countAtom` value, but the other two `Counter`
+    components under the second `Provider` component have different values of `countAtom`
+    from the value in the first `Provider` component, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.2 – Screenshot of the two-provider app ](img/Figure_8.2_B17780.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.2 – Screenshot of the two-provider app
+  prefs: []
+  type: TYPE_NORMAL
+- en: Again, what is important is that `countAtom` itself doesn't hold a value. Thus,
+    `countAtom` is reusable for multiple `Provider` components. This is a notable
+    difference from module states.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We could define a derived atom. Here is a derived atom to define the doubled
+    number of `countAtom`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: As `countAtom` doesn't hold a value, `doubledCountAtom` doesn't either. If `doubledCountAtom`
+    is used in the first `Provider` component, it represents the doubled value of
+    the `countAtom` value in the `Provider` component. The same applies to the second
+    `Provider` component, and the values in the first `Provider` component can be
+    different from the values in the second `Provider` component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because atom configs are just definitions that don't hold values, the atom configs
+    are reusable. The example shows it's reusable for two `Provider` components, but
+    essentially, it's reusable for more `Provider` components. Furthermore, a `Provider`
+    component can be used dynamically in the React component life cycle. Implementation-wise,
+    Jotai is totally based on Context, and Jotai can do everything that Context can
+    do. In this section, we learned that atom configs don't hold values and thus are
+    reusable. Next up, we will learn how to deal with arrays with Jotai.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adding an array structure
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: An array structure is tricky to handle in React. When a component renders an
+    array structure, we need to pass stable `key` properties to the array items. This
+    is especially necessary when we remove or reorder the array items.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we'll learn how to handle array structures in Jotai. We'll
+    start with a traditional approach, and then a new pattern that we call **Atoms-in-Atom**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's use the same to-do app example that we used in the *Handling structured
+    data* section of [*Chapter 7*](B17780_07_Final_VK_ePub.xhtml#_idTextAnchor092),
+    *Use Case Scenario 1 – Zustand*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we define a `Todo` type. It has the `id` string, `title` string, and
+    `done` Boolean properties, as illustrated in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we define `todosAtom`, which represents an array of defined `Todo` items,
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: We annotate the `atom()` function with the `Todo[]` type.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We then define a `TodoItem` component. This is a pure component that receives
+    `todo`, `removeTodo`, and `toggleTodo` as `props`. The code is illustrated in
+    the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `onChange` callback in `<input>` invokes `toggleTodo`, and the `onClick`
+    callback in `<button>` invokes `removeTodo`. Both are based on the `id` string.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We wrap `TodoItem` with `memo` to create a memoized version, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: This allows us to avoid re-renders unless `todo`, `removeTodo`, or `toggleTodo`
+    are changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we are ready to create a `TodoList` component. It uses `todosAtom`, defines
+    `removeTodo` and `toggleTodo` with `useCallback`, and maps over the `todo` array,
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `TodoList` component renders the `MemoedTodoItem` component for each `todos`
+    array item. The `key` prop is specified as `todo.id`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The next component is `NewTodo`. It uses `todosAtom` and adds a new item on
+    button click. The `id` value of the new atom should be uniquely generated, and
+    in the following example, it uses `nanoid` ([https://www.npmjs.com/package/nanoid](https://www.npmjs.com/package/nanoid)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: For simplicity, we used `useAtom` for `todosAtom`. However, this actually makes
+    the `NewTodo` component re-render when the value of `todosAtom` is changed. We
+    could easily avoid this with an additional utility hook called `useUpdateAtom`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we create an `App` component to render `TodoList` and `NewTodo`, as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This works perfectly. You can add, remove, and toggle to-do items without any
+    issues, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.3 – Screenshot of the Todo app ](img/Figure_8.3_B17780.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.3 – Screenshot of the Todo app
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are two concerns, though, from the developer''s perspective, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first concern is we need to modify the entire `todos` array to mutate a
+    single item. In the `toggleTodo` function, it needs to iterate over all the items
+    and mutate just one item. In the atomic model, it would be nice if we could simply
+    mutate one item. This is also related to performance. When `todos` array items
+    are mutated, the `todos` array itself is changed. Thus, `TodoList` re-renders.
+    Thanks to `MemoedTodoItem`, the `MemoedTodoItem` components don't re-render unless
+    the specific item is changed. Ideally, we want to trigger those specific `MemoedTodoItem`
+    components to re-render.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The second concern is the `id` value of an item. The `id` value is primarily
+    for `key` in `map`, and it would be nice if we could avoid using `id`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: With Jotai, we propose a new pattern, **Atoms-in-Atom**, with which we put atom
+    configs in another atom value. This pattern addresses the two concerns and is
+    more consistent with Jotai's mental model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's see how we can re-create the same Todo app we created previously in this
+    section with the new pattern.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We start by defining the `Todo` type, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: This time, the `Todo` type doesn't have an `id` value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We then create a `TodoAtom` type with `PrimitiveAtom`, which is a generic type
+    exported by the Jotai library. The code is illustrated in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We use this `TodoAtom` type to create a `todoAtomsAtom` config, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: The name is explicit, to tell that it's an `atom` that represents an array of
+    `TodoAtom`. This structure is why the pattern is named **Atoms-in-Atom**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is the `TodoItem` component. It receives `todoAtom` and `remove` properties.
+    The component uses the `todoAtom` atom with `useAtom`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: Thanks to the `useAtom` config in the `TodoItem` component, the `onChange` callback
+    is very simple and only cares about the item. It doesn't depend on the fact that
+    it's an item of the array.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `TodoList` component should be carefully looked at. It uses `todoAtomsAtom`,
+    which returns `todoAtoms` as its value. The `todoAtoms` variable holds an array
+    of `todoAtom`. The `remove` function is interesting as it takes `todoAtom` as
+    the atom config and filters the `todoAtom` array in `todoAtomsAtom`. The full
+    code of `TodoList` is shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`TodoList` maps over the `todoAtoms` variable and renders `MemoedTodoItem`
+    for each `todoAtom` config. For `key` in `map`, we specify the stringified `todoAtom`
+    config. An atom config returns a `TodoList` component is slightly different from
+    the previous version. Because it deals with `todoAtomsAtom` won''t be changed
+    if one of the items is toggled with `toggleTodo`. Thus, it can reduce some extra
+    re-renders by nature.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `NewTodo` component is almost the same as the previous example. One exception
+    is that when creating a new item, it will create a new atom config and push it
+    into `todoAtomsAtom`. The following snippet shows the `NewTodo` component code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: The reset of the code and the behavior of the `NewTodo` component are basically
+    equivalent to the previous example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we have the same `App` component to run the app, as illustrated here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: If you run the app, you will see no differences from the previous example. As
+    described, the differences are for developers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s summarize the difference with the **Atoms-in-Atom** pattern, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: An array atom is used to hold an array of item atoms.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To add a new item in the array, we create a new atom and add it.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Atom configs can be evaluated as strings, and they return UIDs.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A component that renders an item uses an item atom in each component. It eases
+    mutating the item value and avoids extra re-renders naturally.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In this section, we learned how to handle the array structure. We saw two patterns—a
+    naive one and an **Atoms-in-Atom** one—and their differences. Next up, we will
+    learn about some other features that the Jotai library provides.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the different features of Jotai
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we've learned some basics of the Jotai library. There are some more
+    basic features that we will cover in this section. These features are necessary
+    if you need to deal with complex scenarios. We'll also briefly introduce some
+    advanced features whose use cases are out of the scope of this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, we''ll discuss the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the `write` function of atoms
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using action atoms
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding the `onMount` option of atoms
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introducing the `jotai/utils` bundle
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding library usage
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introduction to more advanced features
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let's take a look at each one now.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the write function of atoms
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We have seen how to create a derived atom. For example, `doubledCountAtom`
+    with `countAtom` is defined in the *Understanding how Jotai works to store atom
+    values* section, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`countAtom` is called a primitive atom because it''s not derived from another
+    atom. A primitive atom is a writable atom where you can change the value.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`doubledCountAtom` is a read-only derived atom because its value is fully dependent
+    on `countAtom`. The value of `doubledCountAtom` can only be changed by changing
+    the value of `countAtom`, which is a writable atom.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: To create a writable derived atom, the `atom` function accepts an optional second
+    argument for the `write` function, in addition to the first argument `read` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, let''s redefine `doubledCountAtom` to be writable. We pass a `write`
+    function that will change the value of `countAtom`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `write` function takes three arguments, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`get` is a function to return the value of an atom.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`set` is a function to set the value of an atom.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`arg` is an arbitrary value to receive when updating the atom (in this case,
+    `doubledCountAtom`).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: With the `write` function, the created atom is writable as if it is a primitive
+    atom. Actually, it is not exactly the same as `countAtom` because `countAtom`
+    accepts an updating function such as `setCount((c) => c + 1)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can technically create a new atom that behaves identically to `countAtom`.
+    What would be the use case? For example, you can add logging, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`anotherCountAtom` works like `countAtom`, and it shows a logging message when
+    it sets a value.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Writable derived atoms are a powerful feature that can help in some complex
+    scenarios. In the next subsection, we'll see another pattern using `write` functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using action atoms
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To organize state mutation code, we often create a function or a set of functions.
+    We can use atoms for that purpose and call them action atoms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To create action atoms, we only use the `write` function of the `atom` function's
+    second argument. The first argument can be anything, but we often use `null` as
+    a convention.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at an example. We have `countAtom` as usual and `incrementCountAtom`,
+    which is an action atom, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this case, the `write` function of `incrementCountAtom` only uses `set`,
+    out of three arguments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can use this atom like normal atoms, and just ignore its value. For example,
+    here is a component to show a button to increment the count:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is a simple case without an argument. You could accept an argument and
+    you could create as many action atoms as you want.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will see a less commonly used but important feature.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the onMount option of atoms
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In some use cases, we want to run certain logic once an atom starts to be used.
+    A good example is to subscribe to an external data source. This can be done with
+    the `useEffect` hook, but to define logic at the atom level, Jotai atoms have
+    the `onMount` option.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To understand how it is used, let''s create an atom that shows a login message
+    on mount and unmount, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: The body of the `onMount` function is showing a logging message about the start
+    of use. It also returns an `onUnmount` function, which shows a logging message
+    about the end of use. The `onMount` function takes an argument, which is a function
+    to update `countAtom`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is a contrived example, but there are many real use cases to connect external
+    data sources.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we'll talk about utility functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing the jotai/utils bundle
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The Jotai library provides two basic functions, `atom` and `useAtom`, and an
+    additional `Provider` component in the main bundle. While the small API is good
+    to understand the basic features, we want some utility functions to help development.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Jotai provides a separate bundle named `jotai/utils` that contains a variety
+    of utility functions. For example, `atomWithStorage` is a function to create atoms
+    with a specific feature—that is, to synchronize with persistent storage. For more
+    information and other utility functions, refer to the project site at [https://github.com/pmndrs/jotai](https://github.com/pmndrs/jotai).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will discuss how the Jotai library can be used in other libraries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding library usage
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Suppose two libraries use the Jotai library internally. If we develop an app
+    that uses the two libraries, there's an issue of double providers. Because Jotai
+    atoms are distinguished by reference, it is possible that the atoms in the first
+    library accidentally connect to the provider in the second library. As a result,
+    it may not work as expected by the library authors. The Jotai library provides
+    a notion of "scope", which is the way to connect to a specific provider. To make
+    it work as expected, we should pass the same scope variable to the `Provider`
+    component and the `useAtom` hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementation-wise, this is how Context works. The scope feature is just used
+    to put back the Context feature. It's still under exploration how this feature
+    can be used for other purposes. We, as a community, will work on more use cases
+    with this feature.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we'll see some advanced features in the Jotai library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to more advanced features
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: There are more advanced features that we didn't cover in this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Most notably, Jotai supports the React Suspense feature. When a derived atom's
+    `read` function returns a promise, the `useAtom` hook will suspend, and React
+    will show a fallback. This feature is experimental and subject to change, but
+    it's a very important feature to explore.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another note is about library integrations. Jotai is a library to solve a single
+    problem with the atomic model, which is to avoid extra re-renders. By integrating
+    with other libraries, the use case expands. The atomic model is flexible to integrate
+    with other libraries, and especially, the `onMount` option is necessary for external
+    data sources.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To learn more about these advanced features, refer to the project site:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://github.com/pmndrs/jotai](https://github.com/pmndrs/jotai)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we discussed some additional features that the Jotai library
+    provides. Jotai is a primitive library to provide building blocks, yet is flexible
+    enough to cover real use cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned about a library called Jotai. It's based on the
+    atomic model and Context. We've seen simple examples to learn its basics, yet
+    they show the flexibility of the atomic model. The combination of Context and
+    Subscription is the only way to have a React-oriented global state. If your requirement
+    is Context without extra re-renders, this approach should be your choice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn about another library, called Valtio, which
+    is a library primarily for module state, with a unique syntax.
+  prefs: []
+  type: TYPE_NORMAL

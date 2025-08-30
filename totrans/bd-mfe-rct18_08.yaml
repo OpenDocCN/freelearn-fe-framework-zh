@@ -1,0 +1,851 @@
+- en: '6'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Server-Rendered Microfrontends
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Most JavaScript frameworks, including React, are primarily used to build **client-side-rendered**
+    (**CSR**) applications. Client-rendered apps are great for certain use cases,
+    such as admin dashboards or banking apps where users interact with the app in
+    a logged-in area. CSR apps are not ideal for use cases where users access a site
+    via a search engine or for anonymous short user journeys, such as news sites,
+    blogs, or guest checkouts on e-commerce sites. This is because many search engine
+    bots are not capable of indexing CSR-based web apps. CSR apps also have a poor
+    **Largest Contentful Paint** (**LCP**) score – that is, their first-time page
+    load performance scores are bad, leading to higher bounce rates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To overcome these drawbacks, it is now an accepted practice to have a web app’s
+    pages rendered on a Node.js server and serve the rendered HTML pages to the browser.
+    This is commonly known as **Server-Side Rendering** (**SSR**), or a Server-Side-Rendered
+    (SSR) app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will look at how to build a module-federated microfrontend
+    for a server-side-rendered app. While the process for implementing module federation
+    is very similar to what we saw in the previous chapter, the fact that the pages
+    are server-side-rendered brings a bit of complexity, and we will look at some
+    of the nuances that we need to deal with when it comes to implementing a microfrontend
+    with SSR.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A quick look at how CSR and SSR apps differ
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning about Next.js and Turbo repo
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning how to set up hosts and remote apps with Next.js and module federation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: See how to expose multiple components as remotes that can be consumed into different
+    apps
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Looking into issues relating to hydration of state in SSRs and also how to go
+    about reflecting the changes made in one micro app in the main app
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: By the end of this chapter, we will have a server-side-rendered microfrontend
+    built using Next.js.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As we go through the code examples in this chapter, we will need the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A PC, Mac, or Linux desktop/laptop with at least 8 GB of RAM (16 GB is preferred)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: An Intel chipset i5+ or a Mac M1 + chipset
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: At least 256 GB of free hard disk storage
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A basic understanding of Next.js and Turborepo would be ideal
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A basic understanding of Node.js would be helpful
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You will also need the following software installed on your computer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Node.js version 18+ (use **nvm** to manage different versions of Node.js if
+    you have to).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Terminal**: iTerm2 with OhMyZsh (you will thank me later).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**IDE**: We strongly recommend VS Code, as we will make use of some of the
+    plugins that come with it for an improved developer experience.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: NPM, Yarn, or PNPM; we recommend PNPM because it’s fast and storage-efficient.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Browser**: Chrome, Microsoft Edge, or Firefox.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The code files for this chapter can be found here: https://github.com/PacktPublishing/Building-Micro-Frontends-with-React.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We also assume you have a basic working knowledge of Git, such as branching
+    and committing code and raising a pull request.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How do Client Rendered and Server Rendered Apps differ?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When it comes to building web apps with JavaScript, there are two primary methods
+    in terms of how a user interface gets built and served to the user. They are referred
+    to as **Client-Side-Rendered** (**CSR**) and **Server-Side-Rendered** (**SSR**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: From a development standpoint, coding a CSR or an SSR app predominantly remains
+    the same, except for some additional steps for SSR. However, there are differences
+    in the internal working of these apps in terms of how they are rendered, and also
+    in how they can be deployed on the cloud.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will look a bit deeper into these differences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Client Side Rendered Apps (CSR)
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let us have a look at how a Client Side app works. As its full name suggests,
+    the CSR app is “rendered” on the client. In short, the app runs within the user’s
+    browser, makes a call to fetch data, and the page is generated on the browser.
+    The following diagram illustrates this better:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 6.1 – The request and response flow for a CSR app](img/Figure_6.01_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.1 – The request and response flow for a CSR app
+  prefs: []
+  type: TYPE_NORMAL
+- en: The preceding *Figure 6**.1* illustrates the request flow in a CSR application.
+    Here, the browser makes a first call to the server for a given URL, and the server
+    (or sometimes the CDN itself) will respond back with a nearly empty HTML shell,
+    containing the link to the app’s JavaScript bundle. The browser parses the bundle
+    and then makes a second AJAX call to the server API, receiving the JSON response
+    for the given URL. The browser then parses the response and, based on the views
+    in the client-side app, renders the HTML page in the browser before serving it
+    to the user. For every other call, the browser continues to make AJAX calls to
+    the API endpoint and parses the page on the browser.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With this flow, note that for the very first request from the user, there are
+    two round trips to the server – first, to fetch the JavaScript bundle, and second,
+    to get the page data and render the page.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Due to the nature of how CSR apps work, they are ideally suited for user experiences
+    where users generally stay logged into an app and navigate through multiple pages
+    per session.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Some of the drawbacks of Client side Rendered apps are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the very first request, users have to wait a bit longer due to the additional
+    round trip to the server
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Since the server response doesn’t contain any actual HTML data, search engine
+    bots that are not optimized to parse JavaScript will have difficulty in indexing
+    content from a client-rendered app
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: CSR apps are not suited for scenarios where the user journey is short, such
+    as e-commerce websites where a user arrives via a search result link, buys a product
+    or two, and leaves, or a blog site where users generally read only one to two
+    articles at a time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let us see how an Server Side Rendered app works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Server Side Rendered Apps (SSR)
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In a Server Side Rendered app, as the full name suggests, for the very first
+    request the page is generated on the server, and the rendered HTML page is sent
+    to the browser. Let us look at it in a bit more in detail:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 6.2 – The request and response flow for an SSR app](img/Figure_6.02_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.2 – The request and response flow for an SSR app
+  prefs: []
+  type: TYPE_NORMAL
+- en: The working of an SSR app is illustrated in the preceding *Figure 6**.2*. What
+    we see here is when the first request for a page is made from the browser to the
+    Node.js server, it in turn makes a call to the API server to fetch the data. Then,
+    the HTML page is generated on the server itself and sent back to the browser,
+    along with the initial state and the JavaScript bundles. The state hydrates on
+    the browser, then all subsequent calls are made from the browser to the API server,
+    and the pages are rendered on the browser itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since the browser receives a fully rendered HTML page on the first request itself,
+    the perceived performance for end users is good. It also helps with **Search Engine
+    Optimization** (**SEO**), especially where search engine bots are not very good
+    at parsing CSR pages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Server-rendered apps are preferred for web apps where user journeys are short,
+    such as B2C e-commerce apps, or content-heavy apps such as news sites or blogs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We now have a good understanding of how SSR and CSR apps work, what their pros
+    and cons are, and what use cases are most suited for each of them. With this information,
+    let us start building our SSR microfrontend in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building out our Server Rendered Microfrontend
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we will look at how to build SSR apps using a meta framework
+    such as Next.js, and then we will take it further to build a module-federated
+    microfrontend using webpack’s module federation plugin. While doing so, we will
+    explore another monorepo tool called Turborepo.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the time of writing this book the Module Federation Plugin doesn’t support
+    Next.js 13 and the App Router and hence for this chapter we will use Next.js version
+    12
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When it comes to building an SSR app in React, there are two common approaches:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**A custom build using Node.js**: Here, we set up a Node.js server, render
+    the React app on Node.js, stringify the response using the **renderToString**
+    or **renderToPipeableStream** methods, and then use the **hydrateRoot** method,
+    which are all part of the **react-dom/server** module to attach React to the rendered
+    HTML'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Use an SSR meta-framework**: Meta-frameworks such as Next.js, Remix, or Shopify’s
+    Hydrogen can abstract away all the complexities of setting up an SSR app and provide
+    a simple interface to build performant SSR React apps'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For this chapter, we will use Next.js to build our SSR app. Next.js is one of
+    the oldest and most popular frameworks to build SSR React apps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the mono repo, we will use another tool called Turborepo. While we can build
+    Next.js apps with Nx monorepos as well, we will choose Turborepo so that we can
+    also learn about the nuances of the different monorepo tools and how they operate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting started with Turborepo and Next.js
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Next.js is the most popular meta-framework that allows you to build SSR apps
+    with React. Turborepo is another new monorepo framework that is gaining popularity,
+    and it was recently acquired by Vercel, the company that builds and maintains
+    Next.js.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While we will cover the essentials of Turborepo and Next.js in this chapter,
+    I strongly encourage you to spend time going through their docs to get a deeper
+    understanding of how these frameworks work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will start from a clean slate here; let us begin by creating our monorepo
+    with Turborepo:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Run the following command in the terminal:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Alternatively, you can run the following:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This will download a bunch of libraries and then prompt you to decide where
+    you’d like your monorepo to be created. Let’s call it **ebuy-ssr**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: On the next prompt to assign a package manager, you can choose the one you prefer.
+    For the purpose of this chapter, we will choose **pnpm**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Let Turborepo go and do its stuff, and after the process is complete, you can
+    **cd** into the **ebuy-ssr** folder and run the following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that it launches two apps, **web** and **docs**, on ports **3000** and
+    **3001**, respectively. In the browser, open up **http://localhost:3000** and
+    **http://localhost:3001** and have a look at the really minimalistic default pages.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Open up the **ebuy-ssr** folder within your IDE and take a look at the folder
+    structure.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'It will look something like this:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The key files and folders that we need to consider are as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '**apps**: This is the folder that will hold all our micro apps.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**packages**: This is the folder where we keep all our utilities, shared components,
+    libraries, and so on. It is the equivalent of the **libs** folder in Nx.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**package.json**: The **package.json** files play a crucial role in how the
+    turbo monorepo functions.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**turbo.json**: This is the file where we define the configurations for Turborepo.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The differences between Turborepo and Nx
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: While both Turborepo and Nx do the same job of managing a monorepo for us, there
+    are differences in their approach. Nx feels like a thin layer of abstraction that
+    allows us to manage our monorepos, mainly via configurations. We tend to heavily
+    rely on NX and its commands to build and manage our mono repos; Nx really doing
+    all the heavy lifting for us. Turborepo, on the other hand, is quite lightweight
+    and relies more on the npm package manager’s standards to manage the monorepo.
+    Turborepo’s approach is to stay invisible in the background and let the developers
+    have full control over how they manage their monorepos. This also means you need
+    to do a bit more work when managing your monorepo with Turborepo.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up our Micro Apps
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As we can see, we have two apps created by default within our apps folder,
+    `web` and `docs`. We will start by renaming the web folder to `home` let us delete
+    the docs folder for now:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Rename the **web** folder **home**, delete the docs folder. Make sure that
+    you update the name property in **apps/home/package.json** to **"name": "home"**,
+    as this is what Turborepo uses to recognize the app.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'While we have the file open, let us define the port in which it will run in
+    dev mode. Update the dev script in **apps/home/package.json** to **"dev": "next
+    dev --****port 3000"**.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Note that with Turborepo, we have multiple `package.json` files. The `package.json`
+    file in the root folder is used to manage the `dev` dependencies that are needed
+    to manage the monorepo, and also the common `dev` dependencies needed for all
+    the apps in the monorepo. We can also define our common script commands there.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `package.json` file in each of the apps’ folders is used to manage the workspace
+    and the dependencies for each of the apps. The primary advantage here is that
+    each of your micro apps has its own `npm_modules` folder, thereby ensuring that
+    each team is fully independent in managing their packages and dependencies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating pages and components in Next.js
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Let us get started with creating a few components in our respective micro apps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating components with Next.js is very similar to how you’d do it with other
+    React apps; we generally create a **components** folder and keep our components
+    in it.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: When it comes to routing, Next.js 12 uses a filesystem-based router; what this
+    means is to create a new route. We need to create a file with the route name in
+    the `/``pages/about-us.tsx`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Let us create our components. Since we will use **semantic-ui** to build out
+    our components, let us go ahead and add them as dependencies in our micro apps’
+    package managers.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Run **pnpm add semantic-ui-react semantic-ui-css** in **apps/home** of the micro
+    apps folder.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Then, create a folder called **/components** within the home folder, and then
+    create the **Header** component in there.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'In the **/apps/components/Header.tsx** file, add the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The preceding code is very similar to the code we used for the `Header` component
+    in the previous chapter. It’s simply a markup to display the menu items and the
+    mini basket in the `Header` component.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Next, let us include the header in our home app.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: With Next.js, if we want code to be available within all the pages, we can create
+    a file called `_app.tsx` within the `/pages` folder and put our relevant code
+    in there, which is exactly what we will do to get our `Header` component to display
+    across all the pages.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Create a new file called **_app.tsx** in the **apps/home/pages** folder with
+    the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Run **pnpm dev** and verify that the **Header** component shows up on **http://localhost:3000**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now, we will create our catalog micro app. Simply create a copy of the home
+    app and rename the folder **catalog**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Open up the catalog’s **package.json** file, located in **apps/catalog/package.json**
+    file, and make a few minor changes.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Change the app name to **"name": "catalog"**; let us also change the port to
+    run on **3001**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now, let us create our product card component in the **components** folder.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Create a new file in **apps/catalog/components/ProductCard.tsx** with the following
+    code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Again, this is very similar to the `ProductCard` component we created in [*Chapter
+    5*](B18987_05.xhtml#_idTextAnchor073). This is a basic markup to display the product
+    image, product name, and price, along with the add to cart button.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Feel free to delete the **Header.tsx** file from **catalog/components** and
+    remove its reference from the **_app.tsx** file, as we already have it in the
+    home app and will not be using it here.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Next, to save us some time, let us copy and paste the **product-list-mocks.tsx**
+    file from [*Chapter 4*](B18987_04.xhtml#_idTextAnchor061)into the **apps/catalog/mocks**
+    folder. While we are here, let us also copy the **assets** folder containing the
+    product images from [https://github.com/PacktPublishing/Building-Micro-Frontends-with-React-18/tree/main/ch4/ebuy/apps/catalog/src/assets](https://github.com/PacktPublishing/Building-Micro-Frontends-with-React-18/tree/main/ch4/ebuy/apps/catalog/src/assets)
+    and paste it into **/apps/catalog/public/assets**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Next, in the **apps/catalog/pages/index.tsx** file, let us add the following
+    code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Run **pnpm dev** from the root of the **ebuy-ssr** folder and verify that the
+    **home** and **catalog** apps work as expected. These are the URLs for our apps:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The **home** app: **http://localhost:3000**'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The **catalog** app: **http://localhost:3001**'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![Figure 6.3 – The home micro app running on port 3000](img/Figure_6.03_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.3 – The home micro app running on port 3000
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 6.4 – The catalog micro app running on port 3001](img/Figure_6.04_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.4 – The catalog micro app running on port 3001
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have our individual apps running, let us work toward loading the
+    catalog micro app into the home app via module federation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up Module Federation
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Now that we have our apps running independently, it’s time to embed the catalog
+    app into the home app via module federation. For module federation with Next.js,
+    we will use the dedicated `nextjs-mf npm` module. Follow these steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let us first install the **nextjs-mf** npm module along with webpack in the
+    catalog app:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We now need to expose the catalog app as a remote; we do this in the **app/catalog/next.config.js**
+    file.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We replace the contents of the **next.config.js** file with the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Looking through the code, we first import `NextFederationPlugin`, and then we
+    define the remote with its name and the path where its `remoteEntry.js` file can
+    be located. Next.js creates two builds of its app – one for the server and the
+    other for the client. Note that we conditionally load the `remoteEntry.js` file
+    from either the `ssr` or `chunks` folder, depending on where it is executed.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, we define the webpack config where we set the properties of **NextFederationPlugin**,
+    namely the name and what it exposes, like so:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We can define an array of remotes and have different components or pages from
+    within the catalog micro app load in other apps. This completes the setup on the
+    catalog side.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating the checkout micro app
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'For the sake of completeness, let us also create the `checkout` micro app by
+    creating a copy of the catalog app and renaming the folder to `checkout`. Follow
+    these steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let us make the necessary changes to the **apps/checkout/package.json** file,
+    as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, update the port number:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, create a file called **Basket.tsx** in **apps/checkout/components/Basket.tsx**
+    with the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let us also change the content of the **apps/checkout/pages/****index.tsx**
+    file to ensure that the checkout app loads the **basket** component by passing
+    the right set of information:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now, let us update the module federation configuration in the **apps/checkout/next.config.js**
+    to set up the checkout app as a remote.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Let us update the remote array to reflect the name checkout and update the
+    port to **3002**, as highlighted in the following code snippet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Let’s quickly check the app to see whether the checkout app loads properly by
+    running `pnpm dev` in the root folder and by visiting the following URL in the
+    browser – `http://localhost:3002`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up the host app
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Now, let us focus on the home app:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will need to again install the **module-federation/nextjs-mf npm** package
+    and webpack:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Once done, set up the host app as the host by updating the **apps/home/next.config.js**
+    file, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Since we want to load the catalog micro app within the catalog route, we will
+    create a new file called **catalog.tsx** in **apps/home/pages/** with the following
+    code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let us create a similar file called **checkout** in **apps/home/pages/checkout.tsx**
+    with the following similar code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: As you can see, we import Next.js’s dynamic module for the first time, which
+    is the recommended way to import dynamically with Next.js.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: You can choose to dynamically import the module to execute the client side by
+    setting up `ssr:false`; this will execute the module on the client side and be
+    bypassed by SSR. This is suitable when your module contains personalized content,
+    for example, recommendations, order history, and so on.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Then, we define the `const` called `Catalog` and import it from the `catalog/Module`.
+    Note that the TypeScript throws an error. That’s because we’ve not defined the
+    types for it.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'So, let us quickly create the **/apps/home/remotes.d.ts** file with the following
+    lines:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Let’s test out everything by shutting down all running servers.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`killall node` is a really helpful command to kill all node processes.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Run **pnpm dev** and visit **http://localhost:3000**. Click on the catalog and
+    checkout apps to see the respective micro apps load.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: You may need to copy the **public/assets** folder from the catalog into the
+    host app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 6.5 – The catalog micro app loaded in the catalog route](img/Figure_6.05_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.5 – The catalog micro app loaded in the catalog route
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following screenshot shows the checkout micro app loaded on the checkout
+    route:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 6.6 – The checkout micro app loaded on the checkout route](img/Figure_6.06_B18987.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.6 – The checkout micro app loaded on the checkout route
+  prefs: []
+  type: TYPE_NORMAL
+- en: Congratulations!! We now have a full server side rendered microfrontend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s recap what we’ve learned so far. We started off by creating our individual
+    micro apps using Turborepo and Next.js, and we learned about Turborepo’s folder
+    structure and how it differs from Nx. We then created our micro apps using Next.js,
+    and finally, we saw how to set up module federation to load the different micro
+    apps in different routes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We’ve come to the end of this chapter, where we learned about the differences
+    between Client side rendered and server side rendered apps, and which one is suitable
+    for which type of application. We looked at the various options to build an SSR
+    app and zeroed in on Next.js and Turborepo to build out our module-federated app.
+    We then saw how to set up module federation using the `next.js-mf` plugin, and
+    we went about setting up our remote and host apps. Finally, we saw how to import
+    these modules dynamically into the host app and set up routing between the different
+    apps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As a stretch goal for this chapter, you can explore setting up a shared state
+    management solution or a shared component library, following the same approach
+    we took in [*Chapter 5*](B18987_05.xhtml#_idTextAnchor073).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn how to go about deploying our apps to the
+    cloud. See you on the other side!
+  prefs: []
+  type: TYPE_NORMAL

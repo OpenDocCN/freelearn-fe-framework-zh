@@ -1,0 +1,786 @@
+- en: '12'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Building Custom React Hooks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Learning Objectives
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By the end of this chapter, you will be able to do the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Build your own React Hooks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Use custom and default React Hooks in your components
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introduction
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Throughout this book, one key React feature has been referenced repeatedly in
+    many different variations. That feature is React Hooks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hooks power almost all core functionalities and concepts offered by React—from
+    state management in a single component to accessing cross-component state (context)
+    in multiple components. They enable you to access JSX elements via refs and allow
+    you to handle side effects inside of component functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Without Hooks, modern React would not work, and building feature-rich applications
+    would be impossible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus far, only built-in Hooks have been introduced and used. However, you can
+    build your own custom Hooks as well—or you can use custom Hooks built by other
+    developers (e.g., by using third-party libraries). In this chapter, you will learn
+    why you might want to do this and how it works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing Custom Hooks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before starting to build custom Hooks, it’s very important to understand what
+    exactly custom Hooks are.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In React apps, custom Hooks are regular JavaScript functions that satisfy the
+    following conditions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The function name starts with `use` (just as all built-in Hooks start with
+    `use` : `useState()` , `useReducer()` , etc.).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The function calls another React Hook (a built-in one or a custom one—doesn’t
+    matter).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The function does not just return JSX code (otherwise, it would essentially
+    be a React component), though it could return some JSX code—as long as that’s
+    not the only value returned.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If a function meets these three conditions, it can (and should) be called a
+    custom (React) Hook. So, custom Hooks are really just normal functions with special
+    names (starting with `use` ) that call other (custom or built-in) Hooks and that
+    do not (just) return JSX code. If you try to call a (custom or built-in) Hook
+    in some other place (e.g., outside of any function or in a regular, non-Hook function),
+    you might get a warning (depending on your project setup; see below).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, the following function uses the `useEffect()` Hook but has a name
+    that does not start with `use` . It is therefore not in line with the official
+    naming recommendation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: In projects that perform code linting to check your code for rule violations,
+    this code would produce a warning because this function doesn’t qualify as a custom
+    Hook (due to its name).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![img](img/B31339_12_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 12.1: React complains if you call a Hook function in the wrong place'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the warning states, Hooks, whether custom or built-in, must only be called
+    inside component functions. And, even though the warning message doesn’t explicitly
+    mention it, they may also be called inside of custom Hooks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, if the `sendAnalyticsEvent()` function is renamed `useSendAnalyticsEvent()`
+    , the warning disappears since the function now qualifies as a custom Hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Even though it’s technically not a hard rule that’s enforced by React itself,
+    it’s a strong recommendation to follow this naming convention.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Being able to build custom Hooks is an extremely important feature because it
+    means that you can build reusable non-component functions that can contain state
+    logic (via `useState()` or `useReducer()` ), handle side effects in your reusable
+    custom Hook functions (via `useEffect()` ), or use any other React Hook. With
+    normal, non-Hook functions, none of these would be possible, and you would therefore
+    be unable to outsource any logic that involves a React Hook into such functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this way, custom Hooks complement the concept of React components. While
+    React components are reusable UI building blocks (which may contain stateful logic),
+    custom Hooks are reusable logic snippets that can be used in your component functions.
+    Thus, custom Hooks help you reuse shared logic across components. For example,
+    custom Hooks enable you to outsource the logic for sending an HTTP request and
+    handling the related states (loading, error, etc.).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why Would You Build Custom Hooks?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In the previous chapter ( *Chapter 11* , *Working with Complex State* ), when
+    the `useReducer()` Hook was introduced, an example was provided in which the Hook
+    was utilized in sending an HTTP request. Here’s the relevant, final code again:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this code example, an HTTP request is sent whenever the `App` component is
+    rendered for the first time. The HTTP request fetches a list of (dummy) posts.
+    Until the request finishes, a loading message ( `<p>Loading…</p>` ) is displayed
+    to the user. If there’s an error, an error message is displayed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, quite a lot of code must be written to handle this relatively
+    basic use case. And, especially in bigger React apps, it is quite likely that
+    multiple components will need to send HTTP requests. They probably won’t need
+    to send the exact same request to the same URL ( `https://jsonplaceholder.typicode.com/posts`
+    , in this example), but it’s definitely possible that different components will
+    fetch different data from different URLs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, almost the exact same code must be written over and over again in
+    multiple components. And it’s not just the code for sending the HTTP request (i.e.,
+    the function wrapped by `useCallback()` ). Instead, the HTTP-related state management
+    (done via `useReducer()` , in this example), as well as the request initialization
+    via `useEffect()` , must be repeated in all those components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: And that is where custom Hooks come in to save the day. Custom Hooks help you
+    avoid this repetition by allowing you to build reusable, potentially stateful
+    “logic snippets” that can be shared across components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A First Custom Hook
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Before exploring advanced scenarios and solving the HTTP request problem mentioned
+    previously, here’s a more basic example of a first, custom Hook:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: This code can be stored in a file named `use-counter.js` inside a `hooks/` folder—though
+    both names are totally up to you. There are no rules regarding the file or the
+    folder name (or, in general, the place where you store this code). The file extension
+    is `.js` instead of `.jsx` since this file contains no JSX code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, `useCounter` is a regular JavaScript function. The name of the
+    function starts with `use` , and therefore this function qualifies as a custom
+    Hook (meaning you won’t get any warning messages when using other Hooks inside
+    of it).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Inside `useCounter()` , a `counter` state is managed via `useState()` . The
+    state is changed via two nested functions ( `increment` and `decrement` ), and
+    the state, as well as the functions, is returned by `useCounter` (grouped together
+    in a JavaScript object).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The syntax used to group `counter` , `increment` , and `decrement` together
+    uses a regular JavaScript feature: shorthand property names.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If a property name in an object literally matches the name of the variable whose
+    value is assigned to the property, you can use this shorter notation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Instead of writing `{ counter: counter, increment: increment, decrement: decrement
+    }` , you can use the shorthand notation `{ counter, increment, decrement }` shown
+    in the snippet above.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This custom Hook can be stored in a separate file (e.g., in a `hooks` folder
+    inside the React project, such as `src/hooks/use-counter.js` ). Thereafter, it
+    can be used in any React component, and you can use it in as many React components
+    as needed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, the following two components ( `Demo1` and `Demo2` ) could use
+    this `useCounter` Hook as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You will find the full example code at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/12-custom-hooks/examples/01-first-hook](https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/12-custom-hooks/examples/01-first-hook)
+    .
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `Demo1` and `Demo2` components both execute `useCounter()` inside of their
+    component functions. The `useCounter()` function is called a normal function because
+    it is a regular JavaScript function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since the `useCounter` Hook returns an object with three properties ( `counter`
+    , `increment` , and `decrement` ), `Demo1` and `Demo2` use object destructuring
+    to store the property values in local constants. These values are then used in
+    the JSX code to output the `counter` value and connect the two `<button>` elements
+    to the `increment` and `decrement` functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After pressing the buttons a couple of times each, the resulting user interface
+    might look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a calendar  Description automatically generated](img/B31339_12_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 12.2: Two independent counters'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this screenshot, you can also see a very interesting and important behavior
+    of custom Hooks. That is, if the same stateful custom Hook is used in multiple
+    components, every component gets its own state. The `counter` state is not shared.
+    The `Demo1` component manages its own `counter` state (through the `useCounter()`
+    custom Hook), and so does the `Demo2` component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Custom Hooks: A Flexible Feature'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The two independent states of `Demo1` and `Demo2` show a very important feature
+    of custom Hooks: you use them to share logic, not state. If you needed to share
+    state across components, you would do so with React context (see the previous
+    chapter).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When using Hooks, every component uses its own “instance” (or “version”) of
+    that Hook. It’s always the same logic, but any state or side effects handled by
+    a Hook are handled on a per-component basis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It’s also worth noting that custom Hooks **can** be stateful but **don’t have
+    to be** . They can manage state via `useState()` or `useReducer()` , but you could
+    also build custom Hooks that only handle side effects (without any state management).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There’s only one thing you implicitly have to do in custom Hooks: you must
+    use some other React Hook (custom or built-in). This is because if you didn’t
+    include any other Hook, there would be no need to build a custom Hook in the first
+    place. A custom Hook is just a regular JavaScript function (with a name starting
+    with `use` ) with which you are allowed to use other Hooks. If you don’t need
+    to use any other Hooks, you can simply build a normal JavaScript function with
+    a name that does not start with `use` .'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You also have a lot of flexibility regarding the logic inside the Hook, its
+    parameters, and the value it returns. Regarding the Hook logic, you can add as
+    much logic as needed. You can manage no state or multiple state values. You can
+    include other custom Hooks or only use built-in Hooks. You can manage multiple
+    side effects, work with refs, or perform complex calculations. There are no restrictions
+    regarding what can be done in a custom Hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Custom Hooks and Parameters
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'You can also accept and use parameters in your custom Hook functions. For example,
+    the `useCounter` Hook from the *A First Custom Hook* section can be adjusted to
+    take an initial counter value and separate values by which the counter should
+    be increased or decreased, as shown in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this adjusted example, the `initialValue` parameter is used to set the initial
+    state via `useState(initialValue)` . The `incVal` and `decVal` parameters are
+    used in the `increment` and `decrement` functions to change the `counter` state
+    with different values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Of course, once parameters are used in a custom Hook, fitting parameter values
+    must be provided when the custom Hook is called in a component function (or in
+    another custom Hook). Therefore, the code for the `Demo1` and `Demo2` components
+    must also be adjusted—for example, like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can also find this code on GitHub at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/12-custom-hooks/examples/02-parameters](https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/12-custom-hooks/examples/02-parameters)
+    .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, both components pass different parameter values to the `useCounter` Hook
+    function. Therefore, they can reuse the same Hook and its internal logic dynamically.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Custom Hooks and Return Values
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As shown with `useCounter` , custom Hooks may return values. And this is important:
+    they **may** return values, but they don’t have to. If you build a custom Hook
+    that only handles some side effects (via `useEffect()` ), you don’t have to return
+    any value (because there probably isn’t any value that should be returned).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: But if you do need to return a value, you decide which type of value you want
+    to return. You could return a single number or string. If your Hook must return
+    multiple values (like `useCounter` does), you can group these values into an array
+    or object. You can also return arrays that contain objects or vice versa. In short,
+    you can return anything. It is a normal JavaScript function, after all.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Some built-in Hooks such as `useState()` and `useReducer()` return arrays (with
+    a fixed number of elements). `useRef()` , on the other hand, returns an object
+    (which always has a `current` property). `useEffect()` returns nothing. Your Hooks
+    can therefore return whatever you want.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, the `useCounter` Hook from previously could be rewritten to return
+    an array instead:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To use the returned values, then, the `Demo1` and `Demo2` components need to
+    switch from object destructuring to array destructuring, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: The two components behave like before, so you can decide which return value
+    you prefer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This finished code can also be found on GitHub at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/12-custom-hooks/examples/03-return-values](https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/12-custom-hooks/examples/03-return-values)
+    .
+  prefs: []
+  type: TYPE_NORMAL
+- en: A More Complex Example
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The previous examples were deliberately rather simple. Now that the basics of
+    custom Hooks are clear, it makes sense to dive into a slightly more advanced and
+    realistic example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider the HTTP request example from the beginning of this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: In that example, the entire `useReducer()` logic (including the reducer function,
+    `httpReducer` ) and the `useEffect()` call can be outsourced into a custom Hook.
+    The result would be a very lean `App` component and a reusable Hook that could
+    be used in other components as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building a First Version of the Custom Hook
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'This custom Hook could be named `useFetch` (since it fetches data), and it
+    could be stored in `hooks/use-fetch.js` . Of course, both the Hook name as well
+    as the file storage path are up to you. Here’s how the first version of `useFetch`
+    might look:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Please note that this is not the final version.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this first version, the `useFetch` Hook contains the `useReducer()` and `useEffect()`
+    logic. It’s worth noting that the `httpReducer` function is created outside of
+    `useFetch` . This ensures that the function is not recreated unnecessarily when
+    `useFetch()` is re-executed (which will happen often as it is called every time
+    the component that uses this Hook is re-evaluated). The `httpReducer` function
+    will therefore only be created once (for the entire application lifetime), and
+    that same function instance will be shared by all components that use `useFetch`
+    .
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since `httpReducer` is a pure function (that is, it always produces new return
+    values that are based purely on the parameter values), sharing this function instance
+    is fine and won’t cause any unexpected bugs. If `httpReducer` were to store or
+    manipulate any values that are not based on function inputs, it should be created
+    inside of `useFetch` instead. This way, you avoid having multiple components accidentally
+    manipulate and use shared values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, this version of the `useFetch` Hook has two big issues:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Currently, no value is returned. Therefore, components that use this Hook won’t
+    get access to the fetched data or the loading state.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The HTTP request URL is hardcoded into `useFetch` . As a result, all components
+    that use this Hook will send the same kind of request to the same URL.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Therefore, to improve this Hook, these two issues must be tackled—starting with
+    the first one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Making the Hook Useful by Returning Values
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The first issue can be solved by returning the fetched data (or `undefined`
+    , if no data was fetched yet), the loading state value, and the error value. Since
+    these values are exactly the values that make up the `httpState` object returned
+    by `useReducer()` , `useFetch` can simply return that entire `httpState` object,
+    as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: The only thing that changed in this code snippet is the last line of the `useFetch`
+    function. With `return httpState` , the state managed by `useReducer()` (and therefore
+    by the `httpReducer` function) is returned by the custom Hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With that first issue fixed, the next step is to also make the Hook more reusable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Improving Reusability by Accepting an Input Parameter
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To fix the second problem (i.e., the hardcoded URL), a parameter should be
+    added to `useFetch` :'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this snippet, the `url` parameter was added to `useFetch` . This parameter
+    value is then used inside the `try` block when calling `fetch(url)` . Please note
+    that `url` was also added as a dependency to the `useCallback()` dependencies
+    array.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since `useCallback()` is wrapped around the fetching function (to prevent infinite
+    loops by `useEffect()` ), any external values used inside of `useCallback()` must
+    be added to its dependencies array. Since `url` is an external value (meaning
+    it’s not defined inside of the wrapped function), it must be added. This also
+    makes sense logically: if the `url` parameter were to change (i.e., if the component
+    that uses `useFetch` changes it), a new HTTP request should be sent.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This final version of the `useFetch` Hook can now be used in all components
+    to send HTTP requests to different URLs and use the HTTP state values as needed
+    by the components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, the `App` component can use `useFetch` like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: The component imports and calls `useFetch()` (with the appropriate URL as an
+    argument) and uses object destructuring to get the `data` , `isLoading` , and
+    `error` properties from the `httpState` object. These values are then used in
+    the JSX code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Of course, the `useFetch` Hook could also return a pointer to the `fetchPosts`
+    function (in addition to `httpState` ) to allow components such as the `App` component
+    to manually trigger a new request, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, the `return` statement was changed. Instead of returning just
+    `httpState` , `useFetch` now returns an array that contains the `httpState` object
+    and a pointer to the `fetchPosts` function. Alternatively, `httpState` and `fetchPosts`
+    could have been merged into an object (instead of an array).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the `App` component, `useFetch` could now be used like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `App` component uses array and object destructuring combined to extract
+    the returned values (and the values nested in the `httpState` object). A newly
+    added `<button>` element is then used to trigger the `fetchPosts` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This example effectively shows how custom Hooks can lead to much leaner component
+    functions by allowing easy logic reuse, with or without state or side effects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition, Hooks can also enable some interesting patterns—for example, related
+    to React’s Context API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using Custom Hooks for Context Access
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As hinted in the previous chapter, in the *Outsourcing Context Logic into Separate
+    Components* section, you can use custom Hooks to improve the process of consuming
+    context values in components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, if you provide some context named `BookmarkContext` (e.g., via
+    a `<BookmarkContextProvider>` component), you can access this context value inside
+    components like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'However, instead of directly accessing the context value like this, you could
+    also build the following custom Hook (e.g., stored in a `store/use-bookmark-context.js`
+    file):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: But, of course, this Hook doesn’t really provide any advantages compared to
+    directly consuming the context value in a component via `use()` .
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'That changes once you enrich this custom Hook with more useful logic—for example,
+    with error handling if it’s used in a place where the context is not available:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This Hook can then be used in your components to get hold of the context value
+    like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: This therefore is not just another example of a custom Hook, but also a common
+    pattern you should know. It’s a pattern that’s used in many React projects since
+    it ensures that you don’t accidentally try to use the context value in a place
+    where it’s not accessible (i.e., in a component that’s not wrapped by `BookmarkContextProvider`
+    ).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course, it’s not a pattern you must use, though. But it’s something you could
+    consider using to get an early error if you’re trying to access your context in
+    the wrong place. If you’re distributing a library that exposes some context, it’s
+    an especially helpful pattern since it warns your library users in case they forget
+    to provide the context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary and Key Takeaways
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You can create custom Hooks to outsource and reuse logic that relies on other
+    built-in or custom Hooks.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Custom Hooks are regular JavaScript functions with names that start with `use`
+    .
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Custom Hooks can call any other Hooks.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Therefore, custom Hooks can, for example, manage state or perform side effects.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: All components can use custom Hooks by simply calling them like any other (built-in)
+    Hooks.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: When multiple components use the same custom Hook, every component receives
+    its own “instance” (i.e., its own state value, etc.).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Inside custom Hooks, you can accept any parameter values and return any values
+    of your choice.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What’s Next?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Custom Hooks are a key React feature since they help you to write leaner components
+    and reuse (stateful) logic across them. Especially when building more complex
+    React apps (consisting of dozens or even hundreds of components), custom Hooks
+    can lead to tremendously more manageable code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Combined with components, props, state (via `useState()` or `useReducer()` ),
+    side effects, and all the other concepts covered in this and previous chapters,
+    you now have a very solid foundation that allows you to build production-ready
+    React apps. Therefore, you’re now prepared to dive into more advanced React concepts
+    as well as crucial third-party packages that you should know about.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, most React apps don’t just consist of one single page—instead,
+    at least on most websites, users should be able to switch between multiple pages.
+    For example, an online shop has a list of products, product detail pages, a shopping
+    cart page, and many other pages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next chapter will therefore explore how you can build such multipage apps
+    with React and the popular React Router third-party package.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Test Your Knowledge!
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Test your knowledge of the concepts covered in this chapter by answering the
+    following questions. You can then compare your answers to examples that can be
+    found at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/blob/12-custom-hooks/exercises/questions-answers.md](https://github.com/mschwarzmueller/book-react-key-concepts-e2/blob/12-custom-hooks/exercises/questions-answers.md)
+    :'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is the definition of a custom Hook?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which special feature can be used inside a custom Hook?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What happens when multiple components use the same custom Hook?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How can custom Hooks be made more reusable?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Apply What You Learned
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Apply your knowledge about custom Hooks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Activity 12.1: Build a Custom Keyboard Input Hook'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this activity, your task is to refactor a provided component such that it’s
+    leaner and no longer contains any state or side-effect logic. Instead, you should
+    create a custom Hook that contains that logic. This Hook could then potentially
+    be used in other areas of the React application as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can find the starting code for this activity at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/12-custom-hooks/activities/practice-1-start](https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/12-custom-hooks/activities/practice-1-start)
+    . When downloading this code, you’ll always download the entire repository. Make
+    sure to then navigate to the subfolder with the starting code ( `activities/practice-1-start`
+    , in this case) to use the right code snapshot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The provided project also uses many features covered in earlier chapters. Take
+    your time to analyze it and understand the provided code. This is a great practice
+    and allows you to see many key concepts in action.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once you have downloaded the code and run `npm install` in the project folder
+    to install all required dependencies, you can start the development server via
+    `npm run dev` . As a result, upon visiting `localhost:5173` , you should see the
+    following user interface:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A close up of a sign  Description automatically generated](img/B31339_12_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 12.3: The running starting project'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To complete the activity, the solution steps are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a new custom Hook file (e.g., in the `src/hooks` folder) and create a
+    Hook function in that file.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Move the side effect and state management logic into that new Hook function.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Make the custom Hook more reusable by accepting and using a parameter that controls
+    which keys are allowed.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Return the state managed by the custom Hook.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use the custom Hook and its returned value in the `App` component.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The user interface should be the same once you have completed the activity,
+    but the code of the `App` component should change. After finishing the activity,
+    `App` should contain only this code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: All code files used for this activity, and an example solution, can be found
+    at [https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/12-custom-hooks/activities/practice-1](https://github.com/mschwarzmueller/book-react-key-concepts-e2/tree/12-custom-hooks/activities/practice-1)
+    .
+  prefs: []
+  type: TYPE_NORMAL

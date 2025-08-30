@@ -1,0 +1,644 @@
+- en: '*Chapter 7*: Use Case Scenario 1 – Zustand'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we have been exploring some basic patterns we can use to implement a
+    global state in React. In this chapter, we will learn about a real implementation
+    that is publicly available as a package, called Zustand.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Zustand ([https://github.com/pmndrs/zustand](https://github.com/pmndrs/zustand))
+    is a tiny library primarily designed to create module state for React. It's based
+    on an immutable update model, in which state objects can't be modified but always
+    have to be newly created. Render optimization is done manually using selectors.
+    It has a straightforward and yet powerful `store` creator interface.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will explore how module state and subscriptions are used
+    and see what the library API looks like.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding module state and immutable state
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Adding React hooks to optimize re-renders
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Working with read state and update state
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Handling structured data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Pros and cons of this approach and library
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You are expected to have moderate knowledge of React, including React hooks.
+    Please refer to the official site, [https://reactjs.org](https://reactjs.org),
+    to learn more.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In some of the code in this chapter, we will be using TypeScript ([https://www.typescriptlang.org](https://www.typescriptlang.org)),
+    so you should have basic knowledge of it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The code in this chapter is available on GitHub at [https://github.com/PacktPublishing/Micro-State-Management-with-React-Hooks/tree/main/chapter_07](https://github.com/PacktPublishing/Micro-State-Management-with-React-Hooks/tree/main/chapter_07).
+  prefs: []
+  type: TYPE_NORMAL
+- en: To run the code snippets in this chapter, you will need a React environment,
+    such as Create React App ([https://create-react-app.dev](https://create-react-app.dev))
+    or CodeSandbox ([https://codesandbox.io](https://codesandbox.io)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the time of writing, the current version of Zustand is v3\. Future versions
+    may provide some different APIs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding module state and immutable state
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Zustand is a library that's used to create a `store` that holds a state. It's
+    primarily designed for module state, which means you define this `store` in a
+    module and export it. It's based on the immutable state model, in which you are
+    not allowed to modify state object properties. Updating states must be done by
+    creating new objects, while unmodified state objects must be reused. The benefit
+    of the immutable state model is that you only need to check state object referential
+    equality to know if there's any update; you don't have to check equality deeply.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following is a minimal example that can be used to create a `count` state.
+    It takes a `store` creator function that returns an initial state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`store` exposes some functions such as `getState`, `setState`, and `subscribe`.
+    You can use `getState` to get the state in `store` and `setState` to set the state
+    in `store`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The state is immutable, and you can''t mutate it like you can `++state.count`.
+    The following example is an invalid usage that violates the state''s immutability:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`state1.count = 2` is the invalid usage, so it doesn''t work as expected. With
+    this invalid usage, the new state has the same reference as the old state, and
+    the library can''t detect the change properly.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The state must be updated with a new object such as `store.setState({ count:
+    2 })`. The `store.setState` function also accepts a function to update:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is called a function update, and it makes it easy to update the state with
+    the previous state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So far, we only have one `count` property in the state. The state can have
+    multiple properties. The following example has an additional `text` property:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Again, the state must be updated immutably, like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'However, `store.setState()` will merge the new state and the old state. Hence,
+    you can only specify the properties you want to set:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The first `console.log` statement outputs `{ count: 1, text: ''hello'' }`,
+    while the second one outputs `{ count: 2, text: ''hello'' }`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As this only changes `count`, the `text` property isn''t changed. Internally,
+    this is implemented with `Object.assign()`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `Object.assign` function will return a new object by merging the `oldState`
+    and `newState` properties.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The last piece of the `store` function is `store.subscribe`. The `store.subscribe`
+    function allows you to register a callback function, which will be invoked every
+    time the state in `store` is updated. It works like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: With the `store.setState` statement, the `store.subscribe` is an important function
+    for implementing React hooks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we learned about the basics of Zustand. You might notice that
+    this is very close to what we learned in [*Chapter 4*](B17780_04_Final_VK_ePub.xhtml#_idTextAnchor066),
+    *Sharing Module State with Subscription*. Essentially, Zustand is a thin library
+    built around the idea of an immutable state model and subscription.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will learn how to use `store` in React.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using React hooks to optimize re-renders
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: For global states, optimizing re-renders is important because not all components
+    use all the properties in a global state. Let's learn how Zustand addresses this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To use `store` in React, we need a custom hook. Zustand's `create` function
+    creates a `store` that can be used as a hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To follow the naming convention of React hooks, we have named the created value
+    `useStore` instead of `store`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we must use the created `useStore` hook in React components. The `useStore`
+    hook, if it''s invoked, returns the entire `state` object, including all its properties.
+    For example, let''s define a component that shows the `count` value in `store`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: This component shows the `count` value and that whenever the `store` state is
+    changed, it will re-render. While this works fine of the time, if only the `text`
+    value is changed and the `count` value is not changed, the component will output
+    essentially the same `text` value causes extra re-renders.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When we need to avoid extra re-renders, we can specify a selector function;
+    that is, `useStore`. The previous component can be rewritten with a selector function,
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: By making this change, but only when the `count` value is changed, the component
+    will re-render.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This selector-based extra re-render control is what we call **manual render
+    optimization**. The way the selector works to avoid re-renders is to compare the
+    results of what the selector function returns. You need to be careful when you're
+    defining a selector function to return stable results to avoid re-renders.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, the following example doesn''t work well because the selector
+    function creates a new array with a new object in it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: As a result, the component will re-render, even if the `count` value is unchanged.
+    This is a pitfall when we use selectors for render optimization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In summary, the benefit of selector-based render optimization is that the behavior
+    is fairly predictable because you explicitly write selector functions. However,
+    the downside of selector-based render optimization is that it requires an understanding
+    of object references.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we learned how to use a hook that's been created with Zustand,
+    as well as how to optimize re-renders with selectors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will learn how to use Zustand with React using a minimal example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Working with read state and update state
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While Zustand is a library that can be used in various ways, it has a pattern
+    to read state and update state. Let's learn how to use Zustand with a small example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here''s our small `store` with the `count1` and `count2` properties:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: This creates a new `store` with two properties called `count1` and `count2`.
+    Notice that `StoreState` is the `type` definition in TypeScript.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we must define the `Counter1` component, which shows a `count1` value.
+    We must define the `selectCount1` selector function in advance and pass it to
+    `useStore` to optimize re-renders:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice that the inline `inc1` function is defined. We invoke the `setState`
+    function in `store`. This is a typical pattern and we can define the function
+    in `store` for more reusability and readability.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `store` creator function that is passed to the `create` function takes
+    some arguments; the first argument is the `setState` function in `store`. Let''s
+    redefine our `store` with this capability:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, our `store` has two new properties called `inc1` and `inc2`, which are
+    function properties. Note that it's a good convention to name the first argument
+    `set`, which is short for `setState`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using the new `store`, we must define the `Counter2` component. You can compare
+    it to the previous `Counter1` component and notice that it can be refactored in
+    the same way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, we have a new selector function called `selectInc2`, and the
+    `inc2` function is just the result of `useStore`. Likewise, we could add more
+    functions to `store`, which allows some logic to reside outside the components.
+    You can co-locate state updating logic close to the state values. This is the
+    reason why Zustand's `setState` merges old state and new state. We also discussed
+    this in the *Understanding module state and immutable state* section, where we
+    learned how `Object.assign` is used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What if we want to create a derived state? We can use a selector for a derived
+    state. First, let''s look at a naive example. The following is a new component
+    that shows the `total` number of `count1` and `count2`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is a valid pattern and it can stay as-is. There is an edge case where extra
+    re-renders happen, which is when `count1` is increased and `count2` is decreased
+    by the same amount. The `total` number won't change, but it will re-render. To
+    avoid this, we can use a selector function for the derived state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following example shows a new `selectTotal` function being used to calculate
+    the `total` number:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: This will only re-render when the `total` number is changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With that, we have calculated the `total` number in a selector. While this
+    is a valid solution, let''s look at another approach where we can create the total
+    number in the store. If we could create the `total` number in `store`, it could
+    remember the result and we can avoid unnecessary calculations when many components
+    are using the value. This is not very common, but it''s important if the calculation
+    is very computation-heavy. A naive way to do this would be as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: There is a more sophisticated way to do this, but the base idea is to calculate
+    multiple properties at the same time and keep them in sync. Another library, Jotai,
+    handles this well. Refer to [*Chapter 8*](B17780_08_Final_VK_ePub.xhtml#_idTextAnchor100),
+    *Use Case Scenario 2 – Jotai*, to learn more.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The last missing piece for running the example app is the `App` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When you run this app, you will see something like the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.1 – Screenshot of the running app ](img/Figure_7.1_B17780.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.1 – Screenshot of the running app
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you click the first button, you will see that both numbers on the screen
+    – after the `count1` label and the `total` number – increase. If you click the
+    second button, you will see that both numbers on the screen – after the `count2`
+    label and the `total` number – increase.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we learned about reading and updating the state in a way that
+    is often used in Zustand. Next, we will learn about how to handle structured data
+    and how to use arrays.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Handling structured data
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'An example that deals with a set of numbers is fairly easy. In reality, we
+    need to handle objects, arrays, and a combination of them. Let''s learn how to
+    use Zustand by covering another example. This is a well-known Todo app example.
+    It''s an app where you can do the following things:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a new Todo item.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: See the list of Todo items.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Toggle a Todo item's done status.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Remove a Todo item.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'First, we must define some types before creating a store. The following is
+    the type definition for a `Todo` object. It has the `id`, `title`, and `done`
+    properties:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, the `StoreState` type can be defined with `Todo`. The value part of the
+    store is `todos`, which is a list of Todo items. In addition to this, there are
+    three functions – `addTodo`, `removeTodo`, and `toggleTodo` – that can be used
+    to manipulate the `todos` property:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `todos` property is an array of objects. Having an array of objects in a
+    `store` state is a typical practice and will be the focus of this section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we must define `store`. It''s also a hook that''s called `useStore`.
+    When it''s created, `store` has an empty `todos` property and three functions
+    called `addTodo`, `removeTodo`, and `toggleTodo`. `nextId` is defined outside
+    the `create` function as a naive solution to provide a unique `id` for a new Todo
+    item:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice that the `addTodo`, `removeTodo`, and `toggleTodo` functions are implemented
+    in an immutable manner. They don't mutate existing objects and arrays; they create
+    new ones instead.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before we define a main `TodoList` component, let''s look at a `TodoItem` component
+    that is responsible for rendering one item:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As the `TodoItem` component takes a `todo` object in `props`, it''s a fairly
+    simple component in terms of states. The `TodoItem` component has two controls:
+    a button that is handled by `removeTodo` and a checkbox that is handled by `toggleTodo`.
+    These are the two functions from `store` for each control. The `selectRemoveTodo`
+    and `selectToggleTodo` functions are passed to the `useStore` function to get
+    the `removeTodo` and `toggleTodo` functions, respectively.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s create a memoized version of the `TodoItem` component named `MemoedTodoItem`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, we will discuss how this will help in our app. We are ready to define the
+    main `TodoList` component. It uses `selectTodos`, a function that's used to select
+    the `todos` property from `store`. Then, it maps over the `todos` array and renders
+    `MemoedTodoItem` for each todo item.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is important to use the memoized component here to avoid extra re-renders.
+    Because we update the `store` state in an immutable manner, most of the `todo`
+    objects in the `todos` array are not changed. If the `todo` object we pass to
+    the `MemoedTodoItem` props is not changed, the component won't re-render. Whenever
+    the `todos` array is changed, the `TodoList` component re-renders. However, its
+    child components only re-render if the corresponding `todo` item is changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following code shows the `selectTodos` function and the `TodoList` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `TodoList` component maps over the `todos` list and, for each `todo` item,
+    renders the `MemoedTodoItem` component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What remains is to add a new `todo` item. `NewTodo` is a component that can
+    be used to render a text box and a button, as well as to call the `addTodo` function
+    when the button is clicked. `selectAddTodo` is a function that can be used to
+    select the `addTodo` function in `store`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There are two minor notes we should mention regarding improving the behavior
+    in `NewTodo`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It clears the text box when the button is clicked **[1]**.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It disables the button when the text box is empty **[2]**.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Finally, to finish up the Todo app, we must define the `App` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Running this app will show only a text box and a disabled **Add** button at
+    first:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.2 – First screenshot of the running app ](img/Figure_7.2_B17780.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.2 – First screenshot of the running app
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you enter some text and click the **Add** button, the item will appear:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.3 – Second screenshot of the running app ](img/Figure_7.3_B17780.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.3 – Second screenshot of the running app
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Clicking a checkbox will toggle the `done` status of the item:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.4 – Third screenshot of the running app ](img/Figure_7.4_B17780.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.4 – Third screenshot of the running app
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Clicking the **Delete** button on the screen will delete the item:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.5 – Fourth screenshot of the running app ](img/Figure_7.5_B17780.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.5 – Fourth screenshot of the running app
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can add as many items as you want. All these features are implemented with
+    all the code we have discussed in this section. Re-renders are optimized, thanks
+    to the immutable update of the `store` state and the `memo` function provided
+    by React.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we learned how to handle arrays with a typical Todo app example.
+    Next, we will discuss the pros and cons of this library and the approach in general.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pros and cons of this approach and library
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: "Let's discuss the pros and cons of using Zustand or any other libraries to\
+    \ implement \Lthis approach."
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To recap, the following are the reading and writing states of Zustand:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Reading state**: This utilizes selector functions to optimize re-renders.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Writing state**: This is based on the immutable state model.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The key point is that React is based on object immutability for optimization.
+    One example is `useState`. React optimizes re-renders with object referential
+    equality based on immutability. The following example illustrates this behavior:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here, even if you click the `Update` button, it won''t show the `"component
+    updated"` message. This is because React assumes that the `countObj` value will
+    not change if the object reference is the same. This means that changing the `handleClick`
+    function doesn''t make any changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: If you call `handleClick`, the `countObj` value will change, but the `countObj`
+    object won't. Hence, React assumes it's unchanged. This is what we mean by React
+    being based on immutability for optimization. This same behavior can be observed
+    with functions such as `memo` and `useMemo`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Zustand state model is perfectly in line with this object immutability assumption
+    (or convention). Zustand's render optimization with selector functions is also
+    based on immutability – that is, if a selector function returns the same object
+    referentially (or value), it assumes that the object is not changed and avoids
+    re-rendering.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Zustand having the same model as React gives us a huge benefit in terms of library
+    simplicity and its small bundle size.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the other hand, a limitation of Zustand is its manual render optimization
+    with selectors. It requires that we understand object referential equality and
+    the code for selectors tends to require more boilerplate code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In summary, Zustand – or any other libraries with this approach – is a simple
+    addition to the React principle. It's a good recommendation if you need a library
+    with a small bundle size, if you are familiar with referential equality and memoization,
+    or you prefer manual render optimization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned about the Zustand library. It's a tiny library that
+    uses module state in React. We looked at a counting example and a Todo example
+    to grasp how to use the library. We typically use this library to understand object
+    referential equality. You can choose this library or similar approaches based
+    on your requirements and what you have learned in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We didn't discuss some aspects of Zustand in this chapter, including middleware,
+    which allows you to give some features to the `store` creator, and non-module
+    state usage, which creates a `store` in the React life cycle. These can be other
+    considerations when you're choosing a library. You should always refer to the
+    library documentation for more – and the latest – information.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn about another library, Jotai.
+  prefs: []
+  type: TYPE_NORMAL

@@ -1,0 +1,732 @@
+- en: '15'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Adding Persistence to Socket.IO Using MongoDB
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we have implemented a Socket.IO backend and frontend, let’s spend some
+    time integrating it with the MongoDB database by temporarily storing messages
+    in the database and replaying them when a new user joins, so that users can see
+    the chat history after they join. Additionally, we will refactor our chat app
+    to be ready for future expansions and maintenance. Finally, we will test out the
+    new structure by implementing new commands to join and switch rooms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we are going to cover the following main topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Storing and replaying messages using MongoDB
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Refactoring the app to be more extensible
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Implementing commands to join and switch rooms
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before we start, please install all requirements from [*Chapter 1*](B19385_01.xhtml#_idTextAnchor016)*,
+    Preparing for Full Stack Development*, and [*Chapter 2*](B19385_02.xhtml#_idTextAnchor028)*,
+    Getting to Know Node.js* *and MongoDB*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The versions listed in those chapters are the ones used in the book. While installing
+    a newer version should not be an issue, please note that certain steps might work
+    differently on a newer version. If you are having an issue with the code and steps
+    provided in this book, please try using the versions mentioned in *Chapters 1*
+    and *2*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can find the code for this chapter on GitHub: [https://github.com/PacktPublishing/Modern-Full-Stack-React-Projects/tree/main/ch15](https://github.com/PacktPublishing/Modern-Full-Stack-React-Projects/tree/main/ch15).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you cloned the full repository for the book, Husky may not find the `.git`
+    directory when running `npm install`. In that case, just run `git init` in the
+    root of the corresponding chapter folder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The CiA video for this chapter can be found at: [https://youtu.be/Mi7Wj_jxjhM](https://youtu.be/Mi7Wj_jxjhM).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Storing and replaying messages using MongoDB
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Currently, if a new user joins the chat, they will not see any messages until
+    someone actively sends messages. As such, new users will not be able to participate
+    well in ongoing discussions. To solve this issue, we can store messages in the
+    database and replay them when a user joins.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating the Mongoose schema
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Follow these steps to create a Mongoose schema for storing chat messages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Copy the existing **ch14** folder to a new **ch15** folder, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Open the new **ch15** folder in VS Code.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a new **backend/src/db/models/message.js** file.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Inside it, define a new **messageSchema**, which we are going to use to store
+    chat messages in the database:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The message schema should contain **username** (person who sent the message),
+    **message**, a **room** that it was sent in, and a **sent** date for when the
+    message was sent:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: For the `sent` date, we specify `expires` to make the messages automatically
+    expire after 5 minutes (`5 * 60` seconds). This ensures that our database does
+    not get cluttered with lots of chat messages. We also set the `default` value
+    to `Date.now` so that all messages are by default tagged as being sent at the
+    current time.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Info
+  prefs: []
+  type: TYPE_NORMAL
+- en: MongoDB only actually checks for data expiration once a minute, so the expired
+    documents might persist for up to a minute past their defined expiration time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create a model from the schema and export it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: After creating the Mongoose schema and model, let’s move on to creating the
+    service functions for dealing with chat messages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating the service functions
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We need to create service functions to save a new message in the database and
+    to get all messages sent in a given room, sorted by `sent` date, showing the oldest
+    messages first. Follow these steps to implement the service functions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a new **backend/src/services/messages.js** file.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Inside it, import the **Message** model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, define a function to create a new **Message** object in the database:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Also, define a function to get all messages from a certain room, listing the
+    oldest messages first:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Next, we are going to use these service functions in our chat server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Storing and replaying messages
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now that we have all the functions, we need to implement storing and replaying
+    messages in our chat server. Follow these steps to implement the functionality:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Edit **backend/src/socket.js** and import the service functions we defined
+    earlier:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'When a new user connects, get all messages from the current room, and send
+    (replay) them to the user using **socket.emit**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Additionally, when a user sends a message, store it in the database:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Start the frontend server as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, start the backend server (do not forget to start the Docker container
+    for the database!):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Go to **http://localhost:5173/**, log in and send some messages. Then, open
+    a new tab, log in with a different user, and you will see the messages sent earlier
+    get replayed:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 15.1 – Successfully replaying stored messages](img/B19385_15_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 15.1 – Successfully replaying stored messages
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The screenshot in *Figure 15**.1* is from a later version of the app, where
+    we show messages when a user joins a room (we are going to implement these messages
+    later in this chapter). Here, we use these messages to show that replaying works
+    when the user joins after a message was sent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you wait 5 minutes and then join the chat again, you will see that the existing
+    messages have expired and are not replayed anymore.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s make it clearer which messages were replayed in the user interface.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Visually distinguishing replayed messages
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Currently, it looks like the other user sent the message right after we joined.
+    It is not clear that the message was replayed from the server. To solve this issue,
+    we can visually distinguish replayed messages by, for example, making them slightly
+    grayer. Let’s do that now, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Edit **backend/src/socket.js** and add a **replayed** flag to the replayed
+    messages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, edit **src/components/ChatMessage.jsx**, and if the **replayed** flag
+    was set, display the messages with a lower opacity:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Do not forget to update **propTypes** and add the **replayed** flag:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Go to **http://localhost:5173/** again and repeat the same procedure (sending
+    messages from one user, then logging in with a different user in another tab),
+    and you will see that replayed messages are now easy to distinguish from new messages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![Figure 15.2 – Replayed messages are now displayed in a lighter color](img/B19385_15_2.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 15.2 – Replayed messages are now displayed in a lighter color
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have successfully stored our message history in the database, let’s
+    focus a bit on refactoring the chat app to make it more extensible and maintainable
+    in the future.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Refactoring the app to be more extensible
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: For the refactoring, we will start by defining service functions for all chat
+    functionality that our server provides.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining service functions
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Follow these steps to get started defining service functions for the chat functionality:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a new **backend/src/services/chat.js** file.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Inside it, import the service functions related to messages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define a new function to send a private message directly to a user:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Private messages will be used to, for example, replay messages to a specific
+    user, and are not stored in the database.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Also, define a function to send a system message:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: System messages will be used to, for example, announce that a user joined a
+    room. We also do not want to store these in the database.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Then, define a function to send a public message:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Public messages will be used to send regular chat messages to a room. These
+    messages are stored in the database so that we can replay them later.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We also define a new function to join a given **socket** to a **room**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Inside this function, send a system message telling everyone in the room that
+    someone joined:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, replay all messages that were sent to the room privately to the user
+    that just joined it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Lastly, define a service function to get the user info from the **socketId**.
+    We simply copy and paste the code we have previously had in **backend/src/socket.js**
+    here:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now that we have created the service functions for the chat functionality, let’s
+    use them in the Socket.IO server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Refactoring the Socket.IO server to use the service functions
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now that we have defined service functions, let’s refactor the chat server
+    code to use them. Follow these steps to do so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Open **backend/src/socket.js** and find the following import:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '*Replace* the preceding import with the following import to the new chat service
+    functions:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '*Replace* the whole **handleSocket** function with the following new code.
+    When a connection is made, we automatically join the public room using the **joinRoom**
+    service function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, define a listener for the **chat.message** event and send it to the given
+    room by using the **sendPublicMessage** service function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: We changed the signature of the **chat.message** event to require passing a
+    room now, so that we can implement a better way to deal with multiple rooms later.
+    Later, we need to make sure to adjust the client code to accommodate this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, define a listener for the **user.info** event, in which we use the **async**
+    service function **getUserInfoBySocketId** and return the result of it in **callback**
+    to turn this event into an acknowledgment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, we can re-use the authentication middleware from before:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now that our chat server is refactored, let’s continue with refactoring the
+    client-side code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Refactoring the client-side code
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now that our server-side code uses service functions to encapsulate the functionality
+    of the chat app, let’s do a similar refactoring of the client-side code by extracting
+    client-side commands into separate functions, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Edit **src/hooks/useChat.js** and within the **useChat** hook, define a new
+    function to clear the messages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, define an **async** function to get all rooms that the user is in:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We can now use these functions in the **sendMessage** function, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Lastly, we adjust the **chat.message** event to send **room** in addition to
+    **message**. For now, we always send messages to the **''****public''** room:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the next section, we will expand this to be able to switch between different
+    rooms.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Go to **http://localhost:5173/** and verify that the chat app still works the
+    same way as before.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now that we have successfully refactored our chat app to be more extensible,
+    let’s test out the flexibility of the new structure by implementing new commands
+    to join and switch rooms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing commands to join and switch rooms
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let’s now test out the new structure by implementing commands to join and switch
+    rooms on the chat app, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Edit **backend/src/socket.js** and define a new listener below the **chat.message**
+    listener, which will call the **joinRoom** service function when we receive a
+    **chat.join** event from the client:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: As we can see, having a `joinRoom` service function makes it really simple to
+    reuse the code to join a new room here. It already sends a system message telling
+    everyone that someone joined the room, just like it does when the user joins the
+    `public` room by default upon connection.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Edit **src/components/ChatMessage.jsx** and display **room**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Add the **room** prop to the **propTypes** definition:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, edit **src/hooks/useChat.js** and define a state hook to store the room
+    we are currently in:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Define a new function to switch rooms:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: At the moment, we are only calling `setCurrentRoom` here, but we might want
+    to extend this function later, so it is good practice to abstract it in advance
+    into a separate function.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Define a new function to join a room by sending the **chat.join** event and
+    switching the current room:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Change the **sendMessage** function to accept arguments for commands, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We can now send commands such as `/join <room-name>` and the room name will
+    be stored in `args[0]`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Define a new command to join a room, in which we first check whether arguments
+    were passed to the command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, we ensure that we have not already joined the room by using the **getRooms**
+    function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, we can join the room by using the **joinRoom** function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Similarly, we can implement the **/switch** command as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In this case, we are checking whether the user is in the room already. If not,
+    we tell them that they must join the room first before switching to it.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Adjust the **chat.message** event to send to the **currentRoom**, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Go to **http://localhost:5173/**, send a message to the public room, then join
+    the **react** room by executing the **/join react** command. Send a different
+    message to that room.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Open another browser window, log in with a different user, and you will see
+    that the first message from the **public** room gets replayed. However, we do
+    not see the message from the **react** room, because we have not joined it yet!
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now, in the second browser window, call **/join react** as well. You will see
+    that the second message gets replayed now.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Try using **/switch public** to switch back to the **public** room and send
+    another message there. You will see that both clients receive it because they
+    are both in the **public** room.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The result of these actions can be seen in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 15.3 – Chatting in different rooms](img/B19385_15_3.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 15.3 – Chatting in different rooms
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we first connected our chat app to the database by storing
+    messages in MongoDB. We also learned how to make documents expire after a certain
+    amount of time. Then, we implemented functionality to replay messages when a new
+    user joins the chat. Next, we spent some time refactoring the chat app to make
+    it more extensible and maintainable in the future. Finally, we implemented ways
+    to join new rooms and switch between rooms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Up until now, we have only been using libraries to develop our apps. In the
+    next chapter, [*Chapter 16*](B19385_16.xhtml#_idTextAnchor291)*, Getting Started
+    with Next.js*, we will learn how to use a full-stack React framework for developing
+    apps. Frameworks, such as Next.js, provide more structure for our apps and offer
+    us a lot of features, such as server-side rendering, out of the box.
+  prefs: []
+  type: TYPE_NORMAL

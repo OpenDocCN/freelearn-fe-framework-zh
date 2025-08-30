@@ -1,0 +1,1075 @@
+- en: '*Chapter 12*: Managing Authentication and User Sessions'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapters, we've seen how to work with some of the fundamental
+    Next.js features. We learned how to choose between rendering strategies and how
+    those can influence SEO and performance. We also learned how to style our application
+    using built-in and external styling methods and libraries, managing the application
+    state, integrating with external APIs, and many other valuable things.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Starting with this chapter, we will begin to learn and develop real-world applications
+    by combining the lessons learned in the past sections with industry-standard strategies
+    to keep our applications secure, performant, and highly optimized in every aspect.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will see how to manage user session and authentication,
+    an essential part of every highly dynamic web application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will cover the following topics in detail:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to integrate our application with a custom authentication service
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to use industry-standard service providers such as Auth0, NextAuth.js, and
+    Firebase
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to keep sessions between page changes
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to keep user data secure and private
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: By the end of this chapter, you will be able to authenticate users and manage
+    their sessions on any Next.js app, be aware of the differences between different
+    authentication strategies, and even adopt a custom one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'To run the code examples in this chapter, you need to have both Node.js and
+    npm installed on your local machine. If you prefer, you can use an online IDE
+    such as [https://repl.it](https://repl.it) or [https://codesandbox.io](https://codesandbox.io);
+    they both support Next.js, and you don''t need to install any dependency on your
+    computer. As for the other chapters, you can find the code base for this chapter
+    on GitHub: [https://github.com/PacktPublishing/Real-World-Next.js](https://github.com/PacktPublishing/Real-World-Next.js).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A brief introduction to user sessions and authentication
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When talking about user authentication, we refer to that process that identifies
+    a specific user, letting them read, write, update, or delete any protected content,
+    depending on their authorization level.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A typical example could be a simple blogging system: we can publish, edit,
+    or even delete content only after authenticating ourselves.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are many different authentication strategies, but the most common are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Credentials-based authentication**: This method allows us to log in to a
+    system using personal credentials, commonly, an email address and a password.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Social login**: We can log in to a system using our social accounts (Facebook,
+    Twitter, LinkedIn, and so on).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Passwordless login**: Over recent years, this has become a pretty popular
+    authentication method. Platforms such as Medium and Slack will send you what''s
+    called a "magic link" to your email address, letting you enter your account without
+    typing any password.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Single sign-on (SSO)**: If you''ve worked in a big company, you may have
+    experienced this. Services such as Okta provide a way of using unique credentials
+    for many different services, centralizing user authentication over their own service.
+    Once you log in to an SSO system, it will redirect you to the desired website,
+    granting your identity.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: But once we log in to a system, we want it to remember us, so we don't have
+    to authenticate ourselves on every page change during our navigation. This is
+    where session management kicks in.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Again, there are many ways to manage user sessions. If you''re familiar with
+    PHP, you may know that it provides a built-in method for controlling the user
+    session. Let''s look at the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is a typical example of server-side session management.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It creates a session cookie and keeps track of all the properties linked to
+    that session. So, for example, we could associate a logged-in user email or username
+    with that session, and every time we render a page, we can do it depending on
+    the authenticated user data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can refer to this strategy as a *stateful session* as the user state is kept
+    on the server side and linked to the client via a specific session cookie.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While managing stateful sessions is relatively easy during the prototyping phase,
+    things tend to get a bit more complex once you begin to scale in production.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the previous chapter, we talked about deploying our application to Vercel,
+    AWS, or any other managed hosting platform. Let's take Vercel as an example, as
+    it is the most straightforward (yet optimized) one for hosting our Next.js web
+    app. We've seen how every API and SSR page gets rendered on a serverless function,
+    right? Now imagine, in that scenario, how is it possible to keep a server-side
+    stateful session when we don't even have a server to manage?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's pretend we're rendering a welcome page for our users after they sign in.
+    We can set a session cookie, but every instance of server-side stateful data will
+    be canceled after the Lambda function terminates its execution. So how do we keep
+    the session? What will happen once the users exit this page? The server-side session
+    will be lost, and they will need to re-authenticate again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is where the concept of *stateless sessions* can really help.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Instead of setting a session cookie that links a server-side session to the
+    frontend, we want to release some information that identifies the user on every
+    new request. Every time the authenticated user sends a request to the backend,
+    they must follow an authorization mechanism, such as passing a specific cookie
+    or an HTTP header. On every new request, the server will take this information,
+    validate it, recognize the user (if the passed cookie or header is valid), and
+    then serve the desired content.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An industry-standard approach that follows this pattern is *JWT-based* authentication,
+    but we will discuss this in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding JSON web tokens
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As written on the [https://jwt.io](https://jwt.io) website, a **JWT** (short
+    for **JSON Web Token**) is an open, industry-standard *RFC 7519* method for representing
+    claims securely between two parties.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To keep it simple, we can think of JWTs as three distinct base64-encoded JSON
+    chunks of data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s take the following JWT as an example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: If we pay enough attention, we can see three different chunks of data separated
+    by periods.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first part represents the JWT header. It contains two essential pieces
+    of information: the token type and the algorithm used for signing it (we will
+    talk more about that in just a second).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second part is the payload. Here is where we put all the non-sensitive data
+    that can help us identify our users. *Never store data such as passwords and bank
+    details inside a JWT payload*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The third and last part of a JWT token is its signature. This is what makes
+    JWTs secure, and we will talk about that in detail later in this section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we decode our JWT token with any client library or a dedicated website such
+    as [https://jwt.io](https://jwt.io), we will see the following JSON data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first chunk tells us that the given token is a JWT signed using the HS256
+    algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second chunk gives us some helpful information about the user, such as the
+    JWT subject (typically the user ID), the username, and the timestamp of when we
+    issued the token.
+  prefs: []
+  type: TYPE_NORMAL
+- en: JWT Payload Best Practices
+  prefs: []
+  type: TYPE_NORMAL
+- en: The official *RFC7519* specifies some optional payload properties, such as `"sub"`
+    (subject), `"aud"` (audience), `"exp"` (expiration time), and more. Even though
+    they are optional, it is best practice to implement them in accordance with the
+    official RFC specification, which can be found at [https://datatracker.ietf.org/doc/html/rfc7519#section-4](https://datatracker.ietf.org/doc/html/rfc7519#section-4).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we need personal user data, we can set this JWT as a cookie or use it as
+    a bearer token inside an HTTP authorization header. Once the server gets this
+    data, it will verify the token, and here is where the third token section becomes
+    essential.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we have already seen, the third part of any JWT is its signature. Let's keep
+    things easy again and make an elementary example of why (and how) we want to sign
+    our JWT tokens.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It is pretty easy for anyone to decode a JWT token; it is just a base64-encoded
+    JSON, so we can use JavaScript built-in functions to decode it, manipulate it
+    (by adding an `"admin": true` property, for example), and then encode it again
+    in the required format.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It would be tremendous if it were so easy to hack a JWT token, right? The good
+    news is: decoding, manipulating, and then encoding the token again is not enough.
+    We also need to sign it using the same secret code used on the server that issued
+    the JWT.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For instance, we could use the `jsonwebtoken` library to generate a token for
+    our user as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We would end up with the following JWT token:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We now want to verify it, just to make sure that it works as expected:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: In that library, the `jwt.verify` method returns the decoded payload once the
+    signature has been verified. If the verification fails, it will throw an error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can test this by copying and pasting the preceding JWT on the [https://jwt.io](https://jwt.io)
+    home page. It will allow us to edit it freely, so we can try to set the `"admin":
+    true` claim to our JWT:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.1 – Editing the JWT token on https://jwt.io'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.01_B16985.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.1 – Editing the JWT token on https://jwt.io
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As you may notice, the web app will update the JWT token as soon as we type
+    something in the header or payload section. Once we''re done with our edits, we
+    can finally test it with our script:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once we try to verify this token, we will see the following error to be thrown
+    in the console:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And that''s what makes a JWT secure: everyone could potentially read and manipulate
+    it. But once you do it, you''re not able to sign it using a valid signature as
+    it remains secret and hidden on the server side.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will see a practical example of integrating JWT authentication
+    into a Next.js app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Custom authentication – the good, the bad, and the ugly
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s make this clear from the outset: when possible, we should avoid implementing
+    custom authentication strategies. There are several great providers (including
+    Auth0, Firebase, AWS Cognito, and Magic.link, just to name a few) that are putting
+    a lot of effort into making authentication secure, reliable, and optimized for
+    many different situations. When investigating authentication strategies for a
+    web app, I''d highly recommend looking into a well-established service provider
+    as this is possibly one of the most critical aspects of a dynamic web application.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, we''re looking into creating a custom authentication mechanism
+    for a simple reason: we just want to understand at a high level how authentication
+    works, how to make it as secure as possible, and what the critical factors of
+    a custom auth system are.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we'll find out during this section, there will be several limitations when
+    implementing custom authentication mechanisms. For instance, I'd highly discourage
+    implementing client-side authentication on statically generated websites as it
+    forces us to authenticate users on the client side exclusively, possibly exposing
+    sensitive data to the network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For that reason, we will create a new Next.js web application that will use
+    the API routes for communicating with a data source (typically a database) and
+    retrieving the user data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, let''s start by creating a new, empty Next.js app:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: Once the boilerplate code is ready, we can start writing the login API. Please
+    keep in mind that the following code is not meant to go to production; we're just
+    taking a simplified, high-level overview of how authentication works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s start by creating a `/pages/api/login.js` file by exporting the following
+    function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is where we will handle the user input and authenticate it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first thing we can do is to take the user input and filter the request
+    method to accept POST requests only:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: Why Do We Need to Filter POST Requests?
+  prefs: []
+  type: TYPE_NORMAL
+- en: By default, all the Next.js API routes accept any HTTP method. By the way, it
+    is best practice to allow only specific methods on certain routes, for example,
+    enabling `POST` requests when creating new content, `GET` when reading data, `PUT`
+    when modifying something, or `DELETE` for deleting data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can now validate the user input. When validating an email and password, for
+    example, we could check that the passed email is in a valid format and that the
+    password is following a particular policy. That way, if any of the given data
+    is not valid, we can just reply with a `401` status code (unauthorized) as we
+    won't find any occurrence in the database for that email and password combination.
+    That would also help us to avoid useless database calls.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Right now, we don''t have a database, and we will rely on hardcoded values
+    as we only want to understand authentication at a high level. That said, we will
+    only check whether the request body contains an email and a password, so we can
+    keep it simple:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: If the email or password doesn't exist in the request body, we will return a
+    `400` status code (bad request) with an error message explaining why the request
+    failed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If the request is sent using the HTTP POST method and provides both an email
+    and password, we can process them using any authentication mechanism. For example,
+    we could look up a user with that specific email in the database, retrieve their
+    password, and then verify it on the server side or ask for an external authentication
+    service to do that for us.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Right now, given that we're just taking an overview of custom authentication
+    strategies, we will use an elementary function that checks the combination of
+    email and password against two fixed strings. Again, this is not meant for production
+    usage.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Inside the same `pages/api/login.js` file, we can create a very elementary
+    function that can do that for us:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: In a production environment, we will never use such an authentication function.
+    Instead, we will communicate with a database or external service to dynamically
+    retrieve the user data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can finally combine the preceding function with our API handler. If the
+    passed data is correct, we will get some user data back and send it to the client.
+    Otherwise, we''ll just send a `401` status code (unauthorized) with an error explaining
+    that the passed data is incorrect:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: At this point, we could start analyzing the risks of this approach. Let's pretend
+    for a moment that we will log in from the frontend, the server will reply with
+    such information, and we will store it in a cookie. Once we need to get more data
+    about (let's say) our user, we could just submit a request to the server, which
+    will read the cookie, get the current user ID, and then query the database for
+    their data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Can you see the point of failure of such a solution?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Everyone could potentially edit their cookies by just using the developer tools
+    built into every modern web browser. This means that everyone could just read
+    the cookie, change it, and impersonate another user without even logging in.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why Are We Talking about Cookies?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Cookies are a good solution for storing session data. We could use different
+    browser features, such as `localStorage`, `sessionStorage`, or even `indexedDB`.
+    The problem is, everyone could steal this data by just injecting a malicious script
+    into your web page. When dealing with cookies, we can (and we should) set an `httpOnly`
+    flag to `true` to make cookies available on the server side only. That adds an
+    extra layer of security when storing this data. Even though we should be aware
+    that every user can have access to cookies by inspecting them using the dev tools
+    provided by modern browsers, we should never share sensitive information there.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is where JWTs can help. We can simply edit our login handler to make it
+    a bit more secure by setting a cookie containing a JWT before returning any data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s start by installing the `jsonwebtoken` npm package:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s create a new file, `lib/jwt.js`, and add the following content:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, going back to our `pages/api/login.js` file, we can edit it by encoding
+    the user payload into a JWT:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'One last thing: we said we wanted to set a cookie containing the JWT we just
+    created. We can install a handy library that can help us achieve that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once installed, we can edit our `pages/api/login.js` file by setting the session
+    cookie:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, we're creating a cookie named `my_auth`, which will contain
+    the user JWT. We won't pass the JWT to the client directly as we want to keep
+    it hidden from any potential malicious script running on the client side.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can inspect whether the procedure is working as expected by testing it with
+    useful HTTP clients such as Postman or Insomnia (you can download Insomnia for
+    free here: [https://insomnia.rest](https://insomnia.rest)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.2 – The login API response in Insomnia'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.02_B16985.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.2 – The login API response in Insomnia
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we move to the **Cookie** tab in the response section of our tool of choice
+    (in my case, Insomnia), we can eventually see the authentication cookie:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.3 – The authentication cookie in Insomnia'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.03_B16985.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.3 – The authentication cookie in Insomnia
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It''s finally time to manage the authentication on the client side by creating
+    a login form and a protected route, only visible after the login. So, let''s start
+    from there: let''s create a new `/pages/protected-route.js` file with the following
+    content:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can tell by looking at the `ProtectedRoute` function, we're not preventing
+    anonymous users from browsing that page; we'll get there in a moment, right after
+    creating the login page.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s also create the `/styles/app.module.css` file, where we''ll put all
+    the styling for our app; we''re not aiming to make an award-winning UI, so we''ll
+    just create a couple of simple styles there:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we can start concentrating on the login. Let''s create a new page, `/pages/login.js`,
+    and start writing the login UI:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Before creating the missing `handleSubmit` function, let''s add a couple of
+    styles to the `styles/app.module.css` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now write the `handleSubmit` function. Here, we will catch the form
+    submit event, prevent the browser''s default behavior (to submit a request to
+    a remote API), and handle the two possible cases for our login: success and failure.
+    If the login succeeds, we will redirect the user to our protected page. If it
+    fails, we''ll set an error inside our `loginError` state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We''re now missing one last function, the one that is responsible for making
+    the login API request. We can create it outside the `Home` component since, during
+    the testing phase, we may want to test it individually:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can finally test our login page and see whether it's working correctly! If
+    it does, we should get redirected to our private route; otherwise, we should see
+    a friendly error message displayed under the form submit button.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now it''s time to protect our private page. If we aren''t logged in, we shouldn''t
+    be able to see it. A similar thing should apply to the login page: once we''re
+    logged in, we shouldn''t be able to see it.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before proceeding any further with the implementation, we should decide how
+    to implement authentication in our app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We could render our pages on the server side to check the cookies on each request
+    (remember? We don't want to access auth cookies on the client side!), or we could
+    just render a loader on the frontend and wait for a hook to check whether we're
+    logged in before rendering the actual page content.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What should we consider before making such a choice?
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are several scenarios where this choice could have an impact. For example,
+    let's think of SEO; if we're building a blog where only logged-in users can (for
+    example) post comments, that's not a big deal. We can send a statically generated
+    page and wait for a hook to tell us whether the user is authenticated. Meanwhile,
+    we could just render the public content (such as the article body, author, and
+    tags), so the SEO wouldn't be impacted. The user will be able to comment as soon
+    as the client knows that they're logged in.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Also, the performances would be great, as we could serve a statically generated
+    page with dynamic data rendered on the client side exclusively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As an alternative, we could simply get the user cookie on the server side, validate
+    the JWT, and then render the page depending on the user authentication status;
+    that might be a bit easier to implement (we can do that inside the `getServerSideProps`
+    built-in function), but will undoubtedly add some delay, and will force us to
+    render all the pages on the server side.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will implement the first solution, where we'll need to create a custom hook
+    to determine whether the user is logged in.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To do that, we''ll first need to implement an API that parses our cookies and
+    replies with the bare minimum information about our session. Let''s do that by
+    creating a `pages/api/get-session.js` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now log in using the form we just created and then call the API over
+    `http://localhost:3000/api/get-session`. We will see a result similar to the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we call the same API within an incognito session, we would only get a `{
+    "loggedIn": false }` response.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can use this API to determine whether the user is logged in by creating
+    a custom hook. Let''s do that by creating a `lib/hooks/auth.js` file with the
+    following content:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: The hook itself is pretty simple. As soon as it's loaded (so, when the `useEffect`
+    React hook is triggered), it will make an HTTP call to our `/api/get-session`
+    API. Once the API succeeds (or fails), it will return the user status, errors
+    (if any), and set the `loading` status to `false`, so we will know that it's time
+    to re-render the UI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can finally implement this hook in our protected page by just importing
+    it and displaying the private content depending on the authentication status:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can now try to reach our private page and see whether it is working correctly
+    once logged in! First, there should be a little moment where we can spot the "loading"
+    text; then, we should see the protected route content.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We could adopt a similar approach for hiding the login page from a logged-in
+    user; let''s open the `pages/login.js` file and edit it as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once we import the `useAuth` hook, we can start writing the component logic.
+    We won''t render the login form until we know whether the user is logged in:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we're telling our login page to behave the other way around when compared
+    to the protected route page. We will wait for the hook to complete the loading
+    phase, and when it ends, we will check whether the user is logged in. If they're
+    logged in, we will simply redirect them to the protect page using the Next.js
+    `useRouter` hook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We successfully implemented a very simple (and not ready for production, by
+    any means) login strategy for our web page, but what did we miss? What are the
+    problems that come next? Should we pursue writing custom authentication strategies?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Well, I think it is not worth it unless we're working in a big and expert team.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This section of the book is entitled *Custom authentication – the good, the
+    bad, and the ugly*, so let''s divide some considerations into those three categories:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The good*: We may all appreciate writing a custom authentication system because
+    it teaches us a lot about security and gives us complete control over the whole
+    authentication workflow.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The bad*: We would take a considerable risk. Writing robust authentication
+    mechanisms is not easy, and companies invest a lot in providing secure authentication
+    strategies. It''s hard for a company working outside this business to meet the
+    same security levels as Auth0, Okta, Google, or Amazon AWS.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The ugly*: Even if we could create a robust authentication system, we would
+    have to implement many custom processes manually – resetting the password and
+    user registration workflows, two-factor authentication, and transactional emails,
+    just to name a few. It would require a lot of extra jobs and will lead to replicating
+    an existing service without meeting the same level of security and reliability,
+    as it is tough to match Auth0, Google, or AWS standards.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the next section, we will see how to implement authentication for any Next.js
+    app using an industry-standard, well-known authentication provider: Auth0.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing authentication using Auth0
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In the previous section, we''ve seen how to implement an elementary and straightforward
+    authentication method. I won''t repeat this enough: what we saw was just a high-level
+    overview and shouldn''t be used for any production-ready product.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When building production-ready web apps, we're likely to adopt external authentication
+    methods, which are secure and reliable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are many different auth providers (AWS Cognito, Firebase, Magic.link,
+    and so on), and I believe they''re all doing a fantastic job protecting their
+    users. In this chapter, we will be using a popular, secure, and affordable authentication
+    provider, taking advantage of its generous free plan: Auth0.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you want to follow along with this chapter, you can create a free account
+    on [https://auth0.com](https://auth0.com) (no credit card is required for free
+    plan users).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Auth0 will manage the most complex steps of any authentication strategy and
+    will give us some friendly APIs to play with.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Thanks to this authentication provider, we don''t have to worry about any of
+    the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: User registration
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: User login
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Email verification
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Forgot password flow
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Reset password flow
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Nor will we have to worry about many other critical parts of any authentication
+    strategy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, let''s start by creating a new Next.js app:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, log in to Auth0 and create a new application:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.4 – Creating a new Auth0 application'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.04_B16985.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.4 – Creating a new Auth0 application
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we create our application, Auth0 will ask us which technology are we going
+    to use. We can select **Next.js** and Auth0 will redirect us to an excellent tutorial
+    on how to adopt their authentication mechanism in this framework.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we go to **Settings**, we will be able to set up our callback URLs. Those
+    URLs represent the pages to which our users will be redirected once they complete
+    specific actions, such as login, logout, and registration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At this point, we need to set the *Allowed Callback URLs* by adding http://localhost:3000/api/auth/callback,
+    and the *Allowed Logout URLs* by setting `http://localhost:3000/`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This will authorize us to adopt Auth0 for local development after every Auth0-related
+    operation (such as login, registration, and password reset), as Auth0 will redirect
+    us to the URL where the action originated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, for example, if we want to log in on [https://example.com](https://example.com),
+    after the login action, Auth0 will automatically redirect us to [https://example.com/api/auth/callback](https://example.com/api/auth/callback),
+    which needs to be authorized in the section we just saw.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Given that our local development URL is likely to be http://localhost:3000 (which
+    is the default for Next.js), we may need to authorize other staging or production
+    URLs inside the *Allowed Callback URLs* and *Allowed Logout URLs* sections. Of
+    course, we can always do that by adding more URLs and separating them with a comma.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we're done setting up the redirect URLs, we can start setting up our local
+    environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First of all, we will need to create an environment file for the local environment.
+    So, let''s create it and name it `.env.local`, and then add the following content:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: Remember that we should never commit the environment file as it contains sensitive
+    data that could compromise our application's security.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As you can see, we''re setting five essential environment variables:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`AUTH0_SECRET`: A randomly generated string used by Auth0 as a secret key to
+    encrypt the session cookie. You can generate a new, secure, random secret by running
+    `openssl rand -hex 32` in the terminal.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`AUTH0_BASE_URL`: The base URL of our application. For the local development
+    environment, it will be `http://localhost:3000`. If you want to start the application
+    on a different port, make sure to update the `.env.local` file to reflect this
+    change.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`AUTH0_ISSUER_BASE_URL`: The URL of your Auth0 app. You can find it at the
+    beginning of the **Settings** section we just visited for setting the callback
+    URLs (labeled as **domain** in the Auth0 dashboard).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`AUTH0_CLIENT_ID`: The client ID for the Auth0 application. You can find yours
+    right under the **Domain** setting.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`AUTH0_CLIENT_SECRET`: The client secret for the Auth0 application. You can
+    find it under the **client ID** setting in the Auth0 dashboard.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Once we've set all those environment variables, we can create an API route for
+    Auth0 in our Next.js application. Remember when we talked about how many things
+    we should implement when writing down a custom authentication strategy? Login,
+    logout, password reset, user registration... Auth0 handles everything for us,
+    and it does it by asking us to create just a straightforward API route under `/pages/api/auth/[...auth0].js`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once we have created this page, we can add the following content to it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If you haven''t already done so, you can install the official Auth0 Next.js
+    SDK by running the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once we start our Next.js server, the `handleAuth()` method will create the
+    following routes for us:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`/api/auth/login`, the route that will allow us to log in to our application'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`/api/auth/callback`, the callback URL where Auth0 will redirect us right after
+    logging in successfully'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`/api/auth/logout`, where we can log out from our web application'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`/api/auth/me`, an endpoint where we can fetch our own information in JSON
+    format once we log in'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'To make our session persistent among all the web application pages, we can
+    wrap our components in the official Auth0 `UserProvider` context. We can do that
+    by opening our `pages/_app.js` file and adding the following content:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now try to visit our application login page by browsing http://localhost:3000/api/auth/login.
+    We should eventually see the following page:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.5 – The default Auth0 login page'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.05_B16985.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.5 – The default Auth0 login page
+  prefs: []
+  type: TYPE_NORMAL
+- en: We don't have an account yet, as this is the first time we access the login
+    page. We can click on **Sign up** and create a new account.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we create it, we will get redirected to the application home page and receive
+    an email to confirm our mail address.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we're logged in, we can display some helpful information on our frontend
+    depending on the logged-in user; let's start from something straightforward and
+    just show a greeting message.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can do that by opening the `/pages/index.js` file and adding the following
+    content:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, this pattern is quite similar to the one we used while implementing
+    our custom authentication mechanism. We statically generate the page, then wait
+    for the client to fetch the user information, and once we have it, we print the
+    private content on screen.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can now try to log in and out from the application to test that it's working
+    correctly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once we log in and out, we might wonder: how can we customize the authentication
+    form? What if we want to keep the data on our own database? We''ll discuss this
+    in the next section.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Customizing Auth0
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'So far, we have built a straightforward authentication mechanism using Auth0\.
+    However, when compared to the custom one, it is clear how many advantages it could
+    bring: secure authentication flow, fully featured auth management, and suchlike,
+    to name just a few.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: One thing that we might be missing is how much control we had when building
+    the custom authentication strategy; we could control every authentication step,
+    the look and feel of the form, and the required data needed to create a new account...
+    how can we do that with Auth0?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Talking about the login/registration form aspect, we can customize it by navigating
+    to the **Branding** section in our Auth0 dashboard:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.6 – The Auth0 branding section'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/Figure_12.06_B16985.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 12.6 – The Auth0 branding section
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, we can edit the HTML form directly to follow our application style. We
+    can also customize the email templates to be consistent with our web application
+    look and feel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another important topic is how Auth0 stores the user data. By default, it keeps
+    all the login data on their own databases, but once inside the Auth0 dashboard,
+    we can go to the authentication/database/custom database page and set up some
+    custom scripts to grant access to an external database, where we have complete
+    control over data ownership.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We could also set up a series of webhooks so that every time a new user registers,
+    logs in, deletes their account, and so on, an external REST API (managed by us)
+    gets notified, and we can replicate the data changes on external services and
+    databases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Auth0 gives us a lot of possibilities to customize the whole authentication
+    experience, and it's one of the most complete providers out there. It also grants
+    a generous free plan, where we can test a lot of its features for free before
+    deciding whether it fits all our needs. So, if you're willing to build a production-ready
+    app, I'd highly recommend looking into Auth0 for managing authentication safely.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we've seen how using a third-party authentication provider
+    can save us from many issues when dealing with complex and sensitive topics such
+    as private data management and user sessions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, the final question could be: when does it make sense to implement a custom
+    authentication strategy? In my humble opinion, we should avoid writing custom
+    authentication mechanisms in almost any scenario, unless we''re working with an
+    expert team capable of detecting security flaws and identifying vulnerabilities
+    in the whole authentication flow.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are many good alternatives to Auth0 (NextAuth.js, Firebase, AWS Cognito,
+    and so on), and it is just too risky to replicate their battle-tested features.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you're not comfortable working with external providers, you can also use
+    any web framework and its built-in authentication strategies. For example, suppose
+    you feel comfortable using Ruby on Rails, Laravel, or Spring Boot. In that case,
+    these are all excellent alternatives over external authentication providers. They
+    will also give you all the flexibility and security you may need with a lot of
+    support from the community and constant security releases and fixes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another option could be to use a headless CMS for managing users and their data;
+    open source CMSs such as Strapi, for example, handle authentication natively and
+    allow us to take advantage of their own authentication mechanisms supported by
+    the community and the company that is developing the CMS.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In any case, implementing custom authentication is a very instructive task as
+    it teaches you a lot about how security mechanisms work and how you should protect
+    against malicious users. For example, in the next chapter, we will be building
+    an e-commerce website using GraphCMS; imagine that we're implementing a custom
+    authentication mechanism here, letting malicious users exploit a vulnerability
+    and access users' private data. Would it be worth the risk?
+  prefs: []
+  type: TYPE_NORMAL

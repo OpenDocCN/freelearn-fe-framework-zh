@@ -1,0 +1,190 @@
+<html><head></head><body>
+<div id="sbo-rt-content"><div class="Basic-Text-Frame" id="_idContainer161">
+<h1 class="chapterNumber">15</h1>
+<h1 class="chapterTitle" id="_idParaDest-273">Improving the Performance of Your Applications </h1>
+<p class="normal">The effective performance of a web application is critical to providing a good user experience and improving conversions. The React library implements different techniques to render our components fast and to touch the <strong class="keyWord">Document Object Model</strong> (<strong class="keyWord">DOM</strong>) as<a id="_idIndexMarker852"/> little as possible. Applying changes to the DOM is usually expensive, so minimizing the number of operations is crucial.</p>
+<p class="normal">However, there are some scenarios where React cannot optimize the process, and it’s up to the developer to implement specific solutions to make the application run smoothly.</p>
+<p class="normal">In this chapter, we will go through the basic concepts of React and we will learn how to use some APIs to help the library find the optimal path to update the DOM without degrading the user experience. We will also see some common mistakes that can harm our applications and make them slower.</p>
+<p class="normal">We should avoid optimizing our components for the sake of it, and it is important to apply the techniques that we will see in the following sections only when they are needed.</p>
+<p class="normal">In this chapter, we will cover the following topics:</p>
+<ul>
+<li class="bulletList">How reconciliation works and how we can help React do a better job using keys</li>
+<li class="bulletList">Common optimization techniques and common performance-related mistakes</li>
+<li class="bulletList">Useful tools and libraries to make our applications run faster</li>
+<li class="bulletList">What it means to use immutable data and how to do it</li>
+</ul>
+<h1 class="heading-1" id="_idParaDest-274">Technical requirements</h1>
+<p class="normal">To complete this chapter, you will require the following:</p>
+<ul>
+<li class="bulletList">Node.js 19+</li>
+<li class="bulletList">Visual Studio Code</li>
+</ul>
+<p class="normal">You can find the code for this chapter in the book’s GitHub repository at <a href="https://github.com/PacktPublishing/React-18-Design-Patterns-and-Best-Practices-Fourth-Edition/tree/main/Chapter15"><span class="url">https://github.com/PacktPublishing/React-18-Design-Patterns-and-Best-Practices-Fourth-Edition/tree/main/Chapter15</span></a>. </p>
+<h1 class="heading-1" id="_idParaDest-275">How reconciliation works</h1>
+<p class="normal">Most of the<a id="_idIndexMarker853"/> time, React is fast enough by default, and you do not need to do anything more to improve the performance of your application. React utilizes different techniques to optimize the rendering of the components on the screen.</p>
+<p class="normal">When React must display a component, it calls its <code class="inlineCode">render</code> method and the <code class="inlineCode">render</code> methods of its children recursively. The <code class="inlineCode">render</code> method of a component returns a tree of React elements, which React uses to decide which DOM operations must be done to update the UI.</p>
+<p class="normal">Whenever the component state changes, React calls the <code class="inlineCode">render</code> method on the nodes again, and it compares the result with the previous tree of React elements. The library is smart enough to figure out the minimum set of operations required to apply the expected changes on the screen. This process is called <strong class="keyWord">reconciliation,</strong> and <a id="_idIndexMarker854"/>it is managed transparently by React. Thanks to that, we can easily describe how our components must look at a given point in time in a declarative way and let the library do the rest.</p>
+<p class="normal">React tries to apply the smallest possible number of operations on the DOM because touching the DOM is an expensive operation.</p>
+<p class="normal">However, comparing two trees of elements is not free either, and React makes two assumptions to reduce its complexity:</p>
+<ul>
+<li class="bulletList">If two elements have a different type, they render a different tree.</li>
+<li class="bulletList">Developers can use keys to mark children as stable across different render calls.</li>
+</ul>
+<p class="normal">The<a id="_idIndexMarker855"/> second point is interesting from a developer’s perspective because it gives us a tool to help React render our views faster.</p>
+<p class="normal">By default, when coming back to the children of a DOM node, both lists of children are iterated by React at the same time, and whenever there is a difference, it creates a mutation.</p>
+<p class="normal">Let’s look at some examples. Converting between the following two trees will work well when adding an element at the end of the children:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-tag">&lt;</span><span class="hljs-name">ul</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>Carlos<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>Javier<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;/</span><span class="hljs-name">ul</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;</span><span class="hljs-name">ul</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>Carlos<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>Javier<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>Emmanuel<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;/</span><span class="hljs-name">ul</span><span class="hljs-tag">&gt;</span>
+</code></pre>
+<p class="normal">The two <code class="inlineCode">&lt;li&gt;Carlos&lt;/li&gt;</code> trees match the two <code class="inlineCode">&lt;li&gt;Javier&lt;/li&gt;</code> trees by React and then it will insert the <code class="inlineCode">&lt;li&gt;Emmanuel&lt;/li&gt;</code> tree.</p>
+<p class="normal">Inserting an element at the beginning produces inferior performance if implemented naively. If we look at the example, it works very poorly when converting between these two trees:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-tag">&lt;</span><span class="hljs-name">ul</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>Carlos<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>Javier<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;/</span><span class="hljs-name">ul</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;</span><span class="hljs-name">ul</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>Emmanuel<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>Carlos<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>Javier<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;/</span><span class="hljs-name">ul</span><span class="hljs-tag">&gt;</span>
+</code></pre>
+<p class="normal">Every child will be mutated by React instead of it realizing that it can keep the subtrees line, <code class="inlineCode">&lt;li&gt;Carlos&lt;/li&gt;</code> and <code class="inlineCode">&lt;li&gt;Javier&lt;/li&gt;</code>, intact. This could possibly be an issue. This problem can, of course, be solved and the way to do this is with the <code class="inlineCode">key</code> attribute that is supported by React. Let’s look at that next.</p>
+<h1 class="heading-1" id="_idParaDest-276">Using keys</h1>
+<p class="normal">Children possess keys<a id="_idIndexMarker856"/> and these keys are used by React to match children between the subsequent tree and the original tree. The tree conversion can be made efficient by adding a key to our previous example:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-tag">&lt;</span><span class="hljs-name">ul</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag"> </span><span class="hljs-attr">key</span><span class="hljs-tag">=</span><span class="hljs-string">"2018"</span><span class="hljs-tag">&gt;</span>Carlos<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag"> </span><span class="hljs-attr">key</span><span class="hljs-tag">=</span><span class="hljs-string">"</span><span class="hljs-string">2019"</span><span class="hljs-tag">&gt;</span>Javier<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;/</span><span class="hljs-name">ul</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;</span><span class="hljs-name">ul</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag"> </span><span class="hljs-attr">key</span><span class="hljs-tag">=</span><span class="hljs-string">"</span><span class="hljs-string">2017"</span><span class="hljs-tag">&gt;</span>Emmanuel<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag"> </span><span class="hljs-attr">key</span><span class="hljs-tag">=</span><span class="hljs-string">"2018"</span><span class="hljs-tag">&gt;</span>Carlos<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag"> </span><span class="hljs-attr">key</span><span class="hljs-tag">=</span><span class="hljs-string">"2019"</span><span class="hljs-tag">&gt;</span>Javier<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;/</span><span class="hljs-name">ul</span><span class="hljs-tag">&gt;</span>
+</code></pre>
+<p class="normal">React now knows that the <code class="inlineCode">2017</code> key is the new one and that the <code class="inlineCode">2018</code> and <code class="inlineCode">2019</code> keys have just moved.</p>
+<p class="normal">Finding a key is not hard. The element that you will be displaying might already have a unique ID. So, the key can just come from your data:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-tag">&lt;</span><span class="hljs-name">li</span><span class="hljs-tag"> </span><span class="hljs-attr">key</span><span class="hljs-tag">=</span><span class="hljs-string">{element.id}</span><span class="hljs-tag">&gt;</span>{element.title}<span class="hljs-tag">&lt;/</span><span class="hljs-name">li</span><span class="hljs-tag">&gt;</span>
+</code></pre>
+<p class="normal">A new ID can be added to your model by you, or the key can be generated by some parts of the content. The key must only be unique among its siblings; it does not have to be unique globally. An item index in the array can be passed as a key, but it is now considered a bad practice. However, if the items are never recorded, this can work well. The reorders will seriously affect performance.</p>
+<p class="normal">If you are rendering multiple items using a <code class="inlineCode">map</code> function and you don’t specify the <code class="inlineCode">key</code> property, you will get this message: <em class="italic">Warning: Each child in an array or iterator should have a unique </em><em class="italic">key prop</em>. </p>
+<p class="normal">Let’s learn some optimization techniques in our next section.</p>
+<h1 class="heading-1" id="_idParaDest-277">Optimization techniques</h1>
+<p class="normal">It is <a id="_idIndexMarker857"/>important to notice that, in all the examples in this book, we are using apps that have either been created with <strong class="keyWord">create-react-app</strong> or have been created from scratch, but always with the development version of React.</p>
+<p class="normal">Using the development version of React is very useful for coding and debugging as it gives you all the necessary information to fix various issues. However, all the checks and warnings come with a cost, which we want to avoid in production.</p>
+<p class="normal">So, the very first optimization that we should do to our applications is to build the bundle, setting the <code class="inlineCode">NODE_ENV</code> environment variable to <code class="inlineCode">production</code>. This is easy with webpack, and it is just a matter of using <code class="inlineCode">DefinePlugin</code> in the following way:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">new</span> webpack.<span class="hljs-title">DefinePlugin</span>({
+  <span class="hljs-string">'process.env'</span>: {
+   <span class="hljs-attr">NODE_ENV</span>: <span class="hljs-title">JSON</span>.<span class="hljs-title">stringify</span>(<span class="hljs-string">'production'</span>)
+  }
+})
+</code></pre>
+<p class="normal">To achieve the best performance, we not only want to create the bundle with the <code class="inlineCode">production</code> flag activated, but we also want to split our bundles, one for our application and one for <code class="inlineCode">node_modules</code>.</p>
+<p class="normal">To do so, you need to use the new <code class="inlineCode">optimization</code> node in webpack:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-attr">optimization</span>: {
+  <span class="hljs-attr">splitChunks</span>: {
+   <span class="hljs-attr">cacheGroups</span>: {
+    <span class="hljs-attr">default</span>: <span class="hljs-literal">false</span>,
+    <span class="hljs-attr">commons</span>: {
+     <span class="hljs-attr">test</span>: <span class="hljs-regexp">/node_modules/</span>,
+     <span class="hljs-attr">name</span>: <span class="hljs-string">'vendor'</span>,
+     <span class="hljs-attr">chunks</span>: <span class="hljs-string">'all'</span>
+    }
+   }
+  }
+}
+</code></pre>
+<p class="normal">Webpack has two modes, <em class="italic">development</em> and <em class="italic">production</em>. By default, production mode is enabled, meaning the code will be minified and compressed when you compile your bundles using production mode; you can specify it with the following code block:</p>
+<pre class="programlisting code"><code class="hljs-code">{
+  <span class="hljs-attr">mode</span>: process.<span class="hljs-property">env</span>.<span class="hljs-property">NODE_ENV</span> === <span class="hljs-string">'production'</span> ? <span class="hljs-string">'production'</span> : <span class="hljs-string">'development'</span>,
+}
+</code></pre>
+<p class="normal">Your <code class="inlineCode">webpack.config.ts</code> file should look like this: </p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-variable">module</span>.<span class="hljs-property">exports</span> = {
+  <span class="hljs-attr">entry</span>: <span class="hljs-string">'./index.ts'</span>,
+  <span class="hljs-attr">optimization</span>: {
+   <span class="hljs-attr">splitChunks</span>: {
+    <span class="hljs-attr">cacheGroups</span>: {
+     <span class="hljs-attr">default</span>: <span class="hljs-literal">false</span>,
+     <span class="hljs-attr">commons</span>: {
+      <span class="hljs-attr">test</span>: <span class="hljs-regexp">/node_modules/</span>,
+      <span class="hljs-attr">name</span>: <span class="hljs-string">'vendor'</span>,
+      <span class="hljs-attr">chunks</span>: <span class="hljs-string">'all'</span>
+     }
+    }
+   }
+  },
+  <span class="hljs-attr">plugins</span>: [
+   <span class="hljs-keyword">new</span> webpack.<span class="hljs-title">DefinePlugin</span>({
+    <span class="hljs-string">'process.env'</span>: {
+     <span class="hljs-attr">NODE_ENV</span>: <span class="hljs-title">JSON</span>.<span class="hljs-title">stringify</span>(<span class="hljs-string">'production'</span>)
+    }
+   })
+  ],
+  <span class="hljs-attr">mode</span>: process.<span class="hljs-property">env</span>.<span class="hljs-property">NODE_ENV</span> === <span class="hljs-string">'production'</span> ? <span class="hljs-string">'production'</span> : <span class="hljs-string">'development'</span>
+}
+</code></pre>
+<p class="normal">With this <a id="_idIndexMarker858"/>webpack configuration, we are going to get very optimized bundles; one for our vendors and one for the actual application.</p>
+<h1 class="heading-1" id="_idParaDest-278">Tools and libraries</h1>
+<p class="normal">In the next section, we <a id="_idIndexMarker859"/>will go through several techniques, tools, and libraries <a id="_idIndexMarker860"/>that we can apply to our code base to monitor and improve performance.</p>
+<h2 class="heading-2" id="_idParaDest-279">Immutability</h2>
+<p class="normal">The new<a id="_idIndexMarker861"/> React Hooks, such as <code class="inlineCode">React.memo</code>, use a shallow comparison method against the props, which means that if we pass an object as a prop and we mutate one of its values, we do not get the expected behavior.</p>
+<p class="normal">In fact, a shallow comparison cannot find mutation on the properties and the components never get re-rendered, except when the object itself changes. One way to solve this issue is by using immutable data, data that, once it gets created, cannot be mutated.</p>
+<p class="normal">For example, we can set the state in the following mode:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">const</span> [state, setState] = <span class="hljs-title">useState</span>({})
+<span class="hljs-keyword">const</span> obj = state.<span class="hljs-property">obj</span>
+obj.<span class="hljs-property">foo</span> = <span class="hljs-string">'bar'</span>
+<span class="hljs-title">setState</span>({ obj })
+</code></pre>
+<p class="normal">Even if the value of the <code class="inlineCode">foo</code> attribute of the object is changed, the reference to the object is still the same and the shallow comparison does not recognize it.</p>
+<p class="normal">What we can do instead is create a new instance every time we mutate the object, as follows:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">const</span> obj = <span class="hljs-title">Object</span>.<span class="hljs-title">assign</span>({}, state.<span class="hljs-property">obj</span>, { <span class="hljs-attr">foo</span>: <span class="hljs-string">'bar'</span> })
+<span class="hljs-title">setState</span>({ obj })
+</code></pre>
+<p class="normal">In this case, we get a new object with the <code class="inlineCode">foo</code> property set to <code class="inlineCode">bar</code>, and the shallow comparison will be able to find the difference. With ES6 and Babel, there is another way to express the same concept in a more elegant way, and it is by using the object spread operator:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">const</span> obj = {
+  ...state.<span class="hljs-property">obj</span>,
+  <span class="hljs-attr">foo</span>: <span class="hljs-string">'bar'</span>
+} 
+<span class="hljs-title">setState</span>({ obj })
+</code></pre>
+<p class="normal">This structure is more concise than the previous one, and it produces the same result, but, at the time of writing, it requires the code to be transpiled to be executed inside the browser.</p>
+<p class="normal">React provides some immutability helpers to make it easy to work with immutable objects, and <a id="_idIndexMarker862"/>there is also a popular library called <code class="inlineCode">immutable.js</code>, which has more powerful features, but it requires you to learn new APIs.</p>
+<h2 class="heading-2" id="_idParaDest-280">Babel plugins</h2>
+<p class="normal">There<a id="_idIndexMarker863"/> are also a couple of interesting <strong class="keyWord">Babel</strong> plugins that we can install and use to improve the performance of our React applications. They make the applications faster, optimizing parts of the code at build time.</p>
+<p class="normal">The first one is the<a id="_idIndexMarker864"/> React <strong class="keyWord">constant elements transformer</strong>, which finds all the static elements that do not change depending on the props and extracts them from <code class="inlineCode">render</code> (or the functional components) to avoid calling <strong class="keyWord">_jsx</strong> unnecessarily.</p>
+<p class="normal">Using a Babel plugin is straightforward. We first install it with <code class="inlineCode">npm</code>:</p>
+<pre class="programlisting con"><code class="hljs-con">npm install --save-dev @babel/plugin-transform-react-constant-elements
+</code></pre>
+<p class="normal">You need to create the <code class="inlineCode">.babelrc</code> file and add a <code class="inlineCode">plugins</code> key with an array that has a value of the list of plugins that we want to activate:</p>
+<pre class="programlisting code"><code class="hljs-code">{
+   <span class="hljs-string">"plugins"</span>: [<span class="hljs-string">"@babel/plugin-transform-react-constant-elements"</span>]
+}
+</code></pre>
+<p class="normal">The second Babel plugin that we can choose to use to improve performance is the React inline elements transform, which replaces all the JSX declarations (or the <strong class="keyWord">_jsx</strong> calls) with a more optimized version of them to make execution faster.</p>
+<p class="normal">Install the plugin using the following command:</p>
+<pre class="programlisting con"><code class="hljs-con">npm install --save-dev @babel/plugin-transform-react-inline-elements
+</code></pre>
+<p class="normal">Next, you can easily add the plugin to the array of plugins in the <code class="inlineCode">.babelrc</code> file, as follows:</p>
+<pre class="programlisting code"><code class="hljs-code">{
+  <span class="hljs-string">"plugins"</span>: [<span class="hljs-string">"@babel/plugin-transform-react-inline-elements"</span>]
+}
+</code></pre>
+<p class="normal">Both plugins should be used only in production because they make debugging harder in development mode. So far, we have learned a lot of optimization techniques and how to configure some plugins using webpack.</p>
+<h1 class="heading-1" id="_idParaDest-281">Summary</h1>
+<p class="normal">Our journey through performance is finished, and we can now optimize our applications to give users a better UX.</p>
+<p class="normal">In this chapter, we learned how the reconciliation algorithm works and how React always tries to take the shortest path to apply changes to the DOM. We can also help the library to optimize its job by using keys. Once you’ve found your bottlenecks, you can apply one of the techniques we have seen in this chapter to fix the issue.</p>
+<p class="normal">We have learned how refactoring and designing the structure of your components in the proper way could provide a performance boost. Our goal is to have small components that do one single thing in the best possible way. At the end of the chapter, we talked about immutability, and we’ve seen why it’s important not to mutate data to make <code class="inlineCode">React.memo</code> and <code class="inlineCode">shallowCompare</code> do their job. Finally, we ran through different tools and libraries that can make your applications faster.</p>
+<p class="normal">In the next chapter, we’ll look at testing and debugging using Jest, the React Testing Library, and React DevTools.</p>
+<h1 class="heading-1" id="_idParaDest-282">Join our community on Discord</h1>
+<p class="normal">Join our community’s Discord space for discussion with the author and other readers:</p>
+<p class="normal"><a href="https://packt.link/React18DesignPatterns4e"><span class="url">https://packt.link/React18DesignPatterns4e</span></a></p>
+<p class="normal"><img alt="" height="177" src="../Images/QR_Code2450023176943770109.png" width="177"/></p>
+</div>
+</div></body></html>

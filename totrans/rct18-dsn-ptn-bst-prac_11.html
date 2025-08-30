@@ -1,0 +1,465 @@
+<html><head></head><body>
+<div id="sbo-rt-content"><div class="Basic-Text-Frame" id="_idContainer086">
+<h1 class="chapterNumber">11</h1>
+<h1 class="chapterTitle" id="_idParaDest-164">Managing Data </h1>
+<p class="normal">In this chapter, we will explore two beneficial tools: the <strong class="keyWord">React Context API</strong> and <strong class="keyWord">React Suspense</strong>. The Context API simplifies the process of sharing data across our entire application without the need to pass it down through multiple layers. On the other hand, React Suspense enables specific parts of our app to wait for certain actions before being displayed, resulting in a smoother loading experience.</p>
+<p class="normal">By utilizing these tools collectively, we can enhance data management and improve the overall performance of our app. Join us on this journey as we delve into the efficient handling of data in React.</p>
+<p class="normal">We will cover the following topics in this chapter:</p>
+<ul>
+<li class="bulletList">The React Context API</li>
+<li class="bulletList">How to consume a context with <code class="inlineCode">useContext</code></li>
+<li class="bulletList">How to use React Suspense with SWR (Stale-While-Revalidate)</li>
+<li class="bulletList">How to use Redux Toolkit</li>
+</ul>
+<h1 class="heading-1" id="_idParaDest-165">Technical requirements</h1>
+<p class="normal">To complete this chapter, you will need the following:</p>
+<ul>
+<li class="bulletList">Node.js 19+</li>
+<li class="bulletList">Visual Studio Code</li>
+</ul>
+<p class="normal">You can find the code for this chapter in the book’s GitHub repository: <a href="https://github.com/PacktPublishing/React-18-Design-Patterns-and-Best-Practices-Fourth-Edition/tree/main/Chapter11"><span class="url">https://github.com/PacktPublishing/React-18-Design-Patterns-and-Best-Practices-Fourth-Edition/tree/main/Chapter11</span></a>. </p>
+<h1 class="heading-1" id="_idParaDest-166">Introducing the React Context API</h1>
+<p class="normal">The <strong class="keyWord">React Context API</strong> has come a long way since it was first introduced as an experimental feature. Since version 16.3.0, it has been officially added to React and has become a game-changer for many developers. In fact, many are now using the new Context API instead of Redux. The <a id="_idIndexMarker403"/>Context API allows you to share data between components without having to pass a prop to every child component.</p>
+<p class="normal">To illustrate how to use the new Context API, let’s revisit the example from <em class="chapterRef">Chapter 8</em>, <em class="italic">React Hooks</em>, where we fetched GitHub issues using React Hooks, but this time by using the Context API instead.</p>
+<h2 class="heading-2" id="_idParaDest-167">Creating our first context</h2>
+<p class="normal">The first thing you <a id="_idIndexMarker404"/>need to do is to create the issue context. For this, you can create a folder called <code class="inlineCode">contexts</code> inside your <strong class="screenText">src</strong> folder, where you will add the <code class="inlineCode">Issue.tsx</code> file.</p>
+<p class="normal">Then, you need to import some functions from React and <code class="inlineCode">axios</code>:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-variable">FC</span>, createContext, useState, useEffect, <span class="hljs-title">ReactElement</span>, useCallback } <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>
+<span class="hljs-keyword">import</span> axios <span class="hljs-keyword">from</span> <span class="hljs-string">'axios'</span>
+</code></pre>
+<p class="normal">At this point, it is clear that you should install <code class="inlineCode">axios</code>. If you still don’t have it, just do the following:</p>
+<pre class="programlisting con"><code class="hljs-con">  npm install axios
+  npm install --save-dev @types/axios
+</code></pre>
+<p class="normal">Next, we need to declare our interfaces:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">export</span> type <span class="hljs-title">Issue</span> = {
+  <span class="hljs-attr">number</span>: number
+  <span class="hljs-attr">title</span>: string
+  <span class="hljs-attr">url</span>: string
+  <span class="hljs-attr">state</span>: string
+}
+interface <span class="hljs-title">Issue</span>_Context {
+  <span class="hljs-attr">issues</span>: <span class="hljs-title">Issue</span>[]
+  <span class="hljs-attr">url</span>: string
+}
+interface <span class="hljs-title">Props</span> {
+  <span class="hljs-attr">url</span>: string
+}
+</code></pre>
+<p class="normal">The first thing we need to do after this is to create our context by using the <code class="inlineCode">createContext</code> function and defining the value we want to export:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> <span class="hljs-title">IssueContext</span> = createContext&lt;<span class="hljs-title">Issue</span>_Context&gt;({ <span class="hljs-attr">issues</span>: [], <span class="hljs-attr">url</span>: <span class="hljs-string">''</span> })
+</code></pre>
+<p class="normal">Once we have <code class="inlineCode">IssueContext</code>, we need to create a component where we can receive props, set<a id="_idIndexMarker405"/> some states, and perform the fetch by using <code class="inlineCode">useEffect</code>, and then we render <code class="inlineCode">IssueContext.Provider</code> where we specify the context (value) we will export:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">const</span> <span class="hljs-title">IssueProvider</span>: <span class="hljs-variable">FC</span>&lt;<span class="hljs-title">Props</span>&gt; = <span class="hljs-function">(</span><span class="hljs-params">{ children, url }</span><span class="hljs-function">) =&gt;</span> {
+  <span class="hljs-comment">// State</span>
+  <span class="hljs-keyword">const</span> [issues, setIssues] = useState&lt;<span class="hljs-title">Issue</span>[]&gt;([])
+  <span class="hljs-keyword">const</span> fetchIssues = <span class="hljs-title">useCallback</span>(<span class="hljs-keyword">async</span> () =&gt; {
+    <span class="hljs-keyword">const</span> response = <span class="hljs-keyword">await</span> <span class="hljs-title">axios</span>(url)
+    <span class="hljs-keyword">if</span> (response) {
+      <span class="hljs-title">setIssues</span>(response.<span class="hljs-property">data</span>)
+    }
+  }, [url])
+  <span class="hljs-comment">// Effects</span>
+  <span class="hljs-title">useEffect</span>(<span class="hljs-function">() =&gt;</span> {
+    <span class="hljs-title">fetchIssues</span>()
+  }, [fetchIssues])
+  <span class="hljs-keyword">const</span> context = {
+    issues,
+    url
+  }
+  <span class="hljs-keyword">return</span> <span class="hljs-tag">&lt;</span><span class="hljs-name">IssueContext.Provider</span><span class="hljs-tag"> </span><span class="hljs-attr">value</span><span class="hljs-tag">=</span><span class="hljs-string">{context}</span><span class="hljs-tag">&gt;</span>{children}<span class="hljs-tag">&lt;/</span><span class="hljs-name">IssueContext.Provider</span><span class="hljs-tag">&gt;</span>
+}
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-title">IssueProvider</span>
+</code></pre>
+<p class="normal">As you know, every time you want to use a function inside the <code class="inlineCode">useEffect</code> Hook, you need to wrap your function with the <code class="inlineCode">useCallback</code> Hook. A good practice if you want to use async/await is to have it in a separate function and not directly in <code class="inlineCode">useEffect</code>.</p>
+<p class="normal">Once we perform the fetch and get the data in our <code class="inlineCode">issues</code> state, we will add all the values we want to export as context, then when we render <code class="inlineCode">IssueContext.Provider</code>, we will pass the context on the <code class="inlineCode">value</code> prop, and finally, we will render the<a id="_idIndexMarker406"/> children of the component.</p>
+<h2 class="heading-2" id="_idParaDest-168">Wrapping our components with the provider</h2>
+<p class="normal">The way you consume <a id="_idIndexMarker407"/>a context is divided into two parts. The first one is where you wrap your app with your context provider, so this code can be added to <code class="inlineCode">App.tsx</code> (normally, all the providers are defined in parent components).</p>
+<p class="normal">Notice here that we are importing the <code class="inlineCode">IssueProvider</code> component:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment">// Providers</span>
+<span class="hljs-keyword">import</span> <span class="hljs-title">IssueProvider</span> <span class="hljs-keyword">from</span> <span class="hljs-string">'../contexts/Issue'</span>
+<span class="hljs-comment">// Components</span>
+<span class="hljs-keyword">import</span> <span class="hljs-title">Issues</span> <span class="hljs-keyword">from</span> <span class="hljs-string">'./Issues'</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title">App</span> = () =&gt; {
+  <span class="hljs-keyword">return</span> (
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">IssueProvider</span><span class="hljs-tag"> </span><span class="hljs-attr">url</span><span class="hljs-tag">=</span><span class="hljs-string">"https://api.github.com/repos/ContentPI/ContentPI/issues"</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">Issues</span><span class="hljs-tag"> /&gt;</span>
+    <span class="hljs-tag">&lt;/</span><span class="hljs-name">IssueProvider</span><span class="hljs-tag">&gt;</span>
+  )
+}
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-title">App</span>;
+</code></pre>
+<p class="normal">As you can see, we are wrapping the <code class="inlineCode">Issues</code> component with <code class="inlineCode">IssueProvider</code>. This means that inside the <code class="inlineCode">Issues</code> component, we can consume our context and get the issues value.</p>
+<p class="normal">Many people find this concept confusing. If you forget to wrap your components with the provider, you won’t be able to access your context within them. The challenging aspect is that you might not receive an error message; instead, you will encounter undefined data, making it difficult to pinpoint the problem.</p>
+<p class="normal">Now that we comprehend the significance of correctly wrapping our components with <a id="_idIndexMarker408"/>providers, let’s explore how we can precisely consume our context using the <code class="inlineCode">useContext</code> Hook within our <code class="inlineCode">Issues</code> component.</p>
+<h1 class="heading-1" id="_idParaDest-169">Consuming context with useContext</h1>
+<p class="normal">If you’ve already placed <code class="inlineCode">IssueProvider</code> in <code class="inlineCode">App.tsx</code>, now you can consume your context in your <code class="inlineCode">Issues</code> component<a id="_idIndexMarker409"/> by using the <code class="inlineCode">useContext</code> Hook.</p>
+<p class="normal">Notice here that we are importing the <code class="inlineCode">IssueContext</code> context (between <code class="inlineCode">{ }</code>):</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment">// Dependencies</span>
+<span class="hljs-keyword">import</span> { <span class="hljs-variable">FC</span>, useContext } <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>
+<span class="hljs-comment">// Contexts</span>
+<span class="hljs-keyword">import</span> { <span class="hljs-title">IssueContext</span>, <span class="hljs-title">Issue</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'../contexts/Issue'</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title">Issues</span>: <span class="hljs-variable">FC</span> = <span class="hljs-function">() =&gt;</span> {
+  <span class="hljs-comment">// Here you consume your Context, and you can grab the issues value.</span>
+  <span class="hljs-keyword">const</span> { issues, url } = <span class="hljs-title">useContext</span>(<span class="hljs-title">IssueContext</span>)
+  <span class="hljs-keyword">return</span> (
+    <span class="hljs-tag">&lt;&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">h1</span><span class="hljs-tag">&gt;</span>ContentPI Issues from Context<span class="hljs-tag">&lt;/</span><span class="hljs-name">h1</span><span class="hljs-tag">&gt;</span>
+      {issues.map((issue: Issue) =&gt; (
+        <span class="hljs-tag">&lt;</span><span class="hljs-name">p</span><span class="hljs-tag"> </span><span class="hljs-attr">key</span><span class="hljs-tag">=</span><span class="hljs-string">{</span><span class="hljs-tag">`</span><span class="hljs-attr">issue-</span><span class="hljs-tag">${</span><span class="hljs-attr">issue.number</span><span class="hljs-tag">}`}&gt;</span>
+          <span class="hljs-tag">&lt;</span><span class="hljs-name">strong</span><span class="hljs-tag">&gt;</span>#{issue.number}<span class="hljs-tag">&lt;/</span><span class="hljs-name">strong</span><span class="hljs-tag">&gt;</span> {' '}
+          <span class="hljs-tag">&lt;</span><span class="hljs-name">a</span><span class="hljs-tag"> </span><span class="hljs-attr">href</span><span class="hljs-tag">=</span><span class="hljs-string">{</span><span class="hljs-tag">`${</span><span class="hljs-attr">url</span><span class="hljs-tag">}/${</span><span class="hljs-attr">issue.number</span><span class="hljs-tag">}`}&gt;</span>{issue.title}<span class="hljs-tag">&lt;/</span><span class="hljs-name">a</span><span class="hljs-tag">&gt;</span> {' '}
+          {issue.state}
+        <span class="hljs-tag">&lt;/</span><span class="hljs-name">p</span><span class="hljs-tag">&gt;</span>
+      ))}
+    <span class="hljs-tag">&lt;/&gt;</span>
+  )
+}
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-title">Issues</span>
+</code></pre>
+<p class="normal">If you did everything correctly, you should be able to see the issues list:</p>
+<figure class="mediaobject"><img alt="" height="679" src="../Images/B18414_11_01.png" width="825"/></figure>
+<p class="packt_figref">Figure 11.1: ContentPI Issues from Context</p>
+<p class="normal">The <strong class="keyWord">Context API</strong> is super useful when you want to separate your application from your data and do all the<a id="_idIndexMarker410"/> fetching in there. Of course, there are multiple uses for the <strong class="keyWord">Context API</strong>, which can also be used for theming or to pass functions; it all depends on your application.</p>
+<p class="normal">In the next section, we are going to learn how to implement <strong class="keyWord">React Suspense</strong> using the SWR library.</p>
+<h1 class="heading-1" id="_idParaDest-170">Introducing React Suspense with SWR</h1>
+<p class="normal">React Suspense was<a id="_idIndexMarker411"/> introduced in React 16.6. Suspense lets you suspend component rendering until a <a id="_idIndexMarker412"/>condition is met. You can render a loading component or anything you want as a fallback of Suspense. </p>
+<p class="normal">Right now, there are only two use cases for this:</p>
+<ul>
+<li class="bulletList"><strong class="keyWord">Code splitting</strong>: When you split your application and you’re waiting to download a chunk of your app when a user wants to access it.</li>
+<li class="bulletList"><strong class="keyWord">Data fetching</strong>: When you’re fetching data.</li>
+</ul>
+<p class="normal">In both scenarios, you can <a id="_idIndexMarker413"/>render a fallback, which<a id="_idIndexMarker414"/> can normally be a loading spinner, some loading text, or even better, a placeholder skeleton.</p>
+<h2 class="heading-2" id="_idParaDest-171">Introducing SWR</h2>
+<p class="normal"><strong class="keyWord">Stale-While-Revalidate</strong> (<strong class="keyWord">SWR</strong>) is a React Hook for data fetching; it is an HTTP cache invalidation strategy. SWR is a strategy to first return the data from cache (stale), then send the fetch<a id="_idIndexMarker415"/> request (revalidate), and finally, return with up-to-date data, and was developed by <strong class="keyWord">Vercel</strong>, the company that created <strong class="keyWord">Next.js</strong>.</p>
+<h2 class="heading-2" id="_idParaDest-172">Building a Pokedex!</h2>
+<p class="normal">I could not find a better <a id="_idIndexMarker416"/>example to explain React Suspense and SWR than building a <strong class="keyWord">Pokedex</strong>. We will use a public <a id="_idIndexMarker417"/>Pokemon API (<a href="https://pokeapi.co"><span class="url">https://pokeapi.co</span></a>): <em class="italic">gotta catch ‘em all</em>!</p>
+<p class="normal">The first thing you<a id="_idIndexMarker418"/> need to do is to install some packages:</p>
+<pre class="programlisting con"><code class="hljs-con">npm install swr react-loading-skeleton styled-components
+</code></pre>
+<p class="normal">For this example, you will need to create the Pokemon directory at <code class="inlineCode">src/components/Pokemon</code>. The first thing we need to do to work with SWR is to create a fetcher file where we will perform our requests.</p>
+<p class="normal">This file should be created at <code class="inlineCode">src/components/Pokemon/fetcher.ts</code>:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">const</span> <span class="hljs-title">fetcher</span> = (<span class="hljs-params">url: </span><span class="hljs-built_in">string</span>) =&gt; {
+  <span class="hljs-keyword">return</span> <span class="hljs-title">fetch</span>(url).<span class="hljs-title">then</span>(<span class="hljs-function">(</span><span class="hljs-params">response</span><span class="hljs-function">) =&gt;</span> {
+    <span class="hljs-keyword">if</span> (response.<span class="hljs-property">ok</span>) {
+      <span class="hljs-keyword">return</span> response.<span class="hljs-title">json</span>()
+    }
+    <span class="hljs-keyword">return</span> {
+      <span class="hljs-attr">error</span>: <span class="hljs-literal">true</span>
+    }
+  })
+}
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> fetcher
+</code></pre>
+<p class="normal">If you notice, we are returning an object with an <code class="inlineCode">error</code> if the response is not successful. This is because sometimes we can get a 404 error from the API that can cause the app to break.</p>
+<p class="normal">Once you have<a id="_idIndexMarker419"/> created your fetcher, let’s modify <code class="inlineCode">App.tsx</code> to configure <code class="inlineCode">SWRConfig</code> and enable Suspense:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-title">SWRConfig</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'swr'</span>
+<span class="hljs-keyword">import</span> <span class="hljs-title">PokeContainer</span> <span class="hljs-keyword">from</span> <span class="hljs-string">'./Pokemon/PokeContainer'</span>
+<span class="hljs-keyword">import</span> fetcher <span class="hljs-keyword">from</span> <span class="hljs-string">'</span><span class="hljs-string">./Pokemon/fetcher'</span>
+<span class="hljs-keyword">import</span> { <span class="hljs-title">StyledPokedex</span>, <span class="hljs-title">StyledTitle</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'./Pokemon/Pokemon.styled'</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title">App</span> = () =&gt; {
+  <span class="hljs-keyword">return</span> (
+    <span class="hljs-tag">&lt;&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">StyledTitle</span><span class="hljs-tag">&gt;</span>Pokedex<span class="hljs-tag">&lt;/</span><span class="hljs-name">StyledTitle</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">SWRConfig</span><span class="hljs-tag"> </span><span class="hljs-attr">value</span><span class="hljs-tag">=</span><span class="hljs-string">{{</span><span class="hljs-tag"> </span><span class="hljs-attr">fetcher</span><span class="hljs-tag">, </span><span class="hljs-attr">suspense:</span><span class="hljs-tag"> </span><span class="hljs-attr">true</span><span class="hljs-tag"> }}&gt;</span>
+        <span class="hljs-tag">&lt;</span><span class="hljs-name">StyledPokedex</span><span class="hljs-tag">&gt;</span>
+          <span class="hljs-tag">&lt;</span><span class="hljs-name">PokeContainer</span><span class="hljs-tag"> /&gt;</span>
+        <span class="hljs-tag">&lt;/</span><span class="hljs-name">StyledPokedex</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;/</span><span class="hljs-name">SWRConfig</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-tag">&lt;/&gt;</span>
+  )
+}
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-title">App</span>
+</code></pre>
+<p class="normal">As you can see, we <a id="_idIndexMarker420"/>need to wrap our <code class="inlineCode">PokeContainer</code> component inside <code class="inlineCode">SWRConfig</code> to be able to fetch the data. The <code class="inlineCode">PokeContainer</code> component will be our parent component, where we will add our first <code class="inlineCode">Suspense</code>. This file exists at <code class="inlineCode">src/components/Pokemon/PokeContainer.tsx</code>:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-variable">FC</span>, <span class="hljs-title">Suspense</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>
+<span class="hljs-keyword">import</span> <span class="hljs-title">Pokedex</span> <span class="hljs-keyword">from</span> <span class="hljs-string">'./Pokedex'</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title">PokeContainer</span>: <span class="hljs-variable">FC</span> = <span class="hljs-function">() =&gt;</span> {
+  <span class="hljs-keyword">return</span> (
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">Suspense</span><span class="hljs-tag"> </span><span class="hljs-attr">fallback</span><span class="hljs-tag">=</span><span class="hljs-string">{</span><span class="hljs-tag">&lt;</span><span class="hljs-attr">h2</span><span class="hljs-tag">&gt;</span>Loading Pokedex...<span class="hljs-tag">&lt;/</span><span class="hljs-name">h2</span><span class="hljs-tag">&gt;</span>}&gt;
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">Pokedex</span><span class="hljs-tag"> /&gt;</span>
+    <span class="hljs-tag">&lt;/</span><span class="hljs-name">Suspense</span><span class="hljs-tag">&gt;</span>
+  )
+}
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-title">PokeContainer</span>
+</code></pre>
+<p class="normal">As you can see, we are defining a fallback for our first <code class="inlineCode">Suspense</code>, which is just <code class="inlineCode">Loading Pokedex...</code> text. You can render whatever you want in there, React components or plain text. Then, we have our Pokedex component inside Suspense.</p>
+<p class="normal">Now let’s take a look at <a id="_idIndexMarker421"/>our Pokedex component where we are going to fetch data for the first time by using the <code class="inlineCode">useSWR</code> Hook:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-variable">FC</span>, <span class="hljs-title">Suspense</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>
+<span class="hljs-keyword">import</span> useSWR <span class="hljs-keyword">from</span> <span class="hljs-string">'swr'</span>
+<span class="hljs-keyword">import</span> <span class="hljs-title">LoadingSkeleton</span> <span class="hljs-keyword">from</span> <span class="hljs-string">'./LoadingSkeleton'</span>
+<span class="hljs-keyword">import</span> <span class="hljs-title">Pokemon</span> <span class="hljs-keyword">from</span> <span class="hljs-string">'./Pokemon'</span>
+<span class="hljs-keyword">import</span> { <span class="hljs-title">StyledGrid</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'</span><span class="hljs-string">./Pokemon.styled'</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title">Pokedex</span>: <span class="hljs-variable">FC</span> = <span class="hljs-function">() =&gt;</span> {
+  <span class="hljs-keyword">const</span> { <span class="hljs-attr">data</span>: { results } } = <span class="hljs-title">useSWR</span>(<span class="hljs-string">'https://pokeapi.co/api/v2/pokemon?limit=150'</span>)
+  <span class="hljs-keyword">return</span> (
+    <span class="hljs-tag">&lt;&gt;</span>
+      {results.map((pokemon: { name: string }) =&gt; (
+        <span class="hljs-tag">&lt;</span><span class="hljs-name">Suspense</span><span class="hljs-tag"> </span><span class="hljs-attr">fallback</span><span class="hljs-tag">=</span><span class="hljs-string">{</span><span class="hljs-tag">&lt;</span><span class="hljs-attr">StyledGrid</span><span class="hljs-tag">&gt;&lt;</span><span class="hljs-name">LoadingSkeleton</span><span class="hljs-tag"> /&gt;&lt;/</span><span class="hljs-name">StyledGrid</span><span class="hljs-tag">&gt;</span>}&gt;
+          <span class="hljs-tag">&lt;</span><span class="hljs-name">Pokemon</span><span class="hljs-tag"> </span><span class="hljs-attr">key</span><span class="hljs-tag">=</span><span class="hljs-string">{pokemon.name}</span><span class="hljs-tag"> </span><span class="hljs-attr">pokemonName</span><span class="hljs-tag">=</span><span class="hljs-string">{pokemon.name}</span><span class="hljs-tag"> /&gt;</span>
+        <span class="hljs-tag">&lt;/</span><span class="hljs-name">Suspense</span><span class="hljs-tag">&gt;</span>
+      ))}
+    <span class="hljs-tag">&lt;/&gt;</span>
+  )
+}
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-title">Pokedex</span>
+</code></pre>
+<p class="normal">As you can see, we are fetching the first 150 Pokemon because I’m old school and those were the<a id="_idIndexMarker422"/> first generation. Right now, I don’t know how many Pokemon exist. Also, if you notice, we are grabbing the <code class="inlineCode">results</code> variable that comes from the data (this is the actual response from the API). Then we map our results to render each Pokemon, but we add a Suspense component to each one with a <code class="inlineCode">&lt;LoadingSkeleton /&gt;</code> fallback (<code class="inlineCode">&lt;StyledGrid /&gt;</code> has some CSS styles to make it look nicer), and finally, we pass <code class="inlineCode">pokemonName</code> to our <code class="inlineCode">&lt;Pokemon&gt;</code> component, and this is because the first fetch just brings us the name of the Pokemon, but we need to do another fetch to bring the actual Pokemon data (name, types, power, and so on).</p>
+<p class="normal">Then, finally, our Pokemon component will perform a specific fetch by the Pokemon name and will render the data:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-variable">FC</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>
+<span class="hljs-keyword">import</span> useSWR <span class="hljs-keyword">from</span> <span class="hljs-string">'swr'</span>
+<span class="hljs-keyword">import</span> { <span class="hljs-title">StyledCard</span>, <span class="hljs-title">StyledTypes</span>, <span class="hljs-title">StyledType</span>, <span class="hljs-title">StyledHeader</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'./Pokemon.styled'</span>
+type <span class="hljs-title">Props</span> = {
+  <span class="hljs-attr">pokemonName</span>: string
+}
+<span class="hljs-keyword">const</span> <span class="hljs-title">Pokemon</span>: <span class="hljs-variable">FC</span>&lt;<span class="hljs-title">Props</span>&gt; = <span class="hljs-function">(</span><span class="hljs-params">{ pokemonName }</span><span class="hljs-function">) =&gt;</span> {
+  <span class="hljs-keyword">const</span> { data, error } = <span class="hljs-title">useSWR</span>(<span class="hljs-string">`https://pokeapi.co/api/v2/pokemon/</span><span class="hljs-subst">${pokemonName}</span><span class="hljs-string">`</span>)
+  <span class="hljs-comment">// Do you remember the error we set on the fetcher?</span>
+  <span class="hljs-keyword">if</span> (error || data.<span class="hljs-property">error</span>) {
+    <span class="hljs-keyword">return</span> <span class="hljs-tag">&lt;</span><span class="hljs-name">div</span><span class="hljs-tag"> /&gt;</span>
+  }
+  <span class="hljs-keyword">if</span> (!data) {
+    <span class="hljs-keyword">return</span> <span class="hljs-tag">&lt;</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>Loading...<span class="hljs-tag">&lt;/</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+  }
+  <span class="hljs-keyword">const</span> { id, name, sprites, types } = data
+  <span class="hljs-keyword">const</span> pokemonTypes = types.<span class="hljs-title">map</span>(<span class="hljs-function">(</span><span class="hljs-params">pokemonType: any</span><span class="hljs-function">) =&gt;</span> pokemonType.<span class="hljs-property">type</span>.<span class="hljs-property">name</span>)
+  <span class="hljs-keyword">return</span> (
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">StyledCard</span><span class="hljs-tag"> </span><span class="hljs-attr">pokemonType</span><span class="hljs-tag">=</span><span class="hljs-string">{pokemonTypes[0]}</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">StyledHeader</span><span class="hljs-tag">&gt;</span>
+        <span class="hljs-tag">&lt;</span><span class="hljs-name">h2</span><span class="hljs-tag">&gt;</span>{name}<span class="hljs-tag">&lt;/</span><span class="hljs-name">h2</span><span class="hljs-tag">&gt;</span>
+        <span class="hljs-tag">&lt;</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>#{id}<span class="hljs-tag">&lt;/</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;/</span><span class="hljs-name">StyledHeader</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">img</span><span class="hljs-tag"> </span><span class="hljs-attr">alt</span><span class="hljs-tag">=</span><span class="hljs-string">{name}</span><span class="hljs-tag"> </span><span class="hljs-attr">src</span><span class="hljs-tag">=</span><span class="hljs-string">{sprites.front_default}</span><span class="hljs-tag"> /&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">StyledTypes</span><span class="hljs-tag">&gt;</span>
+        {pokemonTypes.map((pokemonType: string) =&gt; (
+          <span class="hljs-tag">&lt;</span><span class="hljs-name">StyledType</span><span class="hljs-tag"> </span><span class="hljs-attr">key</span><span class="hljs-tag">=</span><span class="hljs-string">{pokemonType}</span><span class="hljs-tag">&gt;</span>{pokemonType}<span class="hljs-tag">&lt;/</span><span class="hljs-name">StyledType</span><span class="hljs-tag">&gt;</span>
+        ))}
+      <span class="hljs-tag">&lt;/</span><span class="hljs-name">StyledTypes</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-tag">&lt;/</span><span class="hljs-name">StyledCard</span><span class="hljs-tag">&gt;</span>
+  )
+}
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-title">Pokemon</span>
+</code></pre>
+<p class="normal">Basically, in this component, we <a id="_idIndexMarker423"/>put together all the<a id="_idIndexMarker424"/> Pokemon data (ID, name, sprites, and types) and we render the information. As you have seen, I’m using styled components, which are amazing, so if you want to know the styles that I’m using for Pokedex, here is the <code class="inlineCode">Pokemon.styled.ts</code> file:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> styled <span class="hljs-keyword">from</span> <span class="hljs-string">'styled-components'</span>
+<span class="hljs-comment">// Type colors</span>
+<span class="hljs-keyword">const</span> <span class="hljs-attr">type</span>: <span class="hljs-built_in">any</span> = {
+  <span class="hljs-attr">bug</span>: <span class="hljs-string">'#2ADAB1'</span>,
+  <span class="hljs-attr">dark</span>: <span class="hljs-string">'#636363'</span>,
+  <span class="hljs-attr">dragon</span>: <span class="hljs-string">'#E9B057'</span>,
+  <span class="hljs-attr">electric</span>: <span class="hljs-string">'#ffeb5b'</span>,
+  <span class="hljs-attr">fairy</span>: <span class="hljs-string">'#ffdbdb'</span>,
+  <span class="hljs-attr">fighting</span>: <span class="hljs-string">'#90a4b5'</span>,
+  <span class="hljs-attr">fire</span>: <span class="hljs-string">'#F7786B'</span>,
+  <span class="hljs-attr">flying</span>: <span class="hljs-string">'#E8DCB3'</span>,
+  <span class="hljs-attr">ghost</span>: <span class="hljs-string">'#755097'</span>,
+  <span class="hljs-attr">grass</span>: <span class="hljs-string">'#2ADAB1'</span>,
+  <span class="hljs-attr">ground</span>: <span class="hljs-string">'#dbd3a2'</span>,
+  <span class="hljs-attr">ice</span>: <span class="hljs-string">'#C8DDEA'</span>,
+  <span class="hljs-attr">normal</span>: <span class="hljs-string">'#ccc'</span>,
+  <span class="hljs-attr">poison</span>: <span class="hljs-string">'#cc89ff'</span>,
+  <span class="hljs-attr">psychic</span>: <span class="hljs-string">'#705548'</span>,
+  <span class="hljs-attr">rock</span>: <span class="hljs-string">'#b7b7b7'</span>,
+  <span class="hljs-attr">steel</span>: <span class="hljs-string">'#999'</span>,
+  <span class="hljs-attr">water</span>: <span class="hljs-string">'#58ABF6'</span>
+}
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> <span class="hljs-title">StyledPokedex</span> = styled.<span class="hljs-property">div</span><span class="hljs-string">`</span>
+<span class="hljs-string">  display: flex;</span>
+<span class="hljs-string">  flex-wrap: wrap;</span>
+<span class="hljs-string">  flex-flow: row wrap;</span>
+<span class="hljs-string">  margin: 0 auto;</span>
+<span class="hljs-string">  width: 90%;</span>
+<span class="hljs-string">  &amp;::after {</span>
+<span class="hljs-string">    content: '';</span>
+<span class="hljs-string">    flex: auto;</span>
+<span class="hljs-string">  }</span>
+<span class="hljs-string">`</span>
+<span class="hljs-keyword">type</span> <span class="hljs-title">Props</span> = {
+  <span class="hljs-attr">pokemonType</span>: <span class="hljs-built_in">string</span>
+}
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> <span class="hljs-title">StyledCard</span> = styled.<span class="hljs-property">div</span>&lt;<span class="hljs-title">Props</span>&gt;<span class="hljs-string">`</span>
+<span class="hljs-string">  position: relative;</span>
+<span class="hljs-string">  </span><span class="hljs-subst">${({ pokemonType }) =&gt; </span><span class="hljs-string">`</span>
+<span class="hljs-string">    background: </span><span class="hljs-subst">${</span><span class="hljs-keyword">type</span><span class="hljs-subst">[pokemonType]}</span><span class="hljs-string"> url(./pokeball.png) no-repeat;</span>
+<span class="hljs-string">    background-size: 65%;</span>
+<span class="hljs-string">    background-position: center;</span>
+<span class="hljs-string">  `</span><span class="hljs-subst">}</span>
+<span class="hljs-string">  color: #000;</span>
+<span class="hljs-string">  font-size: 13px;</span>
+<span class="hljs-string">  border-radius: 20px;</span>
+<span class="hljs-string">  margin: 5px;</span>
+<span class="hljs-string">  width: 200px;</span>
+<span class="hljs-string">  img {</span>
+<span class="hljs-string">    margin-left: auto;</span>
+<span class="hljs-string">    margin-right: auto;</span>
+<span class="hljs-string">    display: block;</span>
+<span class="hljs-string">  }</span>
+<span class="hljs-string">`</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> <span class="hljs-title">StyledTypes</span> = styled.<span class="hljs-property">div</span><span class="hljs-string">`</span>
+<span class="hljs-string">  display: flex;</span>
+<span class="hljs-string">  margin-left: 6px;</span>
+<span class="hljs-string">  margin-bottom: 8px;</span>
+<span class="hljs-string">`</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> <span class="hljs-title">StyledType</span> = styled.<span class="hljs-property">span</span><span class="hljs-string">`</span>
+<span class="hljs-string">  display: inline-block;</span>
+<span class="hljs-string">  background-color: black;</span>
+<span class="hljs-string">  border-radius: 20px;</span>
+<span class="hljs-string">  font-weight: bold;</span>
+<span class="hljs-string">  padding: 6px;</span>
+<span class="hljs-string">  color: white;</span>
+<span class="hljs-string">  margin-right: 3px;</span>
+<span class="hljs-string">  opacity: 0.4;</span>
+<span class="hljs-string">  text-transform: capitalize;</span>
+<span class="hljs-string">`</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> <span class="hljs-title">StyledHeader</span> = styled.<span class="hljs-property">div</span><span class="hljs-string">`</span>
+<span class="hljs-string">  display: flex;</span>
+<span class="hljs-string">  justify-content: space-between;</span>
+<span class="hljs-string">  width: 90%;</span>
+<span class="hljs-string">  h2 {</span>
+<span class="hljs-string">    margin-left: 10px;</span>
+<span class="hljs-string">    margin-top: 5px;</span>
+<span class="hljs-string">    color: white;</span>
+<span class="hljs-string">    text-transform: capitalize;</span>
+<span class="hljs-string">  }</span>
+<span class="hljs-string">  div {</span>
+<span class="hljs-string">    color: white;</span>
+<span class="hljs-string">    font-size: 20px;</span>
+<span class="hljs-string">    font-weight: bold;</span>
+<span class="hljs-string">    margin-top: 5px;</span>
+<span class="hljs-string">  }</span>
+<span class="hljs-string">`</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> <span class="hljs-title">StyledTitle</span> = styled.<span class="hljs-property">h1</span><span class="hljs-string">`</span>
+<span class="hljs-string">  text-align: center;</span>
+<span class="hljs-string">`</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> <span class="hljs-title">StyledGrid</span> = styled.<span class="hljs-property">div</span><span class="hljs-string">`</span>
+<span class="hljs-string">  display: flex;</span>
+<span class="hljs-string">  flex-wrap: wrap;</span>
+<span class="hljs-string">  flex-flow: row wrap;</span>
+<span class="hljs-string">  div {</span>
+<span class="hljs-string">    margin-right: 5px;</span>
+<span class="hljs-string">    margin-bottom: 5px;</span>
+<span class="hljs-string">  }</span>
+<span class="hljs-string">`</span>
+</code></pre>
+<p class="normal">Finally, our <code class="inlineCode">LoadingSkeleton</code> component<a id="_idIndexMarker425"/> should be like this:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-variable">FC</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>
+<span class="hljs-keyword">import</span> <span class="hljs-title">Skeleton</span> <span class="hljs-keyword">from</span> <span class="hljs-string">'react-loading-skeleton'</span>
+<span class="hljs-keyword">const</span> <span class="hljs-title">LoadingSkeleton</span>: <span class="hljs-variable">FC</span> = <span class="hljs-function">() =&gt;</span> (
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">Skeleton</span><span class="hljs-tag"> </span><span class="hljs-attr">height</span><span class="hljs-tag">=</span><span class="hljs-string">{200}</span><span class="hljs-tag"> </span><span class="hljs-attr">width</span><span class="hljs-tag">=</span><span class="hljs-string">{200}</span><span class="hljs-tag"> /&gt;</span>
+  <span class="hljs-tag">&lt;/</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+)
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-title">LoadingSkeleton</span>
+</code></pre>
+<p class="normal">This library is amazing. It<a id="_idIndexMarker426"/> lets you create skeleton placeholders to wait for the data. Of course, you can build as many forms as you want. You have probably seen this effect on sites such as LinkedIn or YouTube.</p>
+<h3 class="heading-3" id="_idParaDest-173">Testing React Suspense</h3>
+<p class="normal">Once you have all the pieces <a id="_idIndexMarker427"/>of the code working, there is a trick you can do in order to see all the Suspense fallbacks. Normally, if you have a high-speed connection, it is hard to see it, but you can slow down your connection to see how everything is being rendered. You can do this by selecting <strong class="screenText">Slow 3G</strong> in your <strong class="screenText">Network</strong> tab on your Chrome inspector: </p>
+<figure class="mediaobject"><img alt="" height="252" src="../Images/B18414_11_02.png" width="454"/></figure>
+<p class="packt_figref">Figure 11.2: Slow 3G connection</p>
+<p class="normal">Once you set the <strong class="screenText">Slow 3G</strong> preset and<a id="_idIndexMarker428"/> you run your project, the first fallback you will see is <strong class="screenText">Loading Pokedex...</strong>:</p>
+<figure class="mediaobject"><img alt="" height="163" src="../Images/B18414_11_03.png" width="825"/></figure>
+<p class="packt_figref">Figure 11.3: Loading Pokedex</p>
+<p class="normal">Then, you will see the Pokemon fallbacks that are rendering <code class="inlineCode">SkeletonLoading</code> for each Pokemon that is being loaded:</p>
+<figure class="mediaobject"><img alt="" height="465" src="../Images/B18414_11_04.png" width="784"/></figure>
+<p class="packt_figref">Figure 11.4: SkeletonLoading</p>
+<p class="normal">Normally those<a id="_idIndexMarker429"/> loaders have animation, but you won’t see that in this book, of course! And then you will start seeing how the data is rendering and some images start appearing:</p>
+<figure class="mediaobject"><img alt="" height="453" src="../Images/B18414_11_05.png" width="825"/></figure>
+<p class="packt_figref">Figure 11.5: Loading Pokedex</p>
+<p class="normal">If you wait until all the<a id="_idIndexMarker430"/> data has downloaded correctly, you should now see the Pokedex with all the Pokemon:</p>
+<figure class="mediaobject"><img alt="" height="494" src="../Images/B18414_11_06.png" width="825"/></figure>
+<p class="packt_figref">Figure 11.6: Displaying the entire Pokedex</p>
+<p class="normal">Pretty nice, huh? But there is something else to mention; as I mentioned before, SWR will bring the <a id="_idIndexMarker431"/>data from the cache first and then will revalidate the data all the time to see whether there are new updates. This means that any time the data changes, SWR will perform another fetch to revalidate whether the old data is still valid or needs to be replaced by a new one. </p>
+<p class="normal">You can see this effect even if you move out from the Pokedex tab to another and then come back. You’ll see that your <strong class="screenText">Network</strong> terminal, for the first time, looks like this:</p>
+<figure class="mediaobject"><img alt="" height="707" src="../Images/B18414_11_07.png" width="663"/></figure>
+<p class="packt_figref">Figure 11.7: Requests</p>
+<p class="normal">As you can see, we <a id="_idIndexMarker432"/>performed 151 initial requests (1 for the Pokemon lists and 150 others, 1 for each Pokemon), but if you change the tab and come back, you will see how SWR is fetching again:</p>
+<figure class="mediaobject"><img alt="" height="710" src="../Images/B18414_11_08.png" width="739"/></figure>
+<p class="packt_figref">Figure 11.8: 151 requests</p>
+<p class="normal">Now you can see that it is<a id="_idIndexMarker433"/> performing 302 requests (another 151). This is very useful when you have real-time data that you want to fetch every second or every minute.</p>
+<p class="normal">Currently, React Suspense lacks a defined pattern of use, which implies that there are various ways to utilize it, and there are no established best practices for it yet. I have found that SWR is the easiest and most understandable approach to working with React Suspense. I believe it is a powerful library that can be utilized effectively even without the need for Suspense.</p>
+<p class="normal">After exploring the flexibility of React Suspense, let’s redirect our attention to another formidable tool within the React ecosystem: Redux Toolkit. This tool is revolutionizing the approach to Redux, and in the subsequent section, we will delve into its essential<a id="_idIndexMarker434"/> features and demonstrate its application through practical code examples.</p>
+<h1 class="heading-1" id="_idParaDest-174">Redux Toolkit: a modern approach to Redux</h1>
+<p class="normal"><strong class="keyWord">Redux Toolkit</strong> is the official, opinionated, and<a id="_idIndexMarker435"/> batteries-included toolset for efficient Redux development. It was created to help developers write better and more efficient Redux code with less boilerplate. In this section, we’ll explore the key features of Redux Toolkit, along with code examples to demonstrate how to use it in your application.</p>
+<h2 class="heading-2" id="_idParaDest-175">Key features</h2>
+<p class="normal">Redux Toolkit comes with several key features that simplify the Redux development <a id="_idIndexMarker436"/>process:</p>
+<ul>
+<li class="bulletList"><strong class="keyWord">configureStore</strong>: A function that sets up a Redux store with sensible defaults.</li>
+<li class="bulletList"><strong class="keyWord">createSlice</strong>: A function that automatically generates action creators and reducers based on a provided configuration.</li>
+<li class="bulletList"><strong class="keyWord">createAction</strong>: A utility function to create action creators with a specific type and payload.</li>
+<li class="bulletList"><strong class="keyWord">createReducer</strong>: A utility function that simplifies reducer creation using <strong class="keyWord">Immer</strong>, enabling direct state manipulation.</li>
+</ul>
+<h2 class="heading-2" id="_idParaDest-176">Getting started</h2>
+<p class="normal">First, install Redux Toolkit and its peer dependencies:</p>
+<pre class="programlisting con"><code class="hljs-con">  npm install @reduxjs/toolkit react-redux typescript @types/react @types/react-redux @types/react-dom
+</code></pre>
+<h2 class="heading-2" id="_idParaDest-177">Creating a store</h2>
+<p class="normal">To create a store, we’ll<a id="_idIndexMarker437"/> use the <code class="inlineCode">configureStore</code> function <a id="_idIndexMarker438"/>provided by Redux Toolkit (<code class="inlineCode">store.ts</code>):</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { configureStore } <span class="hljs-keyword">from</span> <span class="hljs-string">'@reduxjs/toolkit'</span>
+<span class="hljs-keyword">import</span> rootReducer <span class="hljs-keyword">from</span> <span class="hljs-string">'./rootReducer'</span>
+<span class="hljs-keyword">const</span> store = <span class="hljs-title">configureStore</span>({
+  <span class="hljs-attr">reducer</span>: rootReducer
+})
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">type</span> <span class="hljs-title">RootState</span> = <span class="hljs-title">ReturnType</span>&lt;<span class="hljs-keyword">typeof</span> rootReducer&gt;
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> store
+</code></pre>
+<h2 class="heading-2" id="_idParaDest-178">Creating a slice</h2>
+<p class="normal">A slice represents a portion<a id="_idIndexMarker439"/> of the Redux store that corresponds to a specific feature or domain. To create a slice, use the <code class="inlineCode">createSlice</code> function (<code class="inlineCode">createSlice.ts</code>):</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { createSlice } <span class="hljs-keyword">from</span> <span class="hljs-string">'@reduxjs/toolkit'</span>
+<span class="hljs-keyword">const</span> counterSlice = <span class="hljs-title">createSlice</span>({
+  <span class="hljs-attr">name</span>: <span class="hljs-string">'counter'</span>,
+  <span class="hljs-attr">initialState</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-attr">reducers</span>: {
+    <span class="hljs-attr">increment</span>: <span class="hljs-function">(</span><span class="hljs-params">state</span><span class="hljs-function">) =&gt;</span> state + <span class="hljs-number">1</span>,
+    <span class="hljs-attr">decrement</span>: <span class="hljs-function">(</span><span class="hljs-params">state</span><span class="hljs-function">) =&gt;</span> state – <span class="hljs-number">1</span>
+  }
+})
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> { increment, decrement } = counterSlice.<span class="hljs-property">actions</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> counterSlice.<span class="hljs-property">reducer</span>
+</code></pre>
+<h2 class="heading-2" id="_idParaDest-179">Combining reducers</h2>
+<p class="normal">If you have multiple slices, you<a id="_idIndexMarker440"/> can use the <code class="inlineCode">combineReducers</code> function from Redux Toolkit to create a root reducer (<code class="inlineCode">rootReducer.ts</code>):</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { combineReducers } <span class="hljs-keyword">from</span> <span class="hljs-string">'@reduxjs/toolkit'</span>
+<span class="hljs-keyword">import</span> counterReducer <span class="hljs-keyword">from</span> <span class="hljs-string">'./counterSlice'</span>
+<span class="hljs-keyword">const</span> rootReducer = <span class="hljs-title">combineReducers</span>({
+  <span class="hljs-attr">counter</span>: counterReducer
+})
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> rootReducer
+</code></pre>
+<h2 class="heading-2" id="_idParaDest-180">Connecting components to the store</h2>
+<p class="normal">To connect a React component<a id="_idIndexMarker441"/> to the Redux <a id="_idIndexMarker442"/>store, use the <code class="inlineCode">useSelector</code> and <code class="inlineCode">useDispatch</code> Hooks from the <code class="inlineCode">react-redux</code> package (<code class="inlineCode">Counter.ts</code>):</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { useSelector, useDispatch } <span class="hljs-keyword">from</span> <span class="hljs-string">'react-redux'</span>
+<span class="hljs-keyword">import</span> { increment, decrement } <span class="hljs-keyword">from</span> <span class="hljs-string">'./counterSlice'</span>
+<span class="hljs-keyword">import</span> { <span class="hljs-title">RootState</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'</span><span class="hljs-string">./store'</span>
+<span class="hljs-keyword">function</span> <span class="hljs-title">Counter</span>() {
+  <span class="hljs-keyword">const</span> count = <span class="hljs-title">useSelector</span>(<span class="hljs-function">(</span><span class="hljs-params">state: RootState</span><span class="hljs-function">) =&gt;</span> state.<span class="hljs-property">counter</span>)
+  <span class="hljs-keyword">const</span> dispatch = <span class="hljs-title">useDispatch</span>()
+  <span class="hljs-keyword">return</span> (
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">button</span><span class="hljs-tag"> </span><span class="hljs-attr">onClick</span><span class="hljs-tag">=</span><span class="hljs-string">{()</span><span class="hljs-tag"> =&gt;</span> dispatch(decrement())}&gt;-<span class="hljs-tag">&lt;/</span><span class="hljs-name">button</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">span</span><span class="hljs-tag">&gt;</span>{count}<span class="hljs-tag">&lt;/</span><span class="hljs-name">span</span><span class="hljs-tag">&gt;</span>
+      <span class="hljs-tag">&lt;</span><span class="hljs-name">button</span><span class="hljs-tag"> </span><span class="hljs-attr">onClick</span><span class="hljs-tag">=</span><span class="hljs-string">{()</span><span class="hljs-tag"> =&gt;</span> dispatch(increment())}&gt;+<span class="hljs-tag">&lt;/</span><span class="hljs-name">button</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-tag">&lt;/</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+  )
+}
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-title">Counter</span>
+</code></pre>
+<h2 class="heading-2" id="_idParaDest-181">Integrating the store with a React application</h2>
+<p class="normal">Finally, wrap your React <a id="_idIndexMarker443"/>application with<a id="_idIndexMarker444"/> the <code class="inlineCode">Provider</code> component from <code class="inlineCode">react-redux</code> and pass your store as a prop:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> <span class="hljs-title">React</span> <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>
+<span class="hljs-keyword">import</span> { createRoot } <span class="hljs-keyword">from</span> <span class="hljs-string">'react-dom/client'</span>
+<span class="hljs-keyword">import</span> { <span class="hljs-title">Provider</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'react-redux'</span>
+<span class="hljs-keyword">import</span> store <span class="hljs-keyword">from</span> <span class="hljs-string">'./store'</span>
+<span class="hljs-keyword">import</span> <span class="hljs-title">Counter</span> <span class="hljs-keyword">from</span> <span class="hljs-string">'./Counter'</span>
+<span class="hljs-title">createRoot</span>(<span class="hljs-variable">document</span>.<span class="hljs-title">getElementById</span>(<span class="hljs-string">'root'</span>) <span class="hljs-keyword">as</span> <span class="hljs-title">HTMLElement</span>).<span class="hljs-title">render</span>(
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">Provider</span><span class="hljs-tag"> </span><span class="hljs-attr">store</span><span class="hljs-tag">=</span><span class="hljs-string">{store}</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">Counter</span><span class="hljs-tag"> /&gt;</span>
+  <span class="hljs-tag">&lt;/</span><span class="hljs-name">Provider</span><span class="hljs-tag">&gt;</span>
+)
+</code></pre>
+<p class="normal">In this section, we’ve explored Redux Toolkit’s key features, including <code class="inlineCode">configureStore</code>, <code class="inlineCode">createSlice</code>, <code class="inlineCode">createAction</code>, and <code class="inlineCode">createReducer</code>. By utilizing these features, developers can write more efficient and maintainable Redux code with less boilerplate. The provided code examples demonstrate how to create a simple counter application using Redux Toolkit, illustrating the steps required to set up the store, create slices and reducers, and connect components to the store. By leveraging Redux Toolkit, you can simplify your Redux development process and build more<a id="_idIndexMarker445"/> robust <a id="_idIndexMarker446"/>applications.</p>
+<h1 class="heading-1" id="_idParaDest-182">Summary</h1>
+<p class="normal">I really hope you enjoyed reading this chapter, which contains a lot of information about the React Context API and how to implement React Suspense with SWR. We covered the basics of the Context API, including how to create and consume contexts, as well as how to use the <code class="inlineCode">useContext</code> Hook for simpler consumption. </p>
+<p class="normal">Additionally, we explored React Suspense and how it can improve the user experience by allowing us to handle loading states more effectively. We also learned about SWR and how it can simplify data fetching and caching with React Suspense. Finally, we learned how to implement the new Redux Toolkit. By utilizing these powerful tools, you can build more efficient and user-friendly React applications.</p>
+<p class="normal">In the next chapter, we will learn how to use <strong class="keyWord">Server-Side Rendering</strong> in React with <strong class="keyWord">Next.js</strong>.</p>
+</div>
+</div></body></html>

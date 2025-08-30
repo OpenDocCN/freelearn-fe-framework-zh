@@ -1,732 +1,1069 @@
 - en: '15'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '15'
 - en: Adding Persistence to Socket.IO Using MongoDB
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在 Socket.IO 中使用 MongoDB 添加持久性
 - en: Now that we have implemented a Socket.IO backend and frontend, let’s spend some
     time integrating it with the MongoDB database by temporarily storing messages
     in the database and replaying them when a new user joins, so that users can see
     the chat history after they join. Additionally, we will refactor our chat app
     to be ready for future expansions and maintenance. Finally, we will test out the
     new structure by implementing new commands to join and switch rooms.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经实现了 Socket.IO 后端和前端，让我们花些时间将其与 MongoDB 数据库集成，通过在数据库中临时存储消息并在新用户加入时回放它们，这样用户在加入后可以看到聊天历史。此外，我们将重构我们的聊天应用程序，使其为未来的扩展和维护做好准备。最后，我们将通过实现新的加入和切换房间的命令来测试新的结构。
 - en: 'In this chapter, we are going to cover the following main topics:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将涵盖以下主要主题：
 - en: Storing and replaying messages using MongoDB
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用 MongoDB 存储和回放消息
 - en: Refactoring the app to be more extensible
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 重构应用程序以使其更具可扩展性
 - en: Implementing commands to join and switch rooms
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 实现加入和切换房间的命令
 - en: Technical requirements
+  id: totrans-7
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: Before we start, please install all requirements from [*Chapter 1*](B19385_01.xhtml#_idTextAnchor016)*,
     Preparing for Full Stack Development*, and [*Chapter 2*](B19385_02.xhtml#_idTextAnchor028)*,
     Getting to Know Node.js* *and MongoDB*.
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们开始之前，请从[*第 1 章*](B19385_01.xhtml#_idTextAnchor016)*，准备全栈开发*和[*第 2 章*](B19385_02.xhtml#_idTextAnchor028)*，了解
+    Node.js*和 MongoDB*中安装所有要求。
 - en: The versions listed in those chapters are the ones used in the book. While installing
     a newer version should not be an issue, please note that certain steps might work
     differently on a newer version. If you are having an issue with the code and steps
     provided in this book, please try using the versions mentioned in *Chapters 1*
     and *2*.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 那些章节中列出的版本是书中使用的版本。虽然安装较新版本可能不会有问题，但请注意，某些步骤在较新版本上可能有所不同。如果您在这本书提供的代码和步骤中遇到问题，请尝试使用*第
+    1 章*和*第 2 章*中提到的版本。
 - en: 'You can find the code for this chapter on GitHub: [https://github.com/PacktPublishing/Modern-Full-Stack-React-Projects/tree/main/ch15](https://github.com/PacktPublishing/Modern-Full-Stack-React-Projects/tree/main/ch15).'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以在 GitHub 上找到本章的代码：[https://github.com/PacktPublishing/Modern-Full-Stack-React-Projects/tree/main/ch15](https://github.com/PacktPublishing/Modern-Full-Stack-React-Projects/tree/main/ch15)。
 - en: If you cloned the full repository for the book, Husky may not find the `.git`
     directory when running `npm install`. In that case, just run `git init` in the
     root of the corresponding chapter folder.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果您克隆了本书的完整仓库，Husky 在运行 `npm install` 时可能找不到 `.git` 目录。在这种情况下，只需在相应章节文件夹的根目录中运行
+    `git init`。
 - en: 'The CiA video for this chapter can be found at: [https://youtu.be/Mi7Wj_jxjhM](https://youtu.be/Mi7Wj_jxjhM).'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章的 CiA 视频可以在以下网址找到：[https://youtu.be/Mi7Wj_jxjhM](https://youtu.be/Mi7Wj_jxjhM)。
 - en: Storing and replaying messages using MongoDB
+  id: totrans-13
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用 MongoDB 存储和回放消息
 - en: Currently, if a new user joins the chat, they will not see any messages until
     someone actively sends messages. As such, new users will not be able to participate
     well in ongoing discussions. To solve this issue, we can store messages in the
     database and replay them when a user joins.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 目前，如果新用户加入聊天，他们将看不到任何消息，直到有人主动发送消息。因此，新用户将无法很好地参与正在进行中的讨论。为了解决这个问题，我们可以将消息存储在数据库中，并在用户加入时回放它们。
 - en: Creating the Mongoose schema
+  id: totrans-15
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 创建 Mongoose 模式
 - en: 'Follow these steps to create a Mongoose schema for storing chat messages:'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 按照以下步骤创建用于存储聊天消息的 Mongoose 模式：
 - en: 'Copy the existing **ch14** folder to a new **ch15** folder, as follows:'
+  id: totrans-17
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将现有的 **ch14** 文件夹复制到新的 **ch15** 文件夹，如下所示：
 - en: '[PRE0]'
+  id: totrans-18
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: Open the new **ch15** folder in VS Code.
+  id: totrans-19
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在 VS Code 中打开新的 **ch15** 文件夹。
 - en: Create a new **backend/src/db/models/message.js** file.
+  id: totrans-20
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个新的 **backend/src/db/models/message.js** 文件。
 - en: 'Inside it, define a new **messageSchema**, which we are going to use to store
     chat messages in the database:'
+  id: totrans-21
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在其中，定义一个新的 **messageSchema**，我们将使用它来在数据库中存储聊天消息：
 - en: '[PRE1]'
+  id: totrans-22
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'The message schema should contain **username** (person who sent the message),
     **message**, a **room** that it was sent in, and a **sent** date for when the
     message was sent:'
+  id: totrans-23
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 消息模式应包含 **username**（发送消息的人）、**message**、一个 **room**（消息发送的房间）和 **sent** 日期（消息发送的时间）：
 - en: '[PRE2]'
+  id: totrans-24
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: For the `sent` date, we specify `expires` to make the messages automatically
     expire after 5 minutes (`5 * 60` seconds). This ensures that our database does
     not get cluttered with lots of chat messages. We also set the `default` value
     to `Date.now` so that all messages are by default tagged as being sent at the
     current time.
+  id: totrans-25
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 对于`发送`日期，我们指定`expires`以使消息在5分钟后自动过期（`5 * 60`秒）。这确保我们的数据库不会因为大量的聊天消息而变得杂乱。我们还设置了`default`值为`Date.now`，以便所有消息默认标记为在当前时间发送。
 - en: Info
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 信息
 - en: MongoDB only actually checks for data expiration once a minute, so the expired
     documents might persist for up to a minute past their defined expiration time.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: MongoDB实际上只在每分钟检查一次数据过期，因此过期的文档可能会在其定义的过期时间后持续一分钟。
 - en: 'Create a model from the schema and export it:'
+  id: totrans-28
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从模式创建一个模型并导出它：
 - en: '[PRE3]'
+  id: totrans-29
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: After creating the Mongoose schema and model, let’s move on to creating the
     service functions for dealing with chat messages.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 在创建Mongoose模式和模型后，让我们继续创建处理聊天消息的服务函数。
 - en: Creating the service functions
+  id: totrans-31
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 创建服务函数
 - en: 'We need to create service functions to save a new message in the database and
     to get all messages sent in a given room, sorted by `sent` date, showing the oldest
     messages first. Follow these steps to implement the service functions:'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们需要创建服务函数来在数据库中保存一条新消息，并获取在给定房间中发送的所有消息，按`发送`日期排序，首先显示最旧的消息。按照以下步骤实现服务函数：
 - en: Create a new **backend/src/services/messages.js** file.
+  id: totrans-33
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个新的**backend/src/services/messages.js**文件。
 - en: 'Inside it, import the **Message** model:'
+  id: totrans-34
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在其中，导入**Message**模型：
 - en: '[PRE4]'
+  id: totrans-35
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'Then, define a function to create a new **Message** object in the database:'
+  id: totrans-36
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，定义一个函数在数据库中创建一个新的**Message**对象：
 - en: '[PRE5]'
+  id: totrans-37
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'Also, define a function to get all messages from a certain room, listing the
     oldest messages first:'
+  id: totrans-38
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 此外，定义一个函数以获取某个房间的所有消息，按最旧的消息列表显示：
 - en: '[PRE6]'
+  id: totrans-39
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: Next, we are going to use these service functions in our chat server.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们将在我们的聊天服务器中使用这些服务函数。
 - en: Storing and replaying messages
+  id: totrans-41
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 存储和回放消息
 - en: 'Now that we have all the functions, we need to implement storing and replaying
     messages in our chat server. Follow these steps to implement the functionality:'
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们有了所有函数，我们需要在我们的聊天服务器中实现存储和回放消息。按照以下步骤实现功能：
 - en: 'Edit **backend/src/socket.js** and import the service functions we defined
     earlier:'
+  id: totrans-43
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 编辑**backend/src/socket.js**并导入我们之前定义的服务函数：
 - en: '[PRE7]'
+  id: totrans-44
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'When a new user connects, get all messages from the current room, and send
     (replay) them to the user using **socket.emit**:'
+  id: totrans-45
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 当新用户连接时，获取当前房间的所有消息，并使用**socket.emit**将它们发送（回放）给用户：
 - en: '[PRE8]'
+  id: totrans-46
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'Additionally, when a user sends a message, store it in the database:'
+  id: totrans-47
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 此外，当用户发送消息时，将其存储在数据库中：
 - en: '[PRE9]'
+  id: totrans-48
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'Start the frontend server as follows:'
+  id: totrans-49
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 按照以下方式启动前端服务器：
 - en: '[PRE10]'
+  id: totrans-50
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'Then, start the backend server (do not forget to start the Docker container
     for the database!):'
+  id: totrans-51
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，启动后端服务器（不要忘记启动数据库的Docker容器！）：
 - en: '[PRE11]'
+  id: totrans-52
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'Go to **http://localhost:5173/**, log in and send some messages. Then, open
     a new tab, log in with a different user, and you will see the messages sent earlier
     get replayed:'
+  id: totrans-53
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 前往**http://localhost:5173/**，登录并发送一些消息。然后，打开一个新标签页，用不同的用户登录，您将看到之前发送的消息被回放：
 - en: '![Figure 15.1 – Successfully replaying stored messages](img/B19385_15_1.jpg)'
+  id: totrans-54
   prefs: []
   type: TYPE_IMG
+  zh: '![图15.1 – 成功回放存储的消息](img/B19385_15_1.jpg)'
 - en: Figure 15.1 – Successfully replaying stored messages
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 图15.1 – 成功回放存储的消息
 - en: Note
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The screenshot in *Figure 15**.1* is from a later version of the app, where
     we show messages when a user joins a room (we are going to implement these messages
     later in this chapter). Here, we use these messages to show that replaying works
     when the user joins after a message was sent.
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: '*图15.1*中的截图是应用程序的较晚版本，其中我们在用户加入房间时显示消息（我们将在本章后面实现这些消息）。在这里，我们使用这些消息来显示当用户在发送消息后加入时，回放是有效的。'
 - en: If you wait 5 minutes and then join the chat again, you will see that the existing
     messages have expired and are not replayed anymore.
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果您等待5分钟然后再次加入聊天，您将看到现有的消息已过期并且不再被回放。
 - en: Now, let’s make it clearer which messages were replayed in the user interface.
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，让我们让用户界面更清晰地显示哪些消息被回放了。
 - en: Visually distinguishing replayed messages
+  id: totrans-60
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 可视区分回放消息
 - en: 'Currently, it looks like the other user sent the message right after we joined.
     It is not clear that the message was replayed from the server. To solve this issue,
     we can visually distinguish replayed messages by, for example, making them slightly
     grayer. Let’s do that now, as follows:'
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 目前看来，其他用户似乎在我们加入后立即发送了消息。这并不明显表明消息是从服务器回放的。为了解决这个问题，我们可以通过例如使它们稍微灰一些来在视觉上区分回放的消息。现在让我们这样做，如下所示：
 - en: 'Edit **backend/src/socket.js** and add a **replayed** flag to the replayed
     messages:'
+  id: totrans-62
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 编辑 **backend/src/socket.js** 并为回放消息添加一个 **replayed** 标志：
 - en: '[PRE12]'
+  id: totrans-63
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'Now, edit **src/components/ChatMessage.jsx**, and if the **replayed** flag
     was set, display the messages with a lower opacity:'
+  id: totrans-64
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，编辑 **src/components/ChatMessage.jsx**，如果设置了 **replayed** 标志，则以较低的透明度显示消息：
 - en: '[PRE13]'
+  id: totrans-65
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'Do not forget to update **propTypes** and add the **replayed** flag:'
+  id: totrans-66
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 不要忘记更新 **propTypes** 并添加 **replayed** 标志：
 - en: '[PRE14]'
+  id: totrans-67
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: 'Go to **http://localhost:5173/** again and repeat the same procedure (sending
     messages from one user, then logging in with a different user in another tab),
     and you will see that replayed messages are now easy to distinguish from new messages:'
+  id: totrans-68
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 再次访问 **http://localhost:5173/** 并重复相同的程序（从一个用户发送消息，然后在另一个标签页中用不同的用户登录），你将看到回放的消息现在很容易与新的消息区分开来：
 - en: '![Figure 15.2 – Replayed messages are now displayed in a lighter color](img/B19385_15_2.jpg)'
+  id: totrans-69
   prefs: []
   type: TYPE_IMG
+  zh: '![图 15.2 – 回放的消息现在以较浅的颜色显示](img/B19385_15_2.jpg)'
 - en: Figure 15.2 – Replayed messages are now displayed in a lighter color
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 15.2 – 回放的消息现在以较浅的颜色显示
 - en: Now that we have successfully stored our message history in the database, let’s
     focus a bit on refactoring the chat app to make it more extensible and maintainable
     in the future.
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经成功将消息历史存储在数据库中，让我们稍微关注一下重构聊天应用程序，使其在未来更具可扩展性和可维护性。
 - en: Refactoring the app to be more extensible
+  id: totrans-72
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 将应用程序重构为更易于扩展
 - en: For the refactoring, we will start by defining service functions for all chat
     functionality that our server provides.
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于重构，我们将首先定义所有由我们的服务器提供的聊天功能的服务函数。
 - en: Defining service functions
+  id: totrans-74
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 定义服务函数
 - en: 'Follow these steps to get started defining service functions for the chat functionality:'
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 按照以下步骤开始定义聊天功能的服务函数：
 - en: Create a new **backend/src/services/chat.js** file.
+  id: totrans-76
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 创建一个新的 **backend/src/services/chat.js** 文件。
 - en: 'Inside it, import the service functions related to messages:'
+  id: totrans-77
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在其中，导入与消息相关的服务函数：
 - en: '[PRE15]'
+  id: totrans-78
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: 'Define a new function to send a private message directly to a user:'
+  id: totrans-79
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个新函数，直接向用户发送私密消息：
 - en: '[PRE16]'
+  id: totrans-80
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: Private messages will be used to, for example, replay messages to a specific
     user, and are not stored in the database.
+  id: totrans-81
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 私信将被用于，例如，将消息回放给特定用户，并且不会存储在数据库中。
 - en: 'Also, define a function to send a system message:'
+  id: totrans-82
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 此外，定义一个函数来发送系统消息：
 - en: '[PRE17]'
+  id: totrans-83
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: System messages will be used to, for example, announce that a user joined a
     room. We also do not want to store these in the database.
+  id: totrans-84
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 系统消息将被用于，例如，宣布用户加入了房间。我们也不希望将这些存储在数据库中。
 - en: 'Then, define a function to send a public message:'
+  id: totrans-85
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，定义一个函数来发送公共消息：
 - en: '[PRE18]'
+  id: totrans-86
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: Public messages will be used to send regular chat messages to a room. These
     messages are stored in the database so that we can replay them later.
+  id: totrans-87
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 公共消息将被用于向房间发送常规聊天消息。这些消息存储在数据库中，以便我们稍后回放。
 - en: 'We also define a new function to join a given **socket** to a **room**:'
+  id: totrans-88
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们还定义了一个新函数来将给定的 **socket** 加入到 **room** 中：
 - en: '[PRE19]'
+  id: totrans-89
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'Inside this function, send a system message telling everyone in the room that
     someone joined:'
+  id: totrans-90
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在此函数内部，发送一个系统消息，告诉房间内所有人有人加入了：
 - en: '[PRE20]'
+  id: totrans-91
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: 'Then, replay all messages that were sent to the room privately to the user
     that just joined it:'
+  id: totrans-92
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，将房间中发送的私密消息回放给刚刚加入的用户：
 - en: '[PRE21]'
+  id: totrans-93
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: 'Lastly, define a service function to get the user info from the **socketId**.
     We simply copy and paste the code we have previously had in **backend/src/socket.js**
     here:'
+  id: totrans-94
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，定义一个服务函数来从 **socketId** 获取用户信息。我们只需将之前在 **backend/src/socket.js** 中已有的代码复制粘贴到这里：
 - en: '[PRE22]'
+  id: totrans-95
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: Now that we have created the service functions for the chat functionality, let’s
     use them in the Socket.IO server.
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经为聊天功能创建了服务函数，让我们在 Socket.IO 服务器中使用它们。
 - en: Refactoring the Socket.IO server to use the service functions
+  id: totrans-97
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 将 Socket.IO 服务器重构为使用服务函数
 - en: 'Now that we have defined service functions, let’s refactor the chat server
     code to use them. Follow these steps to do so:'
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经定义了服务函数，让我们重构聊天服务器代码以使用它们。按照以下步骤进行操作：
 - en: 'Open **backend/src/socket.js** and find the following import:'
+  id: totrans-99
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 打开 **backend/src/socket.js** 并找到以下导入：
 - en: '[PRE23]'
+  id: totrans-100
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: '*Replace* the preceding import with the following import to the new chat service
     functions:'
+  id: totrans-101
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 用以下导入替换前面的导入以使用新的聊天服务函数：
 - en: '[PRE24]'
+  id: totrans-102
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: '*Replace* the whole **handleSocket** function with the following new code.
     When a connection is made, we automatically join the public room using the **joinRoom**
     service function:'
+  id: totrans-103
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '*替换*整个**handleSocket**函数为以下新代码。当建立连接时，我们自动使用**joinRoom**服务函数加入公共房间：'
 - en: '[PRE25]'
+  id: totrans-104
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: 'Then, define a listener for the **chat.message** event and send it to the given
     room by using the **sendPublicMessage** service function:'
+  id: totrans-105
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，定义一个监听**chat.message**事件的监听器，并使用**sendPublicMessage**服务函数将事件发送到指定的房间：
 - en: '[PRE26]'
+  id: totrans-106
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: Note
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: We changed the signature of the **chat.message** event to require passing a
     room now, so that we can implement a better way to deal with multiple rooms later.
     Later, we need to make sure to adjust the client code to accommodate this.
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将**chat.message**事件的签名更改为现在需要传递一个房间，这样我们就可以在以后实现一种更好的处理多个房间的方法。稍后，我们需要确保调整客户端代码以适应这一点。
 - en: 'Next, define a listener for the **user.info** event, in which we use the **async**
     service function **getUserInfoBySocketId** and return the result of it in **callback**
     to turn this event into an acknowledgment:'
+  id: totrans-109
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，定义一个监听**user.info**事件的监听器，在其中我们使用**async**服务函数**getUserInfoBySocketId**并在**callback**中返回其结果，将此事件转换为确认：
 - en: '[PRE27]'
+  id: totrans-110
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: 'Finally, we can re-use the authentication middleware from before:'
+  id: totrans-111
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们可以重新使用之前的身份验证中间件：
 - en: '[PRE28]'
+  id: totrans-112
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: Now that our chat server is refactored, let’s continue with refactoring the
     client-side code.
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经重构了聊天服务器，让我们继续重构客户端代码。
 - en: Refactoring the client-side code
+  id: totrans-114
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 重构客户端代码
 - en: 'Now that our server-side code uses service functions to encapsulate the functionality
     of the chat app, let’s do a similar refactoring of the client-side code by extracting
     client-side commands into separate functions, as follows:'
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在由于我们的服务器端代码使用服务函数来封装聊天应用的功能，让我们通过将客户端命令提取到单独的函数中来对客户端代码进行类似的重构，如下所示：
 - en: 'Edit **src/hooks/useChat.js** and within the **useChat** hook, define a new
     function to clear the messages:'
+  id: totrans-116
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 编辑**src/hooks/useChat.js**并在**useChat**钩子中定义一个新的函数来清除消息：
 - en: '[PRE29]'
+  id: totrans-117
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: 'Then, define an **async** function to get all rooms that the user is in:'
+  id: totrans-118
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，定义一个**async**函数来获取用户所在的全部房间：
 - en: '[PRE30]'
+  id: totrans-119
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: 'We can now use these functions in the **sendMessage** function, as follows:'
+  id: totrans-120
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们现在可以在**sendMessage**函数中使用这些函数，如下所示：
 - en: '[PRE31]'
+  id: totrans-121
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: 'Lastly, we adjust the **chat.message** event to send **room** in addition to
     **message**. For now, we always send messages to the **''****public''** room:'
+  id: totrans-122
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们调整**chat.message**事件以发送**room**和**message**。目前，我们总是向**'****public'**房间发送消息：
 - en: '[PRE32]'
+  id: totrans-123
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: In the next section, we will expand this to be able to switch between different
     rooms.
+  id: totrans-124
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 在下一节中，我们将扩展它以能够在不同的房间之间切换。
 - en: Go to **http://localhost:5173/** and verify that the chat app still works the
     same way as before.
+  id: totrans-125
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 访问**http://localhost:5173/**并验证聊天应用是否仍然像以前一样工作。
 - en: Now that we have successfully refactored our chat app to be more extensible,
     let’s test out the flexibility of the new structure by implementing new commands
     to join and switch rooms.
+  id: totrans-126
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经成功重构了聊天应用以使其更具可扩展性，让我们通过实现新的加入和切换房间的命令来测试新结构的灵活性。
 - en: Implementing commands to join and switch rooms
+  id: totrans-127
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 实现加入和切换房间的命令
 - en: 'Let’s now test out the new structure by implementing commands to join and switch
     rooms on the chat app, as follows:'
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们现在通过在聊天应用中实现加入和切换房间的命令来测试新结构，如下所示：
 - en: 'Edit **backend/src/socket.js** and define a new listener below the **chat.message**
     listener, which will call the **joinRoom** service function when we receive a
     **chat.join** event from the client:'
+  id: totrans-129
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 编辑**backend/src/socket.js**并在**chat.message**监听器下方定义一个新的监听器，当从客户端接收到**chat.join**事件时，它将调用**joinRoom**服务函数：
 - en: '[PRE33]'
+  id: totrans-130
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: As we can see, having a `joinRoom` service function makes it really simple to
     reuse the code to join a new room here. It already sends a system message telling
     everyone that someone joined the room, just like it does when the user joins the
     `public` room by default upon connection.
+  id: totrans-131
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 如我们所见，有一个**joinRoom**服务函数使得在这里重新使用代码加入新房间变得非常简单。它已经发送了一条系统消息告诉每个人有人加入了房间，就像用户在连接时默认加入`public`房间时一样。
 - en: 'Edit **src/components/ChatMessage.jsx** and display **room**:'
+  id: totrans-132
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 编辑**src/components/ChatMessage.jsx**并显示**room**：
 - en: '[PRE34]'
+  id: totrans-133
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: 'Add the **room** prop to the **propTypes** definition:'
+  id: totrans-134
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将**room**属性添加到**propTypes**定义中：
 - en: '[PRE35]'
+  id: totrans-135
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: 'Now, edit **src/hooks/useChat.js** and define a state hook to store the room
     we are currently in:'
+  id: totrans-136
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，编辑**src/hooks/useChat.js**并定义一个状态钩子来存储我们当前所在的房间：
 - en: '[PRE36]'
+  id: totrans-137
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: 'Define a new function to switch rooms:'
+  id: totrans-138
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个新函数来切换房间：
 - en: '[PRE37]'
+  id: totrans-139
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: At the moment, we are only calling `setCurrentRoom` here, but we might want
     to extend this function later, so it is good practice to abstract it in advance
     into a separate function.
+  id: totrans-140
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 目前，我们在这里只调用了`setCurrentRoom`，但我们可能希望在以后扩展这个功能，所以提前将其抽象成一个单独的函数是一个好的实践。
 - en: 'Define a new function to join a room by sending the **chat.join** event and
     switching the current room:'
+  id: totrans-141
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个新的函数，通过发送**chat.join**事件和切换当前房间来加入一个房间：
 - en: '[PRE38]'
+  id: totrans-142
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: 'Change the **sendMessage** function to accept arguments for commands, as follows:'
+  id: totrans-143
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将**sendMessage**函数修改为接受命令参数，如下所示：
 - en: '[PRE39]'
+  id: totrans-144
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: We can now send commands such as `/join <room-name>` and the room name will
     be stored in `args[0]`.
+  id: totrans-145
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我们现在可以发送如`/join <room-name>`之类的命令，房间名称将存储在`args[0]`中。
 - en: 'Define a new command to join a room, in which we first check whether arguments
     were passed to the command:'
+  id: totrans-146
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 定义一个新的命令来加入一个房间，其中我们首先检查是否向命令传递了参数：
 - en: '[PRE40]'
+  id: totrans-147
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: 'Then, we ensure that we have not already joined the room by using the **getRooms**
     function:'
+  id: totrans-148
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 然后，我们使用**getRooms**函数确保我们没有已经加入房间：
 - en: '[PRE41]'
+  id: totrans-149
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: 'Finally, we can join the room by using the **joinRoom** function:'
+  id: totrans-150
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 最后，我们可以通过使用**joinRoom**函数加入房间：
 - en: '[PRE42]'
+  id: totrans-151
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: 'Similarly, we can implement the **/switch** command as follows:'
+  id: totrans-152
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 类似地，我们可以实现**/switch**命令，如下所示：
 - en: '[PRE43]'
+  id: totrans-153
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: In this case, we are checking whether the user is in the room already. If not,
     we tell them that they must join the room first before switching to it.
+  id: totrans-154
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 在这种情况下，我们正在检查用户是否已经在房间中。如果没有，我们告诉他们他们必须先加入房间，然后再切换到它。
 - en: 'Adjust the **chat.message** event to send to the **currentRoom**, as follows:'
+  id: totrans-155
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 调整**chat.message**事件，使其发送到**currentRoom**，如下所示：
 - en: '[PRE44]'
+  id: totrans-156
   prefs:
   - PREF_IND
   type: TYPE_PRE
+  zh: '[PRE44]'
 - en: Go to **http://localhost:5173/**, send a message to the public room, then join
     the **react** room by executing the **/join react** command. Send a different
     message to that room.
+  id: totrans-157
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 访问**http://localhost:5173/**，向公共房间发送一条消息，然后通过执行**/join react**命令加入**react**房间。向该房间发送不同的消息。
 - en: Open another browser window, log in with a different user, and you will see
     that the first message from the **public** room gets replayed. However, we do
     not see the message from the **react** room, because we have not joined it yet!
+  id: totrans-158
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 打开另一个浏览器窗口，用不同的用户登录，你会看到来自**公共**房间的第一条消息被回放了。然而，我们看不到来自**react**房间的消息，因为我们还没有加入它！
 - en: Now, in the second browser window, call **/join react** as well. You will see
     that the second message gets replayed now.
+  id: totrans-159
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 现在，在第二个浏览器窗口中，也调用**/join react**。你会看到现在第二个消息被回放了。
 - en: Try using **/switch public** to switch back to the **public** room and send
     another message there. You will see that both clients receive it because they
     are both in the **public** room.
+  id: totrans-160
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 尝试使用**/switch public**来切换回**公共**房间并发送另一条消息。你会看到两个客户端都收到了这条消息，因为他们都在**公共**房间中。
 - en: 'The result of these actions can be seen in the following screenshot:'
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些操作的结果可以在以下屏幕截图中看到：
 - en: '![Figure 15.3 – Chatting in different rooms](img/B19385_15_3.jpg)'
+  id: totrans-162
   prefs: []
   type: TYPE_IMG
+  zh: '![图15.3 – 在不同房间聊天](img/B19385_15_3.jpg)'
 - en: Figure 15.3 – Chatting in different rooms
+  id: totrans-163
   prefs: []
   type: TYPE_NORMAL
+  zh: 图15.3 – 在不同房间聊天
 - en: Summary
+  id: totrans-164
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 概述
 - en: In this chapter, we first connected our chat app to the database by storing
     messages in MongoDB. We also learned how to make documents expire after a certain
     amount of time. Then, we implemented functionality to replay messages when a new
     user joins the chat. Next, we spent some time refactoring the chat app to make
     it more extensible and maintainable in the future. Finally, we implemented ways
     to join new rooms and switch between rooms.
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们首先通过将消息存储在MongoDB中来将我们的聊天应用连接到数据库。我们还学习了如何使文档在一段时间后过期。然后，我们实现了当新用户加入聊天时回放消息的功能。接下来，我们花了一些时间重构聊天应用，使其在未来更具可扩展性和可维护性。最后，我们实现了加入新房间和在不同房间之间切换的方法。
 - en: Up until now, we have only been using libraries to develop our apps. In the
     next chapter, [*Chapter 16*](B19385_16.xhtml#_idTextAnchor291)*, Getting Started
     with Next.js*, we will learn how to use a full-stack React framework for developing
     apps. Frameworks, such as Next.js, provide more structure for our apps and offer
     us a lot of features, such as server-side rendering, out of the box.
+  id: totrans-166
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们只使用库来开发我们的应用。在下一章[*第16章*](B19385_16.xhtml#_idTextAnchor291)*，使用Next.js入门*中，我们将学习如何使用全栈React框架来开发应用。框架，如Next.js，为我们提供了更多的应用结构，并提供了许多功能，例如服务器端渲染等。

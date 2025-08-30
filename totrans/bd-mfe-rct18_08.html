@@ -1,0 +1,421 @@
+<html><head></head><body>
+		<div id="_idContainer049" class="calibre2">
+			<h1 id="_idParaDest-94" class="chapter-number"><a id="_idTextAnchor093" class="pcalibre1 calibre6 pcalibre"/>6</h1>
+			<h1 id="_idParaDest-95" class="calibre7"><a id="_idTextAnchor094" class="pcalibre1 calibre6 pcalibre"/>Server-Rendered Microfrontends</h1>
+			<p class="calibre3">Most JavaScript frameworks, including React, are<a id="_idIndexMarker238" class="pcalibre1 calibre6 pcalibre"/> primarily used to build <strong class="bold">client-side-rendered</strong> (<strong class="bold">CSR</strong>) applications. Client-rendered apps are great for certain use cases, such as admin dashboards or banking apps where users interact with the app in a logged-in area. CSR apps are not ideal for use cases where users access a site via a search engine or for anonymous short user journeys, such as news sites, blogs, or guest checkouts on e-commerce sites. This is because many search engine bots are not capable of indexing CSR-based<a id="_idIndexMarker239" class="pcalibre1 calibre6 pcalibre"/> web apps. CSR apps also have a poor <strong class="bold">Largest Contentful Paint</strong> (<strong class="bold">LCP</strong>) score – that is, their first-time page load performance scores are bad, leading to higher <span>bounce rates.</span></p>
+			<p class="calibre3">To overcome these drawbacks, it is now an accepted practice to have a web app’s pages rendered on a Node.js server and serve<a id="_idIndexMarker240" class="pcalibre1 calibre6 pcalibre"/> the rendered HTML pages to the browser. This is commonly known as <strong class="bold">Server-Side Rendering</strong> (<strong class="bold">SSR</strong>), or a Server-Side-Rendered (<span>SSR) app.</span></p>
+			<p class="calibre3">In this chapter, we will look at how to build a module-federated microfrontend for a server-side-rendered app. While the process for implementing module federation is very similar to what we saw in the previous chapter, the fact that the pages are server-side-rendered brings a bit of complexity, and we will look at some of the nuances that we need to deal with when it comes to implementing a microfrontend <span>with SSR.</span></p>
+			<p class="calibre3">In this chapter, we will cover the <span>following topics:</span></p>
+			<ul class="calibre15">
+				<li class="calibre14">A quick look at how CSR and SSR <span>apps differ</span></li>
+				<li class="calibre14">Learning about Next.js and <span>Turbo repo</span></li>
+				<li class="calibre14">Learning how to set up hosts and remote apps with Next.js and <span>module federation</span></li>
+				<li class="calibre14">See how to expose multiple components as remotes that can be consumed into <span>different apps</span></li>
+				<li class="calibre14">Looking into issues relating to hydration of state in SSRs and also how to go about reflecting the changes made in one micro app in the <span>main app</span></li>
+			</ul>
+			<p class="calibre3">By the end of this chapter, we will have a server-side-rendered microfrontend built <span>using Next.js.</span></p>
+			<h1 id="_idParaDest-96" class="calibre7"><a id="_idTextAnchor095" class="pcalibre1 calibre6 pcalibre"/>Technical requirements</h1>
+			<p class="calibre3">As we go through the code examples in this chapter, we will need <span>the following:</span></p>
+			<ul class="calibre15">
+				<li class="calibre14">A PC, Mac, or Linux desktop/laptop with at least 8 GB of RAM (16 GB <span>is preferred)</span></li>
+				<li class="calibre14">An Intel chipset i5+ or a Mac M1 + <span>chipset</span></li>
+				<li class="calibre14">At least 256 GB of free hard <span>disk storage</span></li>
+				<li class="calibre14">A basic understanding of Next.js and Turborepo would <span>be ideal</span></li>
+				<li class="calibre14">A basic understanding of Node.js would <span>be helpful</span></li>
+			</ul>
+			<p class="calibre3">You will also need the following software installed on <span>your computer.</span></p>
+			<ul class="calibre15">
+				<li class="calibre14">Node.js version 18+ (use <strong class="source-inline1">nvm</strong> to manage different versions of Node.js if you <span>have to).</span></li>
+				<li class="calibre14"><strong class="bold">Terminal</strong>: iTerm2 with OhMyZsh (you will thank <span>me later).</span></li>
+				<li class="calibre14"><strong class="bold">IDE</strong>: We strongly recommend VS Code, as we will make use of some of the plugins that come with it for an improved <span>developer experience.</span></li>
+				<li class="calibre14">NPM, Yarn, or PNPM; we recommend PNPM because it’s fast <span>and storage-efficient.</span></li>
+				<li class="calibre14"><strong class="bold">Browser</strong>: Chrome, Microsoft Edge, <span>or Firefox.</span></li>
+			</ul>
+			<p class="calibre3">The code files for this chapter can be found <span>here: </span><span>https://github.com/PacktPublishing/Building-Micro-Frontends-with-React</span><span>.</span></p>
+			<p class="calibre3">We also assume you have a basic working knowledge of Git, such as branching and committing code and raising a <span>pull request.</span></p>
+			<h1 id="_idParaDest-97" class="calibre7"><a id="_idTextAnchor096" class="pcalibre1 calibre6 pcalibre"/>How do Client Rendered and Server Rendered Apps differ?</h1>
+			<p class="calibre3">When it comes to building web apps with JavaScript, there are two primary methods in terms of how a user interface gets built and served to the user. They are referred to as <strong class="bold">Client-Side-Rendered</strong> (<strong class="bold">CSR</strong>) and <span><strong class="bold">Server-Side-Rendered</strong></span><span> (</span><span><strong class="bold">SSR</strong></span><span>).</span></p>
+			<p class="calibre3">From a development standpoint, coding a CSR or an SSR app predominantly remains the same, except for some <a id="_idIndexMarker241" class="pcalibre1 calibre6 pcalibre"/>additional steps for SSR. However, there<a id="_idIndexMarker242" class="pcalibre1 calibre6 pcalibre"/> are differences in the internal working of these apps in terms of how they are rendered, and also in how they can be deployed on <span>the cloud.</span></p>
+			<p class="calibre3">In this section, we will look a bit deeper into <span>these differences.</span></p>
+			<h2 id="_idParaDest-98" class="calibre5"><a id="_idTextAnchor097" class="pcalibre1 calibre6 pcalibre"/>Client Side Rendered Apps (CSR)</h2>
+			<p class="calibre3">Let us have a look at how a <a id="_idIndexMarker243" class="pcalibre1 calibre6 pcalibre"/>Client Side app works. As its full name suggests, the CSR app is “rendered” on the client. In short, the app runs within the user’s browser, makes a call to fetch data, and the page is generated on the browser. The following diagram illustrates <span>this better:</span></p>
+			<div class="calibre2">
+				<div id="_idContainer043" class="img---figure">
+					<img src="image/Figure_6.01_B18987.jpg" alt="Figure 6.1 – The request and response flow for a CSR app" class="calibre4"/>
+				</div>
+			</div>
+			<p class="img---caption" lang="en-US" xml:lang="en-US">Figure 6.1 – The request and response flow for a CSR app</p>
+			<p class="calibre3">The preceding <span><em class="italic">Figure 6</em></span><em class="italic">.1</em> illustrates the request flow in a CSR application. Here, the browser makes a first call to the server for a given URL, and the server (or sometimes the CDN itself) will respond back with a nearly empty HTML shell, containing the link to the app’s JavaScript bundle. The browser parses the bundle and then makes a second AJAX call to the server API, receiving the JSON response for the given URL. The browser then parses the response and, based on the views in the client-side app, renders the HTML page in the browser before serving it to the user. For every other call, the browser continues to make AJAX calls to the API endpoint and parses the page on <span>the browser.</span></p>
+			<p class="calibre3">With this flow, note that<a id="_idIndexMarker244" class="pcalibre1 calibre6 pcalibre"/> for the very first request from the user, there are two round trips to the server – first, to fetch the JavaScript bundle, and second, to get the page data and render <span>the page.</span></p>
+			<p class="calibre3">Due to the nature of how CSR apps work, they are ideally suited for user experiences where users generally stay logged into an app and navigate through multiple pages <span>per session.</span></p>
+			<p class="calibre3">Some of the <a id="_idIndexMarker245" class="pcalibre1 calibre6 pcalibre"/>drawbacks of Client side Rendered apps are <span>as follows:</span></p>
+			<ul class="calibre15">
+				<li class="calibre14">For the very first request, users have to wait a bit longer due to the additional round trip to <span>the server</span></li>
+				<li class="calibre14">Since the server response doesn’t contain any actual HTML data, search engine bots that are not optimized to parse JavaScript will have difficulty in indexing content from a <span>client-rendered app</span></li>
+			</ul>
+			<p class="calibre3">CSR apps are not suited for scenarios where the user journey is short, such as e-commerce websites where a user arrives via a search result link, buys a product or two, and leaves, or a blog site where users generally read only one to two articles at <span>a time.</span></p>
+			<p class="calibre3">Now, let us see how an Server Side Rendered <span>app works.</span></p>
+			<h2 id="_idParaDest-99" class="calibre5"><a id="_idTextAnchor098" class="pcalibre1 calibre6 pcalibre"/>Server Side Rendered Apps (SSR)</h2>
+			<p class="calibre3">In a Server Side <a id="_idIndexMarker246" class="pcalibre1 calibre6 pcalibre"/>Rendered app, as the full name suggests, for the very first request the page is generated on the server, and the rendered HTML page is sent to the browser. Let us look at it in a bit more <span>in detail:</span></p>
+			<div class="calibre2">
+				<div id="_idContainer044" class="img---figure">
+					<img src="image/Figure_6.02_B18987.jpg" alt="Figure 6.2 – The request and response flow for an SSR app" class="calibre4"/>
+				</div>
+			</div>
+			<p class="img---caption" lang="en-US" xml:lang="en-US">Figure 6.2 – The request and response flow for an SSR app</p>
+			<p class="calibre3">The working of an SSR app is illustrated in the preceding <span><em class="italic">Figure 6</em></span><em class="italic">.2</em>. What we see here is when the first request for a page is made from the browser to the Node.js server, it in turn makes a call to the API server to fetch the data. Then, the HTML page is generated on the server itself and sent back to the browser, along with the initial state and the JavaScript bundles. The state hydrates on the browser, then all subsequent calls are made from the browser to the API server, and the pages are rendered on the <span>browser itself.</span></p>
+			<p class="calibre3">Since the browser<a id="_idIndexMarker247" class="pcalibre1 calibre6 pcalibre"/> receives a fully rendered HTML page on the first request itself, the perceived performance for end users is good. It also helps with <strong class="bold">Search Engine Optimization</strong> (<strong class="bold">SEO</strong>), especially where search engine bots are not very good at parsing <span>CSR pages.</span></p>
+			<p class="calibre3">Server-rendered apps are preferred for web apps where user journeys are short, such as B2C e-commerce apps, or content-heavy apps such as news sites <span>or blogs.</span></p>
+			<p class="calibre3">We now have a good understanding of how SSR and CSR apps work, what their pros and cons are, and what use cases are most suited for each of them. With this information, let us start building our SSR microfrontend in the <span>next section.</span></p>
+			<h1 id="_idParaDest-100" class="calibre7"><a id="_idTextAnchor099" class="pcalibre1 calibre6 pcalibre"/>Building out our Server Rendered Microfrontend</h1>
+			<p class="calibre3">In this section, we will look at how to build SSR apps using a meta framework such as Next.js, and then we will take it further to build a module-federated microfrontend using webpack’s module <a id="_idIndexMarker248" class="pcalibre1 calibre6 pcalibre"/>federation plugin. While doing so, we will explore another monorepo tool <span>called Turborepo.</span></p>
+			<p class="callout-heading">Important Note</p>
+			<p class="callout">At the time of writing this book the Module Federation Plugin doesn’t support Next.js 13 and the App Router and hence for this chapter we will use Next.js <span>version 12</span></p>
+			<p class="calibre3">When it comes to<a id="_idIndexMarker249" class="pcalibre1 calibre6 pcalibre"/> building an SSR app in React, there are two <span>common approaches:</span></p>
+			<ul class="calibre15">
+				<li class="calibre14"><strong class="bold">A custom build using Node.js</strong>: Here, we set up a Node.js server, render the React app on Node.js, stringify the response using the <strong class="source-inline1">renderToString</strong> or <strong class="source-inline1">renderToPipeableStream</strong> methods, and then use the <strong class="source-inline1">hydrateRoot</strong> method, which are all part of the <strong class="source-inline1">react-dom/server</strong> module to attach React to the <span>rendered HTML</span></li>
+				<li class="calibre14"><strong class="bold">Use an SSR meta-framework</strong>: Meta-frameworks such as Next.js, Remix, or Shopify’s Hydrogen can abstract away all the complexities of setting up an SSR app and provide a simple interface to build performant SSR <span>React apps</span></li>
+			</ul>
+			<p class="calibre3">For this chapter, we will use Next.js to build our SSR app. Next.js is one of the oldest and most popular frameworks to build SSR <span>React apps.</span></p>
+			<p class="calibre3">For the mono repo, we will use another tool called Turborepo. While we can build Next.js apps with Nx monorepos as well, we will choose Turborepo so that we can also learn about the nuances of the different monorepo tools and how <span>they operate.</span></p>
+			<h2 id="_idParaDest-101" class="calibre5"><a id="_idTextAnchor100" class="pcalibre1 calibre6 pcalibre"/>Getting started with Turborepo and Next.js</h2>
+			<p class="calibre3">Next.js is the most popular meta-framework that allows you to build SSR apps with React. Turborepo is another new monorepo <a id="_idIndexMarker250" class="pcalibre1 calibre6 pcalibre"/>framework that <a id="_idIndexMarker251" class="pcalibre1 calibre6 pcalibre"/>is gaining popularity, and it was recently acquired by Vercel, the company that builds and <span>maintains Next.js.</span></p>
+			<p class="calibre3">While we will cover the essentials of Turborepo and Next.js in this chapter, I strongly encourage you to spend time going through their docs to get a deeper understanding of how these <span>frameworks work.</span></p>
+			<p class="calibre3">We will start from a clean slate here; let us begin by creating our monorepo <span>with Turborepo:</span></p>
+			<ol class="calibre13">
+				<li class="calibre14">Run the following <a id="_idIndexMarker252" class="pcalibre1 calibre6 pcalibre"/>command in <span>the terminal:</span><pre class="console">
+<strong class="bold1">pnpx create-turbo@1.6</strong></pre><p class="calibre3">Alternatively, you can run <span>the following:</span></p><pre class="console"><strong class="bold1">npx create-turbo@1.6</strong></pre></li>				<li class="calibre14">This will download a bunch of libraries and then prompt you to decide where you’d like your monorepo to be created. Let’s call <span>it </span><span><strong class="source-inline1">ebuy-ssr</strong></span><span>.</span></li>
+				<li class="calibre14">On the next prompt to assign a package manager, you can choose the one you prefer. For the purpose of this chapter, we will <span>choose </span><span><strong class="source-inline1">pnpm</strong></span><span>.</span></li>
+				<li class="calibre14">Let Turborepo go and do its stuff, and after the process is complete, you can <strong class="source-inline1">cd</strong> into the <strong class="source-inline1">ebuy-ssr</strong> folder and run the <span>following command:</span><pre class="console">
+<strong class="bold1">pnpm dev</strong></pre></li>				<li class="calibre14">Note that it launches two apps, <strong class="source-inline1">web</strong> and <strong class="source-inline1">docs</strong>, on ports <strong class="source-inline1">3000</strong> and <strong class="source-inline1">3001</strong>, respectively. In the browser, open up <strong class="source-inline1">http://localhost:3000</strong> and <strong class="source-inline1">http://localhost:3001</strong> and have a look at the really minimalistic <span>default pages.</span></li>
+				<li class="calibre14">Open up the <strong class="source-inline1">ebuy-ssr</strong> folder within your IDE and take a look at the <span>folder structure.</span><p class="calibre3">It will look something <span>like this:</span></p><pre class="console">
+.└── ebuy-ssr/
+├── apps/
+│   ├── docs
+│   └── web
+├── packages/
+│   ├── eslint-config-custom
+│   ├── tsconfig
+│   └── ui
+├── package.json
+└── turbo.json</pre><p class="calibre3">The key files and folders <a id="_idIndexMarker253" class="pcalibre1 calibre6 pcalibre"/>that we need to consider are <span>as follows:</span></p><ul class="calibre16"><li class="calibre14"><strong class="source-inline1">apps</strong>: This is the folder that will hold all our <span>micro apps.</span></li><li class="calibre14"><strong class="source-inline1">packages</strong>: This is the folder where we keep all our utilities, shared components, libraries, and so on. It is the equivalent of the <strong class="source-inline1">libs</strong> folder <span>in Nx.</span></li><li class="calibre14"><strong class="source-inline1">package.json</strong>: The <strong class="source-inline1">package.json</strong> files play a crucial role in how the turbo <span>monorepo functions.</span></li><li class="calibre14"><strong class="source-inline1">turbo.json</strong>: This is the file where we define the configurations <span>for Turborepo.</span></li></ul></li>
+			</ol>
+			<h3 class="calibre9">The differences between Turborepo and Nx</h3>
+			<p class="calibre3">While both Turborepo <a id="_idIndexMarker254" class="pcalibre1 calibre6 pcalibre"/>and Nx do the same job of managing a monorepo for us, there are differences in their approach. Nx feels like a thin layer of abstraction that allows us to <a id="_idIndexMarker255" class="pcalibre1 calibre6 pcalibre"/>manage our monorepos, mainly via configurations. We tend to heavily rely on NX and its commands to build and manage our mono repos; Nx really doing all the heavy lifting for us. Turborepo, on the other hand, is quite lightweight and relies more on the npm package manager’s standards to manage the monorepo. Turborepo’s approach is to stay invisible in the background and let the developers have full control over how they manage their monorepos. This also means you need to do a bit more work when managing your monorepo <span>with Turborepo.</span></p>
+			<h2 id="_idParaDest-102" class="calibre5"><a id="_idTextAnchor101" class="pcalibre1 calibre6 pcalibre"/>Setting up our Micro Apps</h2>
+			<p class="calibre3">As we can see, we have two <a id="_idIndexMarker256" class="pcalibre1 calibre6 pcalibre"/>apps created by default within our apps folder, <strong class="source-inline">web</strong> and <strong class="source-inline">docs</strong>. We will start by renaming the web folder to <strong class="source-inline">home</strong> let us delete the docs folder <span>for now:</span></p>
+			<ol class="calibre13">
+				<li class="calibre14">Rename the <strong class="source-inline1">web</strong> folder <strong class="source-inline1">home</strong>, delete the docs folder. Make sure that you update the name property in <strong class="source-inline1">apps/home/package.json</strong> to <strong class="source-inline1">"name": "home"</strong>, as this is what Turborepo uses to recognize <span>the app.</span></li>
+				<li class="calibre14">While we have the file open, let us define the port in which it will run in dev mode. Update the dev script in <strong class="source-inline1">apps/home/package.json</strong> to <strong class="source-inline1">"dev": "next dev --</strong><span><strong class="source-inline1">port 3000"</strong></span><span>.</span></li>
+			</ol>
+			<p class="calibre3">Note that with Turborepo, we have multiple <strong class="source-inline">package.json</strong> files. The <strong class="source-inline">package.json</strong> file in the root folder is used to manage the <strong class="source-inline">dev</strong> dependencies that are needed to manage the monorepo, and also the common <strong class="source-inline">dev</strong> dependencies needed for all the apps in the monorepo. We can also define our common script <span>commands there.</span></p>
+			<p class="calibre3">The <strong class="source-inline">package.json</strong> file in each of the apps’ folders is used to manage the workspace and the dependencies for each of the apps. The primary advantage here is that each of your micro apps has its own <strong class="source-inline">npm_modules</strong> folder, thereby ensuring that each team is fully independent in managing their packages <span>and dependencies.</span></p>
+			<h3 class="calibre9">Creating pages and components in Next.js</h3>
+			<p class="calibre3">Let us get started with<a id="_idIndexMarker257" class="pcalibre1 calibre6 pcalibre"/> creating a few components in our respective <span>micro apps.</span></p>
+			<ol class="calibre13">
+				<li class="calibre14">Creating components<a id="_idIndexMarker258" class="pcalibre1 calibre6 pcalibre"/> with Next.js is very similar to how you’d do it with other React apps; we generally create a <strong class="source-inline1">components</strong> folder and keep our components <span>in it.</span></li>
+				<li class="calibre14">When it comes to routing, Next.js 12 uses a filesystem-based router; what this means is to create a new route. We need to create a file with the route name in the <strong class="source-inline1">/</strong><span><strong class="source-inline1">pages</strong></span><span> folder.</span><p class="calibre3">For example, for a route such as http://localhost:3000/about-us, we would create a file like so – <strong class="source-inline">/</strong><span><strong class="source-inline">pages/about-us.tsx</strong></span><span>.</span></p></li>
+				<li class="calibre14">Let us create our components. Since we will use <strong class="source-inline1">semantic-ui</strong> to build out our components, let us go ahead and add them as dependencies in our micro apps’ <span>package managers.</span></li>
+				<li class="calibre14">Run <strong class="source-inline1">pnpm add semantic-ui-react semantic-ui-css</strong> in <strong class="source-inline1">apps/home</strong> of the micro <span>apps folder.</span></li>
+				<li class="calibre14">Then, create a <a id="_idIndexMarker259" class="pcalibre1 calibre6 pcalibre"/>folder called <strong class="source-inline1">/components</strong> within the<a id="_idIndexMarker260" class="pcalibre1 calibre6 pcalibre"/> home folder, and then create the <strong class="source-inline1">Header</strong> component <span>in there.</span></li>
+				<li class="calibre14">In the <strong class="source-inline1">/apps/components/Header.tsx</strong> file, add the <span>following code:</span><pre class="console">
+import { Menu, Container, Icon, Label } from "semantic-ui-react";import Link from "next/link";
+export function Header() {
+  return (
+    &lt;Menu fixed="top" inverted&gt;
+      &lt;Container&gt;
+        &lt;Menu.Item as="a" header&gt;
+          eBuy.com
+        &lt;/Menu.Item&gt;
+        &lt;MenuItems /&gt;
+        &lt;Menu.Item position="right"&gt;
+          &lt;Label&gt;
+            &lt;Icon name="shopping cart" /&gt;0
+          &lt;/Label&gt;
+        &lt;/Menu.Item&gt;
+      &lt;/Container&gt;
+    &lt;/Menu&gt;
+  );
+}
+const MenuItems = () =&gt; {
+  return (
+    &lt;&gt;
+      {NAV_ITEMS.map((navItem, index) =&gt; (
+        &lt;Menu.Item key={index}&gt;
+          &lt;Link href={navItem.href ?? "#"}&gt;{navItem.label}&lt;/Link&gt;
+        &lt;/Menu.Item&gt;
+      ))}
+    &lt;/&gt;
+  );
+};
+interface NavItem {
+  label: string;
+  href?: string;
+}
+const NAV_ITEMS: Array&lt;NavItem&gt; = [
+  {
+    label: "Catalog",
+    href: "/catalog",
+  },
+  {
+    label: "Checkout",
+    href: "/checkout",
+  },
+];
+export default Header;</pre><p class="calibre3">The preceding code is very similar to the code we used for the <strong class="source-inline">Header</strong> component in the <a id="_idIndexMarker261" class="pcalibre1 calibre6 pcalibre"/>previous chapter. It’s simply a markup to display the menu items and the mini basket in the <span><strong class="source-inline">Header</strong></span><span> component.</span></p></li>
+				<li class="calibre14">Next, let us include<a id="_idIndexMarker262" class="pcalibre1 calibre6 pcalibre"/> the header in our <span>home app.</span><p class="calibre3">With Next.js, if we want code to be available within all the pages, we can create a file called <strong class="source-inline">_app.tsx</strong> within the <strong class="source-inline">/pages</strong> folder and put our relevant code in there, which is exactly what we will do to get our <strong class="source-inline">Header</strong> component to display across all <span>the pages.</span></p></li>
+				<li class="calibre14">Create a new file called <strong class="source-inline1">_app.tsx</strong> in the <strong class="source-inline1">apps/home/pages</strong> folder with the <span>following code:</span><pre class="console">
+import { AppProps } from "next/app";import Head from "next/head";
+import { Container } from "semantic-ui-react";
+import "semantic-ui-css/semantic.min.css";
+import Header from “../components/Header”;
+function CustomApp({ Component, pageProps }: AppProps) {
+  return (
+    &lt;&gt;
+      &lt;Head&gt;
+        &lt;title&gt;Welcome to ebuy!&lt;/title&gt;
+      &lt;/Head&gt;
+      &lt;main&gt;
+        &lt;Header /&gt;
+        &lt;Container style={{ marginTop: "5rem" }}&gt;
+          &lt;Component {...pageProps} /&gt;
+        &lt;/Container&gt;
+      &lt;/main&gt;
+    &lt;/&gt;
+  );
+}
+export default CustomApp;</pre></li>
+				<li class="calibre14">Run <strong class="source-inline1">pnpm dev</strong> and verify that the <strong class="source-inline1">Header</strong> component shows up <span>on </span><span><strong class="source-inline1">http://localhost:3000</strong></span><span>.</span></li>
+				<li class="calibre14">Now, we will create<a id="_idIndexMarker263" class="pcalibre1 calibre6 pcalibre"/> our catalog micro app. Simply <a id="_idIndexMarker264" class="pcalibre1 calibre6 pcalibre"/>create a copy of the home app and rename the <span>folder </span><span><strong class="source-inline1">catalog</strong></span><span>.</span></li>
+				<li class="calibre14">Open up the catalog’s <strong class="source-inline1">package.json</strong> file, located in <strong class="source-inline1">apps/catalog/package.json</strong> file, and make a few <span>minor changes.</span></li>
+				<li class="calibre14">Change the app name to  <strong class="source-inline1">"name": "catalog"</strong>; let us also change the port to run <span>on </span><span><strong class="source-inline1">3001</strong></span><span>:</span><pre class="console">
+"dev": "next dev --port 3001".</pre></li>				<li class="calibre14">Now, let us create <a id="_idIndexMarker265" class="pcalibre1 calibre6 pcalibre"/>our product card component in the <span><strong class="source-inline1">components</strong></span><span> folder.</span></li>
+				<li class="calibre14">Create a new<a id="_idIndexMarker266" class="pcalibre1 calibre6 pcalibre"/> file in <strong class="source-inline1">apps/catalog/components/ProductCard.tsx</strong> with the <span>following code:</span><pre class="console">
+import { Button, Card, Image } from "semantic-ui-react";export function ProductCard(productData: any) {
+  const { product } = productData;
+  return (
+    &lt;Card&gt;
+      &lt;Card.Content&gt;
+        &lt;Image alt ={product.title}
+ src={product.image} /&gt;
+        &lt;Card.Header&gt;{product.title}&lt;/Card.Header&gt;
+        &lt;Card.Description&gt;{product.description}&lt;/Card.Description&gt;
+        &lt;Card.Header&gt;${product.price}&lt;/Card.Header&gt;
+      &lt;/Card.Content&gt;
+      &lt;Card.Content extra&gt;
+        &lt;div className="ui three buttons"&gt;
+          &lt;Button basic color="red"&gt;
+            Remove
+          &lt;/Button&gt;
+          &lt;Button basic color="blue"&gt;&lt;/Button&gt;
+          &lt;Button basic color="green"&gt;
+            Add
+          &lt;/Button&gt;
+        &lt;/div&gt;
+      &lt;/Card.Content&gt;
+    &lt;/Card&gt;
+  );
+}
+export default ProductCard;</pre><p class="calibre3">Again, this is very similar to the <strong class="source-inline">ProductCard</strong> component we created in <a href="B18987_05.xhtml#_idTextAnchor073" class="pcalibre1 calibre6 pcalibre"><span><em class="italic">Chapter 5</em></span></a>. This is a basic markup to display the product image, product name, and price, along with<a id="_idIndexMarker267" class="pcalibre1 calibre6 pcalibre"/> the add to <span>cart button.</span></p></li>
+				<li class="calibre14">Feel free to delete the <strong class="source-inline1">Header.tsx</strong> file from <strong class="source-inline1">catalog/components</strong> and remove its reference from the <strong class="source-inline1">_app.tsx</strong> file, as we already have it in the home app and will <a id="_idIndexMarker268" class="pcalibre1 calibre6 pcalibre"/>not be using <span>it here.</span></li>
+				<li class="calibre14">Next, to save us some time, let us copy and paste the <strong class="source-inline1">product-list-mocks.tsx</strong> file from <a href="B18987_04.xhtml#_idTextAnchor061" class="pcalibre1 calibre6 pcalibre"><span><em class="italic">Chapter 4</em></span></a><em class="italic"> </em>into the <strong class="source-inline1">apps/catalog/mocks</strong> folder. While we are here, let us also copy the <strong class="source-inline1">assets</strong> folder containing the product images from <a href="https://github.com/PacktPublishing/Building-Micro-Frontends-with-React-18/tree/main/ch4/ebuy/apps/catalog/src/assets" class="pcalibre1 calibre6 pcalibre">https://github.com/PacktPublishing/Building-Micro-Frontends-with-React-18/tree/main/ch4/ebuy/apps/catalog/src/assets </a>and paste it <span>into </span><span><strong class="source-inline1">/apps/catalog/public/assets</strong></span><span>.</span></li>
+				<li class="calibre14">Next, in the <strong class="source-inline1">apps/catalog/pages/index.tsx</strong> file, let us add the <span>following code:</span><pre class="console">
+import { Card } from "semantic-ui-react";import ProductCard from "../components/ProductCard";
+import { PRODUCT_LIST_MOCKS } from "../mocks/product-list-mocks";
+export function ProductList() {
+  return (
+    &lt;Card.Group&gt;
+      {PRODUCT_LIST_MOCKS.map((product) =&gt; (
+        &lt;ProductCard key={product.id} product={product} /&gt;
+      ))}
+    &lt;/Card.Group&gt;
+  );
+}
+export default ProductList;</pre></li>
+				<li class="calibre14">Run <strong class="source-inline1">pnpm dev</strong> from the <a id="_idIndexMarker269" class="pcalibre1 calibre6 pcalibre"/>root of the <strong class="source-inline1">ebuy-ssr</strong> folder and <a id="_idIndexMarker270" class="pcalibre1 calibre6 pcalibre"/>verify that the <strong class="source-inline1">home</strong> and <strong class="source-inline1">catalog</strong> apps work as expected. These are the URLs for <span>our apps:</span><ul class="calibre16"><li class="calibre14">The <strong class="bold">home</strong> <span>app: </span><span><strong class="source-inline1">http://localhost:3000</strong></span></li><li class="calibre14">The <strong class="bold">catalog</strong> <span>app: </span><span><strong class="source-inline1">http://localhost:3001</strong></span></li></ul></li>
+			</ol>
+			<div class="calibre2">
+				<div id="_idContainer045" class="img---figure">
+					<img src="image/Figure_6.03_B18987.jpg" alt="Figure 6.3 – The home micro app running on port 3000" class="calibre4"/>
+				</div>
+			</div>
+			<p class="img---caption" lang="en-US" xml:lang="en-US">Figure 6.3 – The home micro app running on port 3000</p>
+			<div class="calibre2">
+				<div id="_idContainer046" class="img---figure">
+					<img src="image/Figure_6.04_B18987.jpg" alt="Figure 6.4 – The catalog micro app running on port 3001" class="calibre4"/>
+				</div>
+			</div>
+			<p class="img---caption" lang="en-US" xml:lang="en-US">Figure 6.4 – The catalog micro app running on port 3001</p>
+			<p class="calibre3">Now that we have our individual apps running, let us<a id="_idIndexMarker271" class="pcalibre1 calibre6 pcalibre"/> work toward loading the catalog micro app into the home app via <span>module </span><span><a id="_idIndexMarker272" class="pcalibre1 calibre6 pcalibre"/></span><span>federation.</span></p>
+			<h3 class="calibre9">Setting up Module Federation</h3>
+			<p class="calibre3">Now<a id="_idIndexMarker273" class="pcalibre1 calibre6 pcalibre"/> that we have<a id="_idIndexMarker274" class="pcalibre1 calibre6 pcalibre"/> our apps running independently, it’s time to embed the catalog app into the home app via module <a id="_idIndexMarker275" class="pcalibre1 calibre6 pcalibre"/>federation. For module federation with Next.js, we will use the dedicated <strong class="source-inline">nextjs-mf npm</strong> module. Follow <span>these steps:</span></p>
+			<ol class="calibre13">
+				<li class="calibre14">Let us first install the <strong class="source-inline1">nextjs-mf</strong> npm module along with webpack in the <span>catalog app:</span><pre class="console">
+<strong class="bold1">pnpm add @module-federation/nextjs-mf webpack</strong></pre></li>				<li class="calibre14">We now need to expose the catalog app as a remote; we do this in the <span><strong class="source-inline1">app/catalog/next.config.js</strong></span><span> file.</span></li>
+				<li class="calibre14">We replace the <a id="_idIndexMarker276" class="pcalibre1 calibre6 pcalibre"/>contents of the <strong class="source-inline1">next.config.js</strong> file with <span>the following:</span><pre class="console">
+const NextFederationPlugin = require("@module-federation/nextjs-mf");// this enables you to use import() and the webpack parser
+// loading remotes on demand, not ideal for SSR
+const remotes = (isServer) =&gt; {
+  const location = isServer ? "ssr" : "chunks";
+  return {
+    catalog: `catalog@http://localhost:3001/_next/static/${location}/remoteEntry.js`,
+  };
+};
+module.exports = {
+  webpack(config, options) {
+    config.plugins.push(
+      new NextFederationPlugin({
+        name: "catalog",
+        filename: "static/chunks/remoteEntry.js",
+        exposes: {
+          "./Module": "./pages/index.tsx",
+        },
+        remotes: remotes(options.isServer),
+        shared: {},
+        extraOptions: {
+          automaticAsyncBoundary: true,
+        },
+      })
+    );
+    return config;
+  },
+};</pre><p class="calibre3">Looking through the code, we first import <strong class="source-inline">NextFederationPlugin</strong>, and then we define the remote with its name and the path where its <strong class="source-inline">remoteEntry.js</strong> file can be located. Next.js creates two builds of its app – one for the server and the<a id="_idIndexMarker277" class="pcalibre1 calibre6 pcalibre"/> other for the client. Note that we<a id="_idIndexMarker278" class="pcalibre1 calibre6 pcalibre"/> conditionally load the <strong class="source-inline">remoteEntry.js</strong> file from either the <strong class="source-inline">ssr</strong> or <strong class="source-inline">chunks</strong> folder, depending on where it <span>is executed.</span></p></li>
+				<li class="calibre14">Next, we define the webpack config where we set the properties of <strong class="source-inline1">NextFederationPlugin</strong>, namely the name and what it exposes, <span>like so:</span><pre class="console">
+exposes: {  "./Module": "./pages/index.tsx",
+   },</pre></li>
+			</ol>
+			<p class="calibre3">We can define an array of remotes and have different components or pages from within the catalog micro app load in<a id="_idIndexMarker279" class="pcalibre1 calibre6 pcalibre"/> other apps. This completes the setup on the <span>catalog side.</span></p>
+			<h3 class="calibre9">Creating the checkout micro app</h3>
+			<p class="calibre3">For the sake of<a id="_idIndexMarker280" class="pcalibre1 calibre6 pcalibre"/> completeness, let us also create the <strong class="source-inline">checkout</strong> micro app by creating a copy of the <a id="_idIndexMarker281" class="pcalibre1 calibre6 pcalibre"/>catalog app and renaming the folder to <strong class="source-inline">checkout</strong>. Follow <span>these steps:</span></p>
+			<ol class="calibre13">
+				<li class="calibre14">Let us make the necessary changes to the <strong class="source-inline1">apps/checkout/package.json</strong> file, <span>as follows:</span><pre class="console">
+"name": "checkout",</pre></li>				<li class="calibre14">Then, update the <span>port number:</span><pre class="console">
+"dev": "next dev --port 3002",</pre></li>				<li class="calibre14">Now, create a file called <strong class="source-inline1">Basket.tsx</strong> in <strong class="source-inline1">apps/checkout/components/Basket.tsx</strong> with the <span>following code:</span><pre class="console">
+import { Table, Image, Container } from "semantic-ui-react";export function ShoppingBasket(basketListData: any) {
+  const { basketList } = basketListData;
+  return (
+    &lt;Container textAlign="center"&gt;
+      &lt;Table basic="very" rowed=”true”&gt;
+        &lt;Table.Header&gt;
+          &lt;Table.Row&gt;
+            &lt;Table.HeaderCell&gt;Items&lt;/Table.HeaderCell&gt;
+            &lt;Table.HeaderCell&gt;Amount&lt;/Table.HeaderCell&gt;
+            &lt;Table.HeaderCell&gt;Quantity&lt;/Table.HeaderCell&gt;
+            &lt;Table.HeaderCell&gt;Price&lt;/Table.HeaderCell&gt;
+          &lt;/Table.Row&gt;
+        &lt;/Table.Header&gt;
+        &lt;Table.Body&gt;
+          {basketList.map((basketItem: any) =&gt; (
+            &lt;Table.Row key={basketItem.id}&gt;
+              &lt;Table.Cell&gt;
+                &lt;Image alt={ basketItem.title } src={basketItem.image} rounded size=”mini” /&gt;
+              &lt;/Table.Cell&gt;
+              &lt;Table.Cell&gt; {basketItem.title}&lt;/Table.Cell&gt;
+              &lt;Table.Cell&gt;{basketItem.quantity || 1}&lt;/Table.Cell&gt;
+              &lt;Table.Cell&gt;£{basketItem.price||1 * basketItem.quantity}&lt;/Table.Cell&gt;
+            &lt;/Table.Row&gt;
+          ))}
+        &lt;/Table.Body&gt;
+      &lt;/Table&gt;
+    &lt;/Container&gt;
+  );
+}
+export default ShoppingBasket;</pre></li>
+				<li class="calibre14">Let us also <a id="_idIndexMarker282" class="pcalibre1 calibre6 pcalibre"/>change the content of the <strong class="source-inline1">apps/checkout/pages/</strong><strong class="source-inline1">index.tsx</strong> file to ensure that the checkout app loads the <strong class="source-inline1">basket</strong> component by passing<a id="_idIndexMarker283" class="pcalibre1 calibre6 pcalibre"/> the right set <span>of information:</span><pre class="console">
+import { Container, Header as Text } from "semantic-ui-react";import ShoppingBasket from "../components/Basket";
+import "semantic-ui-css/semantic.min.css";
+import { PRODUCT_LIST_MOCKS } from "../mocks/product-list-mocks";
+export function App() {
+  return (
+    &lt;Container style={{ marginTop: "5rem" }}&gt;
+      &lt;Text size="huge"&gt;Checkout&lt;/Text&gt;
+      &lt;ShoppingBasket basketList={PRODUCT_LIST_MOCKS} /&gt;
+    &lt;/Container&gt;
+  );
+}
+export default App;</pre></li>
+				<li class="calibre14">Now, let us update the module federation configuration in the <strong class="source-inline1">apps/checkout/next.config.js</strong> to set up the checkout app as <span>a remote.</span></li>
+				<li class="calibre14">Let us update the remote array to reflect the name checkout and update the port to <strong class="source-inline1">3002</strong>, as highlighted <a id="_idIndexMarker284" class="pcalibre1 calibre6 pcalibre"/>in the following <span>code </span><span><a id="_idIndexMarker285" class="pcalibre1 calibre6 pcalibre"/></span><span>snippet:</span><pre class="console">
+return {<strong class="bold1">    checkout: `checkout@http://localhost:3002/_next/static/${location}/remoteEntry.js`,</strong>
+  };
+The next set of changes in the same file are here
+  new NextFederationPlugin({
+<strong class="bold1">        name: "checkout",</strong>
+        filename: "static/chunks/remoteEntry.js",
+        exposes: {
+          "./Module": "./pages/index.tsx",
+        },
+. . .</pre></li>
+			</ol>
+			<p class="calibre3">Let’s quickly check the app to see whether the checkout app loads properly by running <strong class="source-inline">pnpm dev</strong> in the root folder and by visiting the following URL in the browser – <span><strong class="source-inline">http://localhost:3002</strong></span><span>.</span></p>
+			<h3 class="calibre9">Setting up the host app</h3>
+			<p class="calibre3">Now, let us <a id="_idIndexMarker286" class="pcalibre1 calibre6 pcalibre"/>focus on the <span>home app:</span></p>
+			<ol class="calibre13">
+				<li class="calibre14">We will need to <a id="_idIndexMarker287" class="pcalibre1 calibre6 pcalibre"/>again install the <strong class="source-inline1">module-federation/nextjs-mf npm</strong> package <span>and webpack:</span><pre class="console">
+<strong class="bold1">pnpm add @module-federation/nextjs-mf webpack</strong></pre></li>				<li class="calibre14">Once done, set up the host app as the host by updating the <strong class="source-inline1">apps/home/next.config.js</strong> file, <span>as</span><span><a id="_idIndexMarker288" class="pcalibre1 calibre6 pcalibre"/></span><span> follows:</span><pre class="console">
+const NextFederationPlugin = require("@module-federation/nextjs-mf");const remotes = (isServer) =&gt; {
+  const location = isServer ? "ssr" : "chunks";
+  return {
+    catalog: `catalog@http://localhost:3001/_next/static/${location}/remoteEntry.js`,
+    checkout: `checkout@http://localhost:3002/_next/static/${location}/remoteEntry.js`,
+  };
+};
+module.exports = {
+  webpack(config, options) {
+    config.plugins.push(
+      new NextFederationPlugin({
+        name: "home",
+        filename: "static/chunks/remoteEntry.js",
+        exposes: {},
+        remotes: remotes(options.isServer),
+        shared: {},
+        extraOptions: {
+          automaticAsyncBoundary: true,
+        },
+      })
+    );
+    return config;
+  },
+};</pre></li>
+				<li class="calibre14">Since we want to<a id="_idIndexMarker289" class="pcalibre1 calibre6 pcalibre"/> load the catalog micro app within the catalog route, we will create a new<a id="_idIndexMarker290" class="pcalibre1 calibre6 pcalibre"/> file called <strong class="source-inline1">catalog.tsx</strong> in <strong class="source-inline1">apps/home/pages/</strong> with the <span>following code:</span><pre class="console">
+import dynamic from "next/dynamic";const Catalog = dynamic(() =&gt; import("catalog/Module"), {
+  ssr: true,
+});
+export default function catalog() {
+  return &lt;Catalog /&gt;;
+}</pre></li>
+				<li class="calibre14">Let us create a similar file called <strong class="source-inline1">checkout</strong> in <strong class="source-inline1">apps/home/pages/checkout.tsx</strong> with the following <span>similar code:</span><pre class="console">
+import dynamic from "next/dynamic";const Checkout = dynamic(() =&gt; import("checkout/Module"), {
+  ssr: true,
+});
+export default function checkout() {
+  return &lt;Checkout /&gt;;
+}</pre><p class="calibre3">As you can see, we import Next.js’s dynamic module for the first time, which is the recommended way to import dynamically  <span>with Next.js.</span></p><p class="calibre3">You can choose to dynamically import the module to execute the client side by setting up <strong class="source-inline">ssr:false</strong>; this will execute the module on the client side and be bypassed by SSR. This<a id="_idIndexMarker291" class="pcalibre1 calibre6 pcalibre"/> is suitable when your module<a id="_idIndexMarker292" class="pcalibre1 calibre6 pcalibre"/> contains personalized content, for example, recommendations, order history, and <span>so on.</span></p><p class="calibre3">Then, we define the <strong class="source-inline">const</strong> called <strong class="source-inline">Catalog</strong> and import it from the <strong class="source-inline">catalog/Module</strong>. Note that the TypeScript throws an error. That’s because we’ve not defined the types <span>for it.</span></p></li>
+				<li class="calibre14">So, let us quickly create the <strong class="source-inline1">/apps/home/remotes.d.ts</strong> file with the <span>following lines:</span><pre class="console">
+declare module "catalog/Module";declare module "checkout/Module";</pre></li>
+				<li class="calibre14">Let’s test out everything by shutting down all <span>running servers.</span><p class="calibre3"><strong class="source-inline">killall node</strong> is a really helpful command to kill all <span>node processes.</span></p></li>
+				<li class="calibre14">Run <strong class="source-inline1">pnpm dev</strong> and visit <strong class="source-inline1">http://localhost:3000</strong>. Click on the catalog and checkout apps to see the respective micro <span>apps load.</span></li>
+			</ol>
+			<p class="callout-heading">Note</p>
+			<p class="callout">You may <a id="_idIndexMarker293" class="pcalibre1 calibre6 pcalibre"/>need to copy the <strong class="source-inline1">public/assets</strong> folder from the catalog into the <span>host app.</span></p>
+			<div class="calibre2">
+				<div id="_idContainer047" class="img---figure">
+					<img src="image/Figure_6.05_B18987.jpg" alt="Figure 6.5 – The catalog micro app loaded in the catalog route" class="calibre4"/>
+				</div>
+			</div>
+			<p class="img---caption" lang="en-US" xml:lang="en-US">Figure 6.5 – The catalog micro app loaded in the catalog route</p>
+			<p class="calibre3">The following <a id="_idIndexMarker294" class="pcalibre1 calibre6 pcalibre"/>screenshot shows the checkout micro app loaded on the <span>checkout route:</span></p>
+			<div class="calibre2">
+				<div id="_idContainer048" class="img---figure">
+					<img src="image/Figure_6.06_B18987.jpg" alt="Figure 6.6 – The checkout micro app loaded on the checkout route" class="calibre4"/>
+				</div>
+			</div>
+			<p class="img---caption" lang="en-US" xml:lang="en-US">Figure 6.6 – The checkout micro app loaded on the checkout route</p>
+			<p class="calibre3">Congratulations!! We now have a full server side <span>rendered microfrontend.</span></p>
+			<p class="calibre3">Let’s recap what we’ve<a id="_idIndexMarker295" class="pcalibre1 calibre6 pcalibre"/> learned so far. We started off by creating our individual micro apps using Turborepo and Next.js, and we learned about<a id="_idIndexMarker296" class="pcalibre1 calibre6 pcalibre"/> Turborepo’s folder structure and how it differs from Nx. We then created our micro apps using Next.js, and finally, we saw how to set up module federation to load the different micro apps in <span>different routes.</span></p>
+			<h1 id="_idParaDest-103" class="calibre7"><a id="_idTextAnchor102" class="pcalibre1 calibre6 pcalibre"/>Summary</h1>
+			<p class="calibre3">We’ve come to the end of this chapter, where we learned about the differences between Client side rendered and server side rendered apps, and which one is suitable for which type of application. We looked at the various options to build an SSR app and zeroed in on Next.js and Turborepo to build out our module-federated app. We then saw how to set up module federation using the <strong class="source-inline">next.js-mf</strong> plugin, and we went about setting up our remote and host apps. Finally, we saw how to import these modules dynamically into the host app and set up routing between the <span>different apps.</span></p>
+			<p class="calibre3">As a stretch goal for this chapter, you can explore setting up a shared state management solution or a shared component library, following the same approach we took in <a href="B18987_05.xhtml#_idTextAnchor073" class="pcalibre1 calibre6 pcalibre"><span><em class="italic">Chapter 5</em></span></a><span>.</span></p>
+			<p class="calibre3">In the next chapter, we will learn how to go about deploying our apps to the cloud. See you on the <span>other side!</span></p>
+		</div>
+	</body></html>

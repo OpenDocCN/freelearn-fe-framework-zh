@@ -1,0 +1,440 @@
+<html><head></head><body>
+		<div id="_idContainer042" class="calibre2">
+			<h1 id="_idParaDest-74" class="chapter-number"><a id="_idTextAnchor073" class="pcalibre1 calibre6 pcalibre"/>5</h1>
+			<h1 id="_idParaDest-75" class="calibre7"><a id="_idTextAnchor074" class="pcalibre1 calibre6 pcalibre"/>Implementing the Micro-Apps Pattern for Microfrontends</h1>
+			<p class="calibre3">In the previous chapter, we saw the multi-SPA pattern for building microfrontends, which is ideal for building large-scale applications where each SPA contains its own <span>user journey.</span></p>
+			<p class="calibre3">The primary advantage of this pattern is that each app is completely independent of the others, and they are connected via a namespaced primary route that is external to the app. As a user, while navigating through the app, you will have also noticed that when you move from one SPA to another, you are redirected via the browser and the page reloads. If this is something you’d like to avoid, and if you want a consistent SPA experience, then we can explore the micro-apps-pattern that uses <span>Module Federation.</span></p>
+			<p class="calibre3">In this chapter, we will go about building a micro-apps microfrontend, where we will learn about <span>the following:</span></p>
+			<ul class="calibre15">
+				<li class="calibre14">What is Module Federation, and why is it a key to <span>building microfrontends?</span></li>
+				<li class="calibre14">Setting up a microfrontend app with host and <span>remote apps</span></li>
+				<li class="calibre14">Breaking down the app into smaller micro apps that are loaded via <span>Module Federation</span></li>
+				<li class="calibre14">Setting up routing between the <span>different pages</span></li>
+				<li class="calibre14">Sharing state between the different <span>micro apps</span></li>
+			</ul>
+			<p class="calibre3">By the end of this chapter, we will have converted our multi-SPA microfrontend into a micro-apps microfrontend using Module Federation. In doing so, we will have also learned about Zustand, an easy-to-use state <span>management library.</span></p>
+			<h1 id="_idParaDest-76" class="calibre7"><a id="_idTextAnchor075" class="pcalibre1 calibre6 pcalibre"/>Technical requirements</h1>
+			<p class="calibre3">As we go through the code examples in this chapter, we will need <span>the following:</span></p>
+			<ul class="calibre15">
+				<li class="calibre14">A PC, Mac, or Linux desktop or laptop with at least 8 GB of RAM (16 <span>GB preferred)</span></li>
+				<li class="calibre14">An Intel chipset i5+ or a Mac M1 + <span>chipset</span></li>
+				<li class="calibre14">At least 256 GB of free hard <span>disk storage</span></li>
+			</ul>
+			<p class="calibre3">You will also need the following software installed on <span>your computer:</span></p>
+			<ul class="calibre15">
+				<li class="calibre14">Node.js version 18+ (use <strong class="source-inline1">nvm</strong> to manage different versions of Node.js if you <span>have to)</span></li>
+				<li class="calibre14">Terminal: iTerm2 with OhMyZsh (you will thank <span>me later)</span></li>
+				<li class="calibre14">IDE: We strongly recommend VS Code as we will be making use of some of the plugins that come with it for an improved <span>developer experience</span></li>
+				<li class="calibre14">NPM, Yarn, or PNPM. We recommend PNPM because it’s fast <span>and storage-efficient</span></li>
+				<li class="calibre14">Browser: Chrome, Microsoft Edge, <span>or Firefox</span></li>
+				<li class="calibre14">A basic understanding of Nx.dev monorepos and a basic understanding of using the NX console plugin in <span>VS Code</span></li>
+				<li class="calibre14">Working knowledge <span>of React</span></li>
+			</ul>
+			<p class="calibre3">The code files for this chapter can be found <span>here: </span><a href="https://github.com/PacktPublishing/Building-Micro-Frontends-with-React" class="pcalibre1 calibre6 pcalibre"><span>https://github.com/PacktPublishing/Building-Micro-Frontends-with-React</span></a><span>.</span></p>
+			<p class="calibre3">We also assume you have a basic working knowledge of Git, including branching, committing code, and raising a <span>pull request.</span></p>
+			<h1 id="_idParaDest-77" class="calibre7"><a id="_idTextAnchor076" class="pcalibre1 calibre6 pcalibre"/>Why do we need Module Federation for Microfrontends?</h1>
+			<p class="calibre3">In the multi-SPA approach to microfrontends, you may have noticed that we end up duplicating <a id="_idIndexMarker192" class="pcalibre1 calibre6 pcalibre"/>some of the common dependencies across the different micro apps. In the grand scheme of things, when the primary goal is to keep things simple, this would be an acceptable trade-off. However, when the number of dependencies being duplicated and the number of apps being built are high, you need to optimize things and minimize duplication. Trying to achieve this before Webpack 5 would have led to having to deal with complex dependency management. It would also have made it difficult to maintain and evolve microfrontend applications. Module Federation helps us solve <span>these challenges.</span></p>
+			<p class="calibre3">In the next sections, we will learn more about what Module Federation is and how it helps with <span>building microfrontends.</span></p>
+			<h1 id="_idParaDest-78" class="calibre7"><a id="_idTextAnchor077" class="pcalibre1 calibre6 pcalibre"/>What is Module Federation?</h1>
+			<p class="calibre3"><strong class="bold">Module Federation</strong> is a new <a id="_idIndexMarker193" class="pcalibre1 calibre6 pcalibre"/>feature introduced in Webpack 5 that allows us to load external JS bundles in <span>real time.</span></p>
+			<p class="calibre3">Before Module Federation, the standard way to import all the necessary modules for an application was only during build time, where it created a large JS bundle or smaller chunks that got loaded based on page routes, but it wasn’t quite possible to dynamically load an app bundle in <span>real time.</span></p>
+			<p class="calibre3">Module Federation provides us with a radically new way to architect our apps, build and deploy shared components, and update them without the need to rebuild the <span>entire application.</span></p>
+			<p class="calibre3">Traditionally, we build most of our shared components, such as UI component libraries or <strong class="source-inline">npm</strong> modules, and import them into our application during build time. With Module Federation, these modules can be hosted at an independent URL and imported into the application at runtime. We take advantage of this very same feature to build our microfrontend architecture, where we have our micro apps independently hosted and loaded into the host or shell app in <span>real time.</span></p>
+			<p class="calibre3">Before we get into how to go about doing it, let us look at some basic terminology associated with Module Federation. Module Federation revolves around a few concepts. Here are some <span>of them.</span></p>
+			<h2 id="_idParaDest-79" class="calibre5"><a id="_idTextAnchor078" class="pcalibre1 calibre6 pcalibre"/>ModuleFederationPlugin</h2>
+			<p class="calibre3">All of Module <a id="_idIndexMarker194" class="pcalibre1 calibre6 pcalibre"/>Federation’s features are made available in Webpack 5+ via the <strong class="source-inline">ModuleFederationPlugin</strong> plugin. This is where you define the settings of how Module Federation <span>should work.</span></p>
+			<p class="calibre3">This plugin allows a build to provide or consume modules during <strong class="bold">runtime</strong> with other <span>independent builds.</span></p>
+			<p class="calibre3">You can read in detail about <strong class="source-inline">ModuleFederationPlugin</strong> and its specs <span>here: </span><a href="https://webpack.js.org/plugins/module-federation-plugin/" class="pcalibre1 calibre6 pcalibre"><span>https://webpack.js.org/plugins/module-federation-plugin/</span></a><span>.</span></p>
+			<p class="calibre3">In its simplest form, the code for <strong class="source-inline">ModuleFederationPlugin</strong> should look <span>like this:</span></p>
+			<pre class="source-code">
+const { ModuleFederationPlugin } = require('webpack').container;
+module.exports = {
+  plugins: [
+    new ModuleFederationPlugin({
+      // module federation configuration options
+    }),
+  ],
+};</pre>			<p class="calibre3">The preceding code is the skeleton that holds all the configurations required to enable <span>Module Federation.</span></p>
+			<h2 id="_idParaDest-80" class="calibre5"><a id="_idTextAnchor079" class="pcalibre1 calibre6 pcalibre"/>Host apps</h2>
+			<p class="calibre3">This is the root <a id="_idIndexMarker195" class="pcalibre1 calibre6 pcalibre"/>application within which <em class="italic">remote</em> or external apps are loaded. The host app’s Module Federation configuration stores the list of remote apps that need to load within it. In our use cases of microfrontends, the host app also contains information about the different routes and the mapping of the routes to the respective <span>remote apps.</span></p>
+			<p class="calibre3">Webpack’s configuration for Module Federation in the host app should look <span>like this:</span></p>
+			<pre class="source-code">
+module.exports = {
+  plugins: [
+    new ModuleFederationPlugin({
+      name: 'hostAppName',
+      remotes: {
+        app1: '&lt;app1's URL path to remoteEntry.js&gt;',
+       app2: '&lt;app2's URL path to remoteEntry.js&gt;',
+      },
+    }),
+  ],
+};</pre>			<p class="calibre3">The preceding <a id="_idIndexMarker196" class="pcalibre1 calibre6 pcalibre"/>code is simple to understand. We let Module Federation know the name of the host app and provide a list of remote apps and the path to their corresponding <strong class="source-inline">remoteEntry</strong> file in the <span><strong class="source-inline">remotes</strong></span><span> object.</span></p>
+			<h2 id="_idParaDest-81" class="calibre5"><a id="_idTextAnchor080" class="pcalibre1 calibre6 pcalibre"/>Remote Apps</h2>
+			<p class="calibre3">Remote apps, as you would have guessed, are apps that load dynamically within the host app. These <a id="_idIndexMarker197" class="pcalibre1 calibre6 pcalibre"/>remote apps are also referred to as <em class="italic">containers</em> in Module Federation terminology. The JS bundle of these remote apps is usually exposed via a single <strong class="source-inline">.js</strong> file usually called <strong class="source-inline">remoteEntry.js</strong>, which the host app looks <span>out for.</span></p>
+			<p class="calibre3">Every remote app is exposed in Webpack’s Module Federation configuration in the <span>following way:</span></p>
+			<pre class="source-code">
+new ModuleFederationPlugin({
+      name: 'remoteAppName', // this name needs to match with the entry name
+      exposes: ['./public-path/remoteEntry.js'],
+      // ...
+    }),</pre>			<p class="calibre3">Every remote <a id="_idIndexMarker198" class="pcalibre1 calibre6 pcalibre"/>app needs to have a unique name defined in its <strong class="source-inline">name</strong> property, and this name needs to match the names that are part of the <strong class="source-inline">remotes</strong> object defined in the host app’s Module <span>Federation configuration.</span></p>
+			<h2 id="_idParaDest-82" class="calibre5"><a id="_idTextAnchor081" class="pcalibre1 calibre6 pcalibre"/>remoteEntry.js</h2>
+			<p class="calibre3">The <strong class="source-inline">remoteEntry.js</strong> file is a small JS file that is created by Module Federation at runtime. It contains metadata for each of the remote apps. The host app relies on the <strong class="source-inline">remoteEntry.js</strong> file to know which modules to <span>load into.</span></p>
+			<p class="calibre3">Use cases <a id="_idIndexMarker199" class="pcalibre1 calibre6 pcalibre"/>for Module Federation are not just limited to building microfrontends; they can also be used to dynamically load common libraries or a module such as a design system, for example, negating the need to publish these common libraries as <strong class="source-inline">npm</strong> packages and having to rebuild and re-deploy every time a common library <span>has changed.</span></p>
+			<p class="calibre3">The following diagram helps to explain how Module <span>Federation works:</span></p>
+			<div class="calibre2">
+				<div id="_idContainer033" class="img---figure">
+					<img src="image/Figure_5.01_B18987.jpg" alt="Figure 5.1 – Module Federation with three micro apps loaded in real time" class="calibre4"/>
+				</div>
+			</div>
+			<p class="img---caption" lang="en-US" xml:lang="en-US">Figure 5.1 – Module Federation with three micro apps loaded in real time</p>
+			<p class="calibre3">From the diagram, we see that we have apps running on ports <strong class="source-inline">3001</strong>, <strong class="source-inline">3002</strong>, and <strong class="source-inline">3003</strong>. Each of them has its metadata exposed in its respective <strong class="source-inline">remoteEntry.js</strong> files. These apps are <a id="_idIndexMarker200" class="pcalibre1 calibre6 pcalibre"/>dynamically loaded into the host app that is running on port <strong class="source-inline">3000</strong> via <span>Module Federation.</span></p>
+			<p class="calibre3">It may be prudent to know that it is not just apps. Any kind of JS module can be dynamically imported into <span>Module Federation.</span></p>
+			<p class="calibre3">In the next section, we will put all of this <span>into practice.</span></p>
+			<h1 id="_idParaDest-83" class="calibre7"><a id="_idTextAnchor082" class="pcalibre1 calibre6 pcalibre"/>Setting up Microfrontends with a Host and Remote app</h1>
+			<p class="calibre3">We are going <a id="_idIndexMarker201" class="pcalibre1 calibre6 pcalibre"/>to take our multi-SPA app and convert <a id="_idIndexMarker202" class="pcalibre1 calibre6 pcalibre"/>it into a microfrontend with a Host and Remote app using Module Federation. As mentioned earlier, the main benefit of this approach is that users get a true single-page experience while still ensuring that each app is independently built <span>and deployed.</span></p>
+			<p class="calibre3">Let us see what it takes for us to <span>do this:</span></p>
+			<div class="calibre2">
+				<div id="_idContainer034" class="img---figure">
+					<img src="image/Figure_5.02_B18987.jpg" alt="Figure 5.2 – Module Federation setup" class="calibre4"/>
+				</div>
+			</div>
+			<p class="img---caption" lang="en-US" xml:lang="en-US">Figure 5.2 – Module Federation setup</p>
+			<p class="calibre3">You will notice that <span><em class="italic">Figure 5</em></span><em class="italic">.2</em> is similar to <span><em class="italic">Figure 5</em></span><em class="italic">.1</em> and explains the implementation details of <a id="_idIndexMarker203" class="pcalibre1 calibre6 pcalibre"/>Module Federation. We see that the <a id="_idIndexMarker204" class="pcalibre1 calibre6 pcalibre"/>Host app contains the header component and runs on port <strong class="source-inline">4200</strong>. We then have our Catalog and Checkout apps running on ports <strong class="source-inline">4202</strong> and <strong class="source-inline">4201</strong>. We aim to load these remote apps dynamically whenever the correct route <span>is called.</span></p>
+			<p class="calibre3">To convert our multi-SPA into a module-federated microfrontend, we will need to make the <span>following changes:</span></p>
+			<ol class="calibre13">
+				<li class="calibre14">Create a new Host app that we’ll <span>call App-shell.</span></li>
+				<li class="calibre14">Remove the header component from each SPA and move it <span>into App-shell.</span></li>
+				<li class="calibre14">Define the remote apps, namely Catalog and Checkout, that need to be loaded into the <span>host app.</span></li>
+				<li class="calibre14">Define the remote entry for the Catalog and Checkout <span>micro apps.</span></li>
+			</ol>
+			<p class="calibre3">Let us get started. Open up the e-buy app that you built in the <span>previous chapter.</span></p>
+			<p class="calibre3">You may also download it from the <span>Git repo:</span></p>
+			<p class="calibre3"><a href="https://github.com/PacktPublishing/Building-Micro-Frontends-with-React/tree/main/ch4/ebuy" class="pcalibre1 calibre6 pcalibre"><span>https://github.com/PacktPublishing/Building-Micro-Frontends-with-React/tree/main/ch4/ebuy</span></a></p>
+			<p class="calibre3">In the <a id="_idIndexMarker205" class="pcalibre1 calibre6 pcalibre"/>coming subsections, we will see how to <a id="_idIndexMarker206" class="pcalibre1 calibre6 pcalibre"/>create our host and remote apps, but first, we will clean up our existing apps and prep them to use <span>Module Federation.</span></p>
+			<h2 id="_idParaDest-84" class="calibre5"><a id="_idTextAnchor083" class="pcalibre1 calibre6 pcalibre"/>Clean up</h2>
+			<p class="calibre3">With Module Federation, the host app takes care of routing, and there is no need for us to use <a id="_idIndexMarker207" class="pcalibre1 calibre6 pcalibre"/>the proxy configurations we defined in the <strong class="source-inline">proxy.conf.json</strong> file. So, we will delete this file and remove the unnecessary configuration from the <span><strong class="source-inline">project.json</strong></span><span> file.</span></p>
+			<p class="calibre3">Go ahead and delete <strong class="source-inline">/apps/catalog/proxy.conf.json</strong> and, in the <strong class="source-inline">catalog/project.json</strong> file, delete the <span>following line:</span></p>
+			<pre class="source-code">
+"proxyConfig": "apps/catalog/proxy.conf.json"</pre>			<p class="calibre3">While we’re at it, we can also get rid of <strong class="source-inline">baseRef</strong>, which we defined in our <strong class="source-inline">checkout/project.json</strong> file. Locate this line and <span>delete it:</span></p>
+			<pre class="source-code">
+"baseHref": "/checkout/"</pre>			<h2 id="_idParaDest-85" class="calibre5"><a id="_idTextAnchor084" class="pcalibre1 calibre6 pcalibre"/>Setting up the App-shell host app</h2>
+			<p class="calibre3">With this, we <a id="_idIndexMarker208" class="pcalibre1 calibre6 pcalibre"/>are now set to start migrating our multi-SPA apps to <span>Module Federation.</span></p>
+			<p class="calibre3">Nx Console has a nifty generator for creating a host and remote apps for Module Federation. Follow <span>these steps:</span></p>
+			<ol class="calibre13">
+				<li class="calibre14">Create a React <span>host app:</span><p class="calibre3"><strong class="bold">Nx Console</strong> | <strong class="bold">Generate</strong> | <strong class="bold">@nrwl/react – host Generate a host </strong><span><strong class="bold">react application</strong></span></p></li>
+			</ol>
+			<div class="calibre2">
+				<div id="_idContainer035" class="img---figure">
+					<img src="image/Figure_5.03_B18987.jpg" alt="Figure 5.3 – Selecting the host app generator from Nx Dev Console" class="calibre4"/>
+				</div>
+			</div>
+			<p class="img---caption" lang="en-US" xml:lang="en-US">Figure 5.3 – Selecting the host app generator from Nx Dev Console</p>
+			<ol class="calibre13">
+				<li value="2" class="calibre14">Enter <a id="_idIndexMarker209" class="pcalibre1 calibre6 pcalibre"/>the following information in <span>this form:</span><ul class="calibre16"><li class="calibre14"><span><strong class="bold">Name</strong></span><span>: </span><span><strong class="source-inline1">app-shell</strong></span></li><li class="calibre14"><span><strong class="bold">devServerPort</strong></span><span>: </span><span><strong class="source-inline1">4200</strong></span></li><li class="calibre14"><span><strong class="bold">e2eTestrunner</strong></span><span>: </span><span><strong class="source-inline1">none</strong></span></li><li class="calibre14"><strong class="bold">remotes</strong>: We will leave this blank and add it manually due to a bug that doesn’t allow multiple <span>app names</span></li></ul></li>
+				<li class="calibre14">After you hit the <strong class="bold">Generate </strong>button, you will see the <strong class="source-inline1">app-shell</strong> folder <span>within apps.</span><p class="calibre3">When you navigate into the folder and have a peek at the files in it, you will notice that it has a new file on the root of the app <span>called </span><span><strong class="source-inline">apps/app-shell/module-federation.config.js</strong></span><span>.</span></p></li>
+				<li class="calibre14">Open up the file and, in the <strong class="source-inline1">remotes</strong> array, add Catalog and Checkout as the <span>remote apps:</span><pre class="console">
+remotes: ['catalog', 'checkout']</pre></li>				<li class="calibre14">Now let us open up the <strong class="source-inline1">apps/app-shell/src/app/app.tsx</strong> file and have <span>a look.</span><p class="calibre3">You will notice that this uses familiar React concepts such as <strong class="source-inline">React.Suspence</strong> and React <span>Router’s </span><span><strong class="source-inline">Route</strong></span><span>.</span></p></li>
+				<li class="calibre14">We will <a id="_idIndexMarker210" class="pcalibre1 calibre6 pcalibre"/>tweak this <span>boilerplate file:</span><pre class="console">
+import React from 'react';<strong class="bold1">import { Container } from 'semantic-ui-react';</strong>
+<strong class="bold1">import { Route, Routes } from 'react-router-dom';</strong>
+import 'semantic-ui-css/semantic.min.css';
+<strong class="bold1">import { Header } from ‘@ebuy/ui’; </strong>
+<strong class="bold1">const Catalog = React.lazy(() =&gt; import('catalog/Module'));</strong>
+<strong class="bold1">const Checkout = React.lazy(() =&gt; import('checkout/Module'));</strong>
+export function App() {
+  return (
+    <strong class="bold1">&lt;React.Suspense fallback={null}&gt;</strong>
+<strong class="bold1">      &lt;Container style={{ marginTop: '5rem' }}&gt;</strong>
+<strong class="bold1">        &lt;Header /&gt;</strong>
+<strong class="bold1">        </strong><strong class="bold1">&lt;Routes&gt;</strong>
+<strong class="bold1">          &lt;Route path="/" element={&lt;Catalog /&gt;} /&gt;</strong>
+<strong class="bold1">          &lt;Route path="/catalog" element={&lt;Catalog /&gt;} /&gt;</strong>
+<strong class="bold1">          &lt;Route path="/checkout" element={&lt;Checkout /&gt;} /&gt;</strong>
+<strong class="bold1">        &lt;/Routes&gt;</strong>
+<strong class="bold1">      &lt;/Container&gt;</strong>
+<strong class="bold1">    &lt;/React.Suspense&gt;</strong>
+  );
+}
+export default App;</pre><p class="calibre3">As you can see from the preceding code, we first import the <strong class="source-inline">Header</strong> component <span>into App-shell.</span></p><p class="calibre3">You will <a id="_idIndexMarker211" class="pcalibre1 calibre6 pcalibre"/>also notice that we are using dynamic imports to import our Catalog and Checkout apps using <strong class="source-inline">React.lazy</strong>. These lines will currently be throwing errors as it is unable to find <span>the module.</span></p></li>
+				<li class="calibre14">To solve this, create a file called <strong class="source-inline1">/apps/app-shell/src/remotes.d.ts</strong> with the <span>following code:</span><pre class="console">
+declare module 'catalog/Module';declare module 'checkout/Module';</pre><p class="calibre3">The <strong class="source-inline">remotes.d.ts</strong> file is used to provide TypeScript type declarations for remotes in a Module <span>Federation setup.</span></p><p class="calibre3">Further down in the JSX, you will notice that we import the Catalog app on the <strong class="source-inline">/ </strong>and <strong class="source-inline">/catalog</strong> routes while we import the Checkout app on the <strong class="source-inline">/</strong><span><strong class="source-inline">checkout</strong></span><span> route.</span></p></li>
+			</ol>
+			<p class="calibre3">This more or less completes the setup for the <span>host app.</span></p>
+			<h2 id="_idParaDest-86" class="calibre5"><a id="_idTextAnchor085" class="pcalibre1 calibre6 pcalibre"/>Setting up our Remote apps</h2>
+			<p class="calibre3">Setting up our remote apps will take a bit of work. Let us crack on and work on them one at <span>a time.</span></p>
+			<p class="calibre3">Here’s what <a id="_idIndexMarker212" class="pcalibre1 calibre6 pcalibre"/>we need to do in order to convert an existing React app within Nx to a <span>remote app:</span></p>
+			<ul class="calibre15">
+				<li class="calibre14">Create remote entries in the <span><strong class="source-inline1">module-federation.config.js</strong></span><span> file.</span></li>
+				<li class="calibre14">Swap the app builder in <strong class="source-inline1">project.json</strong> to use the <span>module-federation plugin.</span></li>
+				<li class="calibre14">Add a <span><strong class="source-inline1">serve-static</strong></span><span> executor.</span></li>
+				<li class="calibre14">Use a custom Webpack configuration that defines the remote <span>entry modules.</span></li>
+			</ul>
+			<p class="calibre3">Let us carry out the preceding changes in the Catalog app to start with. Follow <span>these steps:</span></p>
+			<ol class="calibre13">
+				<li class="calibre14">In the <strong class="source-inline1">apps/catalog</strong> folder, create a new file called <strong class="source-inline1">module-federation.config.js</strong> and add the <span>following code:</span><pre class="console">
+const moduleFederationConfig = {  name: 'catalog',
+  exposes: {
+    './Module': './src/app/app.tsx',
+  },
+};
+module.exports = moduleFederationConfig;</pre><p class="calibre3">This is where we define the Catalog remote app and the module path that <span>it exposes.</span></p></li>
+				<li class="calibre14">Next, we need to make a couple of changes to the <span><strong class="source-inline1">apps/catalog/project.json</strong></span><span> file.</span></li>
+				<li class="calibre14">First, we add a new command under the targets and call <span>it </span><span><strong class="source-inline1">serve-static</strong></span><span>:</span><pre class="console">
+    "serve-static": {      "executor": "@nrwl/web:file-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "catalog:build",
+        "port": 4201
+      }
+    }</pre><p class="calibre3">Notice that <a id="_idIndexMarker213" class="pcalibre1 calibre6 pcalibre"/>we intend to run our app on <strong class="source-inline">4201</strong>, so let’s also make sure the <strong class="source-inline">serve</strong> command also uses <span>port </span><span><strong class="source-inline">4201</strong></span><span>.</span></p></li>
+				<li class="calibre14">Make sure the port under the regular <strong class="source-inline1">serve</strong> command is defined within the <span><strong class="source-inline1">options</strong></span><span> object:</span><pre class="console">
+"serve": {      "executor": "@nrwl/web:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "catalog:build",
+        "hmr": true,
+        "port": 4201
+      },</pre><p class="calibre3">This is because the Module Federation plugin expects the port to be defined within the <strong class="source-inline">options</strong> object. If not, it will use a default port, which can lead to very <span>interesting bugs.</span></p><p class="calibre3">Refer to this line in the source <span>code: </span><a href="https://github.com/nrwl/nx/blob/master/packages/react/src/module-federation/with-module-federation.ts#L29" class="pcalibre1 calibre6 pcalibre"><span>https://github.com/nrwl/nx/blob/master/packages/react/src/module-federation/with-module-federation.ts#L29</span></a><span>.</span></p></li>
+				<li class="calibre14">Next, under the <strong class="source-inline1">serve</strong> object, we update the executor to use <span><strong class="source-inline1">module-federation dev-server</strong></span><span>:</span><pre class="console">
+"serve": {      "executor": "@nrwl/react:module-federation-dev-server",</pre></li>
+				<li class="calibre14">Next, ensure <a id="_idIndexMarker214" class="pcalibre1 calibre6 pcalibre"/>we have <strong class="source-inline1">WebpackConfig</strong> with a custom <span>Webpack configuration:</span><pre class="console">
+"webpackConfig": "apps/catalog/webpack.config.js"</pre></li>				<li class="calibre14">Now let us update <strong class="source-inline1">webpack.config.js</strong> with the <span>following code:</span><pre class="console">
+const { withModuleFederation } = require('@nrwl/react/module-federation');const baseConfig = require('./module-federation.config');
+const defaultConfig = {
+  ...baseConfig,
+};
+module.exports = withModuleFederation(defaultConfig);</pre></li>
+			</ol>
+			<p class="calibre3">Now let us repeat the same steps for the <span>Checkout app:</span></p>
+			<ol class="calibre13">
+				<li class="calibre14">In the <strong class="source-inline1">apps/checkout/</strong> folder, create a new file called <strong class="source-inline1">module-federation.config.js</strong> with the <span>following code:</span><pre class="console">
+const moduleFederationConfig = {  name: 'checkout',
+  exposes: {
+    './Module': './src/app/app.tsx',
+  },
+};
+module.exports = moduleFederationConfig;</pre><p class="calibre3">As you can see, it is identical to what we had on the Catalog app. The only difference <a id="_idIndexMarker215" class="pcalibre1 calibre6 pcalibre"/>is that we changed the <strong class="source-inline">name</strong> value <span>to </span><span><strong class="source-inline">checkout</strong></span><span>.</span></p></li>
+				<li class="calibre14">Next, let us add the <strong class="source-inline1">serve-static</strong> command to the <strong class="source-inline1">targets</strong> object in the <span><strong class="source-inline1">apps/checkout/project.json</strong></span><span> file:</span><pre class="console">
+      "serve-static": {      "executor": "@nrwl/web:file-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "checkout:build",
+        "port": 4202
+      }
+    }</pre></li>
+				<li class="calibre14">In the same file, we continue to update <span>the executor:</span><pre class="console">
+"serve": {      "executor": "@nrwl/react:module-federation-dev-server",</pre></li>
+				<li class="calibre14">Then under the <strong class="source-inline1">serve.options</strong> update the port number <span>to </span><span><strong class="source-inline1">4202</strong></span><span>.</span></li>
+				<li class="calibre14">We also <span>update </span><span><strong class="source-inline1">webpackConfig</strong></span><span>:</span><pre class="console">
+"webpackConfig": "apps/checkout/webpack.config.js"</pre><p class="calibre3">Since there are no changes to the <strong class="source-inline">webpack.config.js</strong> file, we can simply copy and paste this file from the <span>Catalog app.</span></p></li>				<li class="calibre14">Finally, we will <a id="_idIndexMarker216" class="pcalibre1 calibre6 pcalibre"/>update the <strong class="source-inline1">Header</strong> component to use the <strong class="source-inline1">Link</strong> component from <strong class="source-inline1">ReactRouter</strong> so that we get that <span>single-page experience.</span></li>
+				<li class="calibre14">Open up the <strong class="source-inline1">/libs/ui/src/lib/header.tsx</strong> file and update the following to use <strong class="source-inline1">&lt;Link&gt;</strong> instead <span>of </span><span><strong class="source-inline1">&lt;a&gt;</strong></span><span>:</span><pre class="console">
+&lt;Link to={navItem.href ?? '#'}&gt;{navItem.label}&lt;/Link&gt;</pre></li>				<li class="calibre14">Don’t forget to import the <strong class="source-inline1">&lt;</strong><span><strong class="source-inline1">Link&gt;</strong></span><span> command:</span><pre class="console">
+import { Link } from 'react-router-dom';</pre></li>				<li class="calibre14">Before we try testing, let us not forget to remove the header component from the respective Catalog app located at <strong class="source-inline1">/apps/catalog/src/app/app.tsx</strong> and the Checkout app at <strong class="source-inline1">/</strong><span><strong class="source-inline1">apps/checkout/src/app/app.tsx</strong></span><span>.</span></li>
+				<li class="calibre14">Let’s do a quick test on the terminal. Run the <span>following command:</span><pre class="console">
+<strong class="bold1">pnpm nx serve app-shell</strong></pre><p class="calibre3">As you see, the commands being executed in the terminal notice that the Catalog app is being built along with the <strong class="source-inline">app-shell </strong><span><strong class="source-inline">serve</strong></span><span> command.</span></p></li>				<li class="calibre14">Once everything is running without any errors, open up <strong class="source-inline1">http://localhost:4200</strong> and verify that the Catalog and Checkout apps load up on the <span>correct routes.</span><p class="calibre3">You will also notice that the product images don’t show up any longer. This is because the app is looking for images in the <strong class="source-inline">/assets</strong> folder of the <span>App-shell app.</span></p></li>
+				<li class="calibre14">In the multi-SPA approach, the Catalog app was the default route and was sort of acting like the host app. Since App-shell is now our host, we will need to copy the images from the <strong class="source-inline1">/catalog/src/assets</strong> folder into the <strong class="source-inline1">app-shell/src/assets</strong> folder. Once you have done this, the images should load up into <span>the app.</span></li>
+				<li class="calibre14">Navigate <a id="_idIndexMarker217" class="pcalibre1 calibre6 pcalibre"/>between the Catalog and Checkout apps. Add items to your cart and enjoy seeing the apps <span>work nicely.</span><p class="calibre3">Since everything is going well, and since each micro app team should be able to work on their individual apps, let us also make sure that we can run each <span>app individually.</span></p></li>
+				<li class="calibre14">Run <strong class="source-inline1">pnpm nx serve catalog</strong> and you’ll notice you get <span>an error:</span><pre class="console">
+<strong class="bold1">Error</strong><strong class="bold1">Shared module is not available for eager consumption: webpack/sharing/consume/default/react/react</strong></pre><p class="calibre3">This is due to Module Federation treating the Catalog app as a bidirectional host and not being able to eagerly load the <span>shared modules.</span></p><p class="calibre3">You can read more about <span>it here:</span></p><p class="calibre3"><a href="https://webpack.js.org/concepts/module-federation/#uncaught-error-shared-module-is-not-available-for-eager-consumption" class="pcalibre1 calibre6 pcalibre"><span>https://webpack.js.org/concepts/module-federation/#uncaught-error-shared-module-is-not-available-for-eager-consumption</span></a></p><p class="calibre3">To overcome this issue, we need to define an asynchronous boundary to split out the initialization code of a larger chunk and avoid any additional roundtrips to <span>the server.</span></p></li>
+				<li class="calibre14">To solve it, we need to make a couple of tweaks. In the Catalog app, let us first rename <strong class="source-inline1">/apps/catalog/src/main.tsx</strong> <span>to </span><span><strong class="source-inline1">bootstrap.tsx</strong></span><span>.</span></li>
+				<li class="calibre14">Next, we create a new file called <strong class="source-inline1">main.ts</strong> within the same <strong class="source-inline1">src</strong> folder and have a single line <span>importing bootstrap:</span><pre class="console">
+import('./bootstrap');</pre></li>				<li class="calibre14">Next, we need to ensure that this newly created <strong class="source-inline1">main.ts</strong> file is what is being used as the entry point, so now, in our <strong class="source-inline1">project.json</strong> file for the Catalog app, we update the <strong class="source-inline1">main</strong> property within the <strong class="source-inline1">build &gt; </strong><span><strong class="source-inline1">options</strong></span><span> object:</span><pre class="console">
+"main": "apps/catalog/src/main.ts",</pre></li>				<li class="calibre14">Repeat the <a id="_idIndexMarker218" class="pcalibre1 calibre6 pcalibre"/>same steps for the Checkout app. Now, you should be able to run the apps as a module-federated microfrontend or each <span>app individually.</span></li>
+			</ol>
+			<p class="calibre3">You may have also noticed that at the start of this chapter, we referred to the <strong class="source-inline">remoteEntry.js</strong> file as the entry file for the remote apps and that we didn’t really <span>define one.</span></p>
+			<p class="calibre3">However, if you look at your dev tools’ network tab, you will notice there are two <strong class="source-inline">remoteEntry.js</strong> files being called from ports <strong class="source-inline">4201</strong> and <strong class="source-inline">4202</strong> respectively. This is Nx and Module Federation doing a bit of <span>magic here.</span></p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">If you dig into the source code in this file, you will notice the filename being defined as part of the <strong class="source-inline1">ModuleFederationPlugin</strong> <span>configuration (</span><a href="https://github.com/nrwl/nx/blob/master/packages/react/src/module-federation/with-module-federation.ts" class="pcalibre1 calibre6 pcalibre"><span>https://github.com/nrwl/nx/blob/master/packages/react/src/module-federation/with-module-federation.ts</span></a><span>).</span></p>
+			<p class="calibre3">The screenshot in <span><em class="italic">Figure 5</em></span><em class="italic">.4</em> shows the <strong class="source-inline">remoteEntry.js</strong> file being called from the <span>respective apps:</span></p>
+			<div class="calibre2">
+				<div id="_idContainer036" class="img---figure">
+					<img src="image/Figure_5.04_B18987.jpg" alt="Figure 5.4 – RemoteEntry.js" class="calibre4"/>
+				</div>
+			</div>
+			<p class="img---caption" lang="en-US" xml:lang="en-US">Figure 5.4 – RemoteEntry.js</p>
+			<p class="calibre3">If you are keen <a id="_idIndexMarker219" class="pcalibre1 calibre6 pcalibre"/>to explicitly define the file and stay as close as possible to the native workings of Module Federation, then go ahead and create a file in <strong class="source-inline">apps/catalog/src/remote-entry.js</strong> with the <span>following line:</span></p>
+			<pre class="source-code">
+export { default } from './app/app';</pre>			<p class="calibre3">Update the <strong class="source-inline">exposes</strong> value in the <strong class="source-inline">apps/catalog/module-federation.js</strong> file to read <span>as follows:</span></p>
+			<pre class="source-code">
+const moduleFederationConfig = {
+  name: 'catalog',
+  exposes: {
+    './Module': './src/remote-entry.ts',
+  },
+};</pre>			<p class="calibre3">With that, we have completed the section on using Module Federation and successfully converted our multi-SPA app into a <span>module-federated microfrontend.</span></p>
+			<p class="calibre3">In this section, we saw what minimal steps are required to get Module Federation working and what extra steps, such as defining the remotes and exposing the module names, are needed to allow each app to <span>work independently.</span></p>
+			<p class="calibre3">In the next section, we will see how to further break down a remote app into a true <span>micro-app microfrontend.</span></p>
+			<h1 id="_idParaDest-87" class="calibre7"><a id="_idTextAnchor086" class="pcalibre1 calibre6 pcalibre"/>Extending Module Federation to a true Micro-apps Pattern</h1>
+			<p class="calibre3">Imagine you <a id="_idIndexMarker220" class="pcalibre1 calibre6 pcalibre"/>are part of a team that <a id="_idIndexMarker221" class="pcalibre1 calibre6 pcalibre"/>manages a very large e-Commerce app (think of Amazon.com). For such large sites, it is a common practice to have teams that own a single organism-level component (<a href="https://atomicdesign.bradfrost.com/chapter-2/#organisms" class="pcalibre1 calibre6 pcalibre">https://atomicdesign.bradfrost.com/chapter-2/#organisms</a>) instead of the entire <span>mini app.</span></p>
+			<p class="calibre3">For example, we have a dedicated team that works exclusively on the Product Recommendations component. This component is injected into, say, the <span>Catalog app.</span></p>
+			<p class="calibre3">In such a case, it would be prudent to create another micro app called Recommendations and dynamically import it into the Catalog app. This would allow for true, federated, micro-app <span>pattern architecture.</span></p>
+			<div class="calibre2">
+				<div id="_idContainer037" class="img---figure">
+					<img src="image/Figure_5.05_B18987.jpg" alt="Figure 5.5 – Tree of remote apps with Module Federation" class="calibre4"/>
+				</div>
+			</div>
+			<p class="img---caption" lang="en-US" xml:lang="en-US">Figure 5.5 – Tree of remote apps with Module Federation</p>
+			<p class="calibre3">As you can see from the preceding diagram, we can further break down our Catalog and Checkout apps into smaller organism-level components and have each of them load into the Catalog app remotely via <span>Module Federation.</span></p>
+			<p class="callout-heading">Important note</p>
+			<p class="callout">Remember, while this may seem very cool, it is important that we don’t overdo it by converting every single organism into a module-federated micro app. It is important to follow the principles of microfrontends mentioned in <a href="B18987_02.xhtml#_idTextAnchor029" class="pcalibre1 calibre6 pcalibre"><span><em class="italic">Chapter 2</em></span></a>, namely, <em class="italic">breaking down the app into the largest independently deployable app owned by a single team</em> and not necessarily <span>the smallest.</span></p>
+			<p class="calibre3">Having <a id="_idIndexMarker222" class="pcalibre1 calibre6 pcalibre"/>said that, and assuming you <a id="_idIndexMarker223" class="pcalibre1 calibre6 pcalibre"/>do have an independent team owning the Recommendations micro app, let us go about creating the <span>micro app.</span></p>
+			<h2 id="_idParaDest-88" class="calibre5"><a id="_idTextAnchor087" class="pcalibre1 calibre6 pcalibre"/>Creating the Recommendations Remote Micro app</h2>
+			<p class="calibre3">Let us <a id="_idIndexMarker224" class="pcalibre1 calibre6 pcalibre"/>use our trusted Nx dev console and the <strong class="source-inline">GENERATE</strong> command and follow <span>these steps:</span></p>
+			<ol class="calibre13">
+				<li class="calibre14">Select <strong class="source-inline1">@nrwl/react - remote Generate a remote application</strong> and use the following information while leaving the rest as <span>their defaults:</span><ul class="calibre16"><li class="calibre14"><span><strong class="bold">Name</strong></span><span>: </span><span><strong class="source-inline1">recommendations</strong></span></li><li class="calibre14"><span><strong class="bold">e2eTestRunner</strong></span><span>: </span><span><strong class="source-inline1">none</strong></span></li><li class="calibre14"><span><strong class="bold">host</strong></span><span>: </span><span><strong class="source-inline1">catalog</strong></span></li><li class="calibre14"><span><strong class="bold">devServerPort</strong></span><span>: </span><span><strong class="source-inline1">4203</strong></span></li></ul></li>
+				<li class="calibre14">Use the <strong class="bold">Generate</strong> command and verify that the <strong class="source-inline1">recommendations</strong> app has been <span>successfully created.</span></li>
+				<li class="calibre14">Let us quickly edit <strong class="source-inline1">apps/recommendations/src/app.tsx</strong> to remove the boilerplate code and leave it with a <span>simple message:</span><pre class="console">
+import 'semantic-ui-css/semantic.min.css';export function App() {
+  return (
+    &lt;div className="ui raised segment"&gt;
+      &lt;h1&gt;Recommendations&lt;/h1&gt;
+      &lt;p&gt;Recommendations goes here&lt;/p&gt;
+    &lt;/div&gt;
+  );
+}
+export default App;</pre></li>
+			</ol>
+			<p class="callout-heading">Note</p>
+			<p class="callout">Building a full-fledged Recommendations micro app is beyond the scope of <span>this book.</span></p>
+			<ol class="calibre13">
+				<li value="4" class="calibre14">Run <strong class="source-inline1">npx nx serve recommendations</strong> and verify that the app loads up properly on <span>port </span><span><strong class="source-inline1">4203</strong></span><span>.</span></li>
+			</ol>
+			<p class="calibre3">Keep <a id="_idIndexMarker225" class="pcalibre1 calibre6 pcalibre"/>it running while we work on adding it as a remote to our <span>Catalog app.</span></p>
+			<h2 id="_idParaDest-89" class="calibre5"><a id="_idTextAnchor088" class="pcalibre1 calibre6 pcalibre"/>Adding Recommendations as a Remote app to Catalog</h2>
+			<p class="calibre3">Since <a id="_idIndexMarker226" class="pcalibre1 calibre6 pcalibre"/>we want the Recommendations micro app to load within Catalog, as a remote app, we need to convert Catalog to behave like a host. We do this using the <span>following steps:</span></p>
+			<ol class="calibre13">
+				<li class="calibre14">Open up the <strong class="source-inline1">apps/catalog/module-federation.config.js</strong> file and add the <strong class="source-inline1">remotes</strong> entry <span>to it:</span><pre class="console">
+const moduleFederationConfig = {  name: 'catalog',
+  remotes: ['recommendations'],
+  exposes: {
+    './Module': './src/app/app.tsx',
+  },
+};
+module.exports = moduleFederationConfig;</pre></li>
+				<li class="calibre14">Next, let us create a <strong class="source-inline1">remotes.d.ts</strong> file within the <strong class="source-inline1">apps/catalog/src</strong> folder using the <span>following line:</span><pre class="console">
+declare module 'recommendations/Module';</pre></li>				<li class="calibre14">Finally, let <a id="_idIndexMarker227" class="pcalibre1 calibre6 pcalibre"/>us import and call the Recommendations app into our <span><strong class="source-inline1">apps/catalog/src/app/app.tsx</strong></span><span> file:</span><pre class="console">
+. . .import React from 'react';
+const Recommendations = React.lazy(() =&gt; import('recommendations/Module'));</pre></li>
+				<li class="calibre14">In the <strong class="source-inline1">jsx</strong> part of the component, here is how we call our <span>Recommendations component:</span><pre class="console">
+&lt;Recommendations /&gt;</pre></li>				<li class="calibre14">Open up a new terminal window and run the <span>following command:</span><pre class="console">
+<strong class="bold1">pnpm nx serve app-shell</strong></pre></li>			</ol>
+			<p class="calibre3">If everything goes as planned, you will see the Catalog app with the Recommendations component loaded within it. With this, we come to the end of <span>this section.</span></p>
+			<p class="calibre3">In this section, we saw how we can use Module Federation to further break down a host app into smaller micro apps and have them all working together as a tree of <span>remote apps.</span></p>
+			<p class="calibre3">In the next section, we will see how to set up state management within our micro <span>apps microfrontend.</span></p>
+			<h1 id="_idParaDest-90" class="calibre7"><a id="_idTextAnchor089" class="pcalibre1 calibre6 pcalibre"/>State management with Module Federation</h1>
+			<p class="calibre3">As you may have noticed by now, our custom state management system, which uses <strong class="source-inline">sessionStorage</strong>, continues to work seamlessly with Module Federation. This is because, from a React perspective, it all looks like a regular React application, with modules being lazy-loaded. So, one of the benefits of Module Federation is that we can use any of the regular state <a id="_idIndexMarker228" class="pcalibre1 calibre6 pcalibre"/>management concepts, such as prop drilling, context API, or libraries such as Redux or Zustand, to manage <span>the state.</span></p>
+			<p class="calibre3">In this section, we will make use of the Zustand state management library as it is extremely user-friendly and has zero <span>boilerplate code.</span></p>
+			<p class="calibre3">Now, logically, especially for those who use a lot of context API, we would be inclined to have the store within App-shell and have the other micro apps consume it. However, with Module Federation, this would not be ideal, because the store would need to be exposed as a remote app and imported into other micro apps that act as hosts. If you try plotting this, it kind of feels like a cyclic dependency of sorts, where App-shell acts as a host for all other components but the store located in it is a remote for <span>other components.</span></p>
+			<p class="calibre3">The following diagram better illustrates the problem of this <span>cyclic flow:</span></p>
+			<div class="calibre2">
+				<div id="_idContainer038" class="img---figure">
+					<img src="image/Figure_5.06_B18987.jpg" alt="Figure 5.6 – Cyclic flow between App-shell and the store" class="calibre4"/>
+				</div>
+			</div>
+			<p class="img---caption" lang="en-US" xml:lang="en-US">Figure 5.6 – Cyclic flow between App-shell and the store</p>
+			<p class="calibre3">When working with Module Federation, it is preferable to have a unidirectional flow of how the remote and host apps are loaded in. With that in mind, it would be more prudent to have our store as its own independent micro app and have it defined as a remote app to all the other apps that consume it. With this new structure, the diagram in <span><em class="italic">Figure 5</em></span><em class="italic">.6</em> can <span>be redrawn:</span></p>
+			<div class="calibre2">
+				<div id="_idContainer039" class="img---figure">
+					<img src="image/Figure_5.07_B18987.jpg" alt="Figure 5.7 – Unidirectional remotes for the Store app" class="calibre4"/>
+				</div>
+			</div>
+			<p class="img---caption" lang="en-US" xml:lang="en-US">Figure 5.7 – Unidirectional remotes for the Store app</p>
+			<p class="calibre3">As evident from <span><em class="italic">Figure 5</em></span><em class="italic">.7</em>, the unidirectional flow of remotes for the Store app looks a lot cleaner, and it ensures that App-shell isn’t getting unnecessarily bloated with business logic <span>and state.</span></p>
+			<p class="calibre3">Since we are <a id="_idIndexMarker229" class="pcalibre1 calibre6 pcalibre"/>going to use Zustand for state management, this would be a good time for us to install it. Run the <span>following command:</span></p>
+			<pre class="console">
+pnpm install zustand</pre>			<p class="calibre3">Let us now create our Store remote app using the steps we used to create our Recommendations <span>remote app:</span></p>
+			<ol class="calibre13">
+				<li class="calibre14">Using Nx Console and the <strong class="source-inline1">@nrwl/react - remote Generate a remote application</strong> file, create the Store <span>micro app.</span></li>
+				<li class="calibre14">Fill in the form with the following information, and leave the rest as <span>their defaults:</span><ul class="calibre16"><li class="calibre14"><span><strong class="bold">Name</strong></span><span>: </span><span><strong class="source-inline1">store</strong></span></li><li class="calibre14"><span><strong class="bold">e2eTestRunner</strong></span><span>: </span><span><strong class="source-inline1">none</strong></span></li><li class="calibre14"><strong class="bold">host</strong>: (leave this blank because we will manually add <span>the hosts)</span></li><li class="calibre14"><span><strong class="bold">devServerPort</strong></span><span>: </span><span><strong class="source-inline1">4204</strong></span></li></ul></li>
+			</ol>
+			<p class="calibre3">Once the app has been created, let us go about setting up our store. To demonstrate the working of the state and store across the different micro apps, we will have a <strong class="bold">Like</strong> button in the host app. Clicking it will increment the like count. We will also display the count within <a id="_idIndexMarker230" class="pcalibre1 calibre6 pcalibre"/>the Recommendations app. Then, we will have a <strong class="bold">Reset</strong> button in the Recommendations micro app that will reset the store and verify that the like count has reset in <span>all places.</span></p>
+			<p class="calibre3">Let us <span>get started:</span></p>
+			<ol class="calibre13">
+				<li class="calibre14">Navigate to the <strong class="source-inline1">/apps/store/src</strong> folder and create a new file called <strong class="source-inline1">store.tsx</strong>. This is where we will define our store <span>and hooks.</span></li>
+			</ol>
+			<p class="callout-heading">Note</p>
+			<p class="callout">Zustand is super easy to work with. Have a look at the documentation <span>at </span><a href="https://docs.pmnd.rs/zustand/getting-started/introduction" class="pcalibre1 calibre6 pcalibre"><span>https://docs.pmnd.rs/zustand/getting-started/introduction</span></a><span>.</span></p>
+			<ol class="calibre13">
+				<li value="2" class="calibre14">Begin in the <strong class="source-inline1">store.tsx</strong> file by importing Zustand and defining the <span><strong class="source-inline1">LikeCount</strong></span><span> interface:</span><pre class="console">
+import {create} from 'zustand';interface LikeCount {
+  count: number;
+  increment: () =&gt; void;
+  reset: () =&gt; void;
+}</pre></li>
+				<li class="calibre14">Next, we create our <strong class="source-inline1">useStore</strong> hook and define the <strong class="source-inline1">initial state</strong>, <strong class="source-inline1">increment</strong>, and <strong class="source-inline1">reset</strong> functions. This is the standard way to <span>do so:</span><pre class="console">
+const useStore = create&lt;LikeCount&gt;((set) =&gt; ({  count: 0,
+  increment: () =&gt; set((state) =&gt; ({ count: state.count + 1 })),
+  reset: () =&gt; set(() =&gt; ({ count: 0 })),
+}));
+export default useStore;</pre><p class="calibre3">And that is it! Our store with the <strong class="source-inline">useStore</strong> hook is ready to <span>be consumed.</span></p></li>
+				<li class="calibre14">Next, we need to expose this as a remote app. We will do this by making two additional changes. In the <strong class="source-inline1">apps/store/src/remote-entry.ts</strong> file, modify the following line to the <span>following text:</span><pre class="console">
+export { default } from './store';</pre></li>				<li class="calibre14">Next, we let <a id="_idIndexMarker231" class="pcalibre1 calibre6 pcalibre"/>App-shell and the Recommendations app know that they need to use Store as a remote app. We do this by adding Store to the remote array in the respective <strong class="source-inline1">module-federation.config.js</strong> files in App-shell and the <span>Recommendations app:</span><pre class="console">
+//apps/app-shell/module-federation.config.jsconst moduleFederationConfig = {
+  name: 'app-shell',
+  remotes: ['catalog', 'checkout', 'store'],
+};
+module.exports = moduleFederationConfig;</pre><p class="calibre3">Here is what we have in the <span><strong class="source-inline">apps/recommendations/module-federation.config.js</strong></span><span> file:</span></p><pre class="console">
+const moduleFederationConfig = {  name: 'recommendations',
+  <strong class="bold1">remotes: ['store'],</strong>
+  exposes: {
+    './Module': './src/remote-entry.ts',
+  },
+};
+module.exports = moduleFederationConfig;</pre></li>
+				<li class="calibre14">The next thing we need to do is declare the <strong class="source-inline1">store</strong> module in the <strong class="source-inline1">remotes.d.ts</strong> file <span>app-shell file:</span><pre class="console">
+declare module 'store/Module';</pre></li>				<li class="calibre14">We will <a id="_idIndexMarker232" class="pcalibre1 calibre6 pcalibre"/>need to do the same in the Recommendations app. Since the <strong class="source-inline1">remotes.d.ts</strong> file doesn’t exist, we can create a new file with the following line <span>in </span><span><strong class="source-inline1">/apps/recommendations/src/remotes.d.ts</strong></span><span>:</span><pre class="console">
+declare module 'store/Module';</pre></li>			</ol>
+			<p class="calibre3">We now have the store hooked up so that Recommendations and App-shell can read and write to our Store <span>micro app.</span></p>
+			<h2 id="_idParaDest-91" class="calibre5"><a id="_idTextAnchor090" class="pcalibre1 calibre6 pcalibre"/>Adding the Like button to the host app</h2>
+			<p class="calibre3">In this section, we will create a <strong class="bold">Like</strong> button that increments the like count and gets stored in <span>the store.</span></p>
+			<p class="calibre3">Now <a id="_idIndexMarker233" class="pcalibre1 calibre6 pcalibre"/>that we have set up the remotes, let us import the store into our app shell and create the <strong class="bold">Like</strong> button in the <strong class="source-inline">/apps/app-shell/src/app/app.tsx</strong> file. Follow <span>these steps:</span></p>
+			<ol class="calibre13">
+				<li class="calibre14"><span>Import </span><span><strong class="source-inline1">useStore</strong></span><span>:</span><pre class="console">
+import { Button } from ‘semantic-ui-react’import useStore from 'store/Module';</pre></li>
+				<li class="calibre14">Then, de-structure the count and increment within the <span><strong class="source-inline1">App</strong></span><span> function:</span><pre class="console">
+const { count, increment } = useStore();</pre></li>				<li class="calibre14">Finally, in our JSX, we add our button after the <strong class="source-inline1">&lt;</strong><span><strong class="source-inline1">Header/&gt;</strong></span><span> component:</span><pre class="console">
+&lt;Button onClick={increment}&gt;{count} Likes &lt;/Button&gt;</pre></li>				<li class="calibre14">Restart all the apps. You can also make use of the following custom command that we created to serve <span>all apps:</span><pre class="console">
+<strong class="bold1">pnpm serve:all</strong></pre><p class="calibre3">We’ve got the state working with Zustand within the host app, and as you can tell, it is refreshingly simple and devoid of any boilerplate code. But the true purpose of us <a id="_idIndexMarker234" class="pcalibre1 calibre6 pcalibre"/>setting up the state and store is to ensure that this state can be shared with other micro apps. In our case, it will be the Recommendations app, right at the bottom of the <span>federation hierarchy.</span></p></li>				<li class="calibre14">In the <strong class="source-inline1">apps/recommendations/src/app/app.tsx</strong> file, our code should look very similar to <span>the following:</span><pre class="console">
+import 'semantic-ui-css/semantic.min.css';<strong class="bold1">import { Button } from ‘semantic-ui-react’</strong>
+<strong class="bold1">import useStore from 'store/Module';</strong>
+export function App() {
+  const { count, reset } = useStore();
+  return (
+    &lt;div className="ui raised segment"&gt;
+      &lt;h1&gt;Recommendations&lt;/h1&gt;
+      &lt;p&gt;Recommendations goes here&lt;/p&gt;
+      <strong class="bold1">&lt;p&gt; {count} people liked the recommendations&lt;/p&gt;</strong>
+<strong class="bold1">      &lt;Button onClick={reset}&gt;reset&lt;/Button&gt;</strong>
+    &lt;/div&gt;
+  );
+}
+export default App;</pre><p class="calibre3"><span>That’s it!</span></p></li>
+				<li class="calibre14">Run your apps and play around with the <strong class="bold">Like</strong> button. Reset it and verify that the <a id="_idIndexMarker235" class="pcalibre1 calibre6 pcalibre"/>count stays in sync between the host and the <span>Recommendations app:</span></li>
+			</ol>
+			<div class="calibre2">
+				<div id="_idContainer040" class="img---figure">
+					<img src="image/Figure_5.08_B18987.jpg" alt="Figure 5.8 – Complete working app with shared state across micro apps" class="calibre4"/>
+				</div>
+			</div>
+			<p class="img---caption" lang="en-US" xml:lang="en-US">Figure 5.8 – Complete working app with shared state across micro apps</p>
+			<p class="calibre3">Our app works great, but let us make sure it’s performant <span>as well!</span></p>
+			<h2 id="_idParaDest-92" class="calibre5"><a id="_idTextAnchor091" class="pcalibre1 calibre6 pcalibre"/>Avoiding Unnecessary Re-rendering</h2>
+			<p class="calibre3">When working with the state, a very important performance-related point to check is avoiding <a id="_idIndexMarker236" class="pcalibre1 calibre6 pcalibre"/>unnecessary re-rendering. This is especially true when the state is being shared between different components or when it is being <span>prop drilled.</span></p>
+			<p class="calibre3">One way to verify that is to go into <strong class="bold">Developer Tools</strong>, open up the <strong class="bold">Rendering</strong> pane, select <strong class="bold">Paint flashing</strong> and <strong class="bold">Frame Rendering Stats</strong>, and verify that when you click on the buttons, only the necessary items within the components <span>are updating.</span></p>
+			<p class="calibre3">In Chrome, you can access this panel by opening up <strong class="bold">Developer Tools</strong>, going into <strong class="bold">More Tools</strong>, and then selecting the <span><strong class="bold">Rendering</strong></span><span> pane:</span></p>
+			<div class="calibre2">
+				<div id="_idContainer041" class="img---figure">
+					<img src="image/Figure_5.09_B18987.jpg" alt="Figure 5.9 – Rendering pane in the developer consoles" class="calibre4"/>
+				</div>
+			</div>
+			<p class="img---caption" lang="en-US" xml:lang="en-US">Figure 5.9 – Rendering pane in the developer consoles</p>
+			<p class="calibre3">As you can see from <span><em class="italic">Figure 5</em></span><em class="italic">.9</em>, once we have <strong class="bold">Paint flashing</strong> enabled, you will see a green rectangle encapsulating the sections of the page that re-render due to a change or user interaction. The ideal state is when only a small part of the page flashes when the user interacts with it. <strong class="bold">Frame Rendering Stats</strong> displays the frame rate as the user is interacting with the page. The frame rate should ideally stay close to 60 fps for a smooth <span>user experience.</span></p>
+			<p class="calibre3">And with that, we come to the end of this section regarding state management with Zustand in a module-federated application. In this section, we learned the benefits of defining the Store app as a separate micro app. It is then dynamically imported into the other micro apps. We learned how to go about setting up the store as a module-federated module. We then saw how the host app and the Recommendations app can share state <a id="_idIndexMarker237" class="pcalibre1 calibre6 pcalibre"/>via the shared store. Finally, we were also able to turn on paint flashing and frame rendering to verify that as the state changes, only the necessary elements within the apps update, and it doesn’t cause components that haven’t changed to <span>be re-rendered.</span></p>
+			<h1 id="_idParaDest-93" class="calibre7"><a id="_idTextAnchor092" class="pcalibre1 calibre6 pcalibre"/>Summary</h1>
+			<p class="calibre3">We’ve finally come to the end of another interesting chapter. We started by learning about Module Federation and how it is a game-changer in the way we build and maintain apps. We learned some of the basic concepts of Module Federation, such as host apps, remote apps, <strong class="source-inline">remoteEntry</strong>, <span>and more.</span></p>
+			<p class="calibre3">We then saw how to convert our multi-SPA app into a module-federated app with an app shell and how to load the Catalog and Checkout apps as remote apps. Then, we further broke things down to include smaller micro apps within these apps to create a tree of module-federated micro apps. Finally, we saw some of the best practices of managing the state and saw how we can look at tools such as Zustand to manage the state between these different <span>micro apps.</span></p>
+			<p class="calibre3">In the next chapters, we will see how to build these apps for production and how to deploy them to static storage on <span>the cloud.</span></p>
+		</div>
+	</body></html>

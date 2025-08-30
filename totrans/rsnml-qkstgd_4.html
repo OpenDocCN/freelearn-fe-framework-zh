@@ -1,0 +1,912 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">BuckleScript, Belt, and Interoperability</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">In this chapter, we'll take a closer look at the BuckleScript-specific features that are available to us. We'll also learn about recursion and recursive data structures. By the end of this chapter, we'll have come full circle in the introduction to Reason and its ecosystem. In doing so, we'll have done the following:</p>
+<ul class="calibre9">
+<li class="calibre10">Learned more about Reason's module system</li>
+<li class="calibre10">Explored more of Reason's primitive data structures (arrays and lists)</li>
+<li class="calibre10">Seen how the various pipe operators can make code more readable</li>
+<li class="calibre10">Become familiar with the Reason and Belt standard libraries</li>
+<li class="calibre10">Created bindings to a JavaScript module for use within Reason</li>
+<li class="calibre10">Added route transitions to our application by binding to <span>React Transition Group components</span></li>
+</ul>
+<p class="mce-root">To follow along, use any environment you wish. Much of what we'll be doing is not ReasonReact-specific. Toward the end of the chapter, we'll resume building our ReasonReact app.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Module scope</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">As you now know, all <kbd class="calibre11">.re</kbd> files are modules and all modules are globally available—including nested ones. By default, all types and bindings can be accessed from anywhere by providing the namespace. However, doing this over and over <span class="calibre5">quickly </span>becomes tedious. Luckily, we have a few ways to make this more pleasant:</p>
+<pre class="calibre16">/* Foo.re */<br class="title-page-name"/>type fromFoo =<br class="title-page-name"/>  | Add(int, int)<br class="title-page-name"/>  | Multiply(int, int);<br class="title-page-name"/><br class="title-page-name"/>let a = 1;<br class="title-page-name"/>let b = 2;</pre>
+<p class="mce-root">Next, we'll use the <kbd class="calibre11">Foo</kbd> module's <kbd class="calibre11">fromFoo</kbd> type along with it's bindings within another module in different ways:</p>
+<ul class="calibre9">
+<li class="calibre10"><strong class="calibre1">Option 1</strong>: Without any sugar:</li>
+</ul>
+<pre class="calibre18">/* Bar.re */<br class="title-page-name"/>let fromFoo = Foo.Add(Foo.a, Foo.b);</pre>
+<ul class="calibre9">
+<li class="calibre10"><strong class="calibre1">Option 2</strong>: Alias the module to a shorter name. For example, we can declare a new module <kbd class="calibre11">F</kbd> and bind it to the existing module <kbd class="calibre11">Foo</kbd>:</li>
+</ul>
+<pre class="calibre18">/* Bar.re */<br class="title-page-name"/>module F = Foo;<br class="title-page-name"/>let fromFoo = F.Add(F.a, F.b);</pre>
+<ul class="calibre9">
+<li class="calibre10"><strong class="calibre1">Option 3</strong>: Locally open the module using the <kbd class="calibre11">Module.()</kbd> syntax. This syntax only works with a single expression:</li>
+</ul>
+<pre class="calibre18">/* Bar.re */<br class="title-page-name"/>let fromFoo = Foo.(Add(a, b));</pre>
+<ul class="calibre9">
+<li class="calibre10"><strong class="calibre1">Option 4</strong>: In the OOP sense, have <kbd class="calibre11">Bar</kbd> extend <kbd class="calibre11">Foo</kbd> using <kbd class="calibre11">include</kbd>:</li>
+</ul>
+<pre class="calibre18">/* Bar.re */<br class="title-page-name"/>include Foo;<br class="title-page-name"/>let a = 4; /* override Foo.a */<br class="title-page-name"/>let fromFoo = Add(a, b);</pre>
+<ul class="calibre9">
+<li class="calibre10"><strong class="calibre1">Option 5</strong>: Globally <kbd class="calibre11">open</kbd> the module. <span>Use </span><kbd class="calibre11">open</kbd><span> sparingly in large scopes, since it becomes hard to know which types and bindings belong to which modules:</span></li>
+</ul>
+<pre class="calibre18">/* Bar.re */<br class="title-page-name"/>open Foo;<br class="title-page-name"/>let fromFoo = Add(a, b);</pre>
+<p class="mce-root">Prefer using <kbd class="calibre11">open</kbd> in local scopes:</p>
+<pre class="calibre16">/* Bar.re */<br class="title-page-name"/>let fromFoo = {<br class="title-page-name"/>  open Foo;<br class="title-page-name"/>  Add(a, b);<br class="title-page-name"/>};</pre>
+<p class="mce-root">The preceding syntax will reformat (via <kbd class="calibre11">refmt</kbd>) to Option 3's syntax, but remember that Option 3's syntax only works with single expressions. For example, the following isn't able to be converted into Option 3's syntax:</p>
+<pre class="calibre16">/* Bar.re */<br class="title-page-name"/>let fromFoo = {<br class="title-page-name"/>  open Foo;<br class="title-page-name"/>  Js.log("foo");<br class="title-page-name"/>  let result = Add(a, b);<br class="title-page-name"/>};</pre>
+<p class="mce-root">The Reason standard library is found within a variety of modules that are already available to us. For example, Reason's standard library includes an <kbd class="calibre11">Array</kbd> module, and we can access its functions using the dot notation (that is, <kbd class="calibre11">Array.length</kbd>).</p>
+<p class="mce-root">In <a href="86a6dec1-1340-4c6c-bdfa-95138e0d471b.xhtml" target="_blank" class="calibre8">Chapter 5</a>, <em class="calibre15">Effective ML</em>, we'll learn how to hide a module's types and bindings so that they aren't globally available if we don't want them to be.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Data structures</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">We've already seen several of Reason's primitive data structures including strings, integers, floats, tuples, records, and variants. Let's explore a few more.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Array</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Reason arrays compile to regular JavaScript arrays. Reason arrays are as follows:</p>
+<ul class="calibre9">
+<li class="calibre10">Homogeneous (all elements must be of the same type)</li>
+<li class="calibre10">Mutable</li>
+<li class="calibre10">Fast at random access and updates</li>
+</ul>
+<p class="mce-root">They look like this:</p>
+<pre class="calibre16">let array = [|"first", "second", "third"|];</pre>
+<p class="mce-root">Accessing and updating elements of an array are the same as in JavaScript:</p>
+<pre class="calibre16">array[0] = "updated";</pre>
+<p class="mce-root">In JavaScript, we map over the array, as follows:</p>
+<pre class="calibre16">/* JavaScript */<br class="title-page-name"/>array.map(e =&gt; e + "-mapped")</pre>
+<p class="mce-root">To do the same in Reason, we have a few different options.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using the Reason standard library</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root"><span class="calibre5">The Reason standard library's </span><kbd class="calibre11">Array</kbd><span class="calibre5"> module contains several functions, but not all the ones you'd expect coming from JavaScript. It does have a <kbd class="calibre11">map</kbd> function, however:</span></p>
+<pre class="calibre16">/* Reason standard library */<br class="title-page-name"/>let array = [|"first", "second", "third"|];<br class="title-page-name"/>Array.map(e =&gt; e ++ "-mapped", array);</pre>
+<p class="mce-root">The type of <kbd class="calibre11">Array.map</kbd> is as follows:</p>
+<pre class="calibre16">('a =&gt; 'b, array('a)) =&gt; array('b);</pre>
+<p class="mce-root">The type signature says <kbd class="calibre11">map</kbd> accepts a function of type <kbd class="calibre11">'a =&gt; 'b</kbd>, an array of type <kbd class="calibre11">'a</kbd>, and returns an array of type <kbd class="calibre11">'b</kbd>. Note that, <kbd class="calibre11">'a</kbd> and <kbd class="calibre11">'b</kbd> are <strong class="calibre4">type variables</strong>. Type variables are like normal variables, except for types. In the preceding example, <kbd class="calibre11">map</kbd> has a type:</p>
+<pre class="calibre16">(string =&gt; string, array(string)) =&gt; array(string);</pre>
+<p class="mce-root">This is because the <kbd class="calibre11">'a</kbd> and <kbd class="calibre11">'b</kbd> type variables were both consistently replaced with the concrete <kbd class="calibre11">string</kbd> type.</p>
+<p class="mce-root">Note that, when using <kbd class="calibre11">Array.map</kbd>, the compiled output does not compile to JavaScript's <kbd class="calibre11">Array.prototype.map</kbd>—it has its own implementation:</p>
+<pre class="calibre16">/* in the compiled output */<br class="title-page-name"/>...<br class="title-page-name"/>require("./stdlib/array.js");<br class="title-page-name"/>...</pre>
+<div class="packt_infobox"><span>The Reason standard library documentation can be found here:<br class="title-page-name"/></span><br class="title-page-name"/>
+<a href="https://reasonml.github.io/api" class="calibre17"><span>https://reasonml.github.io/api</span></a></div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using the Belt standard library</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">The Reason standard library is actually the OCaml standard library. It was not created with JavaScript in mind. The Belt standard library was created by the same person who created BuckleScript—<span class="calibre5">Hongbo Zhang—and ships with BuckleScript. Belt was made with JavaScript in mind and is especially known for its performance. The Belt standard library is accessed via the <kbd class="calibre11">Belt</kbd> module:</span></p>
+<pre class="calibre16">/* Belt standard library */<br class="title-page-name"/>let array = [|"first", "second", "third"|];<br class="title-page-name"/>Belt.Array.map(array, e =&gt; e ++ "-mapped");</pre>
+<div class="packt_infobox"><span>The Belt standard library documentation can be found here:<br class="title-page-name"/></span><br class="title-page-name"/>
+<a href="https://bucklescript.github.io/bucklescript/api/Belt.html" class="calibre17">https://bucklescript.github.io/bucklescript/api/Belt.html</a></div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using BuckleScript's built-in JavaScript bindings</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Another great option is to use BuckleScript's built-in JavaScript bindings, found in the <kbd class="calibre11">Js</kbd> module:</p>
+<pre class="calibre16">/* BuckleScript's JavaScript bindings */<br class="title-page-name"/>let array = [|"first", "second", "third"|];<br class="title-page-name"/>Js.Array.map(e =&gt; e ++ "-mapped", array);</pre>
+<p class="mce-root">This option has the advantage of not requiring any dependencies in the compiled output. It also has a very familiar API. However, since not all Reason data structures exist in JavaScript, you'll likely be using a standard library. If so, prefer Belt.</p>
+<div class="packt_infobox">BuckleScript's binding documentation can be found here:<br class="title-page-name"/>
+<br class="title-page-name"/>
+<a href="https://bucklescript.github.io/bucklescript/api/Js.html" class="calibre17">https://bucklescript.github.io/bucklescript/api/Js.html</a></div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using a custom binding</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">There's nothing stopping you from writing your own custom bindings:</p>
+<pre class="calibre16">[@bs.send] external map: (array('a), 'a =&gt; 'b) =&gt; array('b) = "";<br class="title-page-name"/>let array = [|"first", "second", "third"|];<br class="title-page-name"/>map(array, e =&gt; e ++ "-mapped")</pre>
+<p class="mce-root">Of course, you should favor using the built-in bindings in the <kbd class="calibre11">Js</kbd> module instead. We'll explore more custom bindings later in this chapter.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using raw JavaScript</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">A last-resort option is to use actual JavaScript within Reason:</p>
+<pre class="calibre16">let array = [|"first", "second", "third"|];<br class="title-page-name"/>let map = [%raw {|<br class="title-page-name"/>  function(f, array) {<br class="title-page-name"/>    return array.map(f)<br class="title-page-name"/>  }<br class="title-page-name"/>|}];<br class="title-page-name"/>map(e =&gt; e ++ "-mapped", array)</pre>
+<p class="mce-root">BuckleScript lets us drop into raw JavaScript as a way to stay productive while we're learning. Of course, when doing this, we give up the safety that Reason provides us with. So, once you are ready, convert any raw JavaScript code back into more idiomatic Reason.</p>
+<p class="mce-root">When it comes to using raw JavaScript, use <kbd class="calibre11">%</kbd> for expressions and <kbd class="calibre11">%%</kbd> for statements. <span class="calibre5">Remember, the </span><kbd class="calibre11">{| |}</kbd><span class="calibre5"> is Reason's multiline string syntax:</span></p>
+<pre class="calibre16">let array = [%raw "['first', 'second', 'third']"];<br class="title-page-name"/>[%%raw {|<br class="title-page-name"/>  array = array.map(e =&gt; e + "-mapped");<br class="title-page-name"/>|}];</pre>
+<p class="mce-root">Using the raw expression syntax, we're also able to annotate types:</p>
+<pre class="calibre16">let array: array(string) = [%raw "['first', 'second', 'third']"];</pre>
+<p class="mce-root">We can even annotate function types:</p>
+<pre class="calibre16">let random: unit =&gt; float = [%raw<br class="title-page-name"/>  {|<br class="title-page-name"/>    function() {<br class="title-page-name"/>     return Math.random();<br class="title-page-name"/>    }<br class="title-page-name"/>  |}<br class="title-page-name"/>];</pre>
+<p class="mce-root">Although arrays are familiar when coming from JavaScript, you'll likely find yourself using lists instead, as they are ubiquitous in functional programming. Lists are both immutable and recursive. Let's now see how to use this recursive data structure.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">List</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Reason lists are as follows:</p>
+<ul class="calibre9">
+<li class="calibre10">Homogeneous</li>
+<li class="calibre10">Immutable</li>
+<li class="calibre10">Fast at prepending and accessing the head of the list</li>
+</ul>
+<p class="mce-root">They look like this:</p>
+<pre class="calibre16">let list = ["first", "second", "third"];</pre>
+<p class="mce-root">The head of the list, in this case, is <kbd class="calibre11">"first"</kbd>. By now, we've seen that it's not difficult to work with immutable data structures. Instead of mutation, we create updated copies.</p>
+<p class="mce-root">When working with lists, we can't use JavaScript bindings directly, <span class="calibre5">since lists do not exist in JavaScript as a primitive data structure. However, we can convert lists to arrays and vice versa:</span></p>
+<pre class="calibre16">/* Belt standard library */<br class="title-page-name"/>let list = ["first", "second", "third"];<br class="title-page-name"/>let array = Belt.List.toArray(list);<br class="title-page-name"/><br class="title-page-name"/>let array = [|"first", "second", "third"|];<br class="title-page-name"/>let list = Belt.List.fromArray(array);<br class="title-page-name"/><br class="title-page-name"/>/* Reason standard library */<br class="title-page-name"/>let list = ["first", "second", "third"];<br class="title-page-name"/>let array = Array.of_list(list);<br class="title-page-name"/><br class="title-page-name"/>let array = [|"first", "second", "third"|];<br class="title-page-name"/>let list = Array.to_list(array);</pre>
+<p class="mce-root">But we can also map over a list directly:</p>
+<pre class="calibre16">/* Belt standard library */<br class="title-page-name"/>let list = ["first", "second", "third"];<br class="title-page-name"/>Belt.List.map(list, e =&gt; e ++ "-mapped");<br class="title-page-name"/><br class="title-page-name"/>/* Reason standard library */<br class="title-page-name"/>let list = ["first", "second", "third"];<br class="title-page-name"/>List.map(e =&gt; e ++ "-mapped", list);</pre>
+<p class="mce-root">Logging <kbd class="calibre11">list</kbd> to the console shows that lists are represented as nested arrays in JavaScript where each array always has two elements:</p>
+<pre class="calibre16"><span><span>[</span><span>"first"</span>, [<span>"second"</span>, [<span>"third"</span>, <span>0</span>]]<span>]</span></span></pre>
+<p class="mce-root">This makes sense after understanding that a list is a recursive data structure. Reason lists are <strong class="calibre4">singly linked lists</strong>. Each element in a list is either <strong class="calibre4">empty</strong> (represented as <kbd class="calibre11">0</kbd> in JavaScript) or the <strong class="calibre4">combination</strong> of a value and another list.</p>
+<p class="mce-root">An example type definition for <kbd class="calibre11">list</kbd> reveals that <kbd class="calibre11">list</kbd> is a variant:</p>
+<pre class="calibre16"><span>type</span><span> </span><span>list</span><span>(</span><span>'a</span><span>) = </span><span>Empty</span><span> | </span><span>Head</span><span>(</span><span>'a</span><span>, </span><span>list</span><span>(</span><span>'a</span><span>));</span></pre>
+<div class="packt_infobox"><span>Note</span>: type definitions can be recursive.</div>
+<p class="mce-root">Reason provides some syntactic sugar that simplifies its more verbose version:</p>
+<pre class="calibre16">Head("first", Head("second", Head("third", Empty)));</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Recursion</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Since list is a recursive data structure, we typically use recursion when working with it.</p>
+<p class="mce-root">To get warmed up, let's write a (naive) function that sums a list of integers:</p>
+<pre class="calibre16">let rec sum = list =&gt; switch(list) {<br class="title-page-name"/>  | [] =&gt; 0<br class="title-page-name"/>  | [hd, ...tl] =&gt; hd + sum(tl)<br class="title-page-name"/>};</pre>
+<ul class="calibre9">
+<li class="calibre10">This is a recursive function and therefore requires the<span> </span><kbd class="calibre11">rec</kbd><span> </span>keyword (that is,<span> </span><kbd class="calibre11">let rec</kbd><span> </span>instead of just<span> </span><kbd class="calibre11">let</kbd>)</li>
+<li class="calibre10">We can pattern match on a list (just like any other variant and many other data structures)</li>
+<li class="calibre10">From the example type definition,<span> </span><kbd class="calibre11">Empty</kbd><span> </span>is represented as<span> </span><kbd class="calibre11">[]</kbd><span> </span>and<span> </span><kbd class="calibre11">Head</kbd><span> </span>is represented as<span> </span><kbd class="calibre11">[hd, ...tl]</kbd><span> </span>where<span> </span><kbd class="calibre11">hd</kbd><span> </span>is the <strong class="calibre1">head</strong> of the list and<span> </span><kbd class="calibre11">tl</kbd><span> </span>is the rest (that is, the <strong class="calibre1">tail</strong>) of the list</li>
+<li class="calibre10"><kbd class="calibre11">tl</kbd><span> </span>could be<span> </span><kbd class="calibre11">[]</kbd><span> (that is, <kbd class="calibre11">Empty</kbd>) </span>and when it is, recursion stops</li>
+</ul>
+<p class="mce-root">Passing <kbd class="calibre11">sum</kbd> the list <kbd class="calibre11">[1, 2, 3]</kbd> results in the following steps:</p>
+<pre class="calibre16">sum([1, 2, 3])<br class="title-page-name"/>1 + sum([2, 3])<br class="title-page-name"/>1 + 2 + sum([3])<br class="title-page-name"/>1 + 2 + 3<br class="title-page-name"/>6</pre>
+<p class="mce-root">Let's get a bit more comfortable with lists and recursion by analyzing another (naive) function that reverses a list:</p>
+<pre class="calibre16">let rec reverse = list =&gt; switch(list) {<br class="title-page-name"/>  | [] =&gt; []<br class="title-page-name"/>  | [hd, ...tl] =&gt; reverse(tl) @ [hd]<br class="title-page-name"/>};</pre>
+<ul class="calibre9">
+<li class="calibre10">Again, we use <kbd class="calibre11">rec</kbd> to define a recursive function</li>
+<li class="calibre10">Again, we use pattern matching on the list—if it's empty, stop recursion; otherwise, continue with a smaller list</li>
+<li class="calibre10">The <kbd class="calibre11">@</kbd> operator appends the second list to the end of the first list</li>
+</ul>
+<p class="mce-root">Passing in the previously defined list (<kbd class="calibre11">["first", "second", "third"]</kbd>) results in the following steps:</p>
+<pre class="calibre16">reverse(["first", "second", "third"])<br class="title-page-name"/>reverse(["second", "third"]) @ ["first"]<br class="title-page-name"/>reverse(["third"]) @ ["second"] @ ["first"]<br class="title-page-name"/>reverse([]) @ ["third"] @ ["second"] @ ["first"]<br class="title-page-name"/>[] @ ["third"] @ ["second"] @ ["first"]<br class="title-page-name"/>["third", "second", "first"]</pre>
+<p class="mce-root">This implementation of reverse is naive for two reasons:</p>
+<ul class="calibre9">
+<li class="calibre10">It's not tail call optimized (nor is our <kbd class="calibre11">sum</kbd> function)</li>
+<li class="calibre10">It uses <kbd class="calibre11">append</kbd> (<kbd class="calibre11">@</kbd>), which is slower than <kbd class="calibre11">prepend</kbd></li>
+</ul>
+<p class="mce-root">A better implementation would be to use a local helper function with an accumulator:</p>
+<pre class="calibre16">let reverse = list =&gt; {<br class="title-page-name"/>  let rec aux = (list, acc) =&gt; switch(list) {<br class="title-page-name"/>    | [] =&gt; acc<br class="title-page-name"/>    | [hd, ...tl] =&gt; aux(tl, [hd, ...acc])<br class="title-page-name"/>  };<br class="title-page-name"/>  aux(list, []);<br class="title-page-name"/>};</pre>
+<p class="mce-root">Now, its tail call is optimized and it uses prepend instead of append. In Reason, you prepend to a list using the <kbd class="calibre11">...</kbd> syntax:</p>
+<pre class="calibre16">let list = ["first", "second", "third"];<br class="title-page-name"/>let list = ["prepended", ...list];</pre>
+<p class="mce-root"/>
+<p class="mce-root">Passing in the list <span class="calibre5">(</span><kbd class="calibre11">["first", "second", "third"]</kbd><span class="calibre5">)</span> roughly results in the following steps:</p>
+<pre class="calibre16">reverse(["first", "second", "third"])<br class="title-page-name"/>aux(["first", "second", "third"], [])<br class="title-page-name"/>aux(["second", "third"], ["first"])<br class="title-page-name"/>aux(["third"], ["second", "first"])<br class="title-page-name"/>aux([], ["third", "second", "first"])<br class="title-page-name"/>["third", "second", "first"]</pre>
+<p class="mce-root">Notice that in the non-tail recursive version, Reason cannot create the list until recursion completes. In the tail recursive version, the accumulator (that is, the second argument of <kbd class="calibre11">aux</kbd>) is updated after each iteration.</p>
+<p class="mce-root">Tail recursive (that is, tail call optimized) <span class="calibre5">functions have the benefit of being able to reuse the current stack frame. As a result, tail recursive functions will never have a stack overflow, but non-tail recursive functions may have a stack overflow given enough iterations.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Pipe operators</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Reason has two pipe operators:</p>
+<pre class="calibre16"><span>|&gt; (pipe)</span><br class="title-page-name"/><span>-&gt; (fast pipe)</span></pre>
+<p class="mce-root">Both pipe operators pass arguments to functions. The <kbd class="calibre11">|&gt;</kbd> pipe operator pipes to a function's last argument and the <kbd class="calibre11">-&gt;</kbd> fast pipe operator pipes to a function's first argument.</p>
+<p class="mce-root">Take a look at these:</p>
+<pre class="calibre16"><span>three |&gt; f(one, two)</span><br class="title-page-name"/><span>one -&gt; f(two, three)</span></pre>
+<p class="mce-root">They are equivalent to this:</p>
+<pre class="calibre16"><span>f(one, two, three)</span></pre>
+<p class="mce-root">If the function only accepts one argument, then both pipes work the same, since the function's first argument is also the function's last argument.</p>
+<p class="mce-root">Using these pipe operators is quite popular, since, once you get the hang of it, it makes the code a lot more readable.</p>
+<p class="mce-root">We don't need to use this:</p>
+<pre class="calibre16"><span>Belt.List.(reduce(map([1, 2, 3], e =&gt; e + 1), 0, (+)))</span></pre>
+<p class="mce-root">We can write it in a way that doesn't require the reader to read it inside out:</p>
+<pre class="calibre16"><span>Belt.List.(</span><br class="title-page-name"/><span> [1, 2, 3]</span><br class="title-page-name"/><span> -&gt;map(e =&gt; e + 1)</span><br class="title-page-name"/><span> -&gt;reduce(0, (+))</span><br class="title-page-name"/><span>);</span></pre>
+<p class="mce-root">As you can see, using fast pipe looks similar to chaining in JavaScript. Unlike JavaScript, we can pass reduce the <kbd class="calibre11">+</kbd> function, since it is just a normal function that accepts two arguments and adds them. The parentheses are necessary to tell Reason to treat the infix operator <kbd class="calibre11">(+)</kbd> as an identifier.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using Belt</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Let's use what we've learned so far in this chapter to write a small program that <span class="calibre5">creates a deck of cards, shuffles it, and draws five cards from the top of the deck. To do so, we'll use Belt's <kbd class="calibre11">Option</kbd> and <kbd class="calibre11">List</kbd> modules, as well as the fast pipe operator.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Option module</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Belt's <kbd class="calibre11">Option</kbd> module is a collection of utility functions for working with the <kbd class="calibre11">option</kbd> type. For example, to unwrap an option and throw a runtime exception if the option's value is <kbd class="calibre11">None</kbd>, we can use <kbd class="calibre11">getExn</kbd>:</p>
+<pre class="calibre16">let foo = Some(3)-&gt;Belt.Option.getExn;<br class="title-page-name"/>Js.log(foo); /* 3 */<br class="title-page-name"/><br class="title-page-name"/>let foo = None-&gt;Belt.Option.getExn;<br class="title-page-name"/>Js.log(foo); /* raises getExn exception */</pre>
+<div class="packt_infobox">Belt functions that are able to throw runtime exceptions always have the <kbd class="calibre20">Exn</kbd> suffix.</div>
+<p class="mce-root">An alternative function to unwrap an option that isn't able to throw a runtime exception is <kbd class="calibre11">getWithDefault</kbd>:</p>
+<pre class="calibre16">let foo = None-&gt;Belt.Option.getWithDefault(0);<br class="title-page-name"/>Js.log(foo); /* 0 */</pre>
+<p class="mce-root">The <kbd class="calibre11">Option</kbd> module provides several other functions such as <kbd class="calibre11">isSome</kbd>, <kbd class="calibre11">isNone</kbd>, <kbd class="calibre11">map</kbd>, <kbd class="calibre11">mapWithDefault</kbd>, and more. Check the documentation for details.</p>
+<div class="packt_infobox"><span>Belt Option module documentation can be found here:</span><br class="title-page-name"/>
+<br class="title-page-name"/>
+<a href="https://bucklescript.github.io/bucklescript/api/Belt.Option.html" class="calibre17"><span>https://bucklescript.github.io/bucklescript/api/Belt.Option.html</span></a></div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">List module</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">List module are the utilities for list data types. To see what functions Belt provides for working with lists, inspect Belt's <kbd class="calibre11">List</kbd><span class="calibre5"> </span>modules documentation.</p>
+<div class="packt_infobox">Belt List module documentation can be found here:<br class="title-page-name"/>
+<br class="title-page-name"/>
+<a href="https://bucklescript.github.io/bucklescript/api/Belt.List.html" class="calibre17">https://bucklescript.github.io/bucklescript/api/Belt.List.html</a></div>
+<p class="mce-root">Let's focus on a few of them.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">make</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">The <kbd class="calibre11">make</kbd> function is used to create a populated list. It accepts an integer for the length of the list and a value for each item in the list. Its type is as follows:</p>
+<pre class="calibre16">(int, 'a) =&gt; Belt.List.t('a)</pre>
+<p class="mce-root"><kbd class="calibre11">Belt.List.t</kbd> is exposed as an alias of the <kbd class="calibre11">list</kbd> type, so we can say the type of <kbd class="calibre11">Belt.List.make</kbd> is as follows:</p>
+<pre class="calibre16">(int, 'a) =&gt; list('a)</pre>
+<p class="mce-root">We can use it to create a list containing ten strings, like so:</p>
+<pre class="calibre16">let list = Belt.List.make(10, "string");</pre>
+<p class="mce-root">In <a href="86a6dec1-1340-4c6c-bdfa-95138e0d471b.xhtml" target="_blank" class="calibre8">Chapter 5</a>, <em class="calibre15">Effective ML</em>, we will learn about how to explicitly expose or hide types and bindings from a module.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">makeBy</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">The <kbd class="calibre11">makeBy</kbd> function is like the <kbd class="calibre11">make</kbd> function, except it accepts a function used to determine the value of each item given the item's index.</p>
+<p class="mce-root">The type of the <kbd class="calibre11">makeBy</kbd> function is as follows:</p>
+<pre class="calibre16">(int, int =&gt; 'a) =&gt; Belt.List.t('a)</pre>
+<p class="mce-root">We can use it to create a list of ten items, where each item is equal to its index:</p>
+<pre class="calibre16">let list = Belt.List.makeBy(10, i =&gt; i);</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">shuffle</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">The <kbd class="calibre11">shuffle</kbd> function randomly shuffles a list. It has type:</p>
+<pre class="calibre16">Belt.List.t('a) =&gt; Belt.List.t('a)</pre>
+<p class="mce-root">It accepts a list and returns a new list. Let's use it to shuffle our list of integers:</p>
+<pre class="calibre16">let list = Belt.List.(makeBy(10, i =&gt; i)-&gt;shuffle);</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">take</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">The <kbd class="calibre11">take</kbd> function accepts a list and a length and returns a subset of the list starting from the head of the list with length equal to the requested length. Since the requested length of the subset may exceed the original list's length, the result is wrapped in an option. Its type is as follows:</p>
+<pre class="calibre16">(Belt.List.t('a), int) =&gt; option(Belt.List.t('a))</pre>
+<p class="mce-root">We can take the first two items from our shuffled list, like so:</p>
+<pre class="calibre16">let list = Belt.List.(makeBy(10, i =&gt; i)-&gt;shuffle-&gt;take(2));</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Deck of cards example</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Now, we're ready to combine this with what we've learned from previous chapters. How would you write a program that creates a deck of cards, shuffles it, and draws the first five cards? Before looking at the following example, give it a shot yourself.</p>
+<pre class="calibre16">type suit =<br class="title-page-name"/>  | Hearts<br class="title-page-name"/>  | Diamonds<br class="title-page-name"/>  | Spades<br class="title-page-name"/>  | Clubs;<br class="title-page-name"/><br class="title-page-name"/>type card = {<br class="title-page-name"/>  suit,<br class="title-page-name"/>  rank: int,<br class="title-page-name"/>};<br class="title-page-name"/><br class="title-page-name"/>Belt.List.(<br class="title-page-name"/>  makeBy(52, i =&gt;<br class="title-page-name"/>    switch (i / 13, i mod 13) {<br class="title-page-name"/>    | (0, rank) =&gt; {suit: Hearts, rank: rank + 1}<br class="title-page-name"/>    | (1, rank) =&gt; {suit: Diamonds, rank: rank + 1}<br class="title-page-name"/>    | (2, rank) =&gt; {suit: Spades, rank: rank + 1}<br class="title-page-name"/>    | (3, rank) =&gt; {suit: Clubs, rank: rank + 1}<br class="title-page-name"/>    | _ =&gt; assert(false)<br class="title-page-name"/>    }<br class="title-page-name"/>  )<br class="title-page-name"/>  -&gt;shuffle<br class="title-page-name"/>  -&gt;take(5)<br class="title-page-name"/>  -&gt;Belt.Option.getExn<br class="title-page-name"/>  -&gt;(<br class="title-page-name"/>      cards =&gt; {<br class="title-page-name"/>        let rankToString = rank =&gt;<br class="title-page-name"/>          switch (rank) {<br class="title-page-name"/>          | 1 =&gt; "Ace"<br class="title-page-name"/>          | 13 =&gt; "King"<br class="title-page-name"/>          | 12 =&gt; "Queen"<br class="title-page-name"/>          | 11 =&gt; "Jack"<br class="title-page-name"/>          | rank =&gt; string_of_int(rank)<br class="title-page-name"/>          };<br class="title-page-name"/><br class="title-page-name"/>        let suitToString = suit =&gt;<br class="title-page-name"/>          switch (suit) {<br class="title-page-name"/>          | Hearts =&gt; "Hearts"<br class="title-page-name"/>          | Diamonds =&gt; "Diamonds"<br class="title-page-name"/>          | Spades =&gt; "Spades"<br class="title-page-name"/>          | Clubs =&gt; "Clubs"<br class="title-page-name"/>          };<br class="title-page-name"/><br class="title-page-name"/>        map(cards, ({rank, suit}) =&gt;<br class="title-page-name"/>          rankToString(rank) ++ " of " ++ suitToString(suit)<br class="title-page-name"/>        );<br class="title-page-name"/>      }<br class="title-page-name"/>    )<br class="title-page-name"/>  -&gt;toArray<br class="title-page-name"/>  -&gt;Js.log<br class="title-page-name"/>);</pre>
+<p class="mce-root">This yields an array of five cards at random in string format:</p>
+<pre class="calibre16">[<br class="title-page-name"/>  "Queen of Clubs",<br class="title-page-name"/>  "4 of Clubs",<br class="title-page-name"/>  "King of Spades",<br class="title-page-name"/>  "Ace of Hearts",<br class="title-page-name"/>  "9 of Spades"<br class="title-page-name"/>]</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Currying</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Some of the Belt standard library functions have a <em class="calibre15">U</em> suffix, such as this one:</p>
+<pre class="calibre16">Belt.List.makeBy</pre>
+<p class="mce-root">You can see the suffix here:</p>
+<pre class="calibre16">Belt.List.makeByU</pre>
+<p class="mce-root">The <em class="calibre15">U</em> suffix stands for <em class="calibre15">uncurried</em>. Before going further, let's define currying.</p>
+<p class="mce-root">In Reason, every function accepts exactly one argument. This seems to contradict many of our earlier examples:</p>
+<pre class="calibre16">let add = (a, b) =&gt; a + b;</pre>
+<p class="mce-root">The preceding <kbd class="calibre11">add</kbd> function looks as if it accepts two arguments, but it is actually just syntactic sugar for the following:</p>
+<pre class="calibre16">let add = a =&gt; b =&gt; a + b;</pre>
+<p class="mce-root">The <kbd class="calibre11">add</kbd> function accepts a single argument, <kbd class="calibre11">a</kbd>, which returns a function that accepts a single argument, <kbd class="calibre11">b</kbd>, and then returns the result of <kbd class="calibre11">a + b</kbd>.</p>
+<p class="mce-root">In Reason, both versions are valid and have the same compiled output. In JavaScript, both of the preceding versions are valid, but they are not the same; they would need to be used differently to get the same result. The second would need to be called like so:</p>
+<pre class="calibre16">add(2)(3);</pre>
+<p class="mce-root">This is because <kbd class="calibre11">add</kbd> returns a function that then needs to be called again, hence the two sets of parenthesis. Reason would accept either usage:</p>
+<pre class="calibre16">add(2, 3);<br class="title-page-name"/>add(2)(3);</pre>
+<p class="mce-root">The benefit of currying is that it makes composing functions easier. You can easily create a function, <kbd class="calibre11">addOne</kbd>, that is partially applied:</p>
+<pre class="calibre16">let addOne = add(1);</pre>
+<p class="mce-root">This <kbd class="calibre11">addOne</kbd> function could then be passed to other functions such as <kbd class="calibre11">map</kbd>. Perhaps you'd like to use this feature to pass a function to a ReasonReact child component with the parent component's <kbd class="calibre11">self</kbd> partially applied.</p>
+<p class="mce-root">Confusingly, the compiled output of either version of <kbd class="calibre11">add</kbd> is as follows:</p>
+<pre class="calibre16">function add(a, b) {<br class="title-page-name"/>  return a + b | 0;<br class="title-page-name"/>}</pre>
+<p class="mce-root">Where is the intermediate function? Wherever possible, BuckleScript optimizes the compiled output to avoid the unnecessary function allocation, which improves performance.</p>
+<p class="mce-root">Remember, since Reason's infix operators are just normal functions, we could have just done the following:</p>
+<pre class="calibre16">let addOne = (+)(1);</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Uncurried functions</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Due to JavaScript's dynamic nature, BuckleScript cannot always optimize the compiled output to remove the intermediate functions. However, you can tell BuckleScript to uncurry a function using the following syntax:</p>
+<pre class="calibre16">let add = (. a, b) =&gt; a + b;</pre>
+<p class="mce-root">The uncurry syntax is the dot in the argument list. It needs to be present at both the declaration and call sites:</p>
+<pre class="calibre16">let result = add(. 2, 3); /* 5 */</pre>
+<p class="mce-root">BuckleScript will throw a compile time error if the call site isn't using the uncurry syntax:</p>
+<pre class="calibre16">let result = add(2, 3);<br class="title-page-name"/><br class="title-page-name"/>We've found a bug for you!<br class="title-page-name"/><br class="title-page-name"/>This is an uncurried BuckleScript function. It must be applied with a dot.<br class="title-page-name"/><br class="title-page-name"/>Like this: foo(. a, b)<br class="title-page-name"/>Not like this: foo(a, b)</pre>
+<p class="mce-root">Also, a compile time error is thrown if some of the function's arguments are missing at the call site:</p>
+<pre class="calibre16">let result = add(. 2);<br class="title-page-name"/><br class="title-page-name"/>We've found a bug for you!<br class="title-page-name"/><br class="title-page-name"/>Found uncurried application [@bs] with arity 2, where arity 1 was expected.</pre>
+<p class="mce-root">The term <kbd class="calibre11">arity</kbd> refers to the number of arguments a function accepts.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">makeByU</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">We can replace <kbd class="calibre11">makeBy</kbd> with <kbd class="calibre11">makeByU</kbd> if we uncurry its second argument. This will improve performance (a negligible amount in our example):</p>
+<pre class="calibre16">...<br class="title-page-name"/>makeByU(52, (. i) =&gt;<br class="title-page-name"/>  switch (i / 13, i mod 13) {<br class="title-page-name"/>  | (0, rank) =&gt; {suit: Hearts, rank: rank + 1}<br class="title-page-name"/>  | (1, rank) =&gt; {suit: Diamonds, rank: rank + 1}<br class="title-page-name"/>  | (2, rank) =&gt; {suit: Spades, rank: rank + 1}<br class="title-page-name"/>  | (3, rank) =&gt; {suit: Clubs, rank: rank + 1}<br class="title-page-name"/>  | _ =&gt; assert(false)<br class="title-page-name"/>  }<br class="title-page-name"/>)<br class="title-page-name"/>...</pre>
+<p class="mce-root">The dot syntax requires parentheses around <kbd class="calibre11">i</kbd>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">JavaScript interoperability</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">The term <strong class="calibre4">interoperability</strong> refers to the ability for Reason programs to use existing JavaScript within Reason. BuckleScript provides an excellent system for using existing JavaScript code within Reason, and also makes it easy to use Reason code within JavaScript.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using JavaScript in Reason</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">We've already seen how we can use raw JavaScript in Reason. Let's now focus on how to bind to existing JavaScript. To bind a value to a named reference, we typically use <kbd class="calibre11">let</kbd>. That binding can then be used in subsequent code. When the value we want to bind to lives is JavaScript, we use <kbd class="calibre11">external</kbd>. The <kbd class="calibre11">external</kbd> binding is like a <kbd class="calibre11">let</kbd>, in the sense that it can be used in subsequent code. Unlike <kbd class="calibre11">let</kbd>, <kbd class="calibre11">external</kbd> is typically accompanied by BuckleScript decorators such as <kbd class="calibre11">[@bs.val]</kbd>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding the [@bs.val] decorator</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">We can use <kbd class="calibre11">[@bs.val]</kbd> to bind to global values and functions. In general, the syntax is as follows:</p>
+<pre class="calibre16">[@bs.val] external alert: string =&gt; unit = "alert";</pre>
+<ul class="calibre9">
+<li class="calibre10">One or more BuckleScript decorators (that is, <kbd class="calibre11">[@bs.val]</kbd>)</li>
+<li class="calibre10">The <kbd class="calibre11">external</kbd> keyword</li>
+<li class="calibre10">The binding's named reference</li>
+<li class="calibre10">The type declaration</li>
+<li class="calibre10">An equal sign</li>
+<li class="calibre10">A string</li>
+</ul>
+<p class="mce-root">The external keyword binds <kbd class="calibre11">alert</kbd> to a value of type <kbd class="calibre11">string =&gt; unit</kbd> and is bound to the string <kbd class="calibre11">alert</kbd>. <span class="calibre5">The string </span><kbd class="calibre11">alert</kbd><span class="calibre5"> is the value of the above external declaration and is what is going to be used in the compiled output. When the name of the external binding is equal to its string value, the string can be left empty:</span></p>
+<pre class="calibre16">[@bs.val] external alert: string =&gt; unit = "";</pre>
+<p class="mce-root">Using the binding is just like using any other binding:</p>
+<pre class="calibre16">alert("hi!");</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding the [@bs.scope] decorator</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">To bind to <kbd class="calibre11">window.location.pathname</kbd>, we add a scope using <kbd class="calibre11">[@bs.scope]</kbd>. This defines the scope for <kbd class="calibre11">[@bs.val]</kbd>. For example, if you want to bind to the <kbd class="calibre11">pathname</kbd> property of <kbd class="calibre11">window.location</kbd>, you can specify the scope as <kbd class="calibre11">[@bs.scope ("window", "location")]</kbd>:</p>
+<pre class="calibre16">[@bs.val] [@bs.scope ("window", "location")] external pathname: string = "";</pre>
+<p class="mce-root">Or, we could include the scope in the string using only <kbd class="calibre11">[@bs.val]</kbd>:</p>
+<pre class="calibre16">[@bs.val] external pathname: string = "window.location.pathname";</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding the [@bs.send] decorator</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">The <kbd class="calibre11">[@bs.send]</kbd> decorator is for binding to an object's methods and properties. When using <kbd class="calibre11">[@bs.send]</kbd>, the first argument is always the object. If there are remaining arguments, they will get applied to the object's method:</p>
+<pre class="calibre16">[@bs.val] external document: Dom.document = "";<br class="title-page-name"/>[@bs.send] external getElementById: (Dom.document, string) =&gt; Dom.element = "";<br class="title-page-name"/>let element = getElementById(document, "root");</pre>
+<p class="mce-root">The<span class="calibre5"> </span><kbd class="calibre11">Dom</kbd><span class="calibre5"> </span>module is also provided by BuckleScript and provides type declarations for the DOM.</p>
+<div class="packt_infobox">The Dom module documentation can be found here:<br class="title-page-name"/>
+<br class="title-page-name"/>
+<a href="https://bucklescript.github.io/bucklescript/api/Dom.html" class="calibre17">https://bucklescript.github.io/bucklescript/api/Dom.html</a><br class="title-page-name"/>
+<br class="title-page-name"/>
+<br class="title-page-name"/>
+There is also a Node module for use with Node.js:<br class="title-page-name"/>
+<br class="title-page-name"/>
+<a href="https://bucklescript.github.io/bucklescript/api/Node.html" class="calibre17">https://bucklescript.github.io/bucklescript/api/Node.html</a></div>
+<p class="mce-root">Be careful when writing external declarations since you can accidentally lie to the type system, which could result in runtime type errors. For example, we told Reason that our <kbd class="calibre11">getElementById</kbd> binding always returns a <kbd class="calibre11">Dom.element</kbd>, but it returns <kbd class="calibre11">undefined</kbd> when the DOM can't find an element with the provided ID. A more correct binding would be this:</p>
+<pre class="calibre16">[@bs.send] external getElementById: (Dom.document, string) =&gt; option(Dom.element) = "";</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding the [@bs.module] decorator</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">To import a node module, use <kbd class="calibre11">[@bs.module]</kbd>. The compiled output depends on the <kbd class="calibre11">package-specs</kbd> configuration used within <kbd class="calibre11">bsconfig.json</kbd>. We're using <kbd class="calibre11">es6</kbd> as the module format.</p>
+<pre class="calibre16">[@bs.module] external leftPad: (string, int) =&gt; string = "left-pad";<br class="title-page-name"/>let result = leftPad("foo", 6);</pre>
+<p class="mce-root">This compiles to the following:</p>
+<pre class="calibre16">import * as LeftPad from "left-pad";<br class="title-page-name"/><br class="title-page-name"/>var result = LeftPad("foo", 6);<br class="title-page-name"/><br class="title-page-name"/>export {<br class="title-page-name"/>  result ,<br class="title-page-name"/>}</pre>
+<p class="mce-root">Setting the module format to <kbd class="calibre11">commonjs</kbd> results in the following compiled output:</p>
+<pre class="calibre16">var LeftPad = require("left-pad");<br class="title-page-name"/><br class="title-page-name"/>var result = LeftPad("foo", 6);<br class="title-page-name"/><br class="title-page-name"/>exports.result = result;</pre>
+<p class="mce-root">When there is no string argument to <kbd class="calibre11">[@bs.module]</kbd>, the default value is imported.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Reasonable APIs</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">When binding to existing JavaScript APIs, think about how you'd like to use the API in Reason. Even existing JavaScript APIs that rely heavily on JavaScript's dynamic typing can be used in Reason. BuckleScript leverages advanced type system techniques that let us take advantage of Reason's type system with such APIs.</p>
+<p class="mce-root">From the BuckleScript documentation, take a look at the following JavaScript function:</p>
+<pre class="calibre16">function padLeft(value, padding) {<br class="title-page-name"/>  if (typeof padding === "number") {<br class="title-page-name"/>    return Array(padding + 1).join(" ") + value;<br class="title-page-name"/>  }<br class="title-page-name"/>  if (typeof padding === "string") {<br class="title-page-name"/>    return padding + value;<br class="title-page-name"/>  }<br class="title-page-name"/>  throw new Error(`Expected string or number, got '${padding}'.`);<br class="title-page-name"/>}</pre>
+<p class="mce-root">If we were to bind to this function in Reason, it would be nice to use <kbd class="calibre11">padding</kbd> as a variant. Here is how we would do that:</p>
+<pre class="calibre16">[@bs.val]<br class="title-page-name"/>external padLeft: (<br class="title-page-name"/>  string,<br class="title-page-name"/>  [@bs.unwrap] [<br class="title-page-name"/>    | `Str(string)<br class="title-page-name"/>    | `Int(int)<br class="title-page-name"/>  ])<br class="title-page-name"/>  =&gt; string = "";<br class="title-page-name"/><br class="title-page-name"/>padLeft("Hello World", `Int(4));<br class="title-page-name"/>padLeft("Hello World", `Str("Message: "));</pre>
+<p class="mce-root">This compiles to the following:</p>
+<pre class="calibre16">padLeft("Hello World", 4);<br class="title-page-name"/>padLeft("Hello World", "Message: ");</pre>
+<p class="mce-root">The type of <kbd class="calibre11">padLeft</kbd> is <kbd class="calibre11">(string, some_variant) =&gt; string</kbd>, where <kbd class="calibre11">some_variant</kbd> uses an advanced type system feature called <strong class="calibre4">polymorphic variant</strong>, which that uses <kbd class="calibre11">[@bs.unwrap]</kbd> to get converted to something JavaScript can understand. We'll learn more about polymorphic variants in <a href="86a6dec1-1340-4c6c-bdfa-95138e0d471b.xhtml" target="_blank" class="calibre8">Chapter 5</a>, <em class="calibre15">Effective ML</em>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">BuckleScript documentation</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Although this was just a brief introduction, you can see that BuckleScript has a lot of tools to help us communicate with idiomatic JavaScript. I highly encourage you to read the BuckleScript docs to learn more about JavaScript interoperability.</p>
+<div class="packt_infobox">BuckleScript documentation can be found here:<br class="title-page-name"/>
+<br class="title-page-name"/>
+<a href="https://bucklescript.github.io/docs/interop-overview" class="calibre17">https://bucklescript.github.io/docs/interop-overview</a></div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Binding to existing ReactJS components</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">ReactJS components are not Reason components. To use an existing ReactJS component, we use <kbd class="calibre11">[@bs.module]</kbd> to import the node module, and then use the <kbd class="calibre11">ReasonReact.wrapJsForReason</kbd> helper function to convert the ReactJS component to a Reason component. There is also a <kbd class="calibre11">ReasonReact.wrapReasonForJs</kbd> helper function for using Reason in ReactJS.</p>
+<p class="mce-root">Let's resume building our app from where we left off in <a href="21586d11-fa31-446f-99f1-dae3beecdb9b.xhtml" target="_blank" class="calibre8">Chapter 3</a>, <em class="calibre15">Creating ReasonReact Components:</em></p>
+<pre class="calibre16"><strong class="calibre1">git clone https://github.com/PacktPublishing/ReasonML-Quick-Start-Guide.git</strong><br class="title-page-name"/><strong class="calibre1">cd ReasonML-Quick-Start-Guide</strong><br class="title-page-name"/><strong class="calibre1">cd Chapter03/app-end<br class="title-page-name"/>npm install</strong></pre>
+<p class="mce-root">Here, we'll <span class="calibre5">add route transitions by binding to the existing React Transition Group components:</span></p>
+<div class="packt_infobox">React Transition Group documentation can be found here:<br class="title-page-name"/>
+<br class="title-page-name"/>
+<a href="https://reactcommunity.org/react-transition-group/" class="calibre17">https://reactcommunity.org/react-transition-group/</a></div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Importing dependencies</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Run <kbd class="calibre11">npm install --save react-transition-group</kbd><span class="calibre5"> to install the dependency.</span></p>
+<p class="mce-root">Let's create a new file called <kbd class="calibre11">ReactTransitionGroup.re</kbd> to house these bindings. In this file, we'll bind to the <kbd class="calibre11">TransitionGroup</kbd> and <kbd class="calibre11">CSSTransition</kbd> components:</p>
+<pre class="calibre16">[@bs.module "react-transition-group"]<br class="title-page-name"/>external transitionGroup: ReasonReact.reactClass = "TransitionGroup";<br class="title-page-name"/><br class="title-page-name"/>[@bs.module "react-transition-group"]<br class="title-page-name"/>external cssTransition: ReasonReact.reactClass = "CSSTransition";</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Creating the make functions</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Next, we create the components' required <kbd class="calibre11">make</kbd> functions. This is where we use the <kbd class="calibre11">ReasonReact.wrapJsForReason</kbd> helper function.</p>
+<p class="mce-root">For <kbd class="calibre11">TransitionGroup</kbd>, we won't need any props. Since the <kbd class="calibre11">~props</kbd> argument is required, we pass <kbd class="calibre11">Js.Obj.empty()</kbd>. The <kbd class="calibre11">~reactClass</kbd> argument is passed the external binding we created in the previous step:</p>
+<pre class="calibre16">module TransitionGroup = {<br class="title-page-name"/>  let make = children =&gt;<br class="title-page-name"/>    ReasonReact.wrapJsForReason(<br class="title-page-name"/>      ~reactClass=transitionGroup,<br class="title-page-name"/>      ~props=Js.Obj.empty(),<br class="title-page-name"/>      children,<br class="title-page-name"/>    );<br class="title-page-name"/>};</pre>
+<p class="mce-root">Now, <kbd class="calibre11">ReactTransitionGroup.TransitionGroup</kbd> is a ReasonReact component that can be used in our app.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using [@bs.deriving abstract]</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root"><kbd class="calibre11">CSSTransitionGroup</kbd> will need the following props:</p>
+<ul class="calibre9">
+<li class="calibre10"><kbd class="calibre11">_in</kbd></li>
+<li class="calibre10"><kbd class="calibre11">timeout</kbd></li>
+<li class="calibre10"><kbd class="calibre11">classNames</kbd></li>
+</ul>
+<p class="mce-root">Since <kbd class="calibre11">in</kbd> is a reserved word in Reason, the convention is to use <kbd class="calibre11">_in</kbd> in Reason and have BuckleScript compile it to <kbd class="calibre11">in</kbd> for JavaScript using <kbd class="calibre11">[@bs.as "in"]</kbd>.</p>
+<p class="mce-root">BuckleScript provides <kbd class="calibre11">[@bs.deriving abstract]</kbd> for easily working with certain types of JavaScript objects. Instead of creating an object in JavaScript and binding to that object, we can create that object directly using BuckleScript:</p>
+<pre class="calibre16">[@bs.deriving abstract]<br class="title-page-name"/>type cssTransitionProps = {<br class="title-page-name"/>  [@bs.as "in"] _in: bool,<br class="title-page-name"/>  timeout: int,<br class="title-page-name"/>  classNames: string,<br class="title-page-name"/>};</pre>
+<p class="mce-root"/>
+<div class="packt_infobox">Note: <kbd class="calibre20">cssTransitionProps</kbd> is not a record type, it just looks like one.</div>
+<p class="mce-root">When using <kbd class="calibre11">[@bs.deriving abstract]</kbd>, a helper function is automatically provided to create JavaScript objects of that shape. This helper function is also named <kbd class="calibre11">cssTransitionProps</kbd>. We use this helper function in the component's <kbd class="calibre11">make</kbd> function to create the component's props:</p>
+<pre class="calibre16">module CSSTransition = {<br class="title-page-name"/>  let make = (~_in: bool, ~timeout: int, ~classNames: string, children) =&gt;<br class="title-page-name"/>    ReasonReact.wrapJsForReason(<br class="title-page-name"/>      ~reactClass=cssTransition,<br class="title-page-name"/>      ~props=cssTransitionProps(~_in, ~timeout, ~classNames),<br class="title-page-name"/>      children,<br class="title-page-name"/>    );<br class="title-page-name"/>};</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using the components</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Now, in <kbd class="calibre11">App.re</kbd>, we can change the render function to use these components. We'll change this:</p>
+<pre class="calibre16"><span>&lt;</span><span>main</span><span>&gt; {currentRoute</span><span>.</span><span>component} &lt;/</span><span>main</span><span>&gt;</span></pre>
+<p class="mce-root">Now it appears as follows:</p>
+<pre class="calibre16">&lt;main&gt;<br class="title-page-name"/>  ReactTransitionGroup.(<br class="title-page-name"/>    &lt;TransitionGroup&gt;<br class="title-page-name"/>      &lt;CSSTransition<br class="title-page-name"/>        key={currentRoute.title} _in=true timeout=900 classNames="routeTransition"&gt;<br class="title-page-name"/>        {currentRoute.component}<br class="title-page-name"/>      &lt;/CSSTransition&gt;<br class="title-page-name"/>    &lt;/TransitionGroup&gt;<br class="title-page-name"/>  )<br class="title-page-name"/>&lt;/main&gt;</pre>
+<div class="packt_infobox">Note: The key prop is a special ReactJS prop and should not be part of the component's props argument in <kbd class="calibre20">ReasonReact.wrapJsForReason</kbd>. The same is true for the special ReactJS ref prop.</div>
+<p class="mce-root">For completeness, here is the corresponding CSS, which can be found in <kbd class="calibre11">ReactTransitionGroup.scss</kbd>:</p>
+<pre class="calibre16">@keyframes enter {<br class="title-page-name"/>  from {<br class="title-page-name"/>    opacity: 0;<br class="title-page-name"/>    transform: translateY(50px);<br class="title-page-name"/>  }<br class="title-page-name"/>}<br class="title-page-name"/><br class="title-page-name"/>@keyframes exit {<br class="title-page-name"/>  to {<br class="title-page-name"/>    opacity: 0;<br class="title-page-name"/>    transform: translateY(50px);<br class="title-page-name"/>  }<br class="title-page-name"/>}<br class="title-page-name"/><br class="title-page-name"/>.routeTransition-enter.routeTransition-enter-active {<br class="title-page-name"/>  animation: enter 500ms ease 400ms both;<br class="title-page-name"/>}<br class="title-page-name"/><br class="title-page-name"/>.routeTransition-exit.routeTransition-exit-active {<br class="title-page-name"/>  animation: exit 400ms ease both;<br class="title-page-name"/>}</pre>
+<p class="mce-root">Be sure to require the preceding in <kbd class="calibre11">ReactTransitionGroup.re</kbd>:</p>
+<pre class="calibre16">/* ReactTransitionGroup.re */<br class="title-page-name"/>[@bs.val] external require: string =&gt; string = "";<br class="title-page-name"/>require("../../../src/ReactTransitionGroup.scss");</pre>
+<p class="mce-root">Now, when changing routes, the old route's content animates down and fades out before the new route's content animates up and fades in.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">BuckleScript is incredibly powerful because it lets us interoperate with idiomatic JavaScript in a very pleasant way. It also provides the Belt standard library, which was created with JavaScript in mind. We learned about arrays and lists, and w<span class="calibre5">e saw how easy it is to use existing ReactJS components within Reason.</span></p>
+<p class="mce-root">In <a href="86a6dec1-1340-4c6c-bdfa-95138e0d471b.xhtml" target="_blank" class="calibre8">Chapter 5</a>, <em class="calibre15">Effective ML</em>, we'll learn about how to use module signatures to hide a component's implementation details while building an autocomplete input component. We'll start with hardcoded data at first, and in <a href="a6ac6581-d3bd-49f3-ad4d-bfed965287ca.xhtml" target="_blank" class="calibre8">Chapter 6</a>, <em class="calibre15">CSS-in-JS (in Reason)</em>, we'll move that data to <kbd class="calibre11">localStorage</kbd> (client-side web storage).</p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

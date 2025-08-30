@@ -1,0 +1,256 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Effective ML</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">So far, we've learned the basics of Reason. We've seen how having a sound type system can make refactoring a safer, less stressful endeavor. When changing an implementation detail, the type system helpfully alerts us to the other areas of the codebase that need to be updated. In this chapter, we'll learn how to hide implementation details to make refactoring even easier. By hiding implementation details, we guarantee that changing them won't affect other areas of your codebase.</p>
+<p class="mce-root"><span class="calibre5">We'll also learn how the type system can help us enforce business rules in our application. Hiding implementation details also gives us a nice way to enforce business rules by guaranteeing that modules are not being misused by the user. </span><span class="calibre5">We'll illustrate this point throughout much of this chapter using simple code examples that are included in </span><span class="calibre5">this book's GitHub repository.</span></p>
+<p class="mce-root"><span class="calibre5">To follow along, start from </span><kbd class="calibre11">Chapter05/app-start</kbd><span class="calibre5">. These examples are isolated from the app we've been building.</span></p>
+<p class="mce-root"><span class="calibre5">You can go to the GitHub repository for this book using the following:</span></p>
+<pre class="calibre16"><strong class="calibre1">git clone https://github.com/PacktPublishing/ReasonML-Quick-Start-Guide.git</strong><br class="title-page-name"/><strong class="calibre1">cd ReasonML-Quick-Start-Guide</strong><br class="title-page-name"/><strong class="calibre1">cd Chapter05/app-start<br class="title-page-name"/>npm install</strong></pre>
+<p class="mce-root">Remember,<span class="calibre5"> all modules are global and all of a module's types and bindings are exposed by default. As we'll soon see, module signatures can be used to hide a module's types and/or bindings from other modules.</span> In this chapter, we'll also learn about advanced type system features, including the following:</p>
+<ul class="calibre9">
+<li class="calibre10">Abstract types</li>
+<li class="calibre10">Phantom types</li>
+<li class="calibre10">Polymorphic variants</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Module signatures</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">A module signature constrains a module in a similar way to how an interface can constrain a class in object-oriented programming. A module signature can require that a module implements certain types and bindings and can also be used to hide implementation details. Say that we had a module called <kbd class="calibre11">Foo</kbd> defined in <kbd class="calibre11">Foo.re</kbd>. Its signature can be defined in <kbd class="calibre11">Foo.rei</kbd>. Any type or binding listed in a module's signature is exposed to other modules. Any type or binding listed in a module is hidden if a module signature exists and that type or binding isn't present in the module signature. Given a binding <kbd class="calibre11">let foo = "foo";</kbd> in <kbd class="calibre11">Foo.re</kbd>, that binding can be both required and exposed by its module signature by including <kbd class="calibre11">let foo: string;</kbd> in <kbd class="calibre11">Foo.rei</kbd>:</p>
+<pre class="calibre16">/* Foo.re */<br class="title-page-name"/>let foo = "foo";<br class="title-page-name"/><br class="title-page-name"/>/* Foo.rei */<br class="title-page-name"/>let foo: string;<br class="title-page-name"/><br class="title-page-name"/>/* Bar.re */<br class="title-page-name"/>Js.log(Foo.foo);</pre>
+<p class="mce-root">Here, <kbd class="calibre11">Foo.rei</kbd> requires <kbd class="calibre11">Foo.re</kbd> to have a <kbd class="calibre11">let</kbd> binding named <kbd class="calibre11">foo</kbd> of the <kbd class="calibre11">string </kbd><span class="calibre5">type</span><span class="calibre5">.</span></p>
+<p class="mce-root">If a module's <kbd class="calibre11">.rei</kbd> file exists and is empty, then everything <span class="calibre5">within the module </span>is hidden, as shown in the following code:</p>
+<pre class="calibre16">/* Foo.rei */<br class="title-page-name"/>/* this is intentionally empty */<br class="title-page-name"/><br class="title-page-name"/>/* Bar.re */<br class="title-page-name"/>Js.log(Foo.foo); /* Compilation error: The value foo can't be found in Foo */</pre>
+<p class="mce-root">A module's signature requires the module to include any types and/or bindings listed in the signature, as shown in the following code:</p>
+<pre class="calibre16">/* Foo.re */<br class="title-page-name"/>let foo = "foo";<br class="title-page-name"/><br class="title-page-name"/>/* Foo.rei */<br class="title-page-name"/>let foo: string;<br class="title-page-name"/>let bar: string;</pre>
+<p class="mce-root">This results in the following compilation error because the module signature requires a <kbd class="calibre11">bar</kbd> <span class="calibre5">binding</span><span class="calibre5"> </span><span class="calibre5">of the</span> <kbd class="calibre11">string</kbd> <span class="calibre5">type</span><span class="calibre5"> </span><span class="calibre5">that isn't defined in the module:</span></p>
+<pre class="calibre16">The implementation src/Foo.re does not match the interface src/Foo.rei:<br class="title-page-name"/>The value `bar' is required but not provided</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Module types</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">A module signature can also be defined using the <kbd class="calibre11">module type</kbd> keyword instead of using a separate <kbd class="calibre11">.rei</kbd> file. The module type must start with a capital letter. Once defined, a module can be constrained by a module type using the<span class="calibre5"> </span><kbd class="calibre11">module &lt;Name&gt; : &lt;Type&gt;</kbd><span class="calibre5"> </span>syntax, as follows:</p>
+<pre class="calibre16">module type FooT {<br class="title-page-name"/>  let foo: (~a: int, ~b: int) =&gt; int;<br class="title-page-name"/>};<br class="title-page-name"/><br class="title-page-name"/>module Foo: FooT {<br class="title-page-name"/>  let foo = (~a, ~b) =&gt; a + b;<br class="title-page-name"/>};</pre>
+<p class="mce-root">The same module type can be used for multiple modules, as follows:</p>
+<pre class="calibre16">module Bar: FooT {<br class="title-page-name"/>  let bar = (~a, ~b) =&gt; a - b;<br class="title-page-name"/>};</pre>
+<p class="mce-root">We can think of module signatures as interfaces in the object-oriented sense. The interface defines the properties and methods that a module must define. In Reason, however, module signatures also hide bindings and types. But perhaps one of the most useful features of module signatures is the ability to expose abstract types.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Abstract types</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Abstract types are type declarations that don't have a definition. Let's explore why this would be useful. In addition to bindings, module signatures can include types. In the following code, you'll notice that the <span class="calibre5">module signature of</span><span class="calibre5"> </span><kbd class="calibre11">Foo</kbd><span class="calibre5"> includes a</span> <kbd class="calibre11">person</kbd><span class="calibre5"> </span><span class="calibre5">type,</span><span class="calibre5"> </span><span class="calibre5">and now </span><kbd class="calibre11">Foo</kbd> <span class="calibre5">must include this <kbd class="calibre11">type</kbd> declaration:</span></p>
+<pre class="calibre16">/* Foo.re */<br class="title-page-name"/>type person = {<br class="title-page-name"/>  firstName: string,<br class="title-page-name"/>  lastName: string<br class="title-page-name"/>};<br class="title-page-name"/><br class="title-page-name"/>/* Foo.rei */<br class="title-page-name"/>type person = {<br class="title-page-name"/>  firstName: string,<br class="title-page-name"/>  lastName: string<br class="title-page-name"/>};</pre>
+<p class="mce-root">The <kbd class="calibre11">person</kbd> type is exposed in the same way as if there were no module signature defined. As you'd expect, if a signature is defined and the type is not listed, the type isn't exposed to other modules. There is also the option to leave the type abstract. We only keep what's left of the equals sign. Let's look at the following code:</p>
+<pre class="calibre16">/* Foo.rei */<br class="title-page-name"/>type person;</pre>
+<p class="mce-root">Now, the <kbd class="calibre11">person</kbd> type is exposed to other modules, but no other modules can directly create or manipulate a value of the <kbd class="calibre11">person </kbd><span class="calibre5">type</span><span class="calibre5">. The <kbd class="calibre11">person</kbd> type is required to be defined in</span> <kbd class="calibre11">Foo</kbd><span class="calibre5">, but it can have any definition. This means that the</span> <kbd class="calibre11">person</kbd> <span class="calibre5">type can change over time, and no modules outside of</span> <kbd class="calibre11">Foo</kbd> <span class="calibre5">would ever know the difference.</span></p>
+<p class="mce-root">Let's explore abstract types further in the following section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using module signatures</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Let's imagine that we're building an invoice-management system and we have an <kbd class="calibre11">Invoice</kbd> module that defines an <kbd class="calibre11">invoice</kbd> type along with a function that other modules can use to create values of that type. This arrangement is shown in the following code:</p>
+<pre class="calibre16">/* Invoice.re */<br class="title-page-name"/>type t = {<br class="title-page-name"/>  name: string,<br class="title-page-name"/>  email: string,<br class="title-page-name"/>  date: Js.Date.t,<br class="title-page-name"/>  total: float<br class="title-page-name"/>};<br class="title-page-name"/><br class="title-page-name"/>let make = (~name, ~email, ~date, ~total) =&gt; {<br class="title-page-name"/>  name,<br class="title-page-name"/>  email,<br class="title-page-name"/>  date,<br class="title-page-name"/>  total<br class="title-page-name"/>};</pre>
+<p class="mce-root">Let's also suppose that we have another module that is responsible for sending emails to customers, as shown in the following code:</p>
+<pre class="calibre16">/* Email.re */<br class="title-page-name"/>let send = invoice: Invoice.t =&gt; ...<br class="title-page-name"/>let invoice =<br class="title-page-name"/>  Invoice.make(<br class="title-page-name"/>    ~name="Raphael",<br class="title-page-name"/>    ~email="persianturtle@gmail.com",<br class="title-page-name"/>    ~date=Js.Date.make(),<br class="title-page-name"/>    ~total=15.0,<br class="title-page-name"/>  );<br class="title-page-name"/>send(invoice);</pre>
+<p class="mce-root">Since the <kbd class="calibre11">Invoice.t</kbd> type is exposed, the invoice can be manipulated by <kbd class="calibre11">Email</kbd>, as shown in the following code:</p>
+<pre class="calibre16">/* Email.re */<br class="title-page-name"/>let invoice =<br class="title-page-name"/>  Invoice.make(<br class="title-page-name"/>    ~name="Raphael",<br class="title-page-name"/>    ~email="persianturtle@gmail.com",<br class="title-page-name"/>    ~date=Js.Date.make(),<br class="title-page-name"/>    ~total=15.0,<br class="title-page-name"/>  );<br class="title-page-name"/>let invoice = {...invoice, total: invoice.total *. 0.8};<br class="title-page-name"/>Js.log(invoice);</pre>
+<p class="mce-root">Despite the <kbd class="calibre11">Invoice.t</kbd> type being immutable, there is nothing preventing <kbd class="calibre11">Email</kbd> from shadowing the invoice binding with some altered fields. However, if we made the <kbd class="calibre11">Invoice.t</kbd> type abstract, this wouldn't be possible because <kbd class="calibre11">Email</kbd> wouldn't be able to manipulate the abstract type. None of the functions that the <kbd class="calibre11">Email</kbd> module has access to would work with an <kbd class="calibre11">Invoice.t</kbd> type.</p>
+<pre class="calibre16">/* Invoice.rei */<br class="title-page-name"/>type t;<br class="title-page-name"/>let make:<br class="title-page-name"/> (~name: string, ~email: string, ~date: Js.Date.t, ~total: float) =&gt; t;</pre>
+<p class="mce-root">Now, compiling gives us the following error:</p>
+<pre class="calibre16">8 │ let invoice = {...invoice, total: invoice.total *. 0.8};<br class="title-page-name"/>9 │ Js.log(invoice);<br class="title-page-name"/><br class="title-page-name"/>The record field total can't be found.</pre>
+<p class="mce-root">If we decide to allow other modules to add discounts to invoices, we would need to create a function and include it in the <span class="calibre5">module signature of</span><span class="calibre5"> </span><kbd class="calibre11">Invoice</kbd><span class="calibre5">. Let's suppose we want to only allow one discount per invoice and also restrict the discount amount to ten, fifteen, or twenty percent. We could implement this in the following way:</span></p>
+<pre class="calibre16">/* Invoice.re */<br class="title-page-name"/>type t = {<br class="title-page-name"/> name: string,<br class="title-page-name"/> email: string,<br class="title-page-name"/> date: Js.Date.t,<br class="title-page-name"/> total: float,<br class="title-page-name"/> isDiscounted: bool,<br class="title-page-name"/>};<br class="title-page-name"/><br class="title-page-name"/>type discount =<br class="title-page-name"/> | Ten<br class="title-page-name"/> | Fifteen<br class="title-page-name"/> | Twenty;<br class="title-page-name"/><br class="title-page-name"/>let make = (~name, ~email, ~date, ~total) =&gt; {<br class="title-page-name"/> name,<br class="title-page-name"/> email,<br class="title-page-name"/> date,<br class="title-page-name"/> total,<br class="title-page-name"/> isDiscounted: false,<br class="title-page-name"/>};<br class="title-page-name"/><br class="title-page-name"/>let discount = (~invoice, ~discount) =&gt;<br class="title-page-name"/> if (invoice.isDiscounted) {<br class="title-page-name"/> invoice;<br class="title-page-name"/> } else {<br class="title-page-name"/> {<br class="title-page-name"/> ...invoice,<br class="title-page-name"/> isDiscounted: true,<br class="title-page-name"/> total:<br class="title-page-name"/> invoice.total<br class="title-page-name"/> *. (<br class="title-page-name"/> switch (discount) {<br class="title-page-name"/> | Ten =&gt; 0.9<br class="title-page-name"/> | Fifteen =&gt; 0.85<br class="title-page-name"/> | Twenty =&gt; 0.8<br class="title-page-name"/> }<br class="title-page-name"/> ),<br class="title-page-name"/> };<br class="title-page-name"/> };<br class="title-page-name"/><br class="title-page-name"/>/* Invoice.rei */<br class="title-page-name"/>type t;<br class="title-page-name"/><br class="title-page-name"/>type discount =<br class="title-page-name"/> | Ten<br class="title-page-name"/> | Fifteen<br class="title-page-name"/> | Twenty;<br class="title-page-name"/><br class="title-page-name"/>let make:<br class="title-page-name"/> (~name: string, ~email: string, ~date: Js.Date.t, ~total: float) =&gt; t;<br class="title-page-name"/><br class="title-page-name"/>let discount: (~invoice: t, ~discount: discount) =&gt; t;<br class="title-page-name"/><br class="title-page-name"/>/* Email.re */<br class="title-page-name"/>let invoice =<br class="title-page-name"/> Invoice.make(<br class="title-page-name"/> ~name="Raphael",<br class="title-page-name"/> ~email="persianturtle@gmail.com",<br class="title-page-name"/> ~date=Js.Date.make(),<br class="title-page-name"/> ~total=15.0,<br class="title-page-name"/> );<br class="title-page-name"/>Js.log(invoice);</pre>
+<p class="mce-root">Now, as long as the <kbd class="calibre11">Invoice</kbd> module's public API (or module signature) doesn't change, we're free to refactor the <kbd class="calibre11">Invoice</kbd> module however we'd like without needing to worry about breaking code in other modules. To prove this point, let's refactor <kbd class="calibre11">Invoice.t</kbd> to be a tuple instead of a record, as shown in the following code. As long as we don't change the module signature, the <kbd class="calibre11">Email</kbd> module won't need to change at all:</p>
+<pre class="calibre16">/* Invoice.re */<br class="title-page-name"/>type t = (string, string, Js.Date.t, float, bool);<br class="title-page-name"/><br class="title-page-name"/>type discount =<br class="title-page-name"/>  | Ten<br class="title-page-name"/>  | Fifteen<br class="title-page-name"/>  | Twenty;<br class="title-page-name"/><br class="title-page-name"/>let make = (~name, ~email, ~date, ~total) =&gt; (<br class="title-page-name"/>  name,<br class="title-page-name"/>  email,<br class="title-page-name"/>  date,<br class="title-page-name"/>  total,<br class="title-page-name"/>  false,<br class="title-page-name"/>);<br class="title-page-name"/><br class="title-page-name"/>let discount = (~invoice, ~discount) =&gt; {<br class="title-page-name"/>  let (name, email, date, total, isDiscounted) = invoice;<br class="title-page-name"/>  if (isDiscounted) {<br class="title-page-name"/>    invoice;<br class="title-page-name"/>  } else {<br class="title-page-name"/>    (<br class="title-page-name"/>      name,<br class="title-page-name"/>      email,<br class="title-page-name"/>      date,<br class="title-page-name"/>      total<br class="title-page-name"/>      *. (<br class="title-page-name"/>        switch (discount) {<br class="title-page-name"/>        | Ten =&gt; 0.9<br class="title-page-name"/>        | Fifteen =&gt; 0.85<br class="title-page-name"/>        | Twenty =&gt; 0.8<br class="title-page-name"/>        }<br class="title-page-name"/>      ),<br class="title-page-name"/>      true,<br class="title-page-name"/>    );<br class="title-page-name"/>  };<br class="title-page-name"/>};<br class="title-page-name"/><br class="title-page-name"/>/* Invoice.rei */<br class="title-page-name"/>type t;<br class="title-page-name"/><br class="title-page-name"/>type discount =<br class="title-page-name"/>  | Ten<br class="title-page-name"/>  | Fifteen<br class="title-page-name"/>  | Twenty;<br class="title-page-name"/><br class="title-page-name"/>let make:<br class="title-page-name"/>  (~name: string, ~email: string, ~date: Js.Date.t, ~total: float) =&gt; t;<br class="title-page-name"/><br class="title-page-name"/>let discount: (~invoice: t, ~discount: discount) =&gt; t;<br class="title-page-name"/><br class="title-page-name"/>/* Email.re */<br class="title-page-name"/>let invoice =<br class="title-page-name"/>  Invoice.make(<br class="title-page-name"/>    ~name="Raphael",<br class="title-page-name"/>    ~email="persianturtle@gmail.com",<br class="title-page-name"/>    ~date=Js.Date.make(),<br class="title-page-name"/>    ~total=15.0,<br class="title-page-name"/>  );<br class="title-page-name"/>let invoice = Invoice.(discount(~invoice, ~discount=Ten));<br class="title-page-name"/>Js.log(invoice);</pre>
+<p class="mce-root">Also, thanks to the <kbd class="calibre11">Invoice.t</kbd> abstract type, we are guaranteed that an invoice can only be discounted once, and only by specified percentages. We could take this example further by requiring all changes to an invoice to be logged. Traditionally, this sort of requirement would be solved by adding a side effect after a database transaction because, in JavaScript, we wouldn't otherwise be sure that we would be logging all changes to an invoice. With module signatures, we have the option to solve these kinds of requirements in the application layer.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Phantom types</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Looking at our previous implementation, it would be nice if we didn't have to check whether an invoice has been discounted at runtime. Is there a way we could check whether an invoice has been discounted at compile time instead? With phantom types, we can.</p>
+<p class="mce-root">Phantom types are types that have a type variable, but this type variable isn't used in its definition. To better understand, let's look again at the <kbd class="calibre11">option</kbd> type, as shown in the following code:</p>
+<pre class="calibre16">type option('a) =<br class="title-page-name"/>  | None<br class="title-page-name"/>  | Some('a);</pre>
+<p class="mce-root">The <kbd class="calibre11">option</kbd> type has a type variable, <kbd class="calibre11">'a</kbd>, and the type variable is being used in its definition. As we've already learned, <kbd class="calibre11">option</kbd> is a polymorphic type because it has a type variable. On the other hand, a phantom type doesn't use the type variable in its definition. Let's see how this is useful with our invoice management example.</p>
+<p class="mce-root">Let's change the <kbd class="calibre11">Invoice</kbd> module's signature to use a phantom type, as follows:</p>
+<pre class="calibre16">/* Invoice.rei */<br class="title-page-name"/>type t('a);<br class="title-page-name"/><br class="title-page-name"/>type discounted;<br class="title-page-name"/>type undiscounted;<br class="title-page-name"/><br class="title-page-name"/>type discount =<br class="title-page-name"/>  | Ten<br class="title-page-name"/>  | Fifteen<br class="title-page-name"/>  | Twenty;<br class="title-page-name"/><br class="title-page-name"/>let make:<br class="title-page-name"/>  (~name: string, ~email: string, ~date: Js.Date.t, ~total: float) =&gt;<br class="title-page-name"/>  t(undiscounted);<br class="title-page-name"/><br class="title-page-name"/>let discount:<br class="title-page-name"/>  (~invoice: t(undiscounted), ~discount: discount) =&gt; t(discounted);</pre>
+<p class="mce-root">The abstract <kbd class="calibre11">type t</kbd> is now <kbd class="calibre11">type t('a)</kbd>. We also have two more abstract types, as shown in the following code:</p>
+<pre class="calibre16">type discounted;<br class="title-page-name"/>type undiscounted;</pre>
+<p class="mce-root">Also, note that the <kbd class="calibre11">make</kbd> function now returns <kbd class="calibre11">t(undiscounted)</kbd> (instead of just <kbd class="calibre11">t</kbd>) and the <kbd class="calibre11">discount</kbd> function now accepts <kbd class="calibre11">t(undiscounted)</kbd> and returns <kbd class="calibre11">t(discounted)</kbd>. Remember that the abstract <kbd class="calibre11">t('a)</kbd> accepts a <kbd class="calibre11">type</kbd> variable, and that the <kbd class="calibre11">type</kbd> variable just so happens to be either the <kbd class="calibre11">discounted</kbd> type or the <kbd class="calibre11">undiscounted</kbd> type.</p>
+<p class="mce-root">In the implementation, we can now get rid of the runtime check we had previously, as shown in the following code:</p>
+<pre class="calibre16">if (isDiscounted) {<br class="title-page-name"/>  ...<br class="title-page-name"/>} else {<br class="title-page-name"/>  ...<br class="title-page-name"/>}</pre>
+<p class="mce-root">Now, this check is done at compile time since the <kbd class="calibre11">discount</kbd> function only accepts <kbd class="calibre11">undiscounted</kbd> invoices, as shown in the following code:</p>
+<pre class="calibre16">/* Invoice.re */<br class="title-page-name"/>type t('a) = {<br class="title-page-name"/>  name: string,<br class="title-page-name"/>  email: string,<br class="title-page-name"/>  date: Js.Date.t,<br class="title-page-name"/>  total: float,<br class="title-page-name"/>};<br class="title-page-name"/><br class="title-page-name"/>type discount =<br class="title-page-name"/>  | Ten<br class="title-page-name"/>  | Fifteen<br class="title-page-name"/>  | Twenty;<br class="title-page-name"/><br class="title-page-name"/>let make = (~name, ~email, ~date, ~total) =&gt; {name, email, date, total};<br class="title-page-name"/><br class="title-page-name"/>let discount = (~invoice, ~discount) =&gt; {<br class="title-page-name"/>  ...invoice,<br class="title-page-name"/>  total:<br class="title-page-name"/>    invoice.total<br class="title-page-name"/>    *. (<br class="title-page-name"/>      switch (discount) {<br class="title-page-name"/>      | Ten =&gt; 0.9<br class="title-page-name"/>      | Fifteen =&gt; 0.85<br class="title-page-name"/>      | Twenty =&gt; 0.8<br class="title-page-name"/>      }<br class="title-page-name"/>    ),<br class="title-page-name"/>};</pre>
+<p class="mce-root">This is just one more way that a type system can help us focus more on logic and less on error handling. Previously, trying to discount an invoice twice would just return the original invoice unchanged. Let's now try to discount an invoice twice in <kbd class="calibre11">Email.re</kbd> using the following code:</p>
+<pre class="calibre16">/* Email.re */<br class="title-page-name"/>let invoice =<br class="title-page-name"/>  Invoice.make(<br class="title-page-name"/>    ~name="Raphael",<br class="title-page-name"/>    ~email="persianturtle@gmail.com",<br class="title-page-name"/>    ~date=Js.Date.make(),<br class="title-page-name"/>    ~total=15.0,<br class="title-page-name"/>  );<br class="title-page-name"/>let invoice = Invoice.(discount(~invoice, ~discount=Ten));<br class="title-page-name"/>let invoice = Invoice.(discount(~invoice, ~discount=Ten)); /* discounted twice */<br class="title-page-name"/>Js.log(invoice);</pre>
+<p class="mce-root"><span class="calibre5">Now, trying to discount an invoice twice will result in a lovely compile-time error, as follows:</span></p>
+<pre class="calibre16">We've found a bug for you!<br class="title-page-name"/>  <br class="title-page-name"/>   7 │ );<br class="title-page-name"/>   8 │ let invoice = Invoice.(discount(~invoice, ~discount=Ten));<br class="title-page-name"/>   9 │ let invoice = Invoice.(discount(~invoice, ~discount=Ten));<br class="title-page-name"/>  10 │ Js.log(invoice);<br class="title-page-name"/>  <br class="title-page-name"/>  This has type:<br class="title-page-name"/>    Invoice.t(Invoice.discounted)<br class="title-page-name"/>  But somewhere wanted:<br class="title-page-name"/>    Invoice.t(Invoice.undiscounted)</pre>
+<p class="mce-root">This is absolutely beautiful. Suppose, however, that you'd like to be able to email any invoice—discounted or not. Does our use of phantom types cause a problem? How would we write a function that takes any invoice type? We'll, remember that our invoice type is <kbd class="calibre11">Invoice.t('a)</kbd> and if we want to accept any invoice, we keep the type parameter, as shown in the following code:</p>
+<pre class="calibre16">/* Email.re */<br class="title-page-name"/>let invoice =<br class="title-page-name"/>  Invoice.make(<br class="title-page-name"/>    ~name="Raphael",<br class="title-page-name"/>    ~email="persianturtle@gmail.com",<br class="title-page-name"/>    ~date=Js.Date.make(),<br class="title-page-name"/>    ~total=15.0,<br class="title-page-name"/>  );<br class="title-page-name"/><br class="title-page-name"/>let send: Invoice.t('a) =&gt; unit = invoice =&gt; {<br class="title-page-name"/> /* send invoice email */<br class="title-page-name"/> Js.log(invoice);<br class="title-page-name"/>};<br class="title-page-name"/><br class="title-page-name"/>send(invoice);</pre>
+<p class="mce-root">So we can have our cake and eat it too.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Polymorphic variants</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">We've already briefly looked at polymorphic variants in the previous chapter. To recap, we learned about them when we used the <kbd class="calibre11">[@bs.unwrap]</kbd> decorator to bind to some existing JavaScript. The idea was that <kbd class="calibre11">[@bs.unwrap]</kbd> can be used to bind to an existing JavaScript function where its arguments can be of different types. For example, let's say we want to bind to the following function:</p>
+<pre class="calibre16">function dynamic(a) {<br class="title-page-name"/>  switch (typeof a) {<br class="title-page-name"/>    case "string":<br class="title-page-name"/>      return "String: " + a;<br class="title-page-name"/>    case "number":<br class="title-page-name"/>      return "Number: " + a;<br class="title-page-name"/>  }<br class="title-page-name"/>}</pre>
+<p class="mce-root">Let's say this function should only accept arguments of the <kbd class="calibre11">string</kbd> <span class="calibre5">type</span><span class="calibre5"> </span><span class="calibre5">or</span> <kbd class="calibre11">int</kbd><span class="calibre5"> </span><span class="calibre5">type</span><span class="calibre5"> </span><span class="calibre5">and nothing else. We could bind to this example function as follows:</span></p>
+<pre class="calibre16">[@bs.val] external dynamic : 'a =&gt; string = "";</pre>
+<p class="mce-root">However, our binding would then allow invalid argument types (such as <kbd class="calibre11">bool</kbd>). It would be better if our compiler could help us out by preventing invalid argument types. One way to do this is to use <kbd class="calibre11">[@bs.unwrap]</kbd> with a polymorphic variant. Our binding would then appear as follows:</p>
+<pre class="calibre16">[@bs.val] external dynamic : ([@bs.unwrap] [<br class="title-page-name"/>  | `Str(string)<br class="title-page-name"/>  | `Int(int)<br class="title-page-name"/>]) =&gt; string = "";</pre>
+<p class="mce-root">We'd use the binding like so:</p>
+<pre class="calibre16">dynamic(`Int(42));<br class="title-page-name"/>dynamic(`Str("foo"));</pre>
+<p class="mce-root">Now, if we tried to pass an invalid argument type, the compiler would let us know, as shown in the following code:</p>
+<pre class="calibre16">dynamic(42);<br class="title-page-name"/><br class="title-page-name"/>/*<br class="title-page-name"/>We've found a bug for you!<br class="title-page-name"/><br class="title-page-name"/>This has type:<br class="title-page-name"/>  int<br class="title-page-name"/>But somewhere wanted:<br class="title-page-name"/>  [ `Int of int | `Str of string ]<br class="title-page-name"/>*/</pre>
+<p class="mce-root">The trade-off here is that we'll need to pass in arguments by wrapping them in the polymorphic variant constructors rather than directly.</p>
+<p class="mce-root">Right off the bat, you'll notice the following two differences between normal variants and polymorphic variants:</p>
+<ol class="calibre12">
+<li class="calibre10">We did not need to explicitly declare a type for the polymorphic variant</li>
+<li class="calibre10">Polymorphic variants begin with a backtick character (<kbd class="calibre11">`</kbd>)</li>
+</ol>
+<p class="mce-root">Whenever you see a constructor prefixed with a backtick character, you know it's a polymorphic variant constructor. There may or may not be a type declaration associated with a polymorphic variant constructor.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Would this work with normal variants?</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Let's try to do this with normal variants and see what happens:</p>
+<pre class="calibre16">type validArgs = <br class="title-page-name"/>  | Int(int)<br class="title-page-name"/>  | Str(string);<br class="title-page-name"/><br class="title-page-name"/>[@bs.val] external dynamic : validArgs =&gt; string = "";<br class="title-page-name"/><br class="title-page-name"/>dynamic(Int(1));</pre>
+<p class="mce-root">The problem with the preceding implementation is that <kbd class="calibre11">Int(1)</kbd> does not compile to a JavaScript number. Normal variants are compiled to an <kbd class="calibre11">array</kbd> and our <kbd class="calibre11">dynamic</kbd> function returns <kbd class="calibre11">undefined</kbd> instead of <kbd class="calibre11">"Number: 42"</kbd>. The function returns <kbd class="calibre11">undefined</kbd> because no cases on the switch statement were matched.</p>
+<p class="mce-root">With polymorphic variants, BuckleScript compiles <kbd class="calibre11">dynamic(`Int(42))</kbd> to <kbd class="calibre11">dynamic(42)</kbd> and the function works as expected.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Advanced type system features</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Reason's type system is quite full-featured and has been refined over the last couple of decades. What we've seen so far is only an introduction to Reason's type system. In my opinion, you should become familiar with the basics before continuing to more advanced type system features. It's hard to appreciate things such as type safety without having experienced bugs that a sound type system would have prevented. It's hard to appreciate advanced type system features without getting slightly frustrated with what you've learned so far in this book. It's beyond the scope of this book to discuss advanced type system features in too much detail, but I want to make sure that those of you who are evaluating Reason as an option know that there's much more to its type system.</p>
+<p class="mce-root">In addition to phantom types and polymorphic variants, Reason has <strong class="calibre4">generalized algebraic datatypes</strong> (<strong class="calibre4"><span class="calibre5">GADTs</span></strong>). Modules can be dynamically created using functors (that is, module functions that operate somewhere in between compile time and runtime). Reason also has classes and objects—the O in OCaml stands for objective. OCaml's predecessor was a language called Caml that first appeared in the mid 1980s. What we've learned so far in this book is specifically useful in the context of typical React applications. Personally, I like that Reason is a language that I can grow into while being productive. </p>
+<p class="mce-root">If you find yourself frustrated with the type system, then reach out to the experts on the Discord channel and someone will likely help you work through your problem. I'm constantly amazed at how helpful the community is. And don't forget, if you just want to move on, you can always drop into raw JavaScript if you need to and come back to the problem when you're ready.</p>
+<div class="packt_infobox"><span>You can find the Reason Discord cha</span>nnel here:<br class="title-page-name"/>
+<br class="title-page-name"/>
+<a href="https://discord.gg/reasonml" class="calibre17">https://discord.gg/reasonml</a></div>
+<p class="mce-root">It's also perfectly valid to not use the fancier features of Reason's type system. What we've learned so far provides a lot of value in terms of adding type safety to our React applications.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">By now, we've seen how Reason can help us build safer, more maintainable codebases with the help of its type system. Variants allow us make invalid states unrepresentable. The type system helps make refactoring a less scary, less painful process. Module signatures can help us to enforce business rules in our application. Module signatures also serve as basic documentation that lists what a module exposes and gives you a basic idea of how the module is meant to be used based on exposed function names and their argument types, as well as exposed types.</p>
+<p class="mce-root">In <a href="a6ac6581-d3bd-49f3-ad4d-bfed965287ca.xhtml" class="calibre8">Chapter 6</a>, <em class="calibre15">CSS-in-JS (in Reason)</em>, we'll look at how we can use Reason's type system to enforce valid CSS using a CSS-in-Reason library that wraps Emotion (<a href="https://emotion.sh" class="calibre8">https://emotion.sh</a>), called <kbd class="calibre11">bs-css</kbd>. </p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

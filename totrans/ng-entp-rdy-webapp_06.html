@@ -1,0 +1,932 @@
+<html><head></head><body>
+  <div id="_idContainer281">
+    <h1 class="chapterNumber">6</h1>
+    <h1 class="chapterTitle" id="_idParaDest-195">Forms, Observables, and Subjects</h1>
+    <p class="normal">So far, you've been working with putting together the essential elements that make up an Angular application, such as modules, components, pipes, services, RxJS, unit testing, and environment variables, and even going a step further by learning how to deliver your web application using Docker and giving it a polished look with Angular Material.</p>
+    <p class="normal">At this point, our app is not interactive. It can only pull weather information for one city. As a result, it is not a very useful app. To build an interactive app, we need to be able to handle user input. Enabling user input in your application opens up possibilities for creating great user experiences. Consider google.com's landing page:</p>
+    <figure class="mediaobject"><img alt="" src="../Images/B14094_06_01.png"/></figure>
+    <p class="packt_figref">Figure 6.1: Google's landing page</p>
+    <p class="normal">In this context, what is Google Search, apart from a simple input field with two buttons? That simple input field unlocks some of the world's most sophisticated and advanced software technologies. It is a deceptively simple and an insanely powerful way to interact with users. You can augment user input by leveraging modern web functionality such as <code class="Code-In-Text--PACKT-">GeoLocation</code> and gain new meaning from user input. So, when the user types in <code class="Code-In-Text--PACKT-">Paris</code> you don't have to guess if they mean Paris, France, or Paris, Texas, or whether you should show the current temperature in Celsius or Fahrenheit. With <code class="Code-In-Text--PACKT-">LocalStorage</code>, you can cache user credentials and remember user preferences so that you can enable dark mode in your app.</p>
+    <p class="normal">By the end of this chapter, we won't be implementing Google, GeoLocation, or dark mode, but will enable users to search for their cities using a city name or postal code (often referred to as "zip codes" in the US). Once you realize how complicated it can get implementing something as seemingly simple as a search by postal code, you may gain a new appreciation for well-designed web apps.</p>
+    <p class="normal">To build a UX driven by an input field, we need to leverage Angular forms with validation messages so that we can create engaging search experiences with search-as-you-type functionality. Behind the scenes, RxJS/BehaviorSubject enables us to build decoupled components that can communicate with one another and a reactive data stream allows us to merge data from multiple web APIs without increasing the complexity of our app.</p>
+    <p class="normal">In this chapter, you are going to learn about:</p>
+    <ul>
+      <li class="list">Template-driven and reactive forms, including two-way binding and input field validation</li>
+      <li class="list">Interactions between components</li>
+      <li class="list">Observables and RxJS/BehaviorSubject</li>
+      <li class="list">Managing subscriptions, and how to handle memory leaks and unsubscribing</li>
+      <li class="list">Handling multiple API calls with the async pipe, including chaining multiple API calls</li>
+    </ul>
+    <p class="normal">The most up-to-date versions of the sample code for the book are on GitHub at the repository linked as follows. The repository contains the final and completed state of the code. You can verify your progress at the end of this chapter by looking for the end-of-chapter snapshot of code under the <code class="Code-In-Text--PACKT-">projects</code> folder.</p>
+    <p class="normal">For <em class="italics">Chapter 6</em>:</p>
+    <ol>
+      <li class="list">Clone the repo <a href="https://github.com/duluca/local-weather-app "><span class="url">https://github.com/duluca/local-weather-app</span></a></li>
+      <li class="list">Execute <code class="Code-In-Text--PACKT-">npm install</code> on the root folder to install dependencies</li>
+      <li class="list">The code sample for this chapter is under the sub-folder:
+        <pre class="programlisting"><code class="hljs">projects/ch6
+</code></pre>
+      </li>
+      <li class="list">To run the Angular app for this chapter, execute:
+        <pre class="programlisting"><code class="hljs nginx"><span class="hljs-attribute">npx</span> ng serve ch6
+</code></pre>
+      </li>
+      <li class="list">To run Angular unit tests for this chapter, execute:
+        <pre class="programlisting"><code class="hljs bash">npx ng <span class="hljs-built_in">test</span> ch6 --watch=<span class="hljs-literal">false</span>
+</code></pre>
+      </li>
+      <li class="list">To run Angular e2e tests for this chapter, execute:
+        <pre class="programlisting"><code class="hljs nginx"><span class="hljs-attribute">npx</span> ng e2e ch6
+</code></pre>
+      </li>
+      <li class="list" value="7">To build a production-ready Angular app for this chapter, execute:
+        <pre class="programlisting"><code class="hljs ada">npx ng build ch6 <span class="hljs-comment">--prod</span>
+</code></pre>
+      </li>
+    </ol>
+    <div class="packt_tip">
+      <p>Note that the <code class="Code-In-Text--PACKT-">dist/ch6</code> folder at the root of the repository will contain the compiled result.</p>
+    </div>
+    <div class="note">
+      <p class="Information-Box--PACKT-">Beware that the source code in the book or on GitHub may not always match the code generated by the Angular CLI. There may also be slight differences in implementation between the code in the book and what's on GitHub because the ecosystem is ever-evolving. It is natural for the sample code to change over time. Also on GitHub, expect to find corrections, fixes to support newer versions of libraries, or side-by-side implementations of multiple techniques for the reader to observe. The reader is only expected to implement the ideal solution recommended in the book. If you find errors or have questions, please create an issue or submit a pull request on GitHub for the benefit of all readers.</p>
+    </div>
+    <p class="normal">Next, let's see how we can implement an input field using forms. Forms are the primary mechanism that we need to capture user input. In Angular, there are two kinds of forms: reactive and template-driven. We need to cover both techniques, so that you're familiar with how forms work in Angular.</p>
+    <h1 class="title" id="_idParaDest-196">Reactive forms versus template-driven forms</h1>
+    <p class="normal">Now, we'll implement the <a id="_idIndexMarker532"/>search bar on the <a id="_idIndexMarker533"/>home screen of the application. The next user story states <strong class="bold">Display forecast information for current location</strong>, which may be taken to imply an inherent GeoLocation functionality. However, as you may note, GeoLocation is listed as a separate task. The challenge is that with native platform features such as GeoLocation, you are never guaranteed to receive the actual location information. This may be due to signal loss issues on mobile devices or the user may simply refuse to give permission to share their location information.</p>
+    <p class="normal">First and foremost, we must deliver a good baseline UX and implement value-added functionality such as GeoLocation only afterward. Instead, let's move <strong class="screen-text">Add city search capability ...</strong> to <strong class="screen-text">In progress</strong>, as shown on our Kanban board:</p>
+    <figure class="mediaobject"><img alt="" src="../Images/B14094_06_02.png"/></figure>
+    <p class="packt_figref">Figure 6.2: GitHub project Kanban board</p>
+    <p class="normal">As part of this story, we are going to implement a search-as-you-type functionality while providing feedback to the user if the service is unable to retrieve the expected data.</p>
+    <p class="normal">Initially, it may be intuitive to implement a type-search mechanism; however, <code class="Code-In-Text--PACKT-">OpenWeatherMap</code> APIs don't provide such an endpoint. Instead, they provide bulk data downloads, which are costly and are in the multiples of megabytes range.</p>
+    <p class="normal">We will need to <a id="_idIndexMarker534"/>implement our application server to expose such an endpoint so that our app can effectively query while using <a id="_idIndexMarker535"/>minimal amounts of data.</p>
+    <p class="normal">The free endpoints for <code class="Code-In-Text--PACKT-">OpenWeatherMap</code> do pose an interesting challenge, where a two-digit country code may accompany either a city name or zip code for the most accurate results. This is an excellent opportunity to implement a feedback mechanism to the user if more than one result is returned for a given query.</p>
+    <p class="normal">We want every iteration of the app to be a potentially releasable increment and avoid doing too much at any given time.</p>
+    <p class="normal">Before you begin working on a story, it is a good idea to break the story out into technical tasks. The following is the task breakdown for this story:</p>
+    <ol>
+      <li class="list" value="1">Add Angular form control so that we can capture user input events.</li>
+      <li class="list">Use Angular Material input as documented at <a href="https://material.angular.io/components/input"><span class="url">https://material.angular.io/components/input</span></a> to improve the UX of the input field.</li>
+      <li class="list">Create the search bar as a separate component to enforce separation of concerns and a decoupled component architecture.</li>
+      <li class="list">Extend the existing endpoint to accept a zip code and make the country code optional in <code class="Code-In-Text--PACKT-">weather.service.ts</code> in order to make it more intuitive for end users to <a id="_idIndexMarker536"/>interact with our app.</li>
+      <li class="list" value="5">Throttle requests so that we don't query the API with every keystroke, but at an interval <a id="_idIndexMarker537"/>where users still get immediate feedback without having to click on a separate button.</li>
+    </ol>
+    <p class="normal">Let's tackle these tasks over the next few sections.</p>
+    <h2 class="title" id="_idParaDest-197">Adding Angular reactive forms</h2>
+    <p class="normal">You may wonder why we're adding Angular forms since we are adding just a single input field and not a form with <a id="_idIndexMarker538"/>multiple inputs. As a general rule of thumb, any time you add an input field, it should be wrapped in a <code class="Code-In-Text--PACKT-">&lt;form&gt;</code> tag. The <code class="Code-In-Text--PACKT-">Forms</code> module contains the <code class="Code-In-Text--PACKT-">FormControl</code> that enables you to write the backing code behind the input field to respond to user inputs, and provide the appropriate data or the validation or message in response.</p>
+    <p class="normal">There are two types of forms in Angular:</p>
+    <ul>
+      <li class="list"><strong class="bold">Template-driven forms</strong>: These forms are similar to what you may be familiar with in the <a id="_idIndexMarker539"/>case of AngularJS, where the form logic is mostly inside the HTML template. I'm personally not a fan <a id="_idIndexMarker540"/>of this approach because it is harder to test these behaviors, and fat HTML templates become challenging to maintain quickly.</li>
+      <li class="list"><strong class="bold">Reactive forms</strong>: The behavior of reactive forms is driven by TypeScript code written in the controller. This <a id="_idIndexMarker541"/>means that your validation logic can be unit tested and, better yet, reused across your <a id="_idIndexMarker542"/>application. Reactive forms are the core technology that, in the future, will enable the Angular <a id="_idIndexMarker543"/>Material team to write automated tools that can autogenerate an input form based on a TypeScript interface.</li>
+    </ul>
+    <div class="packt_tip">
+      <p>Read more about reactive forms at <a href="https://angular.io/guide/reactive-forms"><span class="url">https://angular.io/guide/reactive-forms</span></a>.</p>
+    </div>
+    <p class="normal">Let's start by importing <code class="Code-In-Text--PACKT-">FormsModule</code> and <code class="Code-In-Text--PACKT-">ReactiveFormsModule</code> into our app:</p>
+    <pre class="programlisting"><code class="hljs lasso"><strong>src/app/app.module.ts</strong>
+<span class="hljs-params">...</span>
+<span class="hljs-keyword">import</span> { FormsModule, ReactiveFormsModule } from <span class="hljs-string">'@angular/forms'</span>
+<span class="hljs-params">...</span>
+@NgModule({
+  <span class="hljs-params">...</span>
+  imports: <span class="hljs-meta">[</span>
+    <span class="hljs-params">...</span>
+    <strong>FormsModule, </strong>
+<strong>    ReactiveFormsModule,</strong>
+  <span class="hljs-meta">]</span>
+</code></pre>
+    <p class="normal">Note that in a pure reactive form implementation, you only need the <code class="Code-In-Text--PACKT-">ReactiveFormsModule</code>. <code class="Code-In-Text--PACKT-">FormsModule</code> supports template-driven forms, and other scenarios, where you may only want to <a id="_idIndexMarker544"/>declare a <code class="Code-In-Text--PACKT-">FormControl</code> without a <code class="Code-In-Text--PACKT-">FormGroup</code>. This is how we implement the input field for this app. <code class="Code-In-Text--PACKT-">FormGroup</code> is defined in the next section.</p>
+    <p class="normal">Also, reactive forms allow you to write code in the reactive paradigm, which is a net positive. Next, let's add a city search component to our app.</p>
+    <h2 class="title" id="_idParaDest-198">Adding and verifying components</h2>
+    <p class="normal">We will <a id="_idIndexMarker545"/>be creating a <code class="Code-In-Text--PACKT-">citySearch</code> component <a id="_idIndexMarker546"/>using Material form and input modules:</p>
+    <ol>
+      <li class="list" value="1">Add <code class="Code-In-Text--PACKT-">MatFormFieldModule</code> and <code class="Code-In-Text--PACKT-">MatInputModule</code> to <code class="Code-In-Text--PACKT-">material.module.ts</code> so that it becomes available for use in the app:
+        <pre class="programlisting"><code class="hljs livescript"><strong>src/app/material.<span class="hljs-built_in">module</span>.ts</strong>
+<span class="hljs-keyword">import</span> { MatFormFieldModule } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/material/form-field'</span>
+<span class="hljs-keyword">import</span> { MatInputModule } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/material/input'</span>
+<span class="hljs-keyword">const</span> modules = [..., <strong>MatFormFieldModule, MatInputModule</strong>]
+</code></pre>
+        <p class="Bullet-Without-Bullet-Within-Bullet--PACKT-">We're adding <code class="Code-In-Text--PACKT-">MatFormFieldModule</code> because each input field should be wrapped in a <code class="Code-In-Text--PACKT-">&lt;mat-form-field&gt;</code> tag to get the most out of Angular Material functionality. </p>
+        <p class="Bullet-Without-Bullet-Within-Bullet--PACKT-">At a high level, <code class="Code-In-Text--PACKT-">&lt;form&gt;</code> encapsulates numerous default behaviors for keyboard, screen-reader, and browser extension users; <code class="Code-In-Text--PACKT-">&lt;mat-form-field&gt;</code> enables easy two-way data binding, a technique that should be used in moderation, and also allows for graceful label, validation, and error message displays.</p>
+      </li>
+      <li class="list">Create the new <code class="Code-In-Text--PACKT-">citySearch</code> component:
+        <pre class="programlisting"><code class="hljs llvm">$ npx ng g <span class="hljs-keyword">c</span> citySearch --<span class="hljs-keyword">module</span>=app.<span class="hljs-keyword">module</span>
+</code></pre>
+        <div class="note">
+          <p class="Information-Box--PACKT-">Since we added the <code class="Code-In-Text--PACKT-">material.module.ts</code> file, <code class="Code-In-Text--PACKT-">ng</code> can't guess what feature module <code class="Code-In-Text--PACKT-">citySearch</code> should be added to, resulting in an error such as <code class="Code-In-Text--PACKT-">More than one module matches</code>. Therefore, we need to provide the module that we want <code class="Code-In-Text--PACKT-">citySearch</code> to be added to, using the <code class="Code-In-Text--PACKT-">--module</code> option. Use the <code class="Code-In-Text--PACKT-">--skip-import</code> option to skip importing the component into any module.</p>
+        </div>
+      </li>
+      <li class="list">Create a basic template, replacing the existing content:
+        <pre class="programlisting"><code class="hljs stata"><strong>src/<span class="hljs-keyword">app</span>/city-<span class="hljs-keyword">search</span>/city-<span class="hljs-keyword">search</span>.component.html</strong>
+&lt;<span class="hljs-keyword">form</span>&gt;
+  &lt;<span class="hljs-keyword">mat</span>-<span class="hljs-keyword">form</span>-field appearance=<span class="hljs-string">"outline"</span>&gt;
+    &lt;<span class="hljs-keyword">mat</span>-<span class="hljs-keyword">label</span>&gt;City Name or Postal Code&lt;/<span class="hljs-keyword">mat</span>-<span class="hljs-keyword">label</span>&gt;
+    &lt;<span class="hljs-keyword">mat</span>-icon matPrefix&gt;<span class="hljs-keyword">search</span>&lt;/<span class="hljs-keyword">mat</span>-icon&gt;
+    &lt;<span class="hljs-keyword">input</span> matInput aria-<span class="hljs-keyword">label</span>=<span class="hljs-string">"City or Zip"</span> [formControl]=<span class="hljs-string">"search"</span>&gt;
+  &lt;/<span class="hljs-keyword">mat</span>-<span class="hljs-keyword">form</span>-field&gt;
+&lt;/<span class="hljs-keyword">form</span>&gt;
+</code></pre>
+      </li>
+      <li class="list">Declare a <a id="_idIndexMarker547"/>property named <code class="Code-In-Text--PACKT-">search</code> and instantiate it <a id="_idIndexMarker548"/>as an instance of <code class="Code-In-Text--PACKT-">FormControl</code>:
+        <pre class="programlisting"><code class="hljs dart"><strong>src/app/city-search/city-search.component.ts</strong>
+<span class="hljs-keyword">import</span> { FormControl } from <span class="hljs-string">'@angular/forms'</span>
+...
+<span class="hljs-keyword">export</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">CitySearchComponent</span> <span class="hljs-keyword">implements</span> 
+  <span class="hljs-title">OnInit</span> </span>{ 
+  
+  search = <span class="hljs-keyword">new</span> FormControl()
+  ...
+</code></pre>
+        <p class="Bullet-Without-Bullet-Within-Bullet--PACKT-">Reactive forms have three levels of control:</p>
+        <ul>
+          <li class="Bullet-Within-Bullet--PACKT-"><code class="Code-In-Text--PACKT-">FormControl</code> is the most basic element that has a one-to-one relationship with an input field.</li>
+          <li class="Bullet-Within-Bullet--PACKT-"><code class="Code-In-Text--PACKT-">FormArray</code> represents repetitive input fields that represent a collection of objects.</li>
+          <li class="Bullet-Within-Bullet-End--PACKT-"><code class="Code-In-Text--PACKT-">FormGroup</code> is used to register individual <code class="Code-In-Text--PACKT-">FormControl</code> or <code class="Code-In-Text--PACKT-">FormArray</code> objects as you add more input fields to a form.</li>
+        </ul>
+        <p class="Bullet-Without-Bullet-Within-Bullet--PACKT-">Finally, the <code class="Code-In-Text--PACKT-">FormBuilder</code> object is used to orchestrate and maintain the actions of a <code class="Code-In-Text--PACKT-">FormGroup</code> object more easily. <code class="Code-In-Text--PACKT-">FormBuilder</code> and <code class="Code-In-Text--PACKT-">FormGroup</code> are first used in <em class="italics">Chapter 8</em>, <em class="italics">Designing Authentication and Authorization</em>, and all controls, including <code class="Code-In-Text--PACKT-">FormArray</code>, are covered in depth in <em class="italics">Chapter 11</em>, <em class="italics">Recipes – Reusability, Routing, and Caching</em>.</p>
+      </li>
+      <li class="list">Add <code class="Code-In-Text--PACKT-">app-city-search</code> to <code class="Code-In-Text--PACKT-">app.component.ts</code> as a new <code class="Code-In-Text--PACKT-">div</code> in between the row that contains the tagline of the app and the row that contains <code class="Code-In-Text--PACKT-">mat-card</code>:
+        <pre class="programlisting"><code class="hljs xml"><strong>src/app/app.component.ts</strong>
+template: `
+  ...
+    <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+<strong>    <span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">fxLayoutAlign</span>=<span class="hljs-string">"center"</span>&gt;</span></strong>
+<strong>      <span class="hljs-tag">&lt;<span class="hljs-name">app-city-search</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">app-city-search</span>&gt;</span></strong>
+<strong>    <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></strong>
+    <span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">fxLayout</span>=<span class="hljs-string">"row"</span>&gt;</span>
+  ...
+`,
+</code></pre>
+      </li>
+      <li class="list" value="6">Test the <a id="_idIndexMarker549"/>integration of components <a id="_idIndexMarker550"/>by checking out the app in the browser, as shown:
+      <figure class="mediaobject"><img alt="" src="../Images/B14094_06_03.png"/></figure>
+      <p class="packt_figref">Figure 6.3: LocalCast Weather app with a search field</p></li>
+    </ol>
+    <p class="normal">If no errors occur, now we can start adding the <code class="Code-In-Text--PACKT-">FormControl</code> elements and <a id="_idIndexMarker551"/>wire them to a <a id="_idIndexMarker552"/>search endpoint.</p>
+    <h2 class="title" id="_idParaDest-199">Adding a search option to the weather service</h2>
+    <p class="normal">So far, we have been passing parameters to get the weather for a city using its name and country code. By allowing <a id="_idIndexMarker553"/>users to enter zip codes, we must make our service more flexible in accepting both types of inputs.</p>
+    <p class="normal">OpenWeatherMap's API accepts URI parameters, so we can refactor the existing <code class="Code-In-Text--PACKT-">getCurrentWeather</code> function (introduced in <em class="italics">Chapter 3</em>, <em class="italics">Creating a Basic Angular App</em>) using a TypeScript union type and a type guard. That means we can supply different parameters, while preserving type checking:</p>
+    <ol>
+      <li class="list" value="1">Refactor the <code class="Code-In-Text--PACKT-">getCurrentWeather</code> function in <code class="Code-In-Text--PACKT-">weather.service.ts</code> to handle both <code class="Code-In-Text--PACKT-">zip</code> and <code class="Code-In-Text--PACKT-">city</code> inputs:
+        <pre class="programlisting"><code class="hljs vim"><strong>src/app/weather/weather.service.<span class="hljs-keyword">ts</span></strong>
+  getCurrentWeather(
+    <span class="hljs-built_in">search</span>: <span class="hljs-built_in">string</span> | <span class="hljs-keyword">number</span>, 
+    country?: <span class="hljs-built_in">string</span>
+  ): Observable<span class="hljs-symbol">&lt;ICurrentWeather&gt;</span> { 
+    <span class="hljs-keyword">let</span> uriParams = <span class="hljs-keyword">new</span> HttpParams()
+    <span class="hljs-keyword">if</span> (typeof <span class="hljs-built_in">search</span> === <span class="hljs-string">'string'</span>) { 
+      uriParams = uriParams.<span class="hljs-keyword">set</span>(<span class="hljs-string">'q'</span>,
+        country ? `${<span class="hljs-built_in">search</span>},${country}` : <span class="hljs-built_in">search</span>
+      )
+    } <span class="hljs-keyword">else</span> {
+      uriParams = uriParams.<span class="hljs-keyword">set</span>(<span class="hljs-string">'zip'</span>, <span class="hljs-string">'search'</span>)
+    }
+    
+    uriParams = uriParams.<span class="hljs-keyword">set</span>(<span class="hljs-string">'appid'</span>, environment.appId)
+    <span class="hljs-keyword">return</span> this.httpClient
+      .<span class="hljs-built_in">get</span><span class="hljs-symbol">&lt;ICurrentWeatherData&gt;</span>(
+        `${environment.baseUrl}api.openweathermap.org/data/<span class="hljs-number">2.5</span>/weather`,
+        { param<span class="hljs-variable">s:</span> uriParams } 
+    )
+    .pipe(<span class="hljs-keyword">map</span>(data =&gt; this.transformToICurrentWeather(data)))
+  }
+</code></pre>
+        <p class="Bullet-Without-Bullet-Within-Bullet--PACKT-">We renamed the <code class="Code-In-Text--PACKT-">city</code> parameter to <code class="Code-In-Text--PACKT-">search</code> since it can either be a city name or a zip code. We then allowed its type to be either a <code class="Code-In-Text--PACKT-">string</code> or a <code class="Code-In-Text--PACKT-">number</code>, and depending on what the type is at runtime, we will either use <code class="Code-In-Text--PACKT-">q</code> or <code class="Code-In-Text--PACKT-">zip</code>. We also made <code class="Code-In-Text--PACKT-">country</code> optional and only append it to the query if it exists.</p>
+        <p class="Bullet-Without-Bullet-Within-Bullet--PACKT-"><code class="Code-In-Text--PACKT-">getCurrentWeather</code> now has business logic embedded into it and is thus a good target for <a id="_idIndexMarker554"/>unit testing. Following the single responsibility principle, from the SOLID principles, we will refactor the HTTP call to its own function, called <code class="Code-In-Text--PACKT-">getCurrentWeatherHelper</code>.</p>
+      </li>
+      <li class="list">Refactor the HTTP call into <code class="Code-In-Text--PACKT-">getCurrentWeatherHelper</code>.<p class="Bullet-Without-Bullet-Within-Bullet--PACKT-">In the next sample, note the use of a backtick character, <code class="Code-In-Text--PACKT-">`</code>, instead of a single-quote character, <code class="Code-In-Text--PACKT-">'</code>, which leverages the template literals' functionality that allows embedded expressions in JavaScript:</p>
+        <pre class="programlisting"><code class="hljs vim"><strong>src/app/weather/weather.service.<span class="hljs-keyword">ts</span></strong>
+  getCurrentWeather(
+    <span class="hljs-built_in">search</span>: <span class="hljs-built_in">string</span> | <span class="hljs-keyword">number</span>, 
+    country?: <span class="hljs-built_in">string</span>
+  ): Observable<span class="hljs-symbol">&lt;ICurrentWeather&gt;</span> { 
+    <span class="hljs-keyword">let</span> uriParams = <span class="hljs-keyword">new</span> HttpParams()
+    <span class="hljs-keyword">if</span> (typeof <span class="hljs-built_in">search</span> === <span class="hljs-string">'string'</span>) { 
+      uriParams = uriParams.<span class="hljs-keyword">set</span>(<span class="hljs-string">'q'</span>,
+        country ? `${<span class="hljs-built_in">search</span>},${country}` : <span class="hljs-built_in">search</span>
+      )
+    } <span class="hljs-keyword">else</span> {
+      uriParams = uriParams.<span class="hljs-keyword">set</span>(<span class="hljs-string">'zip'</span>, <span class="hljs-string">'search'</span>)
+    }
+    
+    <strong><span class="hljs-keyword">return</span> this.getCurrentWeatherHelper(uriParams)</strong>
+  }
+  private getCurrentWeatherHelper(uriParam<span class="hljs-variable">s:</span> HttpParams):
+    Observable<span class="hljs-symbol">&lt;ICurrentWeather&gt;</span> { 
+    uriParams = uriParams.<span class="hljs-keyword">set</span>(<span class="hljs-string">'appid'</span>, environment.appId)
+    <span class="hljs-keyword">return</span> this.httpClient
+      .<span class="hljs-built_in">get</span><span class="hljs-symbol">&lt;ICurrentWeatherData&gt;</span>(
+        `${environment.baseUrl}api.openweathermap.org/data/<span class="hljs-number">2.5</span>/weather`,
+        { param<span class="hljs-variable">s:</span> uriParams } 
+      )
+      .pipe(<span class="hljs-keyword">map</span>(data =&gt; this.transformToICurrentWeather(data)))
+    }
+</code></pre>
+        <p class="Bullet-Without-Bullet-Within-Bullet--PACKT-">As a positive side effect, <code class="Code-In-Text--PACKT-">getCurrentWeatherHelper</code> adheres to the open/closed principle. After all, it is open to extension by our ability to change the function's behavior by supplying different <code class="Code-In-Text--PACKT-">uriParams</code> and is closed to modification <a id="_idIndexMarker555"/>because it won't have to be changed frequently.</p>
+        <p class="Bullet-Without-Bullet-Within-Bullet--PACKT-">To demonstrate the latter point, let's implement a new function to get the current weather by latitude and longitude.</p>
+      </li>
+      <li class="list">Implement <code class="Code-In-Text--PACKT-">getCurrentWeatherByCoords</code>:
+        <pre class="programlisting"><code class="hljs reasonml"><strong>src/app/weather/weather.service.ts</strong>
+get<span class="hljs-constructor">CurrentWeatherByCoords(<span class="hljs-params">coords</span>: Coordinates)</span>: Observable&lt;ICurrentWeather&gt; {
+  const uriParams = <span class="hljs-keyword">new</span> <span class="hljs-constructor">HttpParams()</span>
+      .set('lat', coords.latitude.<span class="hljs-keyword">to</span><span class="hljs-constructor">String()</span>)
+      .set('lon', coords.longitude.<span class="hljs-keyword">to</span><span class="hljs-constructor">String()</span>)
+    return this.get<span class="hljs-constructor">CurrentWeatherHelper(<span class="hljs-params">uriParams</span>)</span>
+}
+</code></pre>
+        <p class="Bullet-Without-Bullet-Within-Bullet--PACKT-">As you can see, <code class="Code-In-Text--PACKT-">getCurrentWeatherHelper</code> can easily be extended without any modification.</p>
+      </li>
+      <li class="list" value="4">Ensure that you update <code class="Code-In-Text--PACKT-">IWeatherService</code> with the changes made earlier:
+        <pre class="programlisting"><code class="hljs routeros"><strong>src/app/weather/weather.service.ts </strong>
+<span class="hljs-builtin-name">export</span><span class="hljs-built_in"> interface </span>IWeatherService {
+  getCurrentWeather(
+    search: string | number,
+    country?: string
+  ): Observable&lt;ICurrentWeather&gt;
+  getCurrentWeatherByCoords(coords: Coordinates): Observable&lt;ICurrentWeather&gt;
+}
+</code></pre>
+      </li>
+    </ol>
+    <p class="normal">As a result of adhering to the SOLID design principles, we make it easier to robustly unit test flow-control logic and ultimately <a id="_idIndexMarker556"/>end up writing code that is more resilient to bugs and is cheaper to maintain.</p>
+    <h2 class="title" id="_idParaDest-200">Implementing a search</h2>
+    <p class="normal">Now, let's connect the new <a id="_idIndexMarker557"/>service method to the input field:</p>
+    <ol>
+      <li class="list" value="1">Update <code class="Code-In-Text--PACKT-">citySearch</code> to inject the <code class="Code-In-Text--PACKT-">weatherService</code> and subscribe to input changes:
+        <pre class="programlisting"><code class="hljs typescript"><strong>src/app/city-search/city-search.component.ts</strong>
+<span class="hljs-keyword">import</span> { WeatherService } <span class="hljs-keyword">from</span> <span class="hljs-string">'../weather/weather.service'</span>
+...
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> CitySearchComponent <span class="hljs-keyword">implements</span> OnInit { 
+  search = <span class="hljs-keyword">new</span> FormControl()
+  
+  <span class="hljs-keyword">constructor</span>(<strong><span class="hljs-params"><span class="hljs-keyword">private</span> weatherService: WeatherService</span></strong>) {}
+  ...
+  ngOnInit(): <span class="hljs-built_in">void</span> { 
+    <strong><span class="hljs-keyword">this</span>.search.valueChanges</strong>
+<strong>    .subscribe()</strong>
+  }
+</code></pre>
+        <p class="Bullet-Without-Bullet-Within-Bullet--PACKT-">We are treating all input as <code class="Code-In-Text--PACKT-">string</code> at this point. The user input can be a city, zip code, or a city and country code, or a zip code and country code, separated by a comma. While a city or zip code is required, a country code is optional. We can use the <code class="Code-In-Text--PACKT-">String.split</code> function to parse any potential comma-separated input and then trim any whitespace out from the beginning and the end of the string with <code class="Code-In-Text--PACKT-">String.trim</code>. We then ensure that we trim all parts of the string by iterating over them with <code class="Code-In-Text--PACKT-">Array.map</code>.</p>
+        <p class="Bullet-Without-Bullet-Within-Bullet--PACKT-">We then deal with the optional parameter with the ternary operator <code class="Code-In-Text--PACKT-">?:</code>, only passing in a value if it exists, otherwise leaving it undefined.</p>
+      </li>
+      <li class="list">Implement the search handler:
+        <pre class="programlisting"><code class="hljs typescript"><strong>src/app/city-search/city-search.component.ts</strong>
+<span class="hljs-keyword">this</span>.search.valueChanges
+  .subscribe(
+    <span class="hljs-function">(<span class="hljs-params">searchValue: <span class="hljs-built_in">string</span></span>) =&gt;</span> { 
+    <span class="hljs-keyword">if</span> (searchValue) {
+      <span class="hljs-keyword">const</span> userInput = searchValue.split(<span class="hljs-string">','</span>).map(<span class="hljs-function"><span class="hljs-params">s</span> =&gt;</span> s.trim())
+    <span class="hljs-keyword">this</span>.weatherService.getCurrentWeather(
+      userInput[<span class="hljs-number">0</span>],
+      userInput.length &gt; <span class="hljs-number">1</span> ? userInput[<span class="hljs-number">1</span>] : <span class="hljs-literal">undefined</span>
+    ).subscribe(<span class="hljs-function"><span class="hljs-params">data</span> =&gt;</span> (<span class="hljs-built_in">console</span>.log(data)))
+  }
+})
+</code></pre>
+      </li>
+      <li class="list">Add a hint for the user, under <a id="_idIndexMarker558"/>the input field, informing them about the optional country functionality:
+        <pre class="programlisting"><code class="hljs stata"><strong>src/<span class="hljs-keyword">app</span>/city-<span class="hljs-keyword">search</span>/city-<span class="hljs-keyword">search</span>.component.html</strong>
+...
+  &lt;<span class="hljs-keyword">mat</span>-<span class="hljs-keyword">form</span>-field appearance=<span class="hljs-string">"outline"</span>&gt;
+    ...
+    <strong>&lt;<span class="hljs-keyword">mat</span>-hint&gt;Specify country code like 'Paris, <span class="hljs-keyword">US</span>'&lt;/<span class="hljs-keyword">mat</span>-hint&gt;</strong>
+  &lt;/<span class="hljs-keyword">mat</span>-<span class="hljs-keyword">form</span>-field&gt;
+...
+</code></pre>
+      </li>
+    </ol>
+    <p class="normal">At this point, the subscribe handler will make calls to the server and log its output to the console.</p>
+    <div class="note">
+      <p class="Information-Box--PACKT-">Observe how this works using Chrome DevTools. Note how often the <code class="Code-In-Text--PACKT-">search</code> function is run and that we are not handling service errors.</p>
+    </div>
+    <h2 class="title" id="_idParaDest-201">Limiting user inputs with throttle/debounce</h2>
+    <p class="normal">At the moment, we submit a request to the server with every keystroke. This is not desirable behavior, because it <a id="_idIndexMarker559"/>can lead to a bad user experience and drain battery life, resulting in wasted network requests and performance issues both on the client and server side. Users make typos; they can change their mind about what they are inputting and rarely ever do the first few characters of information input result in useful results.</p>
+    <p class="normal">We can still listen to every keystroke, but we don't have to react to every keystroke. By leveraging <code class="Code-In-Text--PACKT-">throttle</code>/<code class="Code-In-Text--PACKT-">debounce</code>, we can limit the number of events generated to a predetermined interval and still maintain the type-as-you-search functionality.</p>
+    <div class="packt_tip">
+      <p>Note that <code class="Code-In-Text--PACKT-">throttle</code> and <code class="Code-In-Text--PACKT-">debounce</code> are not functional equivalents, and their behavior will differ from framework to framework. In addition to throttling, we expect to capture the last input that the user has typed. In the <code class="Code-In-Text--PACKT-">lodash</code> framework, the <code class="Code-In-Text--PACKT-">throttle</code> function fulfills this requirement, whereas, in <code class="Code-In-Text--PACKT-">RxJS</code>, <code class="Code-In-Text--PACKT-">debounce</code> fulfills it. Beware that this discrepancy may be fixed in future framework updates.</p>
+    </div>
+    <p class="normal">It is very easy to inject throttling into the observable stream using <code class="Code-In-Text--PACKT-">RxJS/debounceTime</code>. Implement <code class="Code-In-Text--PACKT-">debounceTime</code> with <code class="Code-In-Text--PACKT-">pipe</code>:</p>
+    <pre class="programlisting"><code class="hljs stylus"><strong>src/app/city-search/city-search<span class="hljs-selector-class">.component</span><span class="hljs-selector-class">.ts</span></strong>
+import { debounceTime } from <span class="hljs-string">'rxjs/operators'</span>
+  this<span class="hljs-selector-class">.search</span><span class="hljs-selector-class">.valueChanges</span>
+    <code class="Code-In-Text--PACKT-">.pipe(debounceTime(<span class="hljs-number">1000</span>))</code>
+    .subscribe(...)
+</code></pre>
+    <p class="normal"><code class="Code-In-Text--PACKT-">debounceTime</code> will, at a maximum, run a search every second, but also run another search after the user has stopped typing. In comparison, <code class="Code-In-Text--PACKT-">RxJS/throttleTime</code> will only run a search every second, on the second, and will not necessarily capture the last few characters the user may have input.</p>
+    <p class="normal">RxJS also has the <code class="Code-In-Text--PACKT-">throttle</code> and <code class="Code-In-Text--PACKT-">debounce</code> functions, which you can use to implement custom logic to limit input that is not necessarily time-based.</p>
+    <p class="normal">Since this is a time- and event-driven functionality, breakpoint debugging is not feasible. You may monitor the <a id="_idIndexMarker560"/>network calls within the <strong class="screen-text">Chrome Dev Tools | Network</strong> tab, but to get a more real-time feel for how often your search handler is actually being invoked, add a <code class="Code-In-Text--PACKT-">console.log</code> statement.</p>
+    <div class="packt_tip">
+      <p>It is not a good practice to check in code with active <code class="Code-In-Text--PACKT-">console.log</code> statements. As covered in <em class="italics">Chapter 3</em>, <em class="italics">Creating a Basic Angular App</em>, <code class="Code-In-Text--PACKT-">console.log</code> is a poor man's debugging method. The statements make it difficult to read the actual code, which itself bears a high cost of maintainability. So, whether they are commented out or not, do not check in code with <code class="Code-In-Text--PACKT-">console.log</code> statements.</p>
+    </div>
+    <h2 class="title" id="_idParaDest-202">Input validation and error messages</h2>
+    <p class="normal"><code class="Code-In-Text--PACKT-">FormControl</code> is highly <a id="_idIndexMarker561"/>customizable. It allows you to set a default initial value, add validators, or listen to changes on <code class="Code-In-Text--PACKT-">blur</code>, <code class="Code-In-Text--PACKT-">change</code>, and <a id="_idIndexMarker562"/><code class="Code-In-Text--PACKT-">submit</code> events, as follows:</p>
+    <pre class="programlisting"><code class="hljs groovy"><strong>example</strong>
+<span class="hljs-keyword">new</span> FormControl(<span class="hljs-string">'Bethesda'</span>, { <span class="hljs-string">updateOn:</span> <span class="hljs-string">'submit'</span> })
+</code></pre>
+    <p class="normal">We won't be initializing <code class="Code-In-Text--PACKT-">FormControl</code> with a value, but we need to implement a validator to disallow single character inputs:</p>
+    <ol>
+      <li class="list" value="1">Import <code class="Code-In-Text--PACKT-">Validators</code> from <code class="Code-In-Text--PACKT-">@angular/forms</code>:
+        <pre class="programlisting"><code class="hljs pgsql"><strong>src/app/city-<span class="hljs-keyword">search</span>/city-<span class="hljs-keyword">search</span>.component.ts</strong>
+<span class="hljs-keyword">import</span> { FormControl, Validators } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/forms'</span>
+</code></pre>
+      </li>
+      <li class="list">Modify <code class="Code-In-Text--PACKT-">FormControl</code> to add a minimum length validator:
+        <pre class="programlisting"><code class="hljs vim"><strong>src/app/city-<span class="hljs-built_in">search</span>/city-<span class="hljs-built_in">search</span>.component.<span class="hljs-keyword">ts</span></strong>
+<span class="hljs-built_in">search</span> = <span class="hljs-keyword">new</span> FormControl(<span class="hljs-string">''</span>, [Validators.minLength(<span class="hljs-number">2</span>)])
+</code></pre>
+      </li>
+      <li class="list">Modify the template to show a validation error message below the hint text:
+        <pre class="programlisting"><code class="hljs stata"><strong>src/<span class="hljs-keyword">app</span>/city-<span class="hljs-keyword">search</span>/city-<span class="hljs-keyword">search</span>.component.html</strong>
+...
+&lt;<span class="hljs-keyword">form</span> <strong>style=<span class="hljs-string">"margin-bottom: 32px"</span></strong>&gt;
+  &lt;<span class="hljs-keyword">mat</span>-<span class="hljs-keyword">form</span>-field appearance=<span class="hljs-string">"outline"</span>&gt;
+    ...
+    <strong>&lt;<span class="hljs-keyword">mat</span>-<span class="hljs-keyword">error</span> *ngIf=<span class="hljs-string">"search.invalid"</span>&gt;</strong>
+<strong>      <span class="hljs-keyword">Type</span> <span class="hljs-keyword">more</span> than <span class="hljs-keyword">one</span> character to <span class="hljs-keyword">search</span></strong>
+<strong>    &lt;/<span class="hljs-keyword">mat</span>-<span class="hljs-keyword">error</span>&gt;</strong>
+  &lt;/<span class="hljs-keyword">mat</span>-<span class="hljs-keyword">form</span>-field&gt;
+&lt;/<span class="hljs-keyword">form</span>&gt;
+...
+</code></pre>
+        <div class="note">
+          <p class="Information-Box--PACKT-">Note the addition of some extra margin to make room for lengthy error messages.</p>
+        </div>
+        <p class="Bullet-Without-Bullet-Within-Bullet--PACKT-">If you are handling different kinds of errors, the <code class="Code-In-Text--PACKT-">hasError</code> syntax in the template can get repetitive. You may want to implement a more scalable solution that can be customized through code, as shown:</p>
+        <pre class="programlisting"><code class="hljs stata"><strong>example</strong>
+&lt;<span class="hljs-keyword">mat</span>-<span class="hljs-keyword">error</span> *ngIf=<span class="hljs-string">"search.invalid"</span>&gt;
+  {{getErrorMessage()}}
+&lt;/<span class="hljs-keyword">mat</span>-<span class="hljs-keyword">error</span>&gt;
+getErrorMessage() {
+  <span class="hljs-keyword">return</span> this.<span class="hljs-keyword">search</span>.hasError('minLength') ?
+    '<span class="hljs-keyword">Type</span> <span class="hljs-keyword">more</span> than <span class="hljs-keyword">one</span> character to <span class="hljs-keyword">search</span>' : '';
+}
+</code></pre>
+      </li>
+      <li class="list">Modify the <code class="Code-In-Text--PACKT-">search</code> function to not execute a search with invalid input replacing the condition in the existing <code class="Code-In-Text--PACKT-">if</code> statement:
+        <pre class="programlisting"><code class="hljs vim"><strong>src/app/city-<span class="hljs-built_in">search</span>/city-<span class="hljs-built_in">search</span>.component.<span class="hljs-keyword">ts</span> </strong>
+this.<span class="hljs-built_in">search</span>.valueChanges
+  .pipe(debounceTime(<span class="hljs-number">1000</span>))
+  .subscribe((<span class="hljs-built_in">search</span> Value: <span class="hljs-built_in">string</span>) =&gt; {
+    <span class="hljs-keyword">if</span> (<strong>!this.<span class="hljs-built_in">search</span>.invalid</strong>) {
+      ...
+</code></pre>
+      </li>
+    </ol>
+    <p class="normal">Instead of doing a simple check to see whether <code class="Code-In-Text--PACKT-">searchValue</code> is defined and not an empty string, we can tap into the validation engine for a more robust check by calling <code class="Code-In-Text--PACKT-">this.search.invalid</code>.</p>
+    <p class="normal">For now, we're done <a id="_idIndexMarker563"/>with implementing <code class="Code-In-Text--PACKT-">search</code> functionality. Next, let's <a id="_idIndexMarker564"/>go over a what-if scenario to see how a template-driven implementation of the form would appear.</p>
+    <h3 class="title" id="_idParaDest-203">Template-driven forms with two-way binding</h3>
+    <p class="normal">The alternative to reactive for<a id="_idIndexMarker565"/>ms is template-driven forms. If you're familiar with <code class="Code-In-Text--PACKT-">ng-model</code> from AngularJS, you'll find that the new <code class="Code-In-Text--PACKT-">ngModel</code> directive is an API-compatible replacement for it.</p>
+    <div class="note">
+      <p class="Information-Box--PACKT-">Behind the scenes, <code class="Code-In-Text--PACKT-">ngModel</code> implements a <code class="Code-In-Text--PACKT-">FormControl</code> that can automatically attach itself to a <code class="Code-In-Text--PACKT-">FormGroup</code>. <code class="Code-In-Text--PACKT-">ngModel</code> can be used at the <code class="Code-In-Text--PACKT-">&lt;form&gt;</code> level or individual <code class="Code-In-Text--PACKT-">&lt;input&gt;</code> level. You can <a id="_idIndexMarker566"/>read more about <code class="Code-In-Text--PACKT-">ngModel</code> at <a href="https://angular.io/api/forms/NgModel"><span class="url">https://angular.io/api/forms/NgModel</span></a>.</p>
+    </div>
+    <p class="normal">In the <em class="italics">Chapter 6</em> example code of the Local Weather app repository on GitHub, I have included a template-driven component in <code class="Code-In-Text--PACKT-">app.component.ts</code> named <code class="Code-In-Text--PACKT-">app-city-search-tpldriven</code> rendered under <code class="Code-In-Text--PACKT-">&lt;div class="example"&gt;</code>. You can experiment with this component to see what the alternate template implementation looks like:</p>
+    <pre class="programlisting"><code class="hljs stata"><strong>projects/ch6/src/<span class="hljs-keyword">app</span>/city-<span class="hljs-keyword">search</span>-tpldriven/city-<span class="hljs-keyword">search</span>-tpldriven.component.html</strong>
+  ...
+    &lt;<span class="hljs-keyword">input</span> matInput aria-<span class="hljs-keyword">label</span>=<span class="hljs-string">"City or Zip"</span>
+      [(ngModel)]=<span class="hljs-string">"model.search"</span>
+      (ngModelChange)=<span class="hljs-string">"doSearch($event)"</span> minlength=<span class="hljs-string">"2"</span> 
+      name=<span class="hljs-string">"search"</span> #<span class="hljs-keyword">search</span>=<span class="hljs-string">"ngModel"</span>&gt;
+  ...
+    &lt;<span class="hljs-keyword">mat</span>-<span class="hljs-keyword">error</span> *ngIf=<span class="hljs-string">"search.invalid"</span>&gt;
+      <span class="hljs-keyword">Type</span> <span class="hljs-keyword">more</span> than <span class="hljs-keyword">one</span> character to <span class="hljs-keyword">search</span>
+    &lt;/<span class="hljs-keyword">mat</span>-<span class="hljs-keyword">error</span>&gt;
+  ...
+</code></pre>
+    <div class="note">
+      <p class="Information-Box--PACKT-">Note the <code class="Code-In-Text--PACKT-">[()]</code> "box of bananas" two-way binding syntax in use with <code class="Code-In-Text--PACKT-">ngModel</code>.</p>
+    </div>
+    <p class="normal">The differences in the component are implemented as follows:</p>
+    <pre class="programlisting"><code class="hljs typescript"><strong>projects/ch6/src/app/city-search-tpldriven/city-search-tpldriven.component.ts</strong>
+<span class="hljs-keyword">import</span> { WeatherService } <span class="hljs-keyword">from</span> <span class="hljs-string">'../weather/weather.service'</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> CitySearchTpldrivenComponent { 
+  model = {
+    search: <span class="hljs-string">''</span>,
+  }
+  <span class="hljs-keyword">constructor</span>(<span class="hljs-params"><span class="hljs-keyword">private</span> weatherService: WeatherService</span>) {}
+    
+  doSearch(searchValue) {
+    <span class="hljs-keyword">const</span> userInput = searchValue.split(<span class="hljs-string">','</span>).map(<span class="hljs-function"><span class="hljs-params">s</span> =&gt;</span> s.trim())
+    <span class="hljs-keyword">this</span>.weatherService
+      .getCurrentWeather(userInput[<span class="hljs-number">0</span>], userInput.length &gt; <span class="hljs-number">1</span> ?
+        userInput[<span class="hljs-number">1</span>] : <span class="hljs-literal">undefined</span>
+      )
+      .subscribe(<span class="hljs-function"><span class="hljs-params">data</span> =&gt;</span> <span class="hljs-built_in">console</span>.log(data))
+  }
+}
+</code></pre>
+    <p class="normal">As you can see, most of the logic is implemented in the template; as such, you are required to maintain an active mental model of the template and the controller. Any changes to event handlers and <a id="_idIndexMarker567"/>validation logic require you to switch back and forth between the two files.</p>
+    <p class="normal">Furthermore, we have lost input limiting and the ability to prevent service calls when the input is in an invalid state. It is still possible to implement these features, but they require convoluted solutions and do not neatly fit into the new Angular syntax and concepts.</p>
+    <p class="normal">Overall, I do not recommend the use of template-driven forms. There may be a few instances where it may be very convenient to use the box of bananas syntax. However, this sets a bad precedent for other team members to replicate the same pattern around the application.</p>
+    <h1 class="title" id="_idParaDest-204">Component interaction with BehaviorSubject</h1>
+    <p class="normal">To update the current <a id="_idIndexMarker568"/>weather information, we need the <code class="Code-In-Text--PACKT-">city-search</code> component to interact with the <code class="Code-In-Text--PACKT-">current-weather</code> component. There are four main techniques to enable component interaction in Angular:</p>
+    <ul>
+      <li class="list">Global events</li>
+      <li class="list">Parent components listening for information bubbling up from children components</li>
+      <li class="list">Sibling, parent, or children components within a module that works off of similar data streams</li>
+      <li class="list">Parent components passing information to children components</li>
+    </ul>
+    <h2 class="title" id="_idParaDest-205">Global events</h2>
+    <p class="normal">This is a technique that's been leveraged since the early days of programming in general. In JavaScript, you <a id="_idIndexMarker569"/>may have achieved this with global function delegates or jQuery's event system. In AngularJS, you may have created a service and stored values in it.</p>
+    <p class="normal">In Angular, you can still create a root-level service, store values in it, use Angular's <code class="Code-In-Text--PACKT-">EventEmitter</code> class, which is really meant for directives, or use an <code class="Code-In-Text--PACKT-">rxjs/Subscription</code> to create a fancy messaging bus for yourself.</p>
+    <p class="normal">As a pattern, global events are open to rampant abuse and rather than helping to maintain a decoupled application architecture, it leads to a global state over time. A global state or even a localized state at the controller level, where functions read and write to variables in any given class, is enemy number one of writing maintainable and unit testable software.</p>
+    <p class="normal">Ultimately, if you're storing all your application data or routing all events in one service to enable component interaction, you're merely inventing a better mousetrap. This is an anti-pattern that should be avoided at all costs. In a later section, you will find that, essentially, we will still be using services to enable component interaction; however, I want to point out that there's a fine line that exists between a flexible architecture that enables decoupling and the global or centralized decoupling approach that does not scale well.</p>
+    <h2 class="title" id="_idParaDest-206">Child-parent relationships with event emitters</h2>
+    <p class="normal">Your child component should be completely unaware of its parent. This is key to creating reusable components.</p>
+    <p class="normal">We can implement the <a id="_idIndexMarker570"/>communication between the city search component and the current weather component leveraging <code class="Code-In-Text--PACKT-">AppComponent</code> as a parent element and let the <code class="Code-In-Text--PACKT-">app</code> module controller orchestrate the data.</p>
+    <div class="note">
+      <p class="Information-Box--PACKT-">Commit your code now! In the next two sections you will be making code changes that you will need to discard.</p>
+    </div>
+    <p class="normal">Let's see how this implementation will look:</p>
+    <ol>
+      <li class="list" value="1">The <code class="Code-In-Text--PACKT-">city-search</code> component exposes an <code class="Code-In-Text--PACKT-">EventEmitter</code> through an <code class="Code-In-Text--PACKT-">@Output</code> property:
+        <pre class="programlisting"><code class="hljs typescript"><strong>src/app/city-search/city-search.component.ts</strong>
+<span class="hljs-keyword">import</span> { Component, OnInit, Output, EventEmitter } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/core'</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> CitySearchComponent <span class="hljs-keyword">implements</span> OnInit {
+  <span class="hljs-meta">@Output</span>() searchEvent = <span class="hljs-keyword">new</span> EventEmitter&lt;<span class="hljs-built_in">string</span>&gt;()
+  ...
+  <span class="hljs-keyword">this</span>.search.valueChanges
+    .pipe(debounceTime(<span class="hljs-number">1000</span>))
+    .subscribe(<span class="hljs-function">(<span class="hljs-params">search Value: <span class="hljs-built_in">string</span></span>) =&gt;</span> {
+      <span class="hljs-keyword">if</span> (!<span class="hljs-keyword">this</span>.search.invalid) {
+        <span class="hljs-keyword">this</span>.searchEvent.emit(searchValue)
+      }
+    })
+  ...
+}
+</code></pre>
+      </li>
+      <li class="list">The <code class="Code-In-Text--PACKT-">app</code> component consumes that and calls the <code class="Code-In-Text--PACKT-">weatherService</code>, setting the <code class="Code-In-Text--PACKT-">currentWeather</code> variable:
+        <pre class="programlisting"><code class="hljs typescript"><strong>src/app/app.component.ts</strong>
+<span class="hljs-keyword">import</span> { WeatherService } <span class="hljs-keyword">from</span> <span class="hljs-string">'./weather/weather.service'</span>
+<span class="hljs-keyword">import</span> { ICurrentWeather } <span class="hljs-keyword">from</span> <span class="hljs-string">'./interfaces'</span>
+...
+template: <span class="hljs-string">`
+  ...
+    &lt;app-city-search </span><strong><span class="hljs-string">(searchEvent)="doSearch($event)"</span></strong><span class="hljs-string">&gt;
+    &lt;/app-city-search&gt;
+  ...
+`</span>,
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> AppComponent { 
+  currentWeather: ICurrentWeather 
+  <span class="hljs-keyword">constructor</span>(<span class="hljs-params"><span class="hljs-keyword">private</span> weatherService: WeatherService</span>) { }
+  doSearch(searchValue) {
+    <span class="hljs-keyword">const</span> userInput = searchValue.split(<span class="hljs-string">','</span>).map(<span class="hljs-function"><span class="hljs-params">s</span> =&gt;</span> s.trim()) 
+    <span class="hljs-keyword">this</span>.weatherService
+      .getCurrentWeather(userInput[<span class="hljs-number">0</span>], userInput.length &gt; <span class="hljs-number">1</span> ?
+        userInput[<span class="hljs-number">1</span>] : <span class="hljs-literal">undefined</span>
+    )
+    .subscribe(<span class="hljs-function"><span class="hljs-params">data</span> =&gt;</span> <span class="hljs-keyword">this</span>.currentWeather = data)
+  }
+}
+</code></pre>
+        <div class="packt_tip">
+          <p>Note that we are binding to the <code class="Code-In-Text--PACKT-">searchEvent</code> with the parenthesis syntax. The <code class="Code-In-Text--PACKT-">$event</code> variable automatically captures the output from the event and passes it into the <code class="Code-In-Text--PACKT-">doSearch</code> method.</p>
+        </div>
+      </li>
+    </ol>
+    <p class="normal">We successfully bubbled <a id="_idIndexMarker571"/>the information up to the parent component, but we must also be able to pass it down to the <code class="Code-In-Text--PACKT-">current-weather</code> component.</p>
+    <h2 class="title" id="_idParaDest-207">Parent-child relationships with input binding</h2>
+    <p class="normal">By definition, your parent component will be aware of what child components it is working <a id="_idIndexMarker572"/>with. Since the <code class="Code-In-Text--PACKT-">currentWeather</code> property is bound to the <code class="Code-In-Text--PACKT-">current</code> property on the <code class="Code-In-Text--PACKT-">current-weather</code> component, the results pass down to be displayed. This is achieved by creating an <code class="Code-In-Text--PACKT-">@Input</code> property:</p>
+    <pre class="programlisting"><code class="hljs groovy"><strong>src<span class="hljs-regexp">/app/</span>current-weather/current-weather.component.ts</strong>
+<span class="hljs-keyword">import</span> { Component, <strong>Input</strong> } from <span class="hljs-string">'@angular/core'</span>
+...
+export <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">CurrentWeatherComponent</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">OnInit</span> {</span> 
+  <strong><span class="hljs-meta">@Input</span>()</strong> <span class="hljs-string">current:</span> ICurrentWeather
+  ...
+}
+</code></pre>
+    <div class="packt_tip">
+      <p>Note that the <code class="Code-In-Text--PACKT-">ngOnInit</code> function of <code class="Code-In-Text--PACKT-">CurrentWeatherComponent</code> is now superfluous and can be removed.</p>
+    </div>
+    <p class="normal">You can then update the <code class="Code-In-Text--PACKT-">app</code> component to bind the data to <code class="Code-In-Text--PACKT-">current</code> weather:</p>
+    <pre class="programlisting"><code class="hljs stata"><strong>src/<span class="hljs-keyword">app</span>/<span class="hljs-keyword">app</span>.component.ts</strong>
+template: `
+  ...
+  &lt;<span class="hljs-keyword">app</span>-current-weather <strong>[current]=<span class="hljs-string">"currentWeather"</span></strong>&gt;
+  &lt;/<span class="hljs-keyword">app</span>-current-weather&gt;
+  ...
+`
+</code></pre>
+    <p class="normal">At this point, your code should work! Try searching for a city. If the <code class="Code-In-Text--PACKT-">current-weather</code> component updates, then success!</p>
+    <p class="normal">The event emitter and input binding approach is appropriate in cases where you are creating well-coupled <a id="_idIndexMarker573"/>components or user controls and no outside data is being consumed. A good example might be adding forecast information to the <code class="Code-In-Text--PACKT-">current-weather</code> component, as shown:</p>
+    <figure class="mediaobject"><img alt="\\192.168.0.200\All_Books\2020\Working_Titles\14094_Angular 8 for Enterprise-Ready Web Applications\BookDrafts\Graphics\Chapter 6\B14094_06_03.png" src="../Images/B14094_06_04.png"/></figure>
+    <p class="packt_figref">Figure 6.4: Weather forecast wireframe</p>
+    <p class="normal">Each day of the week can be implemented as a component that is repeated using <code class="Code-In-Text--PACKT-">*ngFor</code>, and it will be perfectly reasonable for <code class="Code-In-Text--PACKT-">current-weather</code> to retrieve and bind this information to its child component:</p>
+    <pre class="programlisting"><code class="hljs stata"><strong>example</strong>
+&lt;<span class="hljs-keyword">app</span>-mini-forecast
+<span class="hljs-comment">  *ngFor="let dailyForecast of forecastArray</span>
+  [forecast]=<span class="hljs-string">"dailyForecast"</span>
+&gt;
+&lt;/<span class="hljs-keyword">app</span>-mini-forecast&gt;
+</code></pre>
+    <p class="normal">In general, if you're working with data-driven components, the parent-child or child-parent communication pattern results in an inflexible architecture, making it very difficult to reuse or rearrange your components. A good example of the tight coupling is when we imported the weather service in <code class="Code-In-Text--PACKT-">app.component.ts</code>. <code class="Code-In-Text--PACKT-">AppComponent</code> should have no idea about the weather service; its only job is to layout several components. Given the ever-changing business requirements and design, this is an important lesson to keep in mind.</p>
+    <div class="note">
+      <p class="Information-Box--PACKT-">Discard the changes you've made in the last two sections before moving on. We will instead be implementing an alternate solution.</p>
+    </div>
+    <p class="normal">Next, we cover a better <a id="_idIndexMarker574"/>way for two components to interact with each other without introducing additional coupling with subjects.</p>
+    <h2 class="title" id="_idParaDest-208">Sibling interactions with subjects</h2>
+    <p class="normal">The main reason for components to interact is to send or receive updates to data either provided by the user or received <a id="_idIndexMarker575"/>from the server. In Angular, your services expose <code class="Code-In-Text--PACKT-">RxJS.Observable</code> endpoints, which are data streams that your components can subscribe to. <code class="Code-In-Text--PACKT-">RxJS.Observer</code> complements <code class="Code-In-Text--PACKT-">RxJS.Observable</code> as a consumer of events emitted by <code class="Code-In-Text--PACKT-">Observable</code>. <code class="Code-In-Text--PACKT-">RxJS.Subject</code> brings the two sets of functionalities together in an easy to work with object. </p>
+    <p class="normal">You can essentially describe a stream that belongs to a particular set of data, such as the current weather data that is being displayed, with subjects:</p>
+    <pre class="programlisting"><code class="hljs angelscript"><strong>example</strong>
+<span class="hljs-keyword">import</span> { Subject } <span class="hljs-keyword">from</span> <span class="hljs-string">'rxjs'</span>
+...
+export <span class="hljs-keyword">class</span> <span class="hljs-symbol">WeatherService</span> <span class="hljs-symbol">implements</span> <span class="hljs-symbol">IWeatherService</span> { 
+  currentWeather$: Subject&lt;ICurrentWeather&gt;
+  ...
+}
+</code></pre>
+    <p class="normal"><code class="Code-In-Text--PACKT-">currentWeather$</code> is still a data stream and does not simply represent one data point. You can subscribe to changes to <code class="Code-In-Text--PACKT-">currentWeather$</code> data using <code class="Code-In-Text--PACKT-">subscribe</code>, or you can publish changes to it using <code class="Code-In-Text--PACKT-">next</code> as follows:</p>
+    <pre class="programlisting"><code class="hljs javascript"><strong>example</strong>
+currentWeather$.subscribe(<span class="hljs-function"><span class="hljs-params">data</span> =&gt;</span> (<span class="hljs-keyword">this</span>.current = data)) currentWeather$.next(newData)
+</code></pre>
+    <div class="packt_tip">
+      <p>Note the naming convention for the <code class="Code-In-Text--PACKT-">currentWeather$</code> property, which is appended by <code class="Code-In-Text--PACKT-">$</code>. This is the naming convention for properties that are observable.</p>
+    </div>
+    <p class="normal">The default behavior of <code class="Code-In-Text--PACKT-">Subject</code> is very much like generic pub/sub mechanisms, such as jQuery events. However, in an asynchronous world where components are loaded or unloaded in unpredictable ways, using the default <code class="Code-In-Text--PACKT-">Subject</code> is not very useful.</p>
+    <p class="normal">There are three advanced variants of subjects:</p>
+    <ul>
+      <li class="list"><code class="Code-In-Text--PACKT-">ReplaySubject</code> remembers and caches data points that occurred within the data stream so that a subscriber can replay old events at any given time.</li>
+      <li class="list"><code class="Code-In-Text--PACKT-">BehaviorSubject</code> remembers only the last data point while continuing to listen for new data points.</li>
+      <li class="list"><code class="Code-In-Text--PACKT-">AsyncSubject</code> is for one-time-only events that are not expected to reoccur.</li>
+    </ul>
+    <p class="normal"><code class="Code-In-Text--PACKT-">ReplaySubject</code> can have severe memory and performance implications on your application, so it should be used with care. In the case of <code class="Code-In-Text--PACKT-">current-weather</code>, we are only interested in displaying the <a id="_idIndexMarker576"/>latest weather data received, but through user input or other events, we are open to receiving new data so that we can keep the <code class="Code-In-Text--PACKT-">current-weather</code> component up to date. The <code class="Code-In-Text--PACKT-">BehaviorSubject</code> would be the appropriate mechanism to meet these needs:</p>
+    <ol>
+      <li class="list" value="1">Add <code class="Code-In-Text--PACKT-">currentWeather$</code> as a read-only property to <code class="Code-In-Text--PACKT-">IWeatherService</code>:
+        <pre class="programlisting"><code class="hljs routeros"><strong>src/app/weather/weather.service.ts</strong>
+import { <strong>BehaviorSubject</strong>, Observable } <span class="hljs-keyword">from</span> <span class="hljs-string">'rxjs'</span>
+<span class="hljs-builtin-name">export</span><span class="hljs-built_in"> interface </span>IWeatherService {
+  <strong>readonly currentWeather$: BehaviorSubject&lt;ICurrentWeather&gt;</strong>
+  <span class="hljs-built_in">..</span>.
+}
+</code></pre>
+        <p class="Bullet-Without-Bullet-Within-Bullet--PACKT-"><code class="Code-In-Text--PACKT-">currentWeather$</code> is declared as read-only because its <code class="Code-In-Text--PACKT-">BehaviorSubject</code> should not be reassigned. Any updates to the value should be sent by calling the <code class="Code-In-Text--PACKT-">.next</code> function on the property.</p>
+      </li>
+      <li class="list">Define <code class="Code-In-Text--PACKT-">BehaviorSubject</code> in <code class="Code-In-Text--PACKT-">WeatherService</code> and set a default value:
+        <pre class="programlisting"><code class="hljs axapta"><strong>src/app/weather/weather.service.ts</strong>
+...
+export <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">WeatherService</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">IWeatherService</span> </span>{
+  readonly currentWeather$ =
+    <span class="hljs-keyword">new</span> BehaviorSubject&lt;ICurrentWeather&gt;({ 
+    city: <span class="hljs-string">'--'</span>,
+    country: <span class="hljs-string">'--'</span>,
+    <span class="hljs-keyword">date</span>: Date.now(),
+    image: <span class="hljs-string">''</span>,
+    temperature: <span class="hljs-number">0</span>,
+    description: <span class="hljs-string">''</span>,
+  })
+...
+}
+</code></pre>
+      </li>
+      <li class="list">Add a new function named <code class="Code-In-Text--PACKT-">updateCurrentWeather</code>, which will trigger <code class="Code-In-Text--PACKT-">getCurrentWeather</code> and update the value of <code class="Code-In-Text--PACKT-">currentWeather$</code>:
+        <pre class="programlisting"><code class="hljs typescript"><strong>src/app/weather/weather.service.ts</strong>
+...
+updateCurrentWeather(search: <span class="hljs-built_in">string</span> | <span class="hljs-built_in">number</span>, 
+  country?: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span> { 
+  <span class="hljs-keyword">this</span>.getCurrentWeather(search, country)
+    .subscribe(<span class="hljs-function"><span class="hljs-params">weather</span> =&gt;</span> 
+      <span class="hljs-keyword">this</span>.currentWeather$.next(weather)
+    )
+}
+...
+</code></pre>
+      </li>
+      <li class="list">Update <code class="Code-In-Text--PACKT-">IWeatherService</code> with the <a id="_idIndexMarker577"/>new function so that it appears as follows:
+        <pre class="programlisting"><code class="hljs routeros"><strong>src/app/weather/weather.service.ts</strong>
+<span class="hljs-built_in">..</span>.
+<span class="hljs-builtin-name">export</span><span class="hljs-built_in"> interface </span>IWeatherService {
+  readonly currentWeather$: BehaviorSubject&lt;ICurrentWeather&gt; 
+  getCurrentWeather(city: string | number, country?: string):
+    Observable&lt;ICurrentWeather&gt;
+  getCurrentWeatherByCoords(coords: Coordinates):
+    Observable&lt;ICurrentWeather&gt;
+  <strong>updateCurrentWeather(</strong>
+    <strong>search: string | number,</strong>
+    <strong>country?: string</strong>
+  <strong>): void</strong>
+}
+</code></pre>
+      </li>
+      <li class="list">Update the <code class="Code-In-Text--PACKT-">current-weather</code> component to subscribe to the new <code class="Code-In-Text--PACKT-">BehaviorSubject</code>:
+        <pre class="programlisting"><code class="hljs kotlin"><strong>src/app/current-weather/current-weather.component.ts</strong>
+...
+  ngOnInit() { 
+    <span class="hljs-keyword">this</span>.weatherService.currentWeather$
+      .subscribe(<span class="hljs-keyword">data</span> =&gt; (<span class="hljs-keyword">this</span>.current = <span class="hljs-keyword">data</span>))
+  }
+...
+</code></pre>
+      </li>
+      <li class="list">In the <code class="Code-In-Text--PACKT-">city-search</code> component, update the <code class="Code-In-Text--PACKT-">getCurrentWeather</code> function call to utilize the new <code class="Code-In-Text--PACKT-">updateCurrentWeather</code> function:
+        <pre class="programlisting"><code class="hljs angelscript"><strong>src/app/city-search/city-search.component.ts</strong>
+...
+  <span class="hljs-keyword">this</span>.weatherService.<strong>updateCurrentWeather</strong>( 
+    userInput[<span class="hljs-number">0</span>],
+    userInput.length &gt; <span class="hljs-number">1</span> ? userInput[<span class="hljs-number">1</span>] : undefined
+  )
+...
+</code></pre>
+      </li>
+      <li class="list">Test your app in the browser; it should appear as follows:
+      <figure class="mediaobject"> <img alt="" src="../Images/B14094_06_05.png"/></figure>
+      <p class="packt_figref">Figure 6.5: Weather information for Bursa, Turkey</p></li>
+    </ol>
+    <p class="normal">When you type in a new city, the <a id="_idIndexMarker578"/>component should update to include the current weather information for that city. We can move the <strong class="screen-text">Add city search capability...</strong> task to the <strong class="screen-text">Done</strong> column, as shown on our Kanban board:</p>
+    <figure class="mediaobject"><img alt="" src="../Images/B14094_06_06.png"/></figure>
+    <p class="packt_figref">Figure 6.6: GitHub project Kanban board status</p>
+    <p class="normal">We have a functional app. However, we have <a id="_idIndexMarker579"/>introduced a memory leak, so let's fix that in the next section.</p>
+    <h1 class="title" id="_idParaDest-209">Managing subscriptions</h1>
+    <p class="normal">Subscriptions are a convenient way to read a value from a data stream to be used in your application logic. If unmanaged, they can create memory leaks in your application. A leaky application will end up <a id="_idIndexMarker580"/>consuming ever-increasing amounts of RAM, eventually leading the browser tab to become unresponsive, leading to a negative perception of your app and, even worse, potential data loss, which can frustrate end users.</p>
+    <p class="normal">In the <code class="Code-In-Text--PACKT-">current-weather</code> component, we inject <code class="Code-In-Text--PACKT-">weatherSevice</code> so that we can access the <code class="Code-In-Text--PACKT-">currentWeather$</code> component of <code class="Code-In-Text--PACKT-">BehaviorSubject</code>. In Angular, services are singletons, meaning when they are first created in memory, they're kept alive as long as the module they're a part of is in memory. From a practical perspective, this will mean that most services in your application will live in the memory for the lifetime of the application. However, the lifetime of a component may be much shorter and there could be multiple instances of the same component created over and over again. If we don't manage the interactions between long-lived and short-lived objects carefully, we can end up with dangling references between objects, leading to memory leaks.</p>
+    <h2 class="title" id="_idParaDest-210">Exposé of a memory leak</h2>
+    <p class="normal">When we subscribe to <code class="Code-In-Text--PACKT-">currentWeather$</code>, we attach an event handler to it so that our component can react to value <a id="_idIndexMarker581"/>changes that are pushed to <code class="Code-In-Text--PACKT-">BehaviorSubject</code>. This presents a problem when the <code class="Code-In-Text--PACKT-">current-weather</code> component needs to be destroyed.</p>
+    <p class="normal">In managed languages such as JavaScript, memory is managed by the garbage collector, or GC for short, as opposed to having to allocate and deallocate memory by hand in unmanaged languages such as C or C++. At a very high level, the GC works by periodically scanning the stack for objects that are not referenced by other objects.</p>
+    <p class="normal">If an object is found to be dereferenced, then the space it takes up in the stack can be freed up. However, if an unused <a id="_idIndexMarker582"/>object still has a reference to another object that is still in use, it can't be garbage collected. The GC is not magical and can't read our minds. When an object is unused and can't be deallocated, the memory taken up by the object can never be used for another purpose so long as your application is running. This is considered a memory leak.</p>
+    <p class="normal">My colleague, Brendon Caulkins, provides a helpful analogy:</p>
+    <blockquote class="packt_quote">Imagine the memory space of the browser as a parking lot; every time we assign a value or create a subscription, we park a car in that lot. If we happen to abandon a car, we still leave the parking spot occupied; no one else can use it. If all the applications in the browser do this, or we do it repeatedly, you can imagine how quickly the parking lot is full, and we never get to run our application.</blockquote>
+    <p class="normal">Next, let's see how we can ensure that we don't abandon our car in the parking lot.</p>
+    <h2 class="title" id="_idParaDest-211">Unsubscribing from a subscription</h2>
+    <p class="normal">Subscriptions or event handlers create references to other objects, such as from a short-lived component to a long-lived service. Granted, in our case, the <code class="Code-In-Text--PACKT-">current-weather</code> component is also a <a id="_idIndexMarker583"/>singleton, but that could change if we added more features to the app, navigating from page to page or displaying weather from multiple cities at once. If we don't unsubscribe from <code class="Code-In-Text--PACKT-">currentWeather$</code>, then any instance of <code class="Code-In-Text--PACKT-">current-weather</code> would be stuck in memory. We subscribe in <code class="Code-In-Text--PACKT-">ngOnInit</code>, so we must unsubscribe in <code class="Code-In-Text--PACKT-">ngOnDestroy</code>. <code class="Code-In-Text--PACKT-">ngOnDestroy</code> is called when Angular determines that the framework is no longer using the component.</p>
+    <p class="normal">Let's see an example of how you can unsubscribe from a subscription in the sample code in the following:</p>
+    <pre class="programlisting"><code class="hljs kotlin"><strong>example</strong>
+<span class="hljs-keyword">import</span> { ..., OnDestroy } from <span class="hljs-string">'@angular/core'</span>
+<span class="hljs-keyword">import</span> { ..., Subscription } from <span class="hljs-string">'rxjs'</span>
+export <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">CurrentWeatherComponent</span> <span class="hljs-title">implements</span> <span class="hljs-title">OnInit</span>, <span class="hljs-type">OnDestroy { </span></span>
+  currentWeatherSubscription: Subscription
+  ...
+  ngOnInit() { 
+    <span class="hljs-keyword">this</span>.currentWeatherSubscription =
+      <span class="hljs-keyword">this</span>.weatherService.currentWeather$
+        .subscribe((<span class="hljs-keyword">data</span>) =&gt; (<span class="hljs-keyword">this</span>.current = <span class="hljs-keyword">data</span>))
+  }
+  ngOnDestroy(): void {
+    <span class="hljs-keyword">this</span>.currentWeatherSubscription.unsubscribe()
+  }
+...
+</code></pre>
+    <p class="normal">First, we need to implement the <code class="Code-In-Text--PACKT-">OnDestroy</code> interface for the component. Then, we update <code class="Code-In-Text--PACKT-">ngOnInit</code> to store a reference to the subscription in a property named <code class="Code-In-Text--PACKT-">currentWeatherSubscription</code>. Finally, in <code class="Code-In-Text--PACKT-">ngOnDestroy</code>, we can call the <code class="Code-In-Text--PACKT-">unsubscribe</code> method.</p>
+    <p class="normal">Should our component get destroyed, it will <a id="_idIndexMarker584"/>no longer result in a memory leak. However, if we have multiple subscriptions in a given component, this can lead to tedious amounts of coding.</p>
+    <div class="packt_tip">
+      <p>Note that in <code class="Code-In-Text--PACKT-">city-search</code>, we subscribe to the <code class="Code-In-Text--PACKT-">valueChanges</code> event of a <code class="Code-In-Text--PACKT-">FormControl</code> object. We don't need to manage the subscription to this event, because <code class="Code-In-Text--PACKT-">FormControl</code> is a child object of our component. When the parent component is dereferenced from all objects, all of its children can be safely collected by the GC.</p>
+    </div>
+    <p class="normal">Let's now look at a better way to manage multiple subscriptions.</p>
+    <h2 class="title" id="_idParaDest-212">Unsubscribing using SubSink</h2>
+    <p class="normal">SubSink, published by Ward Bell, is a straightforward library to keep track of all subscriptions in a given <a id="_idIndexMarker585"/>class, whether it be a component or a service.</p>
+    <p class="normal">Add the SubSink package to your Angular project:</p>
+    <pre class="programlisting"><code class="hljs armasm">$ npm i <span class="hljs-keyword">subsink
+</span></code></pre>
+    <p class="normal">Next, update <code class="Code-In-Text--PACKT-">current-weather</code> to use SubSink, replacing <code class="Code-In-Text--PACKT-">currentWeatherSubscription</code>:</p>
+    <pre class="programlisting"><code class="hljs typescript"><strong>src/app/current-weather/current-weather.component.ts</strong>
+<span class="hljs-keyword">import</span> { ..., OnDestroy } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/core'</span>
+<span class="hljs-keyword">import</span> { SubSink } <span class="hljs-keyword">from</span> <span class="hljs-string">'subsink'</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> CurrentWeatherComponent <span class="hljs-keyword">implements</span> OnInit, OnDestroy {
+  <span class="hljs-keyword">private</span> subscriptions = <span class="hljs-keyword">new</span> SubSink()
+  ...
+  ngOnInit(): <span class="hljs-built_in">void</span> {
+    <span class="hljs-keyword">this</span>.subscriptions.add(
+      <span class="hljs-keyword">this</span>.weatherService.currentWeather$
+        .subscribe(<span class="hljs-function">(<span class="hljs-params">data</span>) =&gt;</span> (<span class="hljs-keyword">this</span>.current = data))
+    )
+  }
+  ngOnDestroy(): <span class="hljs-built_in">void</span> {
+ <span class="hljs-keyword">this</span>.subscriptions.unsubscribe()
+  }
+...
+</code></pre>
+    <p class="normal">In the preceding code sample, we instantiated a private <code class="Code-In-Text--PACKT-">subscriptions</code> object, which will serve as the sink to contain all of the subscriptions. Then, in <code class="Code-In-Text--PACKT-">ngOnInit</code>, we simply add the subscription to <code class="Code-In-Text--PACKT-">currentWeather$</code> to the sink. In <code class="Code-In-Text--PACKT-">ngOnDestroy</code>, we call <code class="Code-In-Text--PACKT-">unsubscribe</code> on the sink rather than an individual subscription.</p>
+    <p class="normal">This is a scalable approach, as the <a id="_idIndexMarker586"/>amount of boilerplate code we must write remains consistent, as you can add many subscriptions to the sink without additional coding.</p>
+    <p class="normal">Subscribing to values in data streams itself can be considered an anti-pattern because you switch your programming model from reactive to imperative. In addition, you could avoid having to manage subscriptions in the first place. We will cover this topic in the next section.</p>
+    <h1 class="title" id="_idParaDest-213">Implementing the reactive style</h1>
+    <p class="normal">As covered in <em class="italics">Chapter 1</em>, <em class="italics">Introduction to Angular and Its Concepts</em>, we should only subscribe to an observable <a id="_idIndexMarker587"/>stream to activate it. If we treat a <code class="Code-In-Text--PACKT-">subscribe</code> function as an event handler, then we're implementing our code imperatively.</p>
+    <div class="packt_tip">
+      <p>Seeing anything other than an empty <code class="Code-In-Text--PACKT-">.subscribe()</code> call in your code base should be considered a sign of ditching reactive programming.</p>
+    </div>
+    <p class="normal">In reactive programming, when you subscribe to an event in a reactive stream, then you're shifting your coding paradigm from reactive programming to imperative programming. There are two <a id="_idIndexMarker588"/>places in our application where we subscribe, once in <code class="Code-In-Text--PACKT-">current-weather</code>, and the other in the <code class="Code-In-Text--PACKT-">city-search</code> component.</p>
+    <p class="normal">Let's start by fixing <code class="Code-In-Text--PACKT-">current-weather</code>, so that we don't drop back into imperative programming.</p>
+    <h2 class="title" id="_idParaDest-214">Binding to an observable with an async pipe</h2>
+    <p class="normal">Angular has been designed to be an asynchronous framework from the ground up. You can get the most out of Angular by staying in the reactive programming realm. It can feel unnatural to <a id="_idIndexMarker589"/>do so at first, but Angular provides all the tools you need to reflect the current state of your application to the user without having to shift to imperative programming.</p>
+    <p class="normal">You may leverage the <code class="Code-In-Text--PACKT-">async</code> pipe in your templates to reflect the current value of an observable. Let's update the <code class="Code-In-Text--PACKT-">current-weather</code> component to use the <code class="Code-In-Text--PACKT-">async</code> pipe:</p>
+    <ol>
+      <li class="list" value="1">Start by replacing <code class="Code-In-Text--PACKT-">current: ICurrentWeather</code> with an observable property: <code class="Code-In-Text--PACKT-">current$: Observable&lt;ICurrentWeather&gt;</code>.</li>
+      <li class="list">In the constructor, assign <code class="Code-In-Text--PACKT-">weatherService.currentWeather$</code> to <code class="Code-In-Text--PACKT-">current$:</code>
+        <pre class="programlisting"><code class="hljs typescript"><strong>src/app/current-weather/current-weather.component.ts</strong>
+<span class="hljs-keyword">import</span> { Observable } <span class="hljs-keyword">from</span> <span class="hljs-string">'rxjs'</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> CurrentWeatherComponent {
+  current$: Observable&lt;ICurrentWeather&gt;
+  <span class="hljs-keyword">constructor</span>(<span class="hljs-params"><span class="hljs-keyword">private</span> weatherService: WeatherService</span>) {
+    <span class="hljs-keyword">this</span>.current$ = <span class="hljs-keyword">this</span>.weatherService.currentWeather$
+  }
+  ...
+</code></pre>
+      </li>
+      <li class="list">Remove all code related to <code class="Code-In-Text--PACKT-">SubSink</code>, <code class="Code-In-Text--PACKT-">ngOnInit</code>, and <code class="Code-In-Text--PACKT-">ngOnDestroy</code>.</li>
+      <li class="list">Update the template to so you can bind to <code class="Code-In-Text--PACKT-">current$</code>:
+        <pre class="programlisting"><code class="hljs stylus"><strong>src/app/current-weather/current-weather<span class="hljs-selector-class">.component</span><span class="hljs-selector-class">.html</span></strong>
+&lt;<span class="hljs-selector-tag">div</span> *ngIf=<span class="hljs-string">"current$ | async as current"</span>&gt;
+...
+&lt;/div&gt;
+</code></pre>
+        <p class="Bullet-Without-Bullet-Within-Bullet--PACKT-">The <code class="Code-In-Text--PACKT-">async</code> pipe automatically subscribes to the current value of <code class="Code-In-Text--PACKT-">current$</code> and makes it available to the template to be used in an imperative manner as the variable <code class="Code-In-Text--PACKT-">current</code>. The beauty of this approach is that the <code class="Code-In-Text--PACKT-">async</code> pipe implicitly manages the subscription, so you don't have to worry about unsubscribing.</p>
+      </li>
+      <li class="list">Remove <code class="Code-In-Text--PACKT-">&lt;div *ngIf="!current"&gt;</code>. This is no longer needed, because the <code class="Code-In-Text--PACKT-">BehaviorSubject</code> is always initialized.</li>
+    </ol>
+    <p class="normal">So far, the reactive style <a id="_idIndexMarker590"/>allowed us to streamline and clean up our code.</p>
+    <div class="note">
+      <p class="Information-Box--PACKT-">The async pipe allows you to also implement <code class="Code-In-Text--PACKT-">if-else</code> logic. If you wanted to display a loading message while your observable is resolved, you can do by using the following technique: </p>
+      <pre class="programlisting"><code class="hljs xml"><strong>example</strong>
+<span class="hljs-tag">&lt;<span class="hljs-name">div</span> *<span class="hljs-attr">ngIf</span>=<span class="hljs-string">"current$ | async as current;
+  else loading"</span>
+&gt;</span>
+  ...
+<span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">ng-template</span> #<span class="hljs-attr">loading</span>&gt;</span>
+  Loading...
+<span class="hljs-tag">&lt;/<span class="hljs-name">ng-template</span>&gt;</span>
+</code></pre>
+    </div>
+    <p class="normal">Next, let's further improve our code.</p>
+    <h2 class="title" id="_idParaDest-215">Tapping into an observable stream</h2>
+    <p class="normal">The <code class="Code-In-Text--PACKT-">city-search</code> component implements a callback within a <code class="Code-In-Text--PACKT-">subscribe</code> statement when firing the <code class="Code-In-Text--PACKT-">search</code> function. This leads to an imperative style of coding and mindset. The danger with <a id="_idIndexMarker591"/>switching programming paradigms is that you can introduce unintentional side effects to your code, making it easier to introduce errors or state into your application.</p>
+    <p class="normal">Let's refactor <code class="Code-In-Text--PACKT-">city-search.component.ts</code> to be in the reactive functional programming style, as shown in the following example:</p>
+    <pre class="programlisting"><code class="hljs typescript"><strong>src/app/city-search/city-search.component.ts</strong>
+<span class="hljs-keyword">import</span> { debounceTime, <strong>filter, tap</strong> } <span class="hljs-keyword">from</span> <span class="hljs-string">'rxjs/operators'</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> CitySearchComponent {
+  search = <span class="hljs-keyword">new</span> FormControl(<span class="hljs-string">''</span>, 
+    [<strong>Validators.required</strong>, Validators.minLength(<span class="hljs-number">2</span>)])
+  <span class="hljs-keyword">constructor</span>(<span class="hljs-params"><span class="hljs-keyword">private</span> weatherService: WeatherService</span>) { 
+    <strong><span class="hljs-keyword">this</span>.search.valueChanges</strong>
+<strong>      .pipe(</strong>
+<strong>        debounceTime(<span class="hljs-number">1000</span>),</strong>
+<strong>        filter(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> !<span class="hljs-keyword">this</span>.search.invalid),</strong>
+<strong>        tap(<span class="hljs-function">(<span class="hljs-params">searchValue: <span class="hljs-built_in">string</span></span>) =&gt;</span> <span class="hljs-keyword">this</span>.doSearch(searchValue))</strong>
+<strong>      )</strong>
+<strong>      .subscribe()</strong>
+}
+doSearch(searchValue: <span class="hljs-built_in">string</span>) {
+  <span class="hljs-keyword">const</span> userInput = searchValue.split(<span class="hljs-string">','</span>).map(<span class="hljs-function"><span class="hljs-params">s</span> =&gt;</span> s.trim())
+  <span class="hljs-keyword">const</span> searchText = userInput[<span class="hljs-number">0</span>]
+  <span class="hljs-keyword">const</span> country = userInput.length &gt; <span class="hljs-number">1</span> ? userInput[<span class="hljs-number">1</span>] : <span class="hljs-literal">undefined</span>
+  <span class="hljs-keyword">this</span>.weatherService.updateCurrentWeather(searchText, country)
+}
+}
+</code></pre>
+    <p class="normal">In the preceding code, we removed the <code class="Code-In-Text--PACKT-">OnInit</code> implementation and implemented our filtering logic reactively. The <code class="Code-In-Text--PACKT-">tap</code> operator will only get triggered if <code class="Code-In-Text--PACKT-">this.search</code> is valid. In addition, <code class="Code-In-Text--PACKT-">doSearch</code> is called in a functional context, making it very difficult to reference any other class property within the function. </p>
+    <p class="normal">This reduces the chances of the state of the class impacting the <a id="_idIndexMarker592"/>outcome of our function. As a result, <code class="Code-In-Text--PACKT-">doSearch</code> is a composable and unit testable function, whereas in the previous implementation, it would have been very challenging to unit test <code class="Code-In-Text--PACKT-">ngOnInit</code> in a straightforward manner.</p>
+    <div class="packt_tip">
+      <p>Note that <code class="Code-In-Text--PACKT-">.subscribe()</code> must be called on <code class="Code-In-Text--PACKT-">valueChanges</code> to activate the observable data stream, otherwise no event will fire.</p>
+    </div>
+    <p class="normal">The fact that we don't implement <code class="Code-In-Text--PACKT-">ngOnInit</code> reflects the truly asynchronous nature of our code, which is independent of the life cycle or state of the application.</p>
+    <p class="normal">With our refactoring complete, the app should function the same as before, but with less boilerplate code. Now, let's look into enhancing our app so that it can handle postal codes from any country.</p>
+    <h1 class="title" id="_idParaDest-216">Multiple API calls</h1>
+    <p class="normal">Currently, our app can only handle 5-digit numerical postal or zip codes from the US. A postal code such as <code class="Code-In-Text--PACKT-">22201</code> is <a id="_idIndexMarker593"/>easy to differentiate from a city name with a simplistic conditional such as <code class="Code-In-Text--PACKT-">typeof search === 'string'</code>. However, postal codes can vary widely from country to country, Great Britain being a great example with postal codes such as <code class="Code-In-Text--PACKT-">EC2R 6AB</code>. Even if we had a perfect understanding of how postal codes are formatted for every country on earth, we still couldn't ensure that the user didn't fat-finger a slightly incorrect postal code. Today's sophisticated users expect <a id="_idIndexMarker594"/>web applications to be resilient toward such mistakes.</p>
+    <div class="note">
+      <p class="Information-Box--PACKT-">After the first edition of this book was published, I received some passionate reader feedback on their disappointment that the sample app can only support US zip codes. I've decided to implement this feature because it demonstrates the degree to which such seemingly simple requests can introduce unplanned complexity to your apps. As a bonus, the app now works worldwide <span class="mediaobject"><img alt="" src="../Images/B14094_06_001.png"/></span></p>
+    </div>
+    <p class="normal">Let's add a new item, <strong class="screen-text">Support international zip codes</strong>, to the backlog and move it to <strong class="screen-text">In progress</strong>:</p>
+    <figure class="mediaobject"><img alt="" src="../Images/B14094_06_07.png"/></figure>
+    <p class="packt_figref">Figure 6.7: Adding an international zip codes story</p>
+    <h2 class="title" id="_idParaDest-217">Implementing a postal code service</h2>
+    <p class="normal">To properly understand if the user inputs a valid postal code versus the name of a city, we must rely on a <a id="_idIndexMarker595"/>third-party API call provided by <a href="http://geonames.org"><span class="url">geonames.org</span></a>. Let's see how we can inject a secondary API call into the search logic of our app.</p>
+    <div class="note">
+      <p class="Information-Box--PACKT-">You need to sign up for a free account on <a href="http://geonames.org"><span class="url">geonames.org</span></a>. Afterward, store your <code class="Code-In-Text--PACKT-">username</code> as a new parameter in <code class="Code-In-Text--PACKT-">environment.ts</code> and <code class="Code-In-Text--PACKT-">environment.prod.ts</code>.</p>
+    </div>
+    <p class="normal">You may experiment with a postal code API on this page: <a href="https://www.geonames.org/postal-codes"><span class="url">https://www.geonames.org/postal-codes</span></a>.</p>
+    <p class="normal">Start by implementing a <code class="Code-In-Text--PACKT-">PostalCodeService</code>, as shown in the following:</p>
+    <div class="note">
+      <p class="Information-Box--PACKT-">You may generate the service by executing <code class="Code-In-Text--PACKT-">npx ng generate service postalCode --project=local-weather-app --no-flat --lintFix</code>.</p>
+    </div>
+    <pre class="programlisting"><code class="hljs typescript"><strong>src/app/postal-code/postal-code.service.ts</strong>
+<span class="hljs-keyword">import</span> { HttpClient, HttpParams } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/common/http'</span>
+<span class="hljs-keyword">import</span> { Injectable } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/core'</span>
+<span class="hljs-keyword">import</span> { Observable } <span class="hljs-keyword">from</span> <span class="hljs-string">'rxjs'</span>
+<span class="hljs-keyword">import</span> { defaultIfEmpty, flatMap } <span class="hljs-keyword">from</span> <span class="hljs-string">'rxjs/operators'</span>
+<span class="hljs-keyword">import</span> { environment } <span class="hljs-keyword">from</span> <span class="hljs-string">'../../environments/environment'</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> IPostalCode {
+  countryCode: <span class="hljs-built_in">string</span>
+  postalCode: <span class="hljs-built_in">string</span>
+  placeName: <span class="hljs-built_in">string</span>
+  lng: <span class="hljs-built_in">number</span>
+  lat: <span class="hljs-built_in">number</span>
+}
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> IPostalCodeData { 
+  postalCodes: [IPostalCode]
+}
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> IPostalCodeService {
+  resolvePostalCode(postalCode: <span class="hljs-built_in">string</span>): Observable&lt;IPostalCode&gt;
+}
+<span class="hljs-meta">@Injectable</span>({
+  providedIn: <span class="hljs-string">'root'</span>,
+}) 
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> PostalCodeService <span class="hljs-keyword">implements</span> IPostalCodeService {
+  <span class="hljs-keyword">constructor</span>(<span class="hljs-params"><span class="hljs-keyword">private</span> httpClient: HttpClient</span>) {}
+  resolvePostalCode(postalCode: <span class="hljs-built_in">string</span>): Observable&lt;IPostalCode&gt; {
+    <span class="hljs-keyword">const</span> uriParams = <span class="hljs-keyword">new</span> HttpParams()
+      .set(<span class="hljs-string">'maxRows'</span>, <span class="hljs-string">'1'</span>)
+      .set(<span class="hljs-string">'username'</span>, environment.username)
+      .set(<span class="hljs-string">'postalcode'</span>, postalCode)
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.httpClient
+      .get&lt;IPostalCodeData&gt;(
+        <span class="hljs-string">`<span class="hljs-subst">${environment.baseUrl}</span><span class="hljs-subst">${environment.geonamesApi}</span>.geonames.org/postalCodeSearchJSON`</span>,
+      { params: uriParams }
+    )
+    .pipe(
+      flatMap(<span class="hljs-function"><span class="hljs-params">data</span> =&gt;</span> data.postalCodes), 
+      defaultIfEmpty(<span class="hljs-literal">null</span>)
+    )
+  }
+}
+</code></pre>
+    <div class="packt_tip">
+      <p>Note the new environment variable, <code class="Code-In-Text--PACKT-">environment.geonamesApi</code>. In <code class="Code-In-Text--PACKT-">environment.ts</code>, set this value to <code class="Code-In-Text--PACKT-">api</code> and, in <code class="Code-In-Text--PACKT-">environment.prod.ts</code>, to <code class="Code-In-Text--PACKT-">secure</code>, so calls over https work correctly to avoid the mixed-content error, as covered in <em class="italics">Chapter 4</em>, <em class="italics">Automated Testing, CI, and Release to Production</em>.</p>
+    </div>
+    <p class="normal">In the preceding code segment, we implement a <code class="Code-In-Text--PACKT-">resolvePostalCode</code> function that makes a call to an API, which is configured to receive the first viable result the API returns. The results are then <a id="_idIndexMarker596"/>flattened and piped out to the subscriber. With <code class="Code-In-Text--PACKT-">defaultIfEmpty</code>, we ensure that a null value will be provided if we don't receive a result from the API. If the call is successful, we will get back all the information defined in <code class="Code-In-Text--PACKT-">IPostalCode</code>, making it possible to leverage <code class="Code-In-Text--PACKT-">getCurrentWeatherByCoords</code> using coordinates.</p>
+    <h2 class="title" id="_idParaDest-218">Chaining API calls</h2>
+    <p class="normal">Let's update the weather service so that it can call the <code class="Code-In-Text--PACKT-">postalCode</code> service to determine whether the user input <a id="_idIndexMarker597"/>was a valid postal code:</p>
+    <ol>
+      <li class="list" value="1">Start by updating the interface, so we only deal with a string:
+        <pre class="programlisting"><code class="hljs routeros"><strong>src/app/weather/weather.service.ts</strong>
+<span class="hljs-built_in">..</span>.
+<span class="hljs-builtin-name">export</span><span class="hljs-built_in"> interface </span>IWeatherService {
+<span class="hljs-built_in">..</span>.
+  getCurrentWeather(search: <strong>string</strong>, country?: string): 
+    Observable&lt;ICurrentWeather&gt;
+  updateCurrentWeather(search: <strong>string</strong>, country?: string)
+}
+</code></pre>
+      </li>
+      <li class="list">Inject <code class="Code-In-Text--PACKT-">PostalCodeService</code> to the weather service as a private property:
+        <pre class="programlisting"><code class="hljs oxygene"><strong>src/app/weather/weather.service.ts</strong>
+import <span class="hljs-comment">{
+  PostalCodeService
+}</span> <span class="hljs-keyword">from</span> <span class="hljs-string">'../postal-code/postal-code.service'</span>
+...
+<span class="hljs-function"><span class="hljs-keyword">constructor</span><span class="hljs-params">(
+  <span class="hljs-keyword">private</span> httpClient: HttpClient,
+  <span class="hljs-keyword">private</span> postalCodeService: PostalCodeService
+)</span> <span class="hljs-comment">{}</span>
+</span></code></pre>
+      </li>
+      <li class="list">Update the method signature for <code class="Code-In-Text--PACKT-">updateCurrentWeather</code></li>
+      <li class="list">Update <code class="Code-In-Text--PACKT-">getCurrentWeather</code> to try and resolve <code class="Code-In-Text--PACKT-">searchText</code> as a postal code:
+        <pre class="programlisting"><code class="hljs typescript"><strong>src/app/weather/weather.service.ts</strong>
+<span class="hljs-keyword">import</span> { map, <strong>switchMap</strong> } <span class="hljs-keyword">from</span> <span class="hljs-string">'rxjs/operators'</span>
+... 
+getCurrentWeather(
+  searchText: <span class="hljs-built_in">string</span>,
+  country?: <span class="hljs-built_in">string</span>
+): Observable&lt;ICurrentWeather&gt; {
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.postalCodeService.
+    resolvePostalCode(searchText)
+    .pipe(
+      switchMap(<span class="hljs-function">(<span class="hljs-params">postalCode</span>) =&gt;</span> {
+        <span class="hljs-keyword">if</span> (postalCode) {
+          <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.getCurrentWeatherByCoords({
+            latitude: postalCode.lat,
+            longitude: postalCode.lng,
+          } <span class="hljs-keyword">as</span> Coordinates)
+        } <span class="hljs-keyword">else</span> {
+          <span class="hljs-keyword">const</span> uriParams = <span class="hljs-keyword">new</span> HttpParams().set(
+            <span class="hljs-string">'q'</span>,
+            country ? <span class="hljs-string">`<span class="hljs-subst">${searchText}</span>,<span class="hljs-subst">${country}</span>`</span> : searchText
+          )
+          <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.getCurrentWeatherHelper(uriParams) 
+        }
+     })
+   )
+}
+</code></pre>
+      </li>
+    </ol>
+    <div class="packt_tip">
+      <p>If you run into TypeScript issues when passing the latitude and longitude into <code class="Code-In-Text--PACKT-">getCurrentWeatherByCoords</code>, then <a id="_idIndexMarker598"/>you may have to cast the object using the <code class="Code-In-Text--PACKT-">as</code> operator. So, your code would look like:</p>
+      <pre class="programlisting"><code class="hljs css">  <span class="hljs-selector-tag">return</span> <span class="hljs-selector-tag">this</span><span class="hljs-selector-class">.getCurrentWeatherByCoords</span>({
+    <span class="hljs-attribute">latitude</span>: postalCode.lat,
+    longitude: postalCode.lng,
+  } <span class="hljs-selector-tag">as</span> <span class="hljs-selector-tag">Coordinates</span>)
+</code></pre>
+    </div>
+    <p class="normal">In the preceding code segment, our first call is to the <code class="Code-In-Text--PACKT-">postalCode</code> service. We then react to postal codes that are posted on the data stream using <code class="Code-In-Text--PACKT-">switchMap</code>. Inside <code class="Code-In-Text--PACKT-">switchMap</code>, we can observe whether <code class="Code-In-Text--PACKT-">postalCode</code> is null and make the appropriate follow-up call to either get the <a id="_idIndexMarker599"/>current weather by coordinates or by city name.</p>
+    <p class="normal">Now, LocalCast weather should work with global postal codes, as shown in the following screenshot:</p>
+    <figure class="mediaobject"> <img alt="" src="../Images/B14094_06_08.png"/></figure>
+    <p class="packt_figref">Figure 6.8: LocalCast Weather with global postal codes</p>
+    <p class="normal">We are done with implementing international zip code support. Move it to the <strong class="screen-text">Done</strong> column on your Kanban board:</p>
+    <figure class="mediaobject"><img alt="" src="../Images/B14094_06_09.png"/></figure>
+    <p class="packt_figref">Figure 6.9: International zip code support done </p>
+    <p class="normal">As we complete our implementation of LocalCast Weather, there's still room for improvement. Initially, the app looks broken when it first loads, because of the dashes and empty fields that are shown. There are at least two different ways to handle this. The first is to hide the entire <a id="_idIndexMarker600"/>component, at the <code class="Code-In-Text--PACKT-">app</code> component level, if there's no data to display. For this to work, we will have to inject <code class="Code-In-Text--PACKT-">weatherService</code> into the <code class="Code-In-Text--PACKT-">app</code> component, ultimately leading to a less flexible solution. Another way is to enhance the <code class="Code-In-Text--PACKT-">current-weather</code> component so that it is better able to handle missing data.</p>
+    <p class="normal">You improve the app further by implementing geolocation to get the weather for the user's current location upon launching the app. You can also leverage <code class="Code-In-Text--PACKT-">window.localStorage</code> to store the city that was last displayed or the last location that was retrieved from <code class="Code-In-Text--PACKT-">window.geolocation</code> upon initial launch.</p>
+    <p class="normal">We are done with the Local Weather app until <em class="italics">Chapter 12</em>, <em class="italics">Recipes — Master/Detail, Data Tables, and NgRx</em>, where I demonstrate how NgRx compares to using RxJS/BehaviorSubject.</p>
+    <h1 class="title" id="_idParaDest-219">Summary</h1>
+    <p class="normal">In this chapter, you learned how to create a search-as-you-type functionality using <code class="Code-In-Text--PACKT-">MatInput</code>, validators, reactive forms, and data stream-driven handlers. You became aware of two-way binding and template-driven forms. You also learned about different strategies to enable inter-component interactions and data sharing. You dove into understanding how memory leaks can be created and the importance of managing your subscriptions. </p>
+    <p class="normal">You are now better able to differentiate between imperative and reactive programming styles and the importance of sticking with reactive programming where possible. Finally, you learned how you can implement sophisticated functionality by chaining multiple API calls together.</p>
+    <p class="normal">LocalCast Weather is a straightforward application that we used to cover the basic concepts of Angular. As you saw, Angular is great for building such small and dynamic applications, while delivering a minimal amount of framework code to the end user. You should consider leveraging Angular for even quick and dirty projects, which is also a great practice when building larger applications. In the next chapter, you will be creating a far more complicated <strong class="bold">line-of-business</strong> (<strong class="bold">LOB</strong>) application, using a router-first approach to designing and architecting scalable Angular applications with first-class authentication and authorization, user experience, and numerous recipes that cover a vast majority of requirements that you may find in LOB applications.</p>
+    <h1 class="title" id="_idParaDest-220">Exercises</h1>
+    <p class="normal">After completing the <strong class="screen-text">Support international zip codes</strong> feature, did we switch coding paradigms here? Is our implementation above imperative, reactive, or a combination of both? If our implementation is not entirely reactive, how would you implement this function reactively? I leave this as an exercise for the reader.</p>
+    <p class="normal">Don't forget to execute <code class="Code-In-Text--PACKT-">npm test</code>, <code class="Code-In-Text--PACKT-">npm run e2e</code>, and<code class="Code-In-Text--PACKT-"> npm run test:a11y</code> before moving on. It is left as an exercise for the reader to fix the unit and end-to-end tests.</p>
+    <p class="normal">Visit GitHub to see the unit tests that I implemented for this chapter at <a href="https://github.com/duluca/local-weather-app/tree/master/projects/ch6"><span class="url">https://github.com/duluca/local-weather-app/tree/master/projects/ch6</span></a>.</p>
+    <h1 class="title" id="_idParaDest-221">Questions</h1>
+    <p class="normal">Answer the following questions as best as you can to ensure that you've understood the key concepts from this chapter without Googling. Do you need help answering the questions? See <em class="italics">Appendix D</em>, <em class="italics">Self-Assessment Answers</em> online at <a href="https://static.packt-cdn.com/downloads/9781838648800_Appendix_D_Self-Assessment_Answers.pdf"><span class="url">https://static.packt-cdn.com/downloads/9781838648800_Appendix_D_Self-Assessment_Answers.pdf</span></a> or visit <a href="https://expertlysimple.io/angular-self-assessment"><span class="url">https://expertlysimple.io/angular-self-assessment</span></a>.</p>
+    <ol>
+      <li class="list">What is the <code class="Code-In-Text--PACKT-">async</code> pipe?</li>
+      <li class="list">Explain how reactive and imperative programming is different and which technique we should prefer?</li>
+      <li class="list">What is the benefit of a BehaviorSubject, and what is it used for?</li>
+      <li class="list">What are memory leaks and why should they be avoided?</li>
+    </ol>
+  </div>
+</body></html>

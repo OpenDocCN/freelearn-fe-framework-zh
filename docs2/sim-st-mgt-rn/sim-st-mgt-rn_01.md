@@ -1,6 +1,6 @@
-# 1
 
-# 什么是 React 和 React Native？
+
+# 第一章：什么是 React 和 React Native？
 
 欢迎来到**React**和**React Native**的神奇世界。希望您在这里能感到宾至如归。如果您是第一次接触这些框架，或者您已经稍微尝试过它们，那都没关系。本书将专注于**管理 React Native 应用的状态**，但我们将从基础知识开始讲起。
 

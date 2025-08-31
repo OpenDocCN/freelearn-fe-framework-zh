@@ -1,4 +1,4 @@
-# *第七章*：lottie-react-native 简介
+# 第七章：*第七章*：lottie-react-native 简介
 
 在本章中，我们将介绍 `lottie-react-native`，这是一个允许我们在 React Native 应用中渲染 Lottie 动画的库。我们将了解其历史、当前状态和文档，以确保我们充分利用这个库。这是一个开源库，以 `npm` 包的形式分发，可以在以下链接中找到：
 

@@ -1,6 +1,6 @@
-# 8
 
-# JavaScript 引擎和 Hermes
+
+# 第八章：JavaScript 引擎和 Hermes
 
 React Native 运行在 JavaScript 上，如*第二章*中所述，*理解 JavaScript 和 TypeScript 的基本知识*，JavaScript 需要一个 JavaScript 引擎来解释和/或将其转换为可执行的机器代码。对于 React Native 来说，这没有例外。
 

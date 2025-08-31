@@ -1,6 +1,6 @@
-# 4
 
-# 使用 Reducer 和 Effect Hooks
+
+# 第四章：使用 Reducer 和 Effect Hooks
 
 在使用 State Hook 开发我们自己的博客应用程序之后，我们现在将学习 React 提供的另外两个非常重要的 Hooks——**Reducer** 和 **Effect** Hooks。我们首先将学习何时应该使用 Reducer Hook 而不是 State Hook。然后，我们将学习如何将现有的 State Hook 转换为 Reducer Hook，以便在实践中掌握这个概念。最后，我们将学习 Effect Hooks 的用途以及如何在我们的博客应用程序中实现它们。
 

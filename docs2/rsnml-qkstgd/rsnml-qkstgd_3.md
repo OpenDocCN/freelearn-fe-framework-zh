@@ -1,4 +1,4 @@
-# 创建 ReasonReact 组件
+# 第三章：创建 ReasonReact 组件
 
 现在我们已经设置了我们的开发环境，我们就可以开始使用 ReasonReact 了——ReactJS 的未来。ReasonML 和 ReasonReact 都是由构建 ReactJS 的同一个人构建的。ReasonReact 就是 Reason，就像 ReactJS 就是 JavaScript 一样。在本书的其余部分，我们将使用一个应用程序，我们将在本章开始构建。以下是本章结束时我们将构建的内容的截图：
 

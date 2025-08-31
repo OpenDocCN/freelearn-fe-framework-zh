@@ -1,6 +1,6 @@
-# 2
 
-# 使用 State Hook
+
+# 第二章：使用 State Hook
 
 在了解了 React 的原则并对 Hooks 进行了介绍之后，我们现在将深入学习 State Hook。我们将从通过自己重新实现 State Hook 来了解其内部工作方式开始。这样做将使我们了解 Hooks 的限制以及它们存在的原因。然后，我们将学习可能的替代 Hook API 及其相关问题。最后，我们将学习如何解决由 Hooks 限制引起的常见问题。到本章结束时，您将知道如何使用 State Hook 在 React 中实现有状态的函数组件。
 

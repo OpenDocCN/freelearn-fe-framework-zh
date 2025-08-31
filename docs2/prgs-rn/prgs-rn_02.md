@@ -1,6 +1,6 @@
-# 2
 
-# 理解 JavaScript 和 TypeScript 的基本知识
+
+# 第二章：理解 JavaScript 和 TypeScript 的基本知识
 
 由于 React Native 应用程序是用 JavaScript 编写的，因此对这种语言有非常深入的理解对于构建高质量的应用程序至关重要。JavaScript 非常容易学习，但很难掌握，因为它允许你几乎可以做任何事情而不会给你带来太多麻烦。然而，仅仅因为你能够做任何事情并不意味着你应该这样做。
 

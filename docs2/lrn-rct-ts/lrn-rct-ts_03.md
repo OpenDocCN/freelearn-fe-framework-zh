@@ -1,6 +1,6 @@
-# 3
 
-# 设置 React 和 TypeScript
+
+# 第三章：设置 React 和 TypeScript
 
 在本章中，我们将学习如何同时使用 React 和 TypeScript。我们将首先通过使用 webpack 这个工具的步骤来创建一个 React 和 TypeScript 项目。然后我们将创建另一个项目，但这次使用 Create React App 这个工具来展示如何加快创建 React 和 TypeScript 项目的流程。
 

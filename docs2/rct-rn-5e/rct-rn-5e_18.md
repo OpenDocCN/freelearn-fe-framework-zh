@@ -1,6 +1,6 @@
-# 16
 
-# React Native 内部机制
+
+# 第十六章：React Native 内部机制
 
 上一章简要介绍了 React Native 是什么以及用户在 React Native UI 和移动浏览器之间体验到的差异。
 

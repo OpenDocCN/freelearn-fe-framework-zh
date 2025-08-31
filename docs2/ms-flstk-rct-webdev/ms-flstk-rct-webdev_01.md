@@ -1,4 +1,4 @@
-# 配置使用 Node.js、Express.js、MongoDB、Mongoose、Falcor 和 Redux 的全栈开发环境
+# 第一章：配置使用 Node.js、Express.js、MongoDB、Mongoose、Falcor 和 Redux 的全栈开发环境
 
 欢迎来到*精通全栈 React Web 开发*。在这本书中，你将使用 JavaScript 创建一个通用全栈应用程序。我们将要构建的应用程序是一个类似于市场上目前流行的发布平台，例如：
 

@@ -1,4 +1,4 @@
-# *第十章*：用例场景 4 – React Tracked
+# 第十章：*第十章*：用例场景 4 – React Tracked
 
 React Tracked ([`react-tracked.js.org`](https://react-tracked.js.org)) 是一个用于状态使用跟踪的库，它根据属性访问自动优化重新渲染。它提供了与 Valtio 相同的功能，我们在 *第九章*，*用例场景 3 – Valtio* 中讨论过，以消除额外的重新渲染。
 

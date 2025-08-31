@@ -1,6 +1,6 @@
-# 12
 
-# 使用 Apollo 客户端在前端与 GraphQL 交互
+
+# 第十二章：使用 Apollo 客户端在前端与 GraphQL 交互
 
 在上一章成功实现使用 Apollo Server 的 GraphQL 后端之后，我们现在将使用 Apollo 客户端在前端与新的 GraphQL API 进行交互。Apollo 客户端是一个库，使得与 GraphQL API 交互变得更加容易和方便。我们将首先用 GraphQL 查询替换获取帖子列表的操作，然后无需额外的查询即可解析作者用户名，展示 GraphQL 的强大功能。接下来，我们将向查询中添加变量以允许设置过滤和排序选项。最后，我们将学习如何在前端使用突变。
 

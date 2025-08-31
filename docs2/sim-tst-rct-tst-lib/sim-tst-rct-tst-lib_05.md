@@ -1,4 +1,4 @@
-# *第五章*：使用 React Testing Library 重构遗留应用程序
+# 第五章：*第五章*：使用 React Testing Library 重构遗留应用程序
 
 在上一章中，我们学习了如何测试与依赖项分离的独立组件。我们学习了测试组件的好处如何与其他组件集成。我们还学习了如何测试使用流行的第三方 **用户界面** （**UI**） 和状态管理工具的组件。在本章结束时，您将学习处理重构遗留 React 应用程序时断开更改的策略。您将学习如何在更新生产包的同时使用 React Testing Library 测试来引导您解决断开更改。您还将学习如何将使用 Enzyme 或 ReactTestUtils 编写的测试转换为 React Testing Library。
 

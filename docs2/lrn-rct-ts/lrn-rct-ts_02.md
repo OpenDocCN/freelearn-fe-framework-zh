@@ -1,6 +1,6 @@
-# 2
 
-# 介绍 TypeScript
+
+# 第二章：介绍 TypeScript
 
 在本章中，我们将首先了解 TypeScript 是什么，以及它是如何在 JavaScript 之上提供更丰富的类型系统的。我们将学习 TypeScript 中的基本类型，如数字和字符串，然后学习如何使用不同的 TypeScript 功能创建自己的类型来表示对象和数组。最后，我们将通过理解 TypeScript 编译器及其在 React 应用程序中的关键选项来结束本章。
 

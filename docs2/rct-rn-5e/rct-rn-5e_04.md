@@ -1,6 +1,6 @@
-# 3
 
-# 理解 React 组件和 Hooks
+
+# 第三章：理解 React 组件和 Hooks
 
 在本章中，我们将深入探讨 React 组件及其基本方面，并介绍**Hooks**的强大功能。
 

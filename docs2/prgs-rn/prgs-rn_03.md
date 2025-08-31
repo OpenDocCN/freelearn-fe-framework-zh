@@ -1,6 +1,6 @@
-# 3
 
-# 欢迎来到 React Native
+
+# 第三章：欢迎来到 React Native
 
 在学习完 React 和 React Native 的基础知识后，包括*第一章*“什么是 React Native？”以及 JavaScript 和 TypeScript 的基础知识*第二章*“理解 JavaScript 和 TypeScript 的基础”之后，现在是时候深入 React Native 的世界了。
 

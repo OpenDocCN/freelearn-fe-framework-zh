@@ -1,6 +1,6 @@
-# 8
 
-# 测试 React Query 钩子和组件
+
+# 第八章：测试 React Query 钩子和组件
 
 你几乎已经掌握了 React Query！到目前为止，你已经非常清楚查询和突变是如何工作的，并且准备好在服务器端渲染的项目中利用 React Query。现在，我们将探讨你需要成为真正的 React Query 英雄的最后一种技能——使用代码测试 React Query。
 

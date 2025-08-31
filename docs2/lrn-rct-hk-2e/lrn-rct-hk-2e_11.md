@@ -1,6 +1,6 @@
-# 9
 
-# React 提供的高级 Hooks
+
+# 第九章：React 提供的高级 Hooks
 
 在上一章中，我们学习了如何使用 React Router 实现路由。然后，我们学习了如何使用 Params Hook 实现动态路由。接下来，我们学习了如何使用 Link 组件提供不同路由的链接。最后，我们学习了如何使用 Navigation Hook 进行编程式重定向。
 

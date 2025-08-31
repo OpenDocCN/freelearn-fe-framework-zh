@@ -1,6 +1,6 @@
-# 10
 
-# 与 GraphQL API 交互
+
+# 第十章：与 GraphQL API 交互
 
 GraphQL API 是具有与它们交互的特殊语言的 Web API。这些 API 是 React 前端中非常流行的 REST API 的替代品。
 

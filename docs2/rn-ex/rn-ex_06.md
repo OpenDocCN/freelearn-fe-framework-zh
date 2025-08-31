@@ -1,4 +1,4 @@
-# 高级 Facebook 应用功能
+# 第六章：高级 Facebook 应用功能
 
 现在我们已经获得了访问 Facebook 的 Graph API 的权限，是时候完成我们应用的构建了。
 

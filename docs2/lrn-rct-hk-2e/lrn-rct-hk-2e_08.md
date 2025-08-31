@@ -1,6 +1,6 @@
-# 6
 
-# 使用 Hooks 和 React Suspense 进行数据获取
+
+# 第六章：使用 Hooks 和 React Suspense 进行数据获取
 
 在上一章中，我们学习了如何使用 React Context 作为手动传递 props 的替代方案。我们学习了 context providers、consumers 和 Context Hook。
 

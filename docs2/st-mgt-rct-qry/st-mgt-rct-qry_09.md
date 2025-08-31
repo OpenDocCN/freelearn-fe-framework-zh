@@ -1,6 +1,6 @@
-# 9
 
-# React Query v5 的变更有哪些？
+
+# 第九章：React Query v5 的变更有哪些？
 
 在撰写本文时，@tanstack/react-query 的 5.0.0-alpha.1 版本刚刚发布。虽然稳定版本可能需要几周时间才能发布，但本书出版时，它可能已经成为了每次将 React Query 添加到您的项目时默认安装的版本。
 

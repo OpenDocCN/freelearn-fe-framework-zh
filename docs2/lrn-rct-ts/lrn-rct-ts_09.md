@@ -1,6 +1,6 @@
-# 9
 
-# 与 RESTful API 交互
+
+# 第九章：与 RESTful API 交互
 
 在本章中，我们将构建一个页面，该页面列出从 REST API 获取的博客文章，以及一个表单，用于将博客文章提交到 REST API。通过这种方式，我们将了解从 React 组件与 REST API 交互的各种方法。
 

@@ -1,6 +1,6 @@
-# 16
 
-# 开始使用 Next.js
+
+# 第十六章：开始使用 Next.js
 
 到目前为止，我们一直在使用各种库和工具来开发全栈 Web 应用程序。现在，我们介绍 Next.js 作为一款企业级全栈 Web 应用程序框架，适用于 React。Next.js 将您需要的所有全栈 Web 开发功能和工具集成在一个包中。在这本书中，我们使用 Next.js，因为它是目前最受欢迎的框架，支持所有新的 React 特性，例如 React Server Components 和 Server Actions，这些是全栈 React 开发的未来。然而，还有其他全栈 React 框架，如 Remix，最近也开始支持新的 React 特性。
 

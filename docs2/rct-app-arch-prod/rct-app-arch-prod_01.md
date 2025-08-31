@@ -1,6 +1,6 @@
-# 1
 
-# 理解 React 应用程序的架构
+
+# 第一章：理解 React 应用程序的架构
 
 React 是由 Meta（Facebook）创建和维护的开源 JavaScript 库，用于构建用户界面。
 

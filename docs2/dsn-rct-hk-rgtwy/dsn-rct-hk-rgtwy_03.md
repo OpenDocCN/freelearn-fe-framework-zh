@@ -1,4 +1,4 @@
-# *第三章*：Hooking into React
+# 第三章：*第三章*：Hooking into React
 
 在上一章中，我们学习了如何在函数组件内部使用我们自定义的状态来执行操作。在本章中，我们将探讨在创建良好的状态解决方案时面临的挑战，然后看看 React 如何通过底层的 Hook 构建解决方案。然后我们将介绍什么是 hook，并了解它的调用顺序，以及如何在实际应用中避免遇到条件 hook 问题。本章还包括附录部分的两篇附加主题，*React Fiber* 和 *Current and WorkInProgress Scenes*。
 

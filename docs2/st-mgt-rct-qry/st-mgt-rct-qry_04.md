@@ -1,6 +1,6 @@
-# 4
 
-# 使用 React Query 获取数据
+
+# 第四章：使用 React Query 获取数据
 
 React Query 通过利用其自定义钩子之一`useQuery`，允许你获取、缓存和处理你的服务器状态。为了你的数据能够被缓存，React Query 有一个称为查询键的概念。结合查询键和一些严格的默认值，React Query 将你的服务器状态管理提升到新的水平。
 

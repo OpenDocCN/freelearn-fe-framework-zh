@@ -1,6 +1,6 @@
-# 2
 
-# 介绍 TypeScript
+
+# 第二章：介绍 TypeScript
 
 本章假设你已经有 JavaScript 的经验，并且对通过学习 **TypeScript** 来提高代码质量感兴趣。TypeScript 是一个类型化的 JavaScript 超集，它可以编译成 JavaScript。换句话说，TypeScript 实质上是带有一些额外功能的 JavaScript。
 

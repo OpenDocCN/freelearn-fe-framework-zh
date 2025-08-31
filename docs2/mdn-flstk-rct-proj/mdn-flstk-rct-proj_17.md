@@ -1,6 +1,6 @@
-# 13
 
-# 使用 Express 和 Socket.IO 构建事件驱动后端
+
+# 第十三章：使用 Express 和 Socket.IO 构建事件驱动后端
 
 在本章中，我们将学习关于事件驱动应用程序以及使用这种架构与更传统架构相比的权衡。然后，我们将学习关于 WebSockets 以及它们是如何工作的。之后，我们将使用 Socket.IO 和 Express 实现后端。最后，我们将学习如何通过使用 JWT 与 Socket.IO 集成来实现身份验证。
 

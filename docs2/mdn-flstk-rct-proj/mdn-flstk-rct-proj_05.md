@@ -1,6 +1,6 @@
-# 3
 
-# 使用 Express、Mongoose ODM 和 Jest 实现后端
+
+# 第三章：使用 Express、Mongoose ODM 和 Jest 实现后端
 
 在学习了 Node.js 和 MongoDB 的基础知识之后，我们将通过使用 Express 提供 REST API、Mongoose **对象数据建模**（**ODM**）与 MongoDB 接口以及 Jest 测试我们的代码来将它们付诸实践。我们首先将学习如何使用架构模式来构建后端项目。然后，我们将使用 Mongoose 创建数据库模式。接下来，我们将创建服务函数以与数据库模式接口，并使用 Jest 为它们编写测试。然后，我们将学习 REST 是什么以及何时有用。最后，我们将提供一个 REST API 并使用 Express 来提供服务。在本章结束时，我们将拥有一个可供下一章开发的前端使用的工作后端服务。
 

@@ -1,4 +1,4 @@
-# 其他 React Native 组件
+# 第九章：其他 React Native 组件
 
 在整本书中，我们提到了许多 React Native SDK。然而，有些组件的添加并不适合我们构建的应用程序。
 

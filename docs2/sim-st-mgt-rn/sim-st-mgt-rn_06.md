@@ -1,6 +1,6 @@
-# 6
 
-# 在 React Native 应用中使用 MobX 作为状态管理器
+
+# 第六章：在 React Native 应用中使用 MobX 作为状态管理器
 
 在上一章中，我们有机会尝试在 `FavoritedImages` 上下文中使用最受欢迎的状态管理解决方案 **Redux**。您可以随时返回 GitHub 仓库的文件夹 *第五章* 检查代码中具体发生了哪些变化：[`github.com/PacktPublishing/Simplifying-State-Management-in-React-Native/tree/main/chapter-5`](https://github.com/PacktPublishing/Simplifying-State-Management-in-React-Native/tree/main/chapter-5)。
 

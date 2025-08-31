@@ -1,4 +1,4 @@
-# 介绍 Create React App 2
+# 第一章：介绍 Create React App 2
 
 本书将指导你如何有效地使用 **Create React App** 2 (**CRA**) 来创建一个新的 React 项目并构建你梦想中的网络项目！我们将涵盖许多主题，包括如何安装 Create React App、默认获得的项目结构，以及如何将代码和库添加到你的项目中。我们将探索你构建复杂、现代网络应用所需的一切，包括最新的最常见 React 项目配置和编译。
 

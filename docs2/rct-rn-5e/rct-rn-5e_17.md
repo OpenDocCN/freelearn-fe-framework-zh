@@ -1,6 +1,6 @@
-# 15
 
-# 为什么选择 React Native？
+
+# 第十五章：为什么选择 React Native？
 
 Meta（原名 Facebook）创建了 React Native 来构建其移动应用程序。它始于 2013 年夏天的 Facebook 内部黑客马拉松项目，并于 2015 年开源。这样做的原因源于 React 在 Web 上的成功。因此，如果 React 是 UI 开发的优秀工具，而你需要一个原生应用程序，那么为什么要与之抗争呢？只需让 React 与原生移动操作系统 UI 元素协同工作！因此，同年，Facebook 将 React 分为两个独立的库，`React`和`ReactDOM`，从那时起，React 必须只与接口工作，而不关心这些元素将在哪里渲染。
 

@@ -1,4 +1,4 @@
-# 创建 React App 和 Babel
+# 第三章：创建 React App 和 Babel
 
 如果你来自一个可能已经很久没有使用 JavaScript 的背景，或者你可能对 JavaScript 和 Create React App 是使用它的途径，你可能会在本书的各个部分以及探索他人的项目时看到很多语法，并发现没有对正在发生的事情有彻底的了解，代码很难阅读。本章旨在为那些新接触 Babel 的人架起桥梁，并描述它为我们的 Create React App 项目带来了什么。
 

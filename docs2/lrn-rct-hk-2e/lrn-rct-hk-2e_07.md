@@ -1,6 +1,6 @@
-# 5
 
-# 实现 React 上下文
+
+# 第五章：实现 React 上下文
 
 在前面的章节中，我们学习了 State Hook、Reducer Hook 和 Effect Hook。我们使用这些 Hooks 开发了一个小型博客应用程序。正如我们在开发博客应用程序时注意到的那样，我们必须从`App`组件向下传递`username`状态到`UserBar`组件，然后从`UserBar`组件传递到`Login`、`Register`和`Logout`组件。为了避免必须以这种方式传递状态，我们现在将学习 React Context 和 Context Hooks。
 

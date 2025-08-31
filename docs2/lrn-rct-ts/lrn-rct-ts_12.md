@@ -1,6 +1,6 @@
-# 12
 
-# 使用 Jest 和 React Testing Library 进行单元测试
+
+# 第十二章：使用 Jest 和 React Testing Library 进行单元测试
 
 在本章中，我们将学习如何使用 Jest 和 React Testing Library，这两个流行的自动化测试工具可以在 React 应用程序中一起使用。我们将对我们在*第十一章*“可复用组件”中创建的清单组件创建测试。
 

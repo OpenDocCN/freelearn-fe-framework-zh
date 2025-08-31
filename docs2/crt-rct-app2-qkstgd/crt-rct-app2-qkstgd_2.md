@@ -1,4 +1,4 @@
-# 创建我们的第一个 Create React App 应用程序
+# 第二章：创建我们的第一个 Create React App 应用程序
 
 在第一章《介绍 Create React App 2》中，我们首先仔细研究了 Create React App 及其提供的一些选项。我们甚至开始了`create-react-app`的学习，并从非常基础的 React 知识开始学习。然而，我们现在需要开始构建一个将作为添加更多功能和测试 Create React App 极限框架的应用程序。 
 

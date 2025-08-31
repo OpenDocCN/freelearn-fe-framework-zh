@@ -1,556 +1,816 @@
 - en: '*Chapter 12*: Embracing Ahead-of-Time Compilation'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '*第12章*：拥抱即时编译'
 - en: Angular Ivy is the most recent generation of the Angular framework. It features
     a new compiler and a new runtime, both of which maintain compatibility with most
     of the APIs used by the previous generation of Angular's compiler and runtime
     known as Angular View Engine.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: Angular Ivy 是 Angular 框架的最新一代。它具有一个新的编译器和一个新的运行时，它们都保持了与之前一代 Angular 的编译器和运行时（称为
+    Angular 视图引擎）使用的多数 API 的兼容性。
 - en: In this chapter, we will learn about how Angular Ivy makes **ahead-of-time**
     the default Angular compiler across all phases of development and what impact
     it has on our developer workflow.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将了解 Angular Ivy 如何使**即时编译**成为开发所有阶段的默认 Angular 编译器，以及它对我们开发者工作流程的影响。
 - en: Following that, we will explore metadata errors that might occur when using
     the ahead-of-time Angular compiler, with accompanying techniques to fix the errors.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 随后，我们将探讨在使用即时编译的 Angular 编译器时可能出现的元数据错误，以及伴随的修复错误的技术。
 - en: Finally, we will demonstrate two techniques for resolving asynchronous dependencies
     before bootstrapping our Angular Ivy application.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们将演示两种在启动我们的 Angular Ivy 应用程序之前解决异步依赖的技术。
 - en: 'We will cover the following topics in this chapter:'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章我们将涵盖以下主题：
 - en: Using the ahead-of-time compiler for all development phases
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在所有开发阶段使用即时编译器
 - en: Dealing with the ahead-of-time compiler's limitations
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 处理即时编译器的限制
 - en: Initializing asynchronous dependencies
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 初始化异步依赖
 - en: After reading this chapter, you will be aware of how Angular Ivy made it feasible
     for the ahead-of-time Angular compiler to become the default compiler for all
     phases of our development workflow. You will understand how the ahead-of-time
     compiler affects the different phases of our development workflow.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 在阅读本章后，你将了解 Angular Ivy 如何使即时编译的 Angular 编译器成为我们开发工作流程所有阶段的默认编译器成为可能。你将理解即时编译器如何影响我们开发工作流程的不同阶段。
 - en: This chapter introduces edge cases that are incompatible with the ahead-of-time
     Angular compiler but also teaches you how to deal with them or get around them.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章介绍了与即时编译的 Angular 编译器不兼容的边缘情况，同时也教你如何处理它们或绕过它们。
 - en: You will learn two techniques for resolving asynchronous dependencies before
     bootstrapping your Angular application and the trade-offs they bring.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 你将学习两种在启动 Angular 应用程序之前解决异步依赖的技术，以及它们带来的权衡。
 - en: Technical requirements
+  id: totrans-12
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: 'The technicalities discussed in this chapter apply to applications at or higher
     than the following versions:'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章讨论的技术细节适用于以下版本或更高版本的应用程序：
 - en: Angular Ivy version 12.2
+  id: totrans-14
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: Angular Ivy 版本 12.2
 - en: TypeScript version 4.2
+  id: totrans-15
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: TypeScript 版本 4.2
 - en: More metadata errors might occur in earlier versions of Angular and TypeScript.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 Angular 和 TypeScript 的早期版本中可能会出现更多的元数据错误。
 - en: You can find complete code examples for the feature flags and the feature flag
     initializer in this book's companion GitHub repository at [https://github.com/PacktPublishing/Accelerating-Angular-Development-with-Ivy/tree/main/projects/chapter12](https://github.com/PacktPublishing/Accelerating-Angular-Development-with-Ivy/tree/main/projects/chapter12).
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可以在本书的配套 GitHub 仓库中找到功能标志和功能标志初始化器的完整代码示例，该仓库地址为 [https://github.com/PacktPublishing/Accelerating-Angular-Development-with-Ivy/tree/main/projects/chapter12](https://github.com/PacktPublishing/Accelerating-Angular-Development-with-Ivy/tree/main/projects/chapter12)。
 - en: Using the ahead-of-time compiler for all development phases
+  id: totrans-18
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 在所有开发阶段使用即时编译器
 - en: In previous generations of Angular, the ahead-of-time compiler was significantly
     slower than the just-in-time Angular compiler. Because of this and other factors,
     just-in-time was the default compiler in all or several phases of development
     depending on the Angular version. This in turn led to issues because errors were
     only discovered when doing a production build or—even worse—in the production
     environment at runtime.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 Angular 的前几代中，即时编译器比即时 Angular 编译器慢得多。由于这个和其他因素，即时编译在所有或几个开发阶段中是默认的编译器，这取决于
+    Angular 的版本。这反过来又导致了问题，因为错误只有在进行生产构建时或更糟糕的是在生产环境中运行时才会被发现。
 - en: Angular Ivy uses its **ahead-of-time compiler** by default in all development
     phases, including while running the development server, when running tests, for
     server-side rendering, and in the browser, instead of bundling and running the
     **just-in-time compiler** at runtime.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: Angular Ivy 默认在所有开发阶段使用其**即时编译器**，包括在运行开发服务器、运行测试、服务器端渲染以及在浏览器中，而不是在运行时捆绑并运行**即时编译器**。
 - en: This section discusses how the ahead-of-time Angular compiler affects these
     phases of our development workflow.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节讨论了即时 Angular 编译器如何影响我们开发工作流程的这些阶段。
 - en: Ahead-of-time compilation for builds
+  id: totrans-22
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 构建时的即时编译
 - en: Besides improved compilation speed in Angular Ivy, another key to using the
     ahead-of-time compiler by default is that Angular Ivy decreases our application's
     bundle size under certain conditions. In general, both small and large applications
     see a decrease in overall size when comparing View Engine to Ivy compilation,
     while medium-sized applications might not see a significant change.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了 Angular Ivy 中改进的编译速度外，默认使用即时编译器的另一个关键因素是 Angular Ivy 在某些条件下会减小我们应用的包大小。一般来说，与
+    View Engine 相比，无论是小型还是大型应用，在 Ivy 编译时都会看到整体大小的减小，而中等大小的应用可能不会看到显著的变化。
 - en: More specifically, the bundle sizes of small and simple applications decrease
     when using Angular Ivy. For complex applications, the main bundle size increases
     while lazy-loaded chunks become smaller when compared to Angular View Engine.
     This is a bit of a trade-off, considering that a bigger main bundle size increases
     several performance timing measurements.
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 更具体地说，当使用 Angular Ivy 时，小型和简单应用的包大小会减小。对于复杂应用，主包大小增加，而与 Angular View Engine
+    相比，懒加载的块变得更小。这有点权衡，因为更大的主包大小会增加几个性能时间测量指标。
 - en: The secret to unlocking the opportunity for smaller bundles is the transition
     from View Engine's data structures interpreted at runtime to the so-called **Ivy
     Instruction Set**, which reuses runtime commands—or instructions—rather than having
     a unique data structure for each part of your application as was the case with
     View Engine.
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 解锁更小包机会的秘诀是从 View Engine 在运行时解释的数据结构过渡到所谓的 **Ivy 指令集**，它重用运行时命令或指令，而不是像 View
+    Engine 那样为应用每个部分都有一个独特的数据结构。
 - en: View Engine's compiled data structures have the downside that there is an inflection
     point at which the compiled data structures become larger than the source code
     of the compiler and our application.
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: View Engine 编译的数据结构有一个缺点，即存在一个拐点，此时编译的数据结构比编译器和我们的应用源代码更大。
 - en: In comparison, the Ivy Instruction Set is tree-shakable, meaning that only the
     instructions used by our application are included in a production bundle. For
     example, internationalization instructions are removed from a production bundle
     if our application is not multilingual. Similarly, animation instructions are
     excluded from a production bundle if our application does not use animations.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 相比之下，Ivy 指令集是可摇树的，这意味着只有我们应用使用的指令包含在生产包中。例如，如果我们的应用不是多语言，国际化指令将从生产包中移除。同样，如果我们的应用不使用动画，动画指令将排除在生产包之外。
 - en: The Ivy Instruction Set is used by a significantly faster runtime when compared
     to View Engine because the precompiled instructions are immediately executable
     in contrast to the View Engine data structures, which must be interpreted to instructions
     at runtime before being executed.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 与 View Engine 相比，Ivy 指令集由一个显著更快的运行时使用，因为预编译的指令可以立即执行，而 View Engine 的数据结构必须在运行时被解释为指令后才能执行。
 - en: Ahead-of-time compilation for component templates
+  id: totrans-29
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 组件模板的即时编译
 - en: When using Angular Ivy's ahead-of-time compiler, it is recommended to enable
     strict template type checking as mentioned in [*Chapter 2*](B16295_02_ePub_RK.xhtml#_idTextAnchor031),
     *Boosting Developer Productivity Through Tooling, Configuration, and Convenience*.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 当使用 Angular Ivy 的即时编译器时，建议启用严格模板类型检查，如[*第2章*](B16295_02_ePub_RK.xhtml#_idTextAnchor031)中所述，*通过工具、配置和便利性提高开发者生产力*。
 - en: Strict template type checking catches most type errors in Angular metadata,
     component models, and component templates. They will appear either when building
     our application or inline in our code editors when using the Angular Language
     Service.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 严格的模板类型检查可以捕获 Angular 元数据、组件模型和组件模板中的大多数类型错误。它们将在构建我们的应用时出现，或者在使用 Angular 语言服务时，在我们的代码编辑器中内联出现。
 - en: Without strict template type checking, these errors might appear as frustrating
     bugs at runtime.
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果没有严格的模板类型检查，这些错误可能在运行时表现为令人沮丧的bug。
 - en: Ahead-of-time compilation for unit tests
+  id: totrans-33
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 单元测试的即时编译
 - en: Angular Ivy decreases both build time and rebuild time. This is a time-saving
     improvement both for the development server and for unit tests. In addition to
     faster compilation speed, Angular Ivy introduces a compile cache so that compiled
     Angular modules, components, directives, pipes, and services are cached between
     test cases.
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: Angular Ivy 减少了构建时间和重建时间。这对于开发服务器和单元测试都是一个节省时间的改进。除了更快的编译速度外，Angular Ivy 还引入了编译缓存，以便在测试用例之间缓存编译后的
+    Angular 模块、组件、指令、管道和服务。
 - en: In Angular View Engine, ahead-of-time compilation is not supported for unit
     tests. Angular Ivy introduces ahead-of-time compilation support for unit tests
     while still allowing the dynamic creation of Angular modules, components, directives,
     and pipes for the purpose of testing. Dynamic creation during unit tests still
     uses the just-in-time Angular compiler.
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 Angular View Engine 中，不支持单元测试的即时编译。Angular Ivy 引入了单元测试的即时编译支持，同时仍然允许动态创建 Angular
+    模块、组件、指令和管道以进行测试。单元测试期间的动态创建仍然使用即时 Angular 编译器。
 - en: Ahead-of-time compilation for the runtime
+  id: totrans-36
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 运行时的即时编译
 - en: When using the ahead-of-time Angular compiler, our Angular application is loaded
     faster because the just-in-time Angular compiler is not bundled with our application.
     Our application is bootstrapped faster because the compiler is run at build time
     rather than at runtime.
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 当使用即时 Angular 编译器时，我们的 Angular 应用程序加载速度更快，因为即时 Angular 编译器并未与应用程序捆绑在一起。我们的应用程序启动速度更快，因为编译器是在构建时而不是在运行时运行的。
 - en: The Angular Ivy runtime is faster than the Angular View Engine runtime thanks
     to the Ivy Instruction Set. The View Engine runtime has to interpret the view
     compiler data structures before initializing or updating the DOM managed by an
     Angular component template. By comparison, Ivy instructions are executed immediately.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于 Ivy 指令集，Angular Ivy 运行时比 Angular View Engine 运行时更快。View Engine 运行时必须在初始化或更新由
+    Angular 组件模板管理的 DOM 之前解释视图编译器数据结构。相比之下，Ivy 指令立即执行。
 - en: In this section, we discussed the impact the ahead-of-time Angular compiler
     has on the different phases of our development workflow. In the following section,
     we will shine a light on the ahead-of-time compiler's limitations and explore
     how we address them through simple code examples.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们讨论了即时 Angular 编译器对我们开发工作流程不同阶段的影响。在下一节中，我们将探讨即时编译器的限制，并通过简单的代码示例来探讨我们如何解决这些问题。
 - en: Dealing with the ahead-of-time compiler's limitations
+  id: totrans-40
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 处理即时编译器的限制
 - en: The upside of using Angular Ivy's ahead-of-time compiler is faster runtime speed
     and a smaller bundle because of not having to ship a compiler to the runtime bundle
     or compiler before rendering the application.
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用 Angular Ivy 的即时编译器的优点是运行时速度更快，捆绑包更小，因为不需要将编译器发送到运行时捆绑包或编译器，在渲染应用程序之前。
 - en: When using the ahead-of-time compiler, there is a trade-off to be aware of.
     Declarables—that is, directives, components, and pipes—cannot rely on runtime
     information because they must be compiled ahead of time, that is, at build time
     rather than at runtime.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 当使用即时编译器时，需要注意权衡。声明式组件——即指令、组件和管道——不能依赖于运行时信息，因为它们必须在构建时而不是在运行时编译。
 - en: This sets a limitation for dynamically creating declarables at runtime, for
     example, based on server-side configuration or a static configuration file. Unless,
     of course, we bundle the Angular compiler with our application and use it at runtime,
     but then what would be the point?
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 这为在运行时动态创建声明式组件设定了限制，例如，基于服务器端配置或静态配置文件。除非，当然，我们将 Angular 编译器与应用程序捆绑在一起并在运行时使用它，但那样的话，又有什么意义呢？
 - en: The good news is that injected dependencies—that is, class-based services, provided
     values, or functions—can be resolved at runtime. Keep in mind that only synchronously
     resolved values can be provided directly. If we need an asynchronous process to
     resolve a value, we must wrap it in a class-based service, a function, a promise,
     or an observable. This is discussed and solved in the final sections of this chapter.
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 好消息是，注入的依赖项——即基于类的服务、提供的值或函数——可以在运行时解析。请记住，只有同步解析的值可以直接提供。如果我们需要一个异步过程来解析一个值，我们必须将其包装在一个基于类的服务、一个函数、一个承诺或一个可观察对象中。这一点在本章的最后部分进行了讨论和解决。
 - en: In this section, we will briefly discuss metadata errors when using the ahead-of-time
     Angular compiler. We will not discuss metadata errors that are solved by using
     strict TypeScript compilation or strict template type checking, as was discussed
     in [*Chapter 2*](B16295_02_ePub_RK.xhtml#_idTextAnchor031), *Boosting Developer
     Productivity Through Tooling, Configuration, and Convenience*.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将简要讨论使用提前编译的 Angular 编译器时出现的元数据错误。我们不会讨论通过使用严格的 TypeScript 编译或严格的模板类型检查来解决元数据错误的错误，正如在[*第
+    2 章*](B16295_02_ePub_RK.xhtml#_idTextAnchor031)中讨论的，*通过工具、配置和便利提高开发者生产力*。
 - en: Providing values using functions
+  id: totrans-46
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用函数提供值
 - en: 'Passing the result of a function call to a value provider is not supported.
     Instead, we use factory functions and declare them as providers known as factory
     providers. For example, say we have the following ahead-of-time-incompatible **value
     provider**:'
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 将函数调用的结果传递给值提供者是不支持的。相反，我们使用工厂函数并将它们声明为称为工厂提供者的提供者。例如，假设我们有以下与提前编译不兼容的**值提供者**：
 - en: '[PRE0]'
+  id: totrans-48
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'We can replace it with the following ahead-of-time-compatible **factory provider**:'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以用以下提前编译兼容的**工厂提供者**来替换它：
 - en: '[PRE1]'
+  id: totrans-50
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: This configures Angular to run the factory function at an appropriate time of
     our application life cycle to resolve the time zone dependency represented by
     `timeZoneToken` while maintaining compatibility with the ahead-of-time Angular
     compiler.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 这配置 Angular 在我们应用程序生命周期的适当时间运行工厂函数，以解决由`timeZoneToken`表示的时间区域依赖性，同时保持与提前编译的
+    Angular 编译器的兼容性。
 - en: Declaring metadata using functions
+  id: totrans-52
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用函数声明元数据
 - en: A known ahead-of-time compilation edge case is using functions or static methods
     to determine declared metadata such as the `imports` or `declarations` of an Angular
     module.
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 已知的一个提前编译边缘情况是使用函数或静态方法来确定声明的元数据，例如 Angular 模块的`imports`或`declarations`。
 - en: 'In the following use case, we attempt to bootstrap a fake root component in
     Angular development mode:'
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 在以下用例中，我们尝试在 Angular 开发模式下启动一个假根组件：
 - en: '[PRE2]'
+  id: totrans-55
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: When we try to compile this code ahead of time, we hit a limitation on Angular
     metadata. Functions used for metadata declaration must only contain a single `return`
     statement, nothing else.
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们尝试提前编译此代码时，我们会遇到 Angular 元数据的限制。用于元数据声明的函数必须只包含一个`return`语句，不能包含其他内容。
 - en: 'To comply with metadata limitations, we refactor the `determineAppComponent`
     function to the following implementation:'
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了符合元数据限制，我们将`determineAppComponent`函数重构为以下实现：
 - en: '[PRE3]'
+  id: totrans-58
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: The function now contains only a single expression, a `return` statement that
     evaluates a ternary expression. This is compliant with the ahead-of-time Angular
     compiler.
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 函数现在只包含一个表达式，一个评估三元表达式的`return`语句。这符合提前编译的 Angular 编译器的规范。
 - en: Using tagged template literals in component templates
+  id: totrans-60
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 在组件模板中使用带标签的模板字面量
 - en: 'Unfortunately, ahead-of-time Angular does not support tagged template literals.
     For example, the following component results in a compilation error:'
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 不幸的是，提前编译的 Angular 不支持带标签的模板字面量。例如，以下组件会导致编译错误：
 - en: '[PRE4]'
+  id: totrans-62
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'Instead, we can use a regular function to create a compile-time dynamic part
     of our template, as seen in the following implementation:'
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 相反，我们可以使用常规函数来创建模板的编译时动态部分，如下面的实现所示：
 - en: '[PRE5]'
+  id: totrans-64
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'We must stay clear of tagged template literals for component template metadata
     to comply with the ahead-of-time Angular compiler''s limitations on Angular metadata.
     However, we can use tagged template literals in UI properties that we use in template
     bindings, as seen in the following refactored implementation:'
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了符合提前编译的 Angular 编译器对 Angular 元数据的限制，我们必须避免在组件模板元数据中使用带标签的模板字面量。然而，我们可以在模板绑定中使用的
+    UI 属性中使用带标签的模板字面量，如下面的重构实现所示：
 - en: '[PRE6]'
+  id: totrans-66
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: Choose either of these two techniques to deal with or support tagged template
     literals for Angular component templates, respectively.
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 分别选择这两种技术来处理或支持 Angular 组件模板中的带标签的模板字面量。
 - en: Initializing metadata variables
+  id: totrans-68
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 初始化元数据变量
 - en: 'Metadata must be immediately available for the ahead-of-time compiler. The
     following example is invalid because of late initialization:'
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: 元数据必须立即对提前编译器可用。以下示例由于延迟初始化而无效：
 - en: '[PRE7]'
+  id: totrans-70
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: The `greeting` variable has not been initialized when the component metadata
     is converted to annotations by the ahead-of-time Angular compiler.
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 当组件元数据被提前编译的 Angular 编译器转换为注解时，`greeting`变量尚未初始化。
 - en: 'More surprisingly, the following example is also invalid:'
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 更令人惊讶的是，以下示例也是无效的：
 - en: '[PRE8]'
+  id: totrans-73
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: While not a common use case, keep this limitation in mind because it is quite
     surprising.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然这不是一个常见的用例，但请记住这个限制，因为它相当令人惊讶。
 - en: 'Let''s first see the fixed implementation:'
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们先看看固定实现：
 - en: '[PRE9]'
+  id: totrans-76
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: The `greeting` variable is now defined and initialized at the same time so the
     component template works as expected.
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: '`greeting` 变量现在同时定义和初始化，这样组件模板才能按预期工作。'
 - en: 'Let''s now change the value of the `greeting` variable just after initializing
     it:'
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，让我们在初始化 `greeting` 变量之后立即更改其值：
 - en: '[PRE10]'
+  id: totrans-79
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: When using the ahead-of-time Angular compiler, the template is `<h1>Hello, World!</h1>`.
     If we change to the just-in-time Angular compiler, the template is `<h1>Hello,
     JIT compiler!</h1>`.
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 当使用即时 Angular 编译器时，模板是 `<h1>Hello, World!</h1>`。如果我们切换到即时 Angular 编译器，模板是 `<h1>Hello,
+    JIT compiler!</h1>`。
 - en: Variables used for declarable metadata must be defined and initialized at the
     same time when using the ahead-of-time Angular compiler.
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 当使用即时 Angular 编译器时，用于可声明元数据的变量必须在同一时间定义和初始化。
 - en: In this section, we explored the edge cases of ahead-of-time compiler compatibility
     and learned how to address them. In the next section, we will learn how to initialize
     asynchronous dependencies before bootstrapping our application.
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们探讨了即时编译器兼容性的边缘情况，并学习了如何解决这些问题。在下一节中，我们将学习如何在引导我们的应用程序之前初始化异步依赖项。
 - en: Initializing asynchronous dependencies
+  id: totrans-83
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 初始化异步依赖项
 - en: Referring to asynchronous values is toxic because every value computed from
     the referred value must be asynchronous as well. A couple of techniques to get
     around this are available, but they both come at the cost of delaying application
     bootstrapping until the value has been resolved. These techniques are demonstrated
     in this section.
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 引用异步值是有害的，因为从引用的值计算出的每个值都必须是异步的。有一些技术可以绕过这个问题，但它们都会以延迟应用程序引导直到值被解析为代价。这些技术在本节中进行了演示。
 - en: Providing an asynchronous dependency with a static platform provider
+  id: totrans-85
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用静态平台提供者提供异步依赖项
 - en: To convert an asynchronous dependency resolver to a static dependency, we can
     delay bootstrapping our application to provide the static provider at the platform
     level, making it available as a static dependency in our application.
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 要将异步依赖项解析器转换为静态依赖项，我们可以延迟引导我们的应用程序，以在平台级别提供静态提供者，使其作为静态依赖项在我们的应用程序中可用。
 - en: For example, say we have a JSON file containing an object with Boolean values.
     We create it in the `src/app/assets/features.json` file of our application project.
     This file contains our **feature flags**, which are loaded at runtime. The settings
     in this file can be changed after compiling our application.
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，假设我们有一个包含布尔值的对象的 JSON 文件。我们在应用程序项目的 `src/app/assets/features.json` 文件中创建它。此文件包含我们的**功能标志**，它们在运行时加载。此文件中的设置可以在编译我们的应用程序后更改。
 - en: 'In the `src/load-feature-flags.ts` file of our application project, we add
     the following function:'
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的应用程序项目的 `src/load-feature-flags.ts` 文件中，我们添加以下函数：
 - en: '[PRE11]'
+  id: totrans-89
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: Before calling this function in the main file of our application, we create
     a dependency injection token to represent the feature flags.
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的应用程序主文件中调用此函数之前，我们创建一个依赖注入令牌来表示功能标志。
 - en: 'The following code block shows the `src/app/feature-flags.token.ts` file of
     our application project:'
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下代码块显示了我们的应用程序项目的 `src/app/feature-flags.token.ts` 文件：
 - en: '[PRE12]'
+  id: totrans-92
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'Finally, we modify our main file so that it contains something like the following:'
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们修改我们的主文件，使其包含以下内容：
 - en: '[PRE13]'
+  id: totrans-94
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: Notice how we are loading the feature flags, then passing them as the value
     for the platform provider of the feature flags token before being able to bootstrap
     our Angular application module.
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意我们是如何加载功能标志，然后在能够引导我们的 Angular 应用程序模块之前，将它们作为功能标志令牌的平台提供者的值传递。
 - en: 'Now, we can inject the feature flags in any Angular-specific class, such as
     a component, as seen in the following example:'
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们可以在任何 Angular 特定的类中注入功能标志，例如组件，如下面的示例所示：
 - en: '[PRE14]'
+  id: totrans-97
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: Feature flags are a good use case for this technique. Other configurations are
     also well suited for this approach. Additionally, if multiple application initializers
     need a shared dependency, this technique is the best approach.
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 功能标志是这种技术的良好用例。其他配置也适合这种方法。此外，如果多个应用程序初始化器需要共享依赖项，这种方法是最佳选择。
 - en: In the next section, we will walk through an alternative technique and discuss
     the differences.
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一节中，我们将介绍一种替代技术，并讨论其差异。
 - en: Resolving an asynchronous dependency with an application initializer
+  id: totrans-100
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 使用应用程序初始化器解析异步依赖项
 - en: Another technique for dealing with a dependency that is asynchronously resolved
     is an application initializer.
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: 处理异步解析的依赖项的另一种技术是应用程序初始化器。
 - en: An application initializer is resolved before the root application component
     is bootstrapped. This is ideal for setting up the initial root-level state that
     is not needed for other application initializers.
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: 在引导根应用程序组件之前解析应用程序初始化器。这对于设置不需要其他应用程序初始化器的初始根级状态是理想的。
 - en: We will consider an alternative approach for dealing with feature flags. This
     time, we are using a feature flag service that is configured using an application
     initializer.
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将考虑一种处理功能标志的替代方法。这次，我们使用的是通过应用程序初始化器配置的功能标志服务。
 - en: 'The feature flag service has the following implementation:'
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 功能标志服务具有以下实现：
 - en: '[PRE15]'
+  id: totrans-105
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: 'The feature flag initializer loads the feature flags using `HttpClient` before
     calling `FeatureFlagService#configureFeatures`. This is seen in the following
     code listing:'
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 功能标志初始化器在调用`FeatureFlagService#configureFeatures`之前使用`HttpClient`加载功能标志。这如下面的代码示例所示：
 - en: '[PRE16]'
+  id: totrans-107
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'Finally, we register the feature flag initializer in our root module by adding
     it to the `providers` array, as seen in the following code snippet:'
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们通过将其添加到`providers`数组中，在我们的根模块中注册功能标志初始化器，如下面的代码片段所示：
 - en: '[PRE17]'
+  id: totrans-109
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: 'After setting all of this up, any Angular-specific class can inject an instance
     of the `FeatureFlagService` class and use its `isEnabled` method to check the
     state of a feature flag, as seen in the following code listing:'
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 在设置好所有这些之后，任何Angular特定的类都可以注入`FeatureFlagService`类的实例，并使用其`isEnabled`方法来检查功能标志的状态，如下面的代码示例所示：
 - en: '[PRE18]'
+  id: totrans-111
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: The benefit of using an application initializer is that multiple of them can
     be run in parallel, which speeds up the overall application bootstrap time compared
     to delaying the entire bootstrap process until a response has finished, as was
     the case in the preceding section.
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用应用程序初始化器的优点是，可以并行运行多个初始化器，这比在前一节中延迟整个引导过程直到响应完成要快。
 - en: The trade-off is that we must wrap the feature flags in a service-based class
     with methods for writing and reading the feature flag configuration, whereas with
     the first technique we explored, the feature flags were available as a static
     dependency, a dead simple object. Choose whichever technique fits your use case
     best.
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
+  zh: 代价是我们必须将功能标志包装在一个基于服务的类中，该类具有编写和读取功能标志配置的方法，而使用我们之前探索的第一种技术时，功能标志作为静态依赖项可用，这是一个非常简单的对象。选择最适合您用例的技术。
 - en: Summary
+  id: totrans-114
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 摘要
 - en: In this chapter, we learned how the enhanced Angular Ivy compiler and runtime
     make the ahead-of-time Angular compiler a good choice for all phases of development.
     The tree-shakable, reusable Ivy Instruction Set leaves a smaller bundle for a
     range of applications.
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们学习了增强的Angular Ivy编译器和运行时如何使提前时间Angular编译器成为所有开发阶段的良好选择。可摇树优化、可重用的Ivy指令集为各种应用程序留下了更小的包。
 - en: We discussed how ahead-of-time compilation affects our application builds, component
     templates, unit tests, and the browser at runtime.
+  id: totrans-116
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们讨论了提前时间编译如何影响我们的应用程序构建、组件模板、单元测试以及在运行时的浏览器。
 - en: Next, we explored solutions for metadata errors that occur when using the ahead-of-time
     Angular compiler. Metadata errors that are detected by strict TypeScript and Angular
     compilation settings were not discussed. Read about strict template type checking
     in [*Chapter 2*](B16295_02_ePub_RK.xhtml#_idTextAnchor031), *Boosting Developer
     Productivity Through Tooling, Configuration, and Convenience*.
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们探讨了在使用提前时间Angular编译器时出现的元数据错误的解决方案。关于由严格的TypeScript和Angular编译设置检测到的元数据错误没有讨论。请参阅[*第2章*](B16295_02_ePub_RK.xhtml#_idTextAnchor031)，*通过工具、配置和便利提高开发者生产力*中关于严格模板类型检查的内容。
 - en: 'In the final sections, we learned how to resolve and initialize asynchronous
     dependencies before bootstrapping our application using two techniques:'
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: 在最后几节中，我们学习了在引导应用程序之前如何使用两种技术来解决和初始化异步依赖：
 - en: Providing an asynchronous dependency with a static platform provider
+  id: totrans-119
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用静态平台提供者提供异步依赖
 - en: Resolving an asynchronous dependency with an application initializer
+  id: totrans-120
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用应用程序初始化器解决异步依赖
 - en: These techniques are great for feature flags and other configurations, but they
     each have trade-offs that you are now able to recognize.
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些技术对于功能标志和其他配置来说都很棒，但它们各自都有权衡，你现在能够识别出来。
 - en: That is the end of this book. We hope that you enjoyed learning about some of
     the most interesting stable features introduced by Angular Ivy and its accompanying
     versions of TypeScript. Angular is an ever-evolving framework with several feature
     releases every year.
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: 这本书就到这里结束了。我们希望您在学习Angular Ivy及其配套版本的TypeScript引入的一些最有趣的新特性时感到愉快。Angular是一个不断发展的框架，每年都会发布几个新特性。
 - en: Keep learning!
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 继续学习！

@@ -1,0 +1,430 @@
+<html><head></head><body><div class="chapter" title="Chapter&#xA0;10.&#xA0;Making Things Pluggable" id="aid-1T1401"><div class="titlepage"><div><div><h1 class="title"><a id="ch10"/>Chapter 10. Making Things Pluggable</h1></div></div></div><p>I'm a huge fan of plugin architectures. Besides their tremendously positive effect on your application and scope management, they are also a lot of fun to develop. I'd recommend integrating a plugin architecture in their library or application to anyone who asks me. A good plugin architecture allows you to write a concise application core and provide additional functionality via plugins.</p><p>Designing your whole application in a way that it allows you to build a plugin architecture has a great effect on the extensibility of your system. This is because you're making your application open for extensibility but closing it for modification.</p><p>While authoring my open source projects, I also experienced that a plugin architecture helps you manage the scope of your project. Sometimes, a requested feature is really nice and helpful, but it will still bloat the library core. Instead of bloating your whole application or library with such features, you can simply write a plugin to get the job done.</p><p>In this chapter, we will create our own plugin architecture that will help us extend the features of our application without bloating its core. We'll first build the plugin API in the core of our application and then use the API to implement a nice little agile plugin, which helps us to estimate tasks using story points.</p><p>We'll cover the following topics in this chapter:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem">Designing a plugin architecture, based on the Angular ecosystem</li><li class="listitem">Implementing a decorator-based plugin API</li><li class="listitem">Using <code class="literal">ComponentResolver</code> and <code class="literal">ViewContainerRef</code> to instantiate plugin components into predefined slots in our application</li><li class="listitem">Implementing a plugin-loading mechanism using SystemJS</li><li class="listitem">Using a reactive approach in our plugin architecture to enable plug and play style plugins</li><li class="listitem">Implementing an agile plugin to record story points using the new plugin API</li></ul></div><div class="section" title="Plugin architecture"><div class="titlepage"><div><div><h1 class="title"><a id="ch10lvl1sec58"/>Plugin architecture</h1></div></div></div><p>At a higher level, a plugin <a id="id462" class="indexterm"/>architecture should fulfil at least the following requirements:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem"><span class="strong"><strong>Extensibility</strong></span>: The <a id="id463" class="indexterm"/>main idea behind plugins is to allow the extension of the core functionality using isolated bundles of code. A great plugin architecture allows you to extend the core seamlessly and without noticeable performance losses.</li><li class="listitem"><span class="strong"><strong>Portability</strong></span>: Plugins <a id="id464" class="indexterm"/>should be isolated enough so that they can be plugged into the system during runtime. There shouldn't be a necessity to rebuild a system to enable plugins. Ideally, plugins can even be loaded at any time during runtime. They can be deactivated and activated and should not cause the system to run into an inconsistent state.</li><li class="listitem"><span class="strong"><strong>Composability</strong></span>: A plugin system should allow the use of many plugins in parallel and <a id="id465" class="indexterm"/>allow an extension of the system by compositing multiple plugins together. Ideally, the system also includes dependency management, plugin version management, and plugin intercommunication.</li></ul></div><p>There are a lot of different approaches on how to implement a plugin architecture. Although these approaches can vary a lot, there's almost always a mechanism in place that provides unified extension points. Without this, it will be hard to extend a system uniformly.</p><p>I've worked with some plugin architectures in the past, and besides using existing plugin mechanisms, I've also enjoyed designing some of them myself. The following list should provide an idea about some of the approaches that you can use when designing a plugin system:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem"><span class="strong"><strong>DSL</strong></span>: Using <a id="id466" class="indexterm"/>domain-specific languages is one way to implement a pluggable architecture. After you've implemented the core of your application, you can develop an API or even a scripting language that allows you to develop further features using this DSL. A lot of video game engines and CG applications rely on this approach. Although this approach is very flexible, it can also lead to performance issues quickly, and it's prone to introducing complexity. Mostly, the prerequisites to implement such an architecture are to expose very low-level core operations (such as adding UI elements, configuring process flows, and so on) into the DSL, which does not provide clear boundaries and extension points but is extremely flexible. Some examples of DSL-based plugin systems are most of Adobe's CG applications, 3D Studio Max, and Maya, but also game engines, such as Unreal Engine or the Real Virtuality Engine from Bohemia Interactive Studio.</li><li class="listitem"><span class="strong"><strong>The core is the plugin system</strong></span>: Another approach is to build such a sophisticated plugin architecture that it fulfils all the outlined requirements in the previous listing (extensibility, portability, and composability) and even some more sophisticated requirements on top. The core of your application is one large plugin system. Then, you start to implement everything as a plugin. Even the core concerns of your application will be implemented as plugins. A perfect example of this approach is the Eclipse IDE with its Equinox core. The problem with this approach is that you're likely to run into performance problems as your application grows. As everything is a plugin, optimization is quite tricky, and plugin compatibility can make the application unstable.</li><li class="listitem"><span class="strong"><strong>Event-based extension points</strong></span>: Also, a great way to provide extensibility of a system is by <a id="id467" class="indexterm"/>opening up the pipeline of your system to input from outside. Imagine that for every important step in your application, you notify the outside world about the step and allow interception before the application continues with processing. In this manner, a plugin will just be an adapter that listens for these pipeline events of your application and then modifies the behavior as required. A plugin itself can also emit events, which then can be processed by other plugins again. This architecture is really flexible, as it allows you to change the behavior of your core functionality without introducing too much complexity. It's also fairly easy to implement this approach even after you've finished your core without any thoughts about a plugin system. I've been following this approach in my open source project Chartist and, so far, I've had very good results with it.</li><li class="listitem"><span class="strong"><strong>Plugin interfaces</strong></span>: An application can expose a set of interfaces that define certain extension points. This <a id="id468" class="indexterm"/>approach is heavily used in the Java framework where it's known as <span class="strong"><strong>Service Provider Interface</strong></span> (<span class="strong"><strong>SPI</strong></span>). Providers <a id="id469" class="indexterm"/>implement a certain contract, which allows the core system to rely on an interface rather than an implementation. These providers can then be cycled back into the system where they are made available to the framework and other providers. Although this is probably the safest way to provide extensibility in terms of uniformness, it's also the most rigid one. A plugin will never be allowed to do anything else that was specified in the contract of the interfaces.</li></ul></div><p>You can see that all four approaches vary a lot. From the top-most, which provides extreme flexibility at the cost of complexity and stability, to the bottom-most, which is very robust but also rigid.</p><p>The approach that you choose when implementing a plugin system heavily depends on the requirements for your application. If you do not plan on building an application that comes bundled in various flavors and where multiple versions for completely different concerns should exist, the approaches to the bottom of the preceding listing are probably more likely the ones that you should follow.</p></div></div>
+<div class="section" title="Pluggable UI components" id="aid-1TVKI1"><div class="titlepage"><div><div><h1 class="title"><a id="ch10lvl1sec59"/>Pluggable UI components</h1></div></div></div><p>The system that we're <a id="id470" class="indexterm"/>going to build in this chapter borrows a lot of mechanisms that are already present in the Angular framework. In order to implement extensibility using plugins, we rely on the following core concepts:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem">We use directives to indicate extension points in the UI, which we call plugin slots. These plugin slot directives will be responsible for the dynamic instantiation of plugin components and will insert them into the application UI at the given position.</li><li class="listitem">Plugins expose components using a concept that we call plugin placements. Plugin placements declare what components of a plugin should be placed into which plugin slots in the application. We also use plugin placements to decide the order in which components from different plugins should be inserted into the plugin slots. For this, we'll use a property called <span class="strong"><strong>priority</strong></span>.</li><li class="listitem">We use the dependency injection of Angular to provide the instantiated plugin information into the plugin components. As the plugin components will be placed in a spot where there's already an injector present, they will be able to inject surrounding components and dependencies in order to connect to the application.</li></ul></div><p>Let's look at the following illustration to picture the architecture of our plugin system before we start implementing it:</p><div class="mediaobject"><img src="../Images/image00349.jpeg" alt="Pluggable UI components"/><div class="caption"><p>The plugin architecture that we'll implement in this chapter using some basic UML and cardinality annotations</p></div></div><p style="clear:both; height: 1em;"> </p><p>Let's look at the different entities in this diagram and quickly explain what they do:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem"><code class="literal">PluginConfig</code>: This ES7 decorator is the key element when implementing a plugin. By annotating a plugin class using this decorator, we can store meta-information about the plugin, which will be used later by our plugin system. The metadata includes the plugin name, a description, and the placement information.</li><li class="listitem"><code class="literal">PluginData</code>: This is an aggregation class that is used by the plugin system to couple the information about an instantiated plugin with the placement information (where plugin components should be instantiated). This entity is exposed in dependency injection once a plugin component is created. Any plugin component can make use of this entity to gather information about the instantiation or to gain access to the plugin instance.</li><li class="listitem"><code class="literal">PluginService</code>: This is the service used to glue our plugin system together. It's mainly used to load plugins, remove plugins, or used by the <code class="literal">PluginSlot</code> directive to gather plugin components together that are relevant for creation in the plugin slot.</li><li class="listitem"><code class="literal">PluginSlot</code>: This <a id="id471" class="indexterm"/>directive is used to mark UI extension points in our application. Wherever we'd like to make it possible for plugins to hook into our application user interface, we'll place this directive. Plugin slots need to be named, and plugins use placement information to reference slots by their name. This way a plugin can provide different components for different slots in our application.</li><li class="listitem"><code class="literal">PluginComponent</code>: These are regular Angular components that come bundled with a plugin implementation. A plugin can provide multiple components configured on the plugin using a <code class="literal">PluginPlacement</code> object.</li><li class="listitem"><code class="literal">PluginPlacement</code>: This is used in the plugin configuration where a plugin can have multiple placement configurations. Each placement entity consist of a reference to a component, the name of the slot where the component should be instantiated, and a priority number that helps the plugin system to order plugin components correctly when multiple components get instantiated in the same slot.</li><li class="listitem"><code class="literal">Plugin</code>: This is the actual plugin class when implementing a plugin. The class contains the plugin configuration annotated using the <code class="literal">PluginConfig</code> decorator. The plugin class is instantiated once in the application and is also shared across the plugin components using the dependency injection of Angular. Therefore, this class is also a good place to share data between plugin components.</li></ul></div><p>Now, we have an overview of what we're going to build on a higher level. Our plugin system is very rudimentary, but it will support things such as hot loading plugins (plug and play style) and other nice features. In the next topic, we'll start by implementing the plugin API core components.</p></div>
+<div class="section" title="Implementing the plugin API"><div class="titlepage" id="aid-1UU542"><div><div><h1 class="title"><a id="ch10lvl1sec60"/>Implementing the plugin API</h1></div></div></div><p>Let's start with the <a id="id472" class="indexterm"/>less complex entities of our plugin API. We create a new <code class="literal">lib/plugin/plugin.js</code> file to create the <code class="literal">PluginConfig</code> decorator and the <code class="literal">PluginPlacement</code> class, which stores the information where plugin components should be placed. We also create the <code class="literal">PluginData</code> class in this file, which is used to inject plugin runtime information into plugin components:</p><div class="informalexample"><pre class="programlisting">export function PluginConfig(config) {
+  return (type) =&gt; {
+    type._pluginConfig = config;
+  };
+}</pre></div><p>The <code class="literal">PluginConfig</code> decorator contains the very simple logic of accepting a configuration parameter, which will then be stored on the annotated class (the constructor function) on the <code class="literal">_pluginConfig</code> property. If you need a refresher on how decorators work, it's maybe a good time to read the decorator topic in <a class="link" title="Chapter 1. Component-Based User Interfaces" href="part0014.xhtml#aid-DB7S1">Chapter 1</a>, <span class="emphasis"><em>Component-Based User Interfaces</em></span>, again:</p><div class="informalexample"><pre class="programlisting">export class PluginPlacement {
+  constructor(options) {
+    this.slot = options.slot;
+    this.priority = options.priority;
+    this.component = options.component;
+  }
+}</pre></div><p>The <code class="literal">PluginPlacement</code> class represents the configuration object to expose plugin components into different plugin slots in the application UI:</p><div class="informalexample"><pre class="programlisting">export class PluginData {
+  constructor(plugin, placement) {
+    this.plugin = plugin;
+    this.placement = placement;
+  }
+}</pre></div><p>The <code class="literal">PluginData</code> class represents the plugin runtime information that was created during instantiation of the plugin as well as one <code class="literal">PluginPlacement</code> object. This class will be used by the <code class="literal">PluginService</code> to convey information about plugin components to the plugin slots in the application.</p><p>These three classes are the main interaction points when implementing a plugin.</p><p>Let's look at a simple example plugin, to get a picture of how we can use the <code class="literal">PluginConfig</code> decorator and the <code class="literal">PluginPlacement</code> class to configure a plugin:</p><div class="informalexample"><pre class="programlisting">@PluginConfig({
+  name: 'my-example-plugin',
+  description: 'A simple example plugin',
+  placements: [
+    new PluginPlacement({
+      slot: 'plugin-slot-1',
+      priority: 1, 
+      component: PluginComponent1
+    }),
+    new PluginPlacement({
+      slot: 'plugin-slot-2', 
+      priority: 1, 
+      component: PluginComponent2
+    })
+  ]
+})
+export default class ExamplePlugin {}</pre></div><p>Using the <code class="literal">PluginConfig</code> decorator, implementing a new plugin is a breeze. We decide the name, description, and where we'd like to place plugin components in the application at design time.</p><p>Our plugin system <a id="id473" class="indexterm"/>uses named <code class="literal">PluginSlot</code> directives to indicate extension points in our application component tree. In the <code class="literal">PluginPlacement</code> objects, we reference the Angular components built into the plugin and indicate in which slot they should be placed by referencing the plugin slot name. The priority of the placement will tell the plugin slot how to order the plugin component when created. This gets important when components of different plugins get created in the same plugin slot.</p><p>Okay, let's dive right into the core of our plugin architecture by implementing the plugin service. We'll create a new <code class="literal">lib/plugin/plugin-service.js</code> file and create a new <code class="literal">PluginService</code> class:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>import {Injectable} from '@angular/core';</strong></span>
+<span class="strong"><strong>import {ReplaySubject} from 'rxjs/Rx';</strong></span>
+
+<span class="strong"><strong>@Injectable()</strong></span>
+export class PluginService {
+  ...
+}</pre></div><p>As we will create an injectable service, we'll annotate our <code class="literal">PluginService</code> class using the <code class="literal">@Injectable</code> annotation. We use the RxJS <code class="literal">ReplaySubject</code> type in order to emit events on any changes of the activated plugins.</p><p>Let's look at the constructor of our service:</p><div class="informalexample"><pre class="programlisting">constructor() {
+  this.plugins = [];
+  // Change observable if the list of active plugin changes
+<span class="strong"><strong>  this.change = new ReplaySubject(1);</strong></span>
+<span class="strong"><strong>  this.loadPlugins();</strong></span>
+}</pre></div><p>First, we initialize a new empty <code class="literal">plugins</code> array. This will be the list of active plugins, which contains runtime plugin data such as the URL where the plugin was loaded from, the plugin type (constructor of the class), a shortcut to the configuration stored on the plugin (created by the <code class="literal">PluginConfig</code> decorator) and finally, the instance of the plugin class itself.</p><p>We also add a <code class="literal">change</code> member that we initialize with a new RxJS <code class="literal">ReplaySubject</code>. We'll use this subject in order to emit the list of active plugins once it changes. This allows us to build our plugin system in a reactive way and enable plug and play style plugins.</p><p>As a last action in the <a id="id474" class="indexterm"/>constructor, we call the <code class="literal">loadPlugins</code> method of the service. This will perform the initial loading with the registered plugins:</p><div class="informalexample"><pre class="programlisting">loadPlugins() {
+<span class="strong"><strong>  System.import('/plugins.js').then((pluginsModule) =&gt; {</strong></span>
+<span class="strong"><strong>    pluginsModule.default.forEach(       (pluginUrl) =&gt; this.loadPlugin(pluginUrl)</strong></span>
+<span class="strong"><strong>    );</strong></span>
+<span class="strong"><strong>  });</strong></span>
+}</pre></div><p>The <code class="literal">loadPlugins</code> method asynchronously loads a file with the name <code class="literal">plugins.js</code> from the root path of our application using SystemJS. The <code class="literal">plugins.js</code> file is expected to default export an array, which contains preconfigured paths to plugins that should be loaded with the application startup. This allows us to configure the plugins that we're already aware of and which should be present by default. Using a separate and asynchronously loaded file for this configuration gives us a better separation from the main application. We can run the same application code but using a different <code class="literal">plugins.js</code> file and control what plugins should be present by default.</p><p>The <code class="literal">loadPlugins </code>method then loads each plugin using the URL present in the <code class="literal">plugins.js</code> file by calling the <code class="literal">loadPlugin </code>method:</p><div class="informalexample"><pre class="programlisting">loadPlugin(url) {
+<span class="strong"><strong>  return System.import(url).then((pluginModule) =&gt; {</strong></span>
+    const Plugin = pluginModule.default;
+    const pluginData = {
+      url,
+      type: Plugin,
+      // Reading the meta data previously stored by the @Plugin 
+      // decorator
+<span class="strong"><strong>      config: Plugin._pluginConfig,</strong></span>
+      // Creates the plugin instance
+<span class="strong"><strong>      instance: new Plugin()</strong></span>
+    };
+
+<span class="strong"><strong>    this.plugins = this.plugins.concat([pluginData]);</strong></span>
+<span class="strong"><strong>    this.change.next(this.plugins);</strong></span>
+<span class="strong"><strong>  });</strong></span>
+}</pre></div><p>The <code class="literal">loadPlugin</code> method is responsible for the loading and instantiation of individual plugin modules. It will take the URL of a plugin module as parameter and uses <code class="literal">System.import</code> to dynamically load the plugin module. The benefits we get from using <code class="literal">System.import</code> for this job is that we can load both, already existing modules in the bundled application as well as remote URL's using HTTP requests. This makes our plugin system very <a id="id475" class="indexterm"/>portable, and we can even load modules during runtime from a different server, from NPM or even GitHub. Of course, SystemJS also supports different module formats, such as ES6 modules or CommonJS modules, as well as different transpilers if the modules are not already transpiled.</p><p>After the plugin module is successfully loaded, we bundle all information about the loaded plugin together into a <code class="literal">pluginData</code> object. We can then add this information to our <code class="literal">plugins</code> array and emit a new event on our <code class="literal">ReplaySubject</code> to notify interested parties about the change.</p><p>Finally, we'll need a method to gather the <code class="literal">PluginPlacement</code> data from all our plugins and filter them by a slot name. This gets important when our plugin slots need to know which components they should instantiate. Plugins can expose any number of components into any number of application plugin slots. This function will be used by our plugin slots when they need to know which of the exposed Angular components are relevant to them:</p><div class="informalexample"><pre class="programlisting">getPluginData(slot) {
+  return this.plugins.reduce((components, pluginData) =&gt; {
+    return components.concat(
+     pluginData.config.placements
+<span class="strong"><strong>      .filter((placement) =&gt; placement.slot === slot)</strong></span>
+<span class="strong"><strong>      .map((placement) =&gt; new PluginData(pluginData, placement))</strong></span>
+    );
+  }, []);</pre></div><p>This is already it for the <code class="literal">PluginService</code> class so far, and we created the core of our plugin system. In the next chapter, we will deal with the plugin slots and look at how we can instantiate plugin components dynamically.</p><div class="section" title="Instantiating plugin components"><div class="titlepage"><div><div><h2 class="title"><a id="ch10lvl2sec71"/>Instantiating plugin components</h2></div></div></div><p>Now, it's time to <a id="id476" class="indexterm"/>look at the second major piece of our plugin architecture, which is the <code class="literal">PluginSlot</code> directive that is responsible for the instantiation of plugin components in the right spots.</p><p>Before we get to implement the directive though, let's look at how we can instantiate a component dynamically in Angular. We already covered instantiating views that can contain components in <a class="link" title="Chapter 7. Components for User Experience" href="part0049.xhtml#aid-1ENBI2">Chapter 7</a>, <span class="emphasis"><em>Components for User Experience</em></span>. In the infinite scroll directive, we used the <code class="literal">ViewContainerRef</code> to instantiate template elements. However, we have a different use case here. We'd like to instantiate a single component into an existing view.</p><p>The <code class="literal">ViewContainerRef</code> object also provides us with a solution to this problem. Let's look at a very basic example on how to use the <code class="literal">ViewContainerRef</code> object to instantiate a component. In the following example, we make use of four new concepts:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem">Using <code class="literal">@ViewChild</code> with <code class="literal">read</code> options set to <code class="literal">{read: ViewContainerRef}</code> to query for view container instead of the element</li><li class="listitem">Using the <code class="literal">ComponentResolver</code> instance to obtain the factory of the component, which we want to instantiate dynamically</li><li class="listitem">Using <code class="literal">ReflectiveInjector</code> to create a new child injector that is used for our instantiated component</li><li class="listitem">Using <code class="literal">ViewContainerRef.createComponent</code> to instantiate a component and attach it to the underlying view of the view container.</li></ul></div><p>The following code example shows how we can dynamically create a component using the <code class="literal">ViewContainerRef</code> instance.</p><div class="informalexample"><pre class="programlisting">import {Component, Inject, ViewChild, ViewContainerRef, ComponentResolver} from '@angular/core';
+
+@Component({
+  selector: 'hello-world',
+  template: 'Hello World'
+})
+export class HelloWorld {}
+
+@Component({
+  selector: 'app'
+  template: '&lt;h1 #headingRef&gt;App&lt;/h1&gt;'
+})
+export class App {
+<span class="strong"><strong>  @ViewChild('headingRef', {read: ViewContainerRef}) viewContainer;</strong></span>
+  
+  constructor(<span class="strong"><strong>@Inject(ComponentResolver) resolver</strong></span>) {
+<span class="strong"><strong>    this.resolver = resolver;</strong></span>
+  }
+  
+  ngAfterViewInit() {
+<span class="strong"><strong>    this.resolver</strong></span>
+<span class="strong"><strong>      .resolveComponent(HelloWorld)</strong></span>
+<span class="strong"><strong>      .then((componentFactory) =&gt; {</strong></span>
+<span class="strong"><strong>        this.viewContainer.createComponent(componentFactory);</strong></span>
+<span class="strong"><strong>      });</strong></span>
+  }
+}</pre></div><p>Injected into the constructor of the <code class="literal">App</code> component, we can later use <code class="literal">ComponentResolver</code> to resolve the <code class="literal">HelloWorld</code> component. We use the <code class="literal">@ViewChild</code> decorator to query for the heading element in the <code class="literal">App</code> component. Usually, this would give us the <code class="literal">ElementRef</code> object that is associated with the view element. However, as we need the view container associated with the element, we can use the <code class="literal">{read: ViewContainerRef}</code> options to obtain the <code class="literal">ViewContainerRef</code> object instead.</p><p>In the <code class="literal">AfterViewInit</code> lifecycle hook, we first call the <code class="literal">resolveComponent</code> method on the <code class="literal">ComponentResolver</code> instance. This call returns a promise, which resolves to an object of the <code class="literal">ComponentFactory</code> type. Angular uses component factories internally in order to create components.</p><p>After the promise has been resolved, we can now use the <code class="literal">createComponent</code> method on the view container of our heading element to create our <code class="literal">HelloWorld</code> component.</p><p>Let's look at the <code class="literal">createComponent</code> method of the <code class="literal">ViewContainerRef</code> object in more detail:</p><div class="informaltable"><table border="1"><colgroup><col/><col/></colgroup><thead><tr><th valign="bottom">
+<p>Method</p>
+</th><th valign="bottom">
+<p>Description</p>
+</th></tr></thead><tbody><tr><td valign="top">
+<p><code class="literal">ViewContainerRef.createComponent</code></p>
+</td><td valign="top">
+<p>This method will create a component that is based on the component factory provided in the <code class="literal">componentFactory</code> parameter. The compiled component will then be attached to the view container at a specific position provided by the <code class="literal">index</code> parameter.</p>
+<p>The following are the parameters:</p>
+<div class="itemizedlist"><ul class="itemizedlist"><li class="listitem"><code class="literal">componentFactory</code>: This is the component factory, which will be used to create a new component.</li><li class="listitem"><code class="literal">Index</code>: This is the optional parameter to specify the position in the view container at which the created component should be inserted. If this parameter is not specified, the component will be inserted at the last position in the view container.</li><li class="listitem"><code class="literal">Injector</code>: This is an optional parameter that allows you to specify a custom injector for the created component. This allows you to provide additional dependencies for the created component.</li><li class="listitem"><code class="literal">projectableNodes</code>: This is an optional parameter to specify nodes for content projection.</li></ul></div>
+<p>This method returns a promise that is resolved when the instantiated component is compiled. The <code class="literal">Promise</code> resolves to a <code class="literal">ComponentRef </code>object, which can also be used to destroy the component again later on.</p>
+</td></tr></tbody></table></div><div class="note" title="Note"><h3 class="title"><a id="tip17"/>Tip</h3><p>By default, a component created with the <code class="literal">ViewContainerRef.createComponent</code> method will inherit the injector from the parent component, which makes this process context aware. However, the <code class="literal">injector</code> parameter of the <code class="literal">createComponent</code> method is especially useful when you want to provide additional dependencies into the component that are not present on any parent injector.</p></div><p>Let's go back to our <code class="literal">PluginSlot</code> directive that is responsible for the instantiation of relevant plugin components.</p><p>First, let's think about the high-level requirements of our <code class="literal">PluginSlot</code> directive before we dive into the code:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem">The plugin slot should contain a name input property so that this name can be referenced from plugins that want to provide components for the slot.</li><li class="listitem">The directive needs to react on changes of the <code class="literal">PluginService</code> and re-evaluate what plugin components need to be placed.</li><li class="listitem">In the initialization of the plugin slot, we need to obtain a list of the <code class="literal">PluginData</code> objects that are relevant to this particular slot. We should consult the <code class="literal">getPluginData</code> method of <code class="literal">PluginService</code> in order to get this list.</li><li class="listitem">Using the obtained list of the relevant <code class="literal">PluginData</code> objects, we'll be able to instantiate components that are associated with the placement information using the <code class="literal">ViewContainerRef</code> object of our directive.</li></ul></div><p>Let's create our <code class="literal">PluginSlot</code> directive on the <code class="literal">lib/plugin/plugin-slot.js</code> path:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>import {Directive, Input, Inject, provide, ViewContainerRef, ComponentResolver, ReflectiveInjector} from '@angular/core';</strong></span>
+<span class="strong"><strong>import {PluginData} from './plugin';</strong></span>
+<span class="strong"><strong>import {PluginService} from './plugin-service';</strong></span>
+@Directive({
+  selector: 'ngc-plugin-slot'
+})
+export class PluginSlot {
+<span class="strong"><strong>  @Input() name;</strong></span>
+  ...
+}</pre></div><p>The <code class="literal">name</code> input in our directive is very important for our plugin mechanism. By providing a name to the directive, we can define named extension points in our UI and later use this name in the <code class="literal">PluginPlacement</code> data of the plugin configurations:</p><div class="informalexample"><pre class="programlisting">  constructor(<span class="strong"><strong>@Inject(ViewContainerRef) viewContainerRef, </strong></span>
+<span class="strong"><strong>              @Inject(ComponentResolver) componentResolver, </strong></span>
+<span class="strong"><strong>              @Inject(PluginService) pluginService</strong></span>) {
+    this.viewContainerRef = viewContainerRef;
+    this.componentResolver = componentResolver;
+    this.pluginService = pluginService;
+    this.componentRefs = [];
+    // Subscribing to changes on the plugin service and re-
+    // initialize slot if needed
+    <span class="strong"><strong>this.pluginChangeSubscription = </strong></span>
+<span class="strong"><strong>      this.pluginService</strong></span>
+<span class="strong"><strong>        .change.subscribe(() =&gt; this.initialize());</strong></span>
+  }</pre></div><p>In the constructor, we first inject the <code class="literal">ViewContainerRef</code> object, which is a reference to the view container of the directive. As we want to use the view container of the directive directly, there's no need to use <code class="literal">@ViewChild</code> here. If we want the view container of the current directive, we can simply use injection. We'll use this reference while we're instantiating components using the <code class="literal">ViewContainerRef.createComponent</code> method.</p><p>In order to resolve components and their factory, we inject the <code class="literal">ComponentResolver</code> instance.</p><p>The <code class="literal">PluginService</code> is injected for two reasons. First, we'd like to subscribe to any changes on the list of active plugins, and secondly, we use it to obtain relevant <code class="literal">PluginData</code> objects for this slot.</p><p>We use the <code class="literal">componentRefs</code> member to keep track of already instantiated plugin components. This will help us destroy them later on when a plugin gets deactivated.</p><p>Finally, we create a new subscription to <code class="literal">PluginService</code> and store the subscription into the <code class="literal">pluginChangeSubscription</code> member field. On any changes of the activated plugin list, we execute the <code class="literal">initialize</code> method on our component:</p><div class="informalexample"><pre class="programlisting">initialize() {
+<span class="strong"><strong>  if (this.componentRefs.length &gt; 0) {</strong></span>
+<span class="strong"><strong>    this.componentRefs.forEach(</strong></span>
+<span class="strong"><strong>      (componentRef) =&gt; componentRef.destroy());</strong></span>
+<span class="strong"><strong>    this.componentRefs = [];</strong></span>
+<span class="strong"><strong>  }</strong></span>
+
+<span class="strong"><strong>  const pluginData = </strong></span>
+<span class="strong"><strong>    this.pluginService.getPluginData(this.name);</strong></span>
+
+<span class="strong"><strong>  pluginData.sort(</strong></span>
+<span class="strong"><strong>    (a, b) =&gt; a.placement.priority &lt; b.placement.priority ?</strong></span>
+<span class="strong"><strong>       1 : a.placement.priority &gt; b.placement.priority ? -1 : 0);</strong></span>
+
+<span class="strong"><strong>  return Promise.all(</strong></span>
+<span class="strong"><strong>    pluginData.map((pluginData) =&gt; </strong></span>
+<span class="strong"><strong>      this.instantiatePluginComponent(pluginData))</strong></span>
+<span class="strong"><strong>  );</strong></span>
+}</pre></div><p>Let's look at the four parts of the initialize method in detail:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem">First, we check whether this plugin slot already contains instantiated plugin components in the <code class="literal">componentRefs</code> member. If this is the case, we use the detach method of the <code class="literal">ComponentRef</code> objects to remove all existing instances. After this, we initialize the <code class="literal">componentRefs</code> member with an empty array.</li><li class="listitem">We use the <code class="literal">getPluginData</code> method of <code class="literal">PluginService</code> to obtain a list of the <code class="literal">PluginData</code> objects that are relevant for this particular slot. We pass the name of this slot to the method, so the <code class="literal">PluginService</code> will already provide us with a filtered list of plugin components that are interested to be placed in our slot.</li><li class="listitem">As there could be many plugins queueing for placement in our slot, we are using the priority property of the <code class="literal">PluginPlacement</code> objects to sort the list of the <code class="literal">PluginData</code> objects. This will ensure that plugin components with higher priority will be placed before the ones with a lower priority. This is a nice extra feature that will come in handy when we deal with a lot of plugins fighting for space.</li><li class="listitem">The last code part in our <code class="literal">initialize</code> method calls the <code class="literal">instantiatePluginComponent</code> method for each <code class="literal">PluginData</code> object in our list.</li></ul></div><p>Now, let's create the <code class="literal">instantiatePluginComponent</code> method, which is called as a last step in the <code class="literal">initialize</code> method:</p><div class="informalexample"><pre class="programlisting">instantiatePluginComponent(pluginData) {
+<span class="strong"><strong>  return this.componentResolver</strong></span>
+<span class="strong"><strong>    .resolveComponent(pluginData.placement.component)</strong></span>
+<span class="strong"><strong>    .then((componentFactory) =&gt; {</strong></span>
+<span class="strong"><strong>      // Get the injector of the plugin slot parent component</strong></span>
+<span class="strong"><strong>      const contextInjector = this.viewContainerRef.parentInjector;</strong></span>
+<span class="strong"><strong>      // Preparing additional PluginData provider for the created </strong></span>
+<span class="strong"><strong>      // plugin component</strong></span>
+<span class="strong"><strong>      const providers = [</strong></span>
+<span class="strong"><strong>        provide(PluginData, {</strong></span>
+<span class="strong"><strong>            useValue: pluginData</strong></span>
+<span class="strong"><strong>        })</strong></span>
+<span class="strong"><strong>      ];</strong></span>
+<span class="strong"><strong>      // We're creating a new child injector and provide the </strong></span>
+<span class="strong"><strong>      // PluginData provider</strong></span>
+<span class="strong"><strong>      const childInjector = ReflectiveInjector</strong></span>
+<span class="strong"><strong>        .resolveAndCreate(providers, contextInjector);</strong></span>
+<span class="strong"><strong>      // Now we can create a new component using the plugin slot view </strong></span>
+<span class="strong"><strong>      // container and the resolved component factory</strong></span>
+<span class="strong"><strong>      const componentRef = this.viewContainerRef</strong></span>
+<span class="strong"><strong>        .createComponent(componentFactory, </strong></span>
+<span class="strong"><strong>                         this.viewContainerRef.length, </strong></span>
+<span class="strong"><strong>                         childInjector);</strong></span>
+<span class="strong"><strong>      this.componentRefs.push(componentRef);</strong></span>
+<span class="strong"><strong>    });</strong></span>
+}</pre></div><p>This method is responsible for the instantiation of an individual plugin component. Now, we can use the knowledge that we gained in this topic about the <code class="literal">ViewContainerRef.createComponent</code> method and the <code class="literal">ComponentResolver</code> object to instantiate components dynamically.</p><p>In addition to the inherited providers from the component where this plugin slot is placed, we'd like to provide <code class="literal">PluginData</code> to the injector of the instantiated plugin component. Using Angular's <code class="literal">provide</code> function, we can specify <code class="literal">pluginData</code> to resolve for any injection on the <code class="literal">PluginData</code> type.</p><p>The <code class="literal">ReflectiveInjector</code> class provides us with some static methods that are used to create injectors. We can use the <code class="literal">parentInjector</code> member on our view container to obtain the injector that is present in the plugin slot context. Then, we use the static <code class="literal">resolveAndCreate</code> method on the <code class="literal">ReflectiveInjector</code> class in order to create a new child injector.</p><p>In the first parameter of the <code class="literal">resolveAndCreate</code> method, we can provide a list of providers. Those providers will be resolved and made available in our new child injector. The second parameter of the <code class="literal">resolveAndCreate</code> method accepts the parent injector of the newly-created child injector.</p><p>Finally, we use the <code class="literal">createComponent</code> method of the <code class="literal">ViewContainerRef</code> object to instantiate the plugin component. As a second parameter to the <code class="literal">createComponent</code> method call, we need to pass the position in the view container. Here, we make use of the <code class="literal">length</code> property of our view container in order to place it at the very end. In the third parameter, we override the default injector of the component with our custom child injector. On success, we add the created <code class="literal">ComponentRef</code> object to our list of instantiated components.</p></div><div class="section" title="Finalizing our plugin architecture"><div class="titlepage"><div><div><h2 class="title"><a id="ch10lvl2sec72"/>Finalizing our plugin architecture</h2></div></div></div><p>Congratulations, you've <a id="id477" class="indexterm"/>just built your own plugin architecture using Angular! We created a plugin API that can be used to create new plugins using the <code class="literal">PluginConfig</code> decorator. <code class="literal">PluginService</code> manages the whole plugin loading and provides the <code class="literal">PluginData</code> objects to the slots in our application using custom injectors. The <code class="literal">PluginSlot</code> directive can be used in the task management application to mark extension points in the user interface. Using the inheriting nature of the dependency injection in Angular, plugin components will be able to access whatever they require from their environment.</p><p>In the next section, we will create our first plugin using the plugin architecture that we just created.</p></div></div>
+<div class="section" title="Building an Agile plugin"><div class="titlepage" id="aid-1VSLM2"><div><div><h1 class="title"><a id="ch10lvl1sec61"/>Building an Agile plugin</h1></div></div></div><p>In the previous section, we <a id="id478" class="indexterm"/>created a simple but effective plugin architecture, and we will now use this plugin API to build our first plugin in the task management application.</p><p>Before we get into the plugin details, we should first agree on where to make our application extensible. Our plugin system is based on the <code class="literal">PluginSlot</code> directives, which should be placed somewhere in our component tree so that plugins can expose components to these slots. For now, we decide to make two spots in our application extensible:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem"><code class="literal">TaskInfo</code>: In the list of tasks displayed in a project, we currently render <code class="literal">Task</code> components. Besides the title of the task, the <code class="literal">Task</code> component displays additional information such as the task number, the date of creation, and milestones, as well as efforts information where applicable. This additional information is rendered on the <code class="literal">Task</code> component using the <code class="literal">TaskInfos</code> subcomponent. This is a good spot to provide extensibility for plugins so that they can add additional task information, which will be displayed on the task list overview.</li><li class="listitem"><code class="literal">TaskDetail</code>: Another <a id="id479" class="indexterm"/>great spot to provide extensibility is the <code class="literal">ProjectTaskDetails</code> component. This is where we can edit the details of a task, which makes it a great component to open up for extension by plugins.</li></ul></div><p>Besides adding the <code class="literal">PluginSlot</code> directive to the directives list of the <code class="literal">TaskInfos</code> component, we modify the template located at <code class="literal">lib/task-list/task/task-infos/task-infos.html</code>:</p><div class="informalexample"><pre class="programlisting">...
+&lt;ngc-task-info title="Efforts" 
+               [info]="task.efforts | formatEfforts"&gt;
+&lt;/ngc-task-info&gt;
+<span class="strong"><strong>&lt;ngc-plugin-slot name="task-info"&gt;&lt;/ngc-plugin-slot&gt;</strong></span>
+</pre></div><p>After including the <code class="literal">PluginSlot</code> directive and by setting the name input property to <code class="literal">task-info</code>, we provide an extension point for plugins where they can provide additional components.</p><p>Let's apply the same changes to the <code class="literal">ProjectTaskDetails</code> component template in <code class="literal">lib/project/project-task-details/project-task-details.html</code>:</p><div class="informalexample"><pre class="programlisting">...
+&lt;div class="task-details__content"&gt;
+  ...
+<span class="strong"><strong>  &lt;ngc-plugin-slot name="task-detail"&gt;&lt;/ngc-plugin-slot&gt;</strong></span>
+&lt;/div&gt;</pre></div><p>Right before the end of the task details content element, we include another plugin slot with the name <code class="literal">task-detail</code>. By providing components for this slot, plugins can hook into the edit view of tasks.</p><p>Okay, so our extension points are set up for plugins to provide additional components on a task level. You can see that preparing these spots using the <code class="literal">PluginSlot</code> directive is really a piece of cake.</p><p>Now, we can look into the implementation of our Agile plugin, which will make use of the extension points that we just exposed.</p><p>The agile plugin that we will create will provide functionality to log story points on tasks. Story points are commonly used in Agile project management. They should provide a sense for complexity, and they are relative to a so-called reference story. If you want to know more about Agile project management and how to estimate using story points, I really recommend the book, <span class="emphasis"><em>Agile Estimating and Planning</em></span> by Mike Cohn.</p><p>Let's start with our plugin class <a id="id480" class="indexterm"/>and the necessary configuration. We create the plugin outside our regular <code class="literal">lib</code> folder, just to indicate the portable nature of plugins.</p><p>We create a new <code class="literal">AgilePlugin</code> class on the <code class="literal">plugins/agile/agile.js</code> path:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>import {PluginConfig, PluginPlacement} from '../../lib/plugin/plugin';</strong></span>
+
+<span class="strong"><strong>@PluginConfig({</strong></span>
+<span class="strong"><strong>  name: 'agile',</strong></span>
+<span class="strong"><strong>  description: 'Agile development plugin to manage story points on tasks',</strong></span>
+<span class="strong"><strong>  placements: []</strong></span>
+<span class="strong"><strong>})</strong></span>
+<span class="strong"><strong>export default class AgilePlugin</strong></span> {
+  constructor() {
+<span class="strong"><strong>    this.storyPoints = [0.5, 1, 2, 3, 5, 8, 13, 21];</strong></span>
+  }
+}</pre></div><p>The plugin class forms the central entry point of our plugin. We use the <code class="literal">PluginConfig</code> decorator, which we created as part of our plugin API. Besides the name and description, we also need to configure any placements where we map plugin components to application plugin slots. However, as we haven't got any plugin component yet to expose, our list remains empty for the moment.</p><p>It's also important to note that a plugin module always needs to default export the plugin class. This is just how we've implemented the plugin-loading mechanisms in our <code class="literal">PluginService</code> class.</p><p>Looking back at these two lines in the <code class="literal">loadPlugin</code> method of <code class="literal">PluginService</code> shows you that we rely on the default export of plugin modules:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>return System.import(url).then((pluginModule) =&gt; {</strong></span>
+    const Plugin = pluginModule.default;
+...</pre></div><p>When the plugin module is successfully loaded, we obtain the default export by referencing the <code class="literal">default</code> property on the module.</p><p>So far, we created our plugin entry module. This acts as a plugin configuration container, and it is not related to Angular <a id="id481" class="indexterm"/>in any way. Using the placements configuration, we can then expose our plugin Angular components once we've created them.</p><div class="section" title="Agile task info component"><div class="titlepage"><div><div><h2 class="title"><a id="ch10lvl2sec73"/>Agile task info component</h2></div></div></div><p>Let's move on to the <a id="id482" class="indexterm"/>first Agile plugin component that we want to expose. First, we create the component, which will be exposed into the slot with the name <code class="literal">task-info</code>. Below the task title on the task list, our Agile information component should display the stored story points.</p><p>We create a new <code class="literal">Component</code> class on the <code class="literal">plugins/agile/agile-task-info/agile-task-info.js</code> path:</p><div class="informalexample"><pre class="programlisting">...
+<span class="strong"><strong>import {Task} from '../../../lib/task-list/task/task';</strong></span>
+
+@Component({
+  selector: 'ngc-agile-task-info',
+  encapsulation: ViewEncapsulation.None,
+  template,
+  host: {
+<span class="strong"><strong>    class: 'task-infos__info'</strong></span>
+  }
+})
+export class AgileTaskInfo {
+  constructor(<span class="strong"><strong>@Inject(Task) taskComponent</strong></span>) {
+<span class="strong"><strong>    this.task = taskComponent.task;</strong></span>
+  }
+}</pre></div><p>You can see that we implemented a regular component here. There's nothing special about this component at all.</p><p>We import the <code class="literal">Task</code> component to get the type information to inject it in our constructor. As the plugin slot is placed inside of the <code class="literal">TaskInfos</code> component, which, in fact, is always a child of a <code class="literal">Task</code> component, this is a safe injection.</p><p>In the constructor, we then take the injected <code class="literal">Task</code> component and extract the task data into a local <code class="literal">task</code> member.</p><p>We also borrow the <code class="literal">task-infos__info</code> class of the <code class="literal">TaskInfos</code> component in order to get the same look like other task information that is already present on the task.</p><p>Let's take a look at the template of the <code class="literal">AgileTaskInfo</code> component that is located in the same path in the <code class="literal">agile-task-info.html</code> file:</p><div class="informalexample"><pre class="programlisting">&lt;div <span class="strong"><strong>*ngIf="task.storyPoints || task.storyPoints === 0"</strong></span>&gt;
+  &lt;strong&gt;Story Points: &lt;/strong&gt;<span class="strong"><strong>{{task.storyPoints}}</strong></span>
+&lt;/div&gt;</pre></div><p>Following the same mark-up that we used in the <code class="literal">TaskInfo</code> component, we display the <code class="literal">storyPoints</code> tasks if present.</p><p>Alright, now we can expose the plugin component in the plugin configuration using a <code class="literal">PluginPlacement</code> <a id="id483" class="indexterm"/>object. Let's make the necessary modification to our <code class="literal">agile.js</code> module file:</p><div class="informalexample"><pre class="programlisting">...
+<span class="strong"><strong>import {AgileTaskInfo} from './agile-task-info/agile-task-info';</strong></span>
+
+@PluginConfig({
+  name: 'agile',
+  description: 'Agile development plugin to manage story points on tasks',
+<span class="strong"><strong>  placements: [</strong></span>
+<span class="strong"><strong>    new PluginPlacement({slot: 'task-info', priority: 1, </strong></span>
+<span class="strong"><strong>                         component: AgileTaskInfo})</strong></span>
+<span class="strong"><strong>  ]</strong></span>
+})
+export default class AgilePlugin {
+  ...
+}</pre></div><p>Now, we include a new <code class="literal">PluginPlacement</code> object in our plugin configuration, which maps our <code class="literal">AgileTaskInfo</code> component to be exposed into the application plugin slot with the name <code class="literal">task-info</code>:</p><div class="mediaobject"><img src="../Images/image00350.jpeg" alt="Agile task info component"/><div class="caption"><p>Task info displaying additional information that is provided by our Agile plugin</p></div></div><p style="clear:both; height: 1em;"> </p><p>This would already be enough for the plugin to work. However, as we don't have any data filled as <code class="literal">storyPoints</code> on our tasks, this plugin wouldn't really show us anything at the moment.</p></div><div class="section" title="Agile task details component"><div class="titlepage"><div><div><h2 class="title"><a id="ch10lvl2sec74"/>Agile task details component</h2></div></div></div><p>Let's create another <a id="id484" class="indexterm"/>plugin component, which can be used to enter story points. For this, we will create a new <code class="literal">AgileTaskDetail</code> component on the <code class="literal">plugins/agile/agile-task-detail/agile-task-detail.js</code> path:</p><div class="informalexample"><pre class="programlisting">...
+<span class="strong"><strong>import {Project} from '../../../lib/project/project';</strong></span>
+<span class="strong"><strong>import {ProjectTaskDetails} from '../../../lib/project/project-task-details/project-task-details';</strong></span>
+import {Editor} from '../../../lib/ui/editor/editor';
+
+@Component({
+  selector: 'ngc-agile-task-detail',
+  encapsulation: ViewEncapsulation.None,
+  template,
+  host: {class: 'agile-task-detail'},
+  directives: [Editor]
+})
+export class AgileTaskDetail {
+  constructor(<span class="strong"><strong>@Inject(Project) project, </strong></span>
+<span class="strong"><strong>              @Inject(ProjectTaskDetails) projectTaskDetails</strong></span>) {
+    this.project = project;
+    this.projectTaskDetails = projectTaskDetails;
+<span class="strong"><strong>    this.plugin = placementData.plugin.instance;</strong></span>
+  }
+
+  onStoryPointsSaved(storyPoints) {
+<span class="strong"><strong>    this.projectTaskDetails.task.storyPoints = +storyPoints || 0;</strong></span>
+<span class="strong"><strong>    this.project.document.persist();</strong></span>
+  }
+}</pre></div><p>There's nothing really fancy with this component either. Our target slot is the <code class="literal">task-detail</code> plugin slot, which is placed inside the <code class="literal">ProjectTaskDetails</code> component. Therefore, it's safe for both the <code class="literal">ProjectTaskDetails</code> and <code class="literal">Project</code> components to be injected into our plugin component. The <code class="literal">ProjectTaskDetails</code> component is used to obtain the task data in context. We use <code class="literal">LiveDocument</code> that is stored on the <code class="literal">Project</code> component to persist any changes that we make to the task data of the project.</p><p>We reuse an <code class="literal">Editor</code> component to obtain user input and store the input data in the <code class="literal">onStoryPointsSaved</code> call-back. This is the same mechanism we know from other areas where we use the <code class="literal">Editor</code> component. When the story points get edited, we first update the task data model that is stored in the <code class="literal">ProjectTaskDetails</code> component. After this, we can use the <code class="literal">LiveDocument</code> <code class="literal">persist</code> method to save the changes.</p><p>Let's look at the template of our <code class="literal">AgileTaskDetail</code> component in the <code class="literal">plugins/agile/agile-task-detail/agile-task-detail.html</code> file:</p><div class="informalexample"><pre class="programlisting">&lt;div class="task-details__label"&gt;Story Points&lt;/div&gt;
+&lt;ngc-editor [content]="<span class="strong"><strong>projectTaskDetails.task?.storyPoints</strong></span>"
+            [showControls]="true"
+            <span class="strong"><strong>(editSaved)="onStoryPointsSaved($event)"</strong></span>&gt;&lt;/ngc-editor&gt;</pre></div><p>We create a direct binding from the <code class="literal">content</code> input property of our editor to the <code class="literal">storyPoints</code> property of the task data.</p><p>When an edit is saved, we <a id="id485" class="indexterm"/>call the <code class="literal">onStoryPointsSaved</code> callback with the updated value:</p><div class="mediaobject"><img src="../Images/image00351.jpeg" alt="Agile task details component"/><div class="caption"><p>Task details displaying the new Agile story points that are exposed by our Agile plugin</p></div></div><p style="clear:both; height: 1em;"> </p><p>Before we expose our newly-created plugin component using a new <code class="literal">PluginPlacement</code> object on the plugin configuration, we'll enhance the component one more time. This would be nice if we provide two buttons on the component that allows the user to increase or decrease the story points to the next common story point value in range. As we already stored the list of common story points on the <code class="literal">Agile</code> plugin class, let's see how we can make use of this:</p><div class="informalexample"><pre class="programlisting">...
+<span class="strong"><strong>import {PluginData} from '../../../lib/plugin/plugin';</strong></span>
+
+@Component({
+  selector: 'ngc-agile-task-detail',
+  ...
+})
+export class AgileTaskDetail {
+  constructor(..., <span class="strong"><strong>@Inject(PluginData) pluginData</strong></span>) {
+    ...
+<span class="strong"><strong>    this.plugin = pluginData.plugin.instance;</strong></span>
+  }
+  ...
+  increaseStoryPoints() {
+<span class="strong"><strong>   const current = this.projectTaskDetails.task.storyPoints || 0;</strong></span>
+    const storyPoints = this.plugin.storyPoints.slice().sort((a, b) =&gt; a &gt; b ? 1 : a &lt; b ? -1 : 0);
+    <span class="strong"><strong>this.projectTaskDetails.task.storyPoints =</strong></span>
+<span class="strong"><strong>      storyPoints.find((storyPoints) =&gt; storyPoints &gt; current) || current;</strong></span>
+<span class="strong"><strong>    this.project.document.persist();</strong></span>
+  }
+
+  decreaseStoryPoints() {
+<span class="strong"><strong>   const current = this.projectTaskDetails.task.storyPoints || 0;</strong></span>
+    const storyPoints = this.plugin.storyPoints.slice().sort((a, b) =&gt; a &lt; b ? 1 : a &gt; b ? -1 : 0);
+    <span class="strong"><strong>this.projectTaskDetails.task.storyPoints =</strong></span>
+<span class="strong"><strong>      storyPoints.find((storyPoints) =&gt; storyPoints &lt; current) || current;</strong></span>
+<span class="strong"><strong>    this.project.document.persist();</strong></span>
+  }
+}</pre></div><p>While we previously injected the <code class="literal">Project</code> and <code class="literal">ProjectTaskDetails</code> components that are provided by the component level injectors, we now make use of the providers that we added during instantiation in our <code class="literal">PluginSlot</code> directive. Here, we provided <code class="literal">PluginData</code>, which we can now use to get a reference back to the plugin component.</p><p>The next higher or lower story point value is found by <code class="literal">increaseStoryPoints</code> and <code class="literal">decreaseStoryPoints</code>. This is done by searching the list of common story points that are stored on our <code class="literal">AgilePlugin</code> class. Using the plugin class instance that is present on the injected <code class="literal">PluginData</code>, we can easily access this list. After storing the modified story points, we then use the <code class="literal">LiveDocument</code> instance of the project component to persist the adjusted story points.</p><p>In the template of our <code class="literal">AgileTaskDetail</code> component, we simply add two buttons that allow the user to increase or decrease the story points that are based on our newly-created methods:</p><div class="informalexample"><pre class="programlisting">...
+&lt;button <span class="strong"><strong>(click)="decreaseStoryPoints()"</strong></span>
+        class="button button--small"&gt;-&lt;/button&gt;
+&lt;button <span class="strong"><strong>(click)="increaseStoryPoints()"</strong></span>
+        class="button button--small"&gt;+&lt;/button&gt;</pre></div><p>Okay, let's now add the <code class="literal">AgileTaskDetail</code> component to the plugin configuration using a new <code class="literal">PluginPlacement</code> object, which references the <code class="literal">task-detail</code> plugin slot:</p><div class="informalexample"><pre class="programlisting">...
+<span class="strong"><strong>import {AgileTaskDetail} from './agile-task-detail/agile-task-detail';</strong></span>
+
+@PluginConfig({
+  ...
+  placements: [
+    new PluginPlacement({slot: 'task-info', priority: 1, 
+                         component: AgileTaskInfo}),
+<span class="strong"><strong>    new PluginPlacement({slot: 'task-detail', priority: 1, </strong></span>
+<span class="strong"><strong>                         component: AgileTaskDetail})</strong></span>
+  ]
+})
+export default class AgilePlugin {
+  ...
+}</pre></div><p>Isn't this great? You created a fully-portable plugin that enables the management of Agile story points on tasks.</p><div class="mediaobject"><img src="../Images/image00352.jpeg" alt="Agile task details component"/><div class="caption"><p>The task details view with story points and additional increase/decrease buttons</p></div></div><p style="clear:both; height: 1em;"> </p><p>The only thing that is left is to add the plugin to the list of plugins that should be loaded initially by the <code class="literal">PluginService</code> directive. For this, we'll create a <code class="literal">plugins.js</code> file on the root of our application and add the following content:</p><div class="informalexample"><pre class="programlisting">export default [
+  '/plugins/agile/agile.js'
+];</pre></div><p>Now, if we launch our application, the plugin will be loaded by the <code class="literal">PluginService</code> and <code class="literal">PluginSlot</code> directives will instantiate the Agile plugin components where appropriate.</p></div><div class="section" title="Recapitulating on our first plugin"><div class="titlepage"><div><div><h2 class="title"><a id="ch10lvl2sec75"/>Recapitulating on our first plugin</h2></div></div></div><p>Well done! You successfully implemented your first plugin! In this section, we used the API of our plugin architecture to create a plugin to manage Agile story points. We used the <code class="literal">PluginPlacement</code> class to map our plugin components to different slots in the UI of our application. We also made use of the <code class="literal">PluginData</code> object that is provided to each instantiated component in the plugin slot in order to access the plugin instance.</p><p>The advantage of implementing functionality like this inside a plugin should be obvious. We added an additional feature to our application without building up additional dependencies. Our Agile feature is completely portable. Third-party developers can write independent plugins, and they can be loaded by our system. This is a big advantage, and it helps us keep our core slim while providing great extensibility.</p></div></div>
+<div class="section" title="Managing plugins"><div class="titlepage" id="aid-20R682"><div><div><h1 class="title"><a id="ch10lvl1sec62"/>Managing plugins</h1></div></div></div><p>We already built the <a id="id486" class="indexterm"/>core of the plugin architecture and a first plugin that runs in this system. We can use the <code class="literal">plugins.js</code> file on the root of our application to register plugins. The system is actually fully functional already. However, it would be nice to provide a way to manage our plugins during runtime.</p><p>In this section, we will build a new routable component, which will list all active plugins in the system. After we've done this, we'll also add some elements which allow users to unload active plugins as well as load new plugins during runtime. Due to the reactive nature of our plugin system, the browser does not need to be refreshed in order for newly-loaded plugins to become active. The moment a plugin is loaded, it will immediately be made available to relevant plugin slots.</p><p>Let's start with a new <code class="literal">ManagePlugins</code> component class on the <code class="literal">lib/manage-plugins/manage-plugins.js</code> path:</p><div class="informalexample"><pre class="programlisting">...
+<span class="strong"><strong>import {PluginService} from '../plugin/plugin-service';</strong></span>
+
+@Component({
+  selector: 'ngc-manage-plugins',
+  ...
+})
+export class ManagePlugins {
+  constructor(<span class="strong"><strong>@Inject(PluginService) pluginService</strong></span>) {
+<span class="strong"><strong>    this.plugins = pluginService.change;</strong></span>
+  }
+}</pre></div><p>Our <code class="literal">ManagePlugins</code> component is quite simple. We inject the <code class="literal">PluginService</code> into the constructor of the component and set the member field plugins to point to the change observable of <code class="literal">PluginService</code>. As we'll always get the latest plugin list emitted by this observable, we can then simply use the <code class="literal">async</code> pipe in the view to subscribe to the observable.</p><p>Let's look at the template of our <a id="id487" class="indexterm"/>new component in <code class="literal">lib/manage-plugins/manage-plugins.html</code>:</p><div class="informalexample"><pre class="programlisting">&lt;div class="manage-plugins__l-header"&gt;
+  &lt;h2 class="manage-plugins__title"&gt;Manage Plugins&lt;/h2&gt;
+&lt;/div&gt;
+&lt;div class="manage-plugins__l-main"&gt;
+  &lt;h3 class="manage-plugins__sub-title"&gt;Active Plugins&lt;/h3&gt;
+  &lt;div class="manage-plugins__section"&gt;
+    &lt;table class="manage-plugins__table"&gt;
+      &lt;thead&gt;
+      &lt;tr&gt;
+        &lt;th&gt;Name&lt;/th&gt;
+        &lt;th&gt;Url&lt;/th&gt;
+        &lt;th&gt;Description&lt;/th&gt;
+        &lt;th&gt;Placements&lt;/th&gt;
+      &lt;/tr&gt;
+      &lt;/thead&gt;
+      &lt;tbody&gt;
+      &lt;tr <span class="strong"><strong>*ngFor="let plugin of plugins | async"</strong></span>&gt;
+        &lt;td&gt;<span class="strong"><strong>{{plugin.config.name}}</strong></span>&lt;/td&gt;
+        &lt;td&gt;<span class="strong"><strong>{{plugin.url}}</strong></span>&lt;/td&gt;
+        &lt;td&gt;<span class="strong"><strong>{{plugin.config.description}}</strong></span>&lt;/td&gt;
+        &lt;td&gt;
+          &lt;div <span class="strong"><strong>*ngFor="let placement of plugin.config.placements"</strong></span>
+               class="manage-plugins__placement"&gt;
+            <span class="strong"><strong>{{placement.slot}}</strong></span>
+          &lt;/div&gt;
+        &lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;/tbody&gt;
+    &lt;/table&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre></div><p>We use an HTML table to display the list of active plugins. On the table body rows, we use the <code class="literal">NgFor</code> directive to iterate over the list of active plugins, which we subscribe to using the <code class="literal">async</code> pipe.</p><p>In the plugin objects, we got everything worth displaying already present. By iterating over the <code class="literal">PluginPlacement</code> objects that are stored on the <code class="literal">config</code> property on the plugin data, we can even display the slot names where our plugins provide components.</p><p>Now, the only thing left to do to enable our new component is to make it routable and to add it to the navigation of our application. Let's make the necessary modification in the <code class="literal">lib/app.js</code> module for this:</p><div class="informalexample"><pre class="programlisting">...
+import {ManagePlugins} from './manage-plugins/manage-plugins';
+
+@Component({
+  selector: 'ngc-app',
+  ...
+})
+@Routes([
+  ...
+<span class="strong"><strong>  new Route({path: 'plugins', component: ManagePlugins})</strong></span>
+])
+export class App {
+  ...
+}</pre></div><p>We added a new route, so let's <a id="id488" class="indexterm"/>add it to our navigation in <code class="literal">lib/app.html</code>:</p><div class="informalexample"><pre class="programlisting">&lt;div class="app"&gt;
+  &lt;div class="app__l-side"&gt;
+    &lt;ngc-navigation [openTasksCount]="openTaskCount"&gt;
+      ...
+<span class="strong"><strong>      &lt;ngc-navigation-section title="Admin"&gt;</strong></span>
+<span class="strong"><strong>        &lt;ngc-navigation-item title="Manage Plugins" </strong></span>
+<span class="strong"><strong>                             [link]="['/plugins']"&gt;</strong></span>
+<span class="strong"><strong>        &lt;/ngc-navigation-item&gt;</strong></span>
+<span class="strong"><strong>      &lt;/ngc-navigation-section&gt;</strong></span>
+    &lt;/ngc-navigation&gt;
+  &lt;/div&gt;
+  &lt;div class="app__l-main"&gt;
+    &lt;router-outlet&gt;&lt;/router-outlet&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre></div><p>In a new <code class="literal">Admin</code> navigation section, we add a new <code class="literal">navigation-item</code> that links to the newly-created "plugins" route:</p><div class="mediaobject"><img src="../Images/image00353.jpeg" alt="Managing plugins"/><div class="caption"><p>Our new ManagePlugins component displaying a table of active plugins and their exposed placements</p></div></div><p style="clear:both; height: 1em;"> </p><div class="section" title="Loading new plugins at runtime"><div class="titlepage"><div><div><h2 class="title"><a id="ch10lvl2sec76"/>Loading new plugins at runtime</h2></div></div></div><p>We already have <a id="id489" class="indexterm"/>everything in place to provide a page to see all active plugins. However, we said that it would be nice to be able to manage this list. A user should be able to remove active plugins as well as manually load additional plugins.</p><p>Let's add these capabilities to our <code class="literal">ManagePlugins</code> component. Before we can do this, we'll need an additional method on our <code class="literal">PluginService</code> class, which is the part responsible for the loading of plugins. So far, we didn't consider the functionality to remove active plugins. Let's open <code class="literal">PluginService</code> in <code class="literal">lib/plugin/plugin-service.js</code> to add this functionality:</p><div class="informalexample"><pre class="programlisting">...
+@Injectable()
+export class PluginService {
+  ...
+<span class="strong"><strong>  removePlugin(name) {</strong></span>
+<span class="strong"><strong>    const plugin = this.plugins.find(</strong></span>
+<span class="strong"><strong>      (plugin) =&gt; plugin.name === name);</strong></span>
+<span class="strong"><strong>    if (plugin) {</strong></span>
+<span class="strong"><strong>      const plugins = this.plugins.slice();</strong></span>
+<span class="strong"><strong>      plugins.splice(plugins.indexOf(plugin), 1);</strong></span>
+<span class="strong"><strong>      this.plugins = plugins;</strong></span>
+<span class="strong"><strong>      this.change.next(this.plugins);</strong></span>
+<span class="strong"><strong>    }</strong></span>
+<span class="strong"><strong>  }</strong></span>
+}</pre></div><p>Well, this was easy! We provide a new <code class="literal">removePlugin</code> method, which takes a plugin name as parameter. We then look up the plugin in the <code class="literal">plugins</code> array, and if a plugin was found with this name, we remove it from the list. Additionally, after we've removed the plugin, we emit a <code class="literal">change</code> event with the updated list. As all plugin slots in the application are subscribed to this change observable, they will update and reinitialize relevant plugin components automatically.</p><p>Let's now apply the <a id="id490" class="indexterm"/>necessary changes to our <code class="literal">ManagePlugins</code> component class in order to not only remove plugins but also to load additional plugins:</p><div class="informalexample"><pre class="programlisting">...
+@Component({
+  selector: 'ngc-manage-plugins',
+  ...
+})
+export class ManagePlugins {
+  constructor(@Inject(PluginService) pluginService) {
+    ...
+<span class="strong"><strong>    this.pluginService = pluginService;</strong></span>
+<span class="strong"><strong>  }</strong></span>
+
+<span class="strong"><strong>  removePlugin(name) {</strong></span>
+<span class="strong"><strong>    this.pluginService.removePlugin(name);</strong></span>
+<span class="strong"><strong>  }</strong></span>
+
+<span class="strong"><strong>  loadPlugin(loadUrlInput) {</strong></span>
+<span class="strong"><strong>    this.pluginService.loadPlugin(loadUrlInput.value);</strong></span>
+<span class="strong"><strong>    loadUrlInput.value = '';</strong></span>
+<span class="strong"><strong>  }</strong></span>
+}</pre></div><p>Now, we also store the <code class="literal">PluginService</code> on our component. In the <code class="literal">removePlugin</code> and the <code class="literal">loadPlugin</code> functions, we delegate to the <code class="literal">PluginService</code> to take the necessary actions.</p><p>The <code class="literal">loadPlugin</code> method will receive an <code class="literal">ElementRef</code> object that points to the input field, where the user enters the URL from which we load a new plugin. We can pass the value of the input field to the <code class="literal">loadPlugin</code> method of <code class="literal">PluginService</code>, which deals with the rest. We also set the input field value to an empty string once we've submitted this call.</p><p>Let's open the template at <code class="literal">lib/manage-plugins/manage-plugins.html</code> to apply the required changes in the view of our component:</p><div class="informalexample"><pre class="programlisting">...
+&lt;div class="manage-plugins__l-main"&gt;
+  &lt;h3 class="manage-plugins__sub-title"&gt;Active Plugins&lt;/h3&gt;
+  &lt;div class="manage-plugins__section"&gt;
+    ...
+        &lt;td&gt;
+          &lt;button <span class="strong"><strong>(click)="removePlugin(plugin.name)"</strong></span>
+                  class="button button--small"&gt;remove&lt;/button&gt;
+        &lt;/td&gt;
+    ...
+  &lt;/div&gt;
+  &lt;h3 class="manage-plugins__sub-title"&gt;Load Plugin&lt;/h3&gt;
+  &lt;div class="manage-plugins__section"&gt;
+    &lt;div class="manage-plugins__load-elements"&gt;
+      &lt;input <span class="strong"><strong>#loadUrlRef type="text"</strong></span>
+             placeholder="Enter plugin URL"
+             class="manage-plugins__load-url"&gt;
+      &lt;button <span class="strong"><strong>(click)="loadPlugin(loadUrlRef)"</strong></span>
+              class="button"&gt;Load&lt;/button&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre></div><p>We added an additional button for every listed plugin in the table, which contains a binding expression that calls the <code class="literal">removePlugin</code> method with the currently iterated plugin name.</p><p>We also added a new <a id="id491" class="indexterm"/>section after the listed plugins to load new plugins. In this section, we use an input field to enter the plugin URL as well as a button to execute the loading. Using a <code class="literal">loadUrlRef</code> local view reference, we can pass a reference to the input DOM element to the <code class="literal">loadPlugin</code> method on our component:</p><div class="mediaobject"><img src="../Images/image00354.jpeg" alt="Loading new plugins at runtime"/><div class="caption"><p>A completed ManagePlugins component with the ability to remove and load plugin modules at runtime</p></div></div><p style="clear:both; height: 1em;"> </p><p>Now, we have everything <a id="id492" class="indexterm"/>in place to manage our plugins. Plugins initially loaded from URLs present in the root <code class="literal">plugins.js</code> file can now be unloaded using the REMOVE button in the plugins listing. New plugins can be loaded and activated by entering the URL of a plugin, which could be a local URL, bundled and mapped module, or even a remote URL on a different server.</p></div></div>
+<div class="section" title="Summary" id="aid-21PMQ1"><div class="titlepage"><div><div><h1 class="title"><a id="ch10lvl1sec63"/>Summary</h1></div></div></div><p>In this chapter, we looked at different approaches on how to implement a plugin architecture. We then created our own design for a plugin architecture that leverages some Angular mechanisms and works on the concept of UI extension points that we call slots.</p><p>We implemented a plugin API that provides great developer experience by leveraging ES7 decorators to make the configuration of new plugins a piece of cake. We implemented the core of our plugin system using a service to load and unload plugins that are based on the SystemJS module loader. This allowed us to make use of the advanced loading possibilities that are provided by SystemJS. Plugins can be transpiled in real time, can be located on a local URL, remote URL, or even be bundled into the main application.</p><p>We implemented our first plugin, which provides some components to manage Agile story points on our tasks. The plugin was created outside our regular project <code class="literal">lib</code> folder, which should underline the portable nature of our plugin system.</p><p>Finally, we created a new routable component to manage plugins at runtime. Due to the reactive nature of our plugin system, plugins can be loaded and unloaded during application runtime without any unwanted side-effects.</p><p>When you're playing with the source code of this chapter, I highly recommend that you play with the loading mechanism of our plugin architecture. The flexibility that we achieved with very little effort is fantastic. You can unload the Agile plugin and load it again by providing the URL to the plugin main module. You can even try to place the whole plugins folder onto a remote server and load the plugin from there. Just make sure that you consider the necessary <span class="strong"><strong>Cross-Origin Resource Sharing</strong></span> (<span class="strong"><strong>CORS</strong></span>) headers.</p><p>The whole code for this chapter can be found in the ZIP file of the book resources that you can download from Packt Publishing. You can refer to the <span class="emphasis"><em>Downloading the example code</em></span> section in the <span class="emphasis"><em>Preface</em></span> of the book.</p><p>In the next and last chapter of this book, we'll look at how we can test the components that we've created so far. So, stay tuned for this overdue topic!</p></div></body></html>

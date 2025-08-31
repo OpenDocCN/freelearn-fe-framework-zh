@@ -1,0 +1,457 @@
+<html><head></head><body><div class="chapter" title="Chapter&#xA0;6.&#xA0;Keeping Up with Activities" id="aid-19UOO1"><div class="titlepage"><div><div><h1 class="title"><a id="ch06"/>Chapter 6. Keeping Up with Activities</h1></div></div></div><p>In this chapter, we'll build an activity log in our task management system using <span class="strong"><strong>Scalable Vector Graphics</strong></span> (<span class="strong"><strong>SVG</strong></span>) to build graphical components using Angular. SVG is the perfect candidate when it comes to complex graphical content, and using Angular components, we can build nicely encapsulated and reusable content.</p><p>Since we want to log all the activities within our application, such as adding comments or renaming tasks, we are going to create a central repository. We can then display these activities and render them as an activity timeline using SVG.</p><p>To add an overview of all the activities and to provide a user input to narrow the range of displayed activities, we're going to create an interactive slider component. This component will use a projection to render timestamps, in the form of ticks and activities, directly onto the slider's background. We'll also use SVG to render the elements within the component.</p><p>We'll cover the following topics in this chapter:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem">A basic introduction to SVG</li><li class="listitem">Making SVG composable with Angular components</li><li class="listitem">Using namespaces in component templates</li><li class="listitem">Creating a simple pipe to format calendar times using Moment.js</li><li class="listitem">Using the <code class="literal">@HostListener</code> annotations to handle user input events to create an interactive slider element</li><li class="listitem">Making use of Shadow DOM using <code class="literal">ViewEncapsulation.Native</code> in order to create native-style encapsulation</li></ul></div><div class="section" title="Creating a service for logging activities"><div class="titlepage"><div><div><h1 class="title"><a id="ch06lvl1sec38"/>Creating a service for logging activities</h1></div></div></div><p>The goal of this <a id="id226" class="indexterm"/>chapter is to provide a way to keep <a id="id227" class="indexterm"/>track of all user activities within the task management application. For this purpose, we'll need a system that will allow us to log activities within components and to access already logged activities.</p><p>Activities, as entities, should be quite generic and should have the following fields with their respective purposes:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem"><span class="strong"><strong>Subject</strong></span>: This field should be used to reference the subject of the activity. This can be any identifier that identifies a foreign entity. In the context of projects, we'll store the project ID in this field. Services and components that use the activity service should use this field to filter specific activities further.</li><li class="listitem"><span class="strong"><strong>Category</strong></span>: This field provides an additional way of tagging the activity further. For projects, we will currently use two categories: <span class="emphasis"><em>comments</em></span> and <span class="emphasis"><em>tasks</em></span>.</li><li class="listitem"><span class="strong"><strong>Title</strong></span>: This refers to the title of the activity that will provide a very brief summary of what the activity is about. This could be something like <span class="emphasis"><em>New task was added</em></span> or <span class="emphasis"><em>Comment was deleted</em></span>.</li><li class="listitem"><span class="strong"><strong>Message</strong></span>: This is the field where the real beef of the activity goes into. It should contain enough information to provide good traceability of what happened during the activity.</li></ul></div><p>In order to develop our <a id="id228" class="indexterm"/>system, we'll create a new file named <code class="literal">activity-service.js</code> under the <code class="literal">activities/activity-service</code> path in our <code class="literal">lib</code> <a id="id229" class="indexterm"/>folder. In this file, we will create our activity service class, which we're enabling for dependency injection, by using the <code class="literal">@Injectable</code> annotation:</p><div class="informalexample"><pre class="programlisting">@Injectable()
+constructor(@Inject(DataProvider) dataProvider,
+                   @Inject(UserService) userService) {
+export class ActivityService {
+    // We're exposing a replay subject that will emit events 
+    // whenever the activities list change
+<span class="strong"><strong>    this.change = new ReplaySubject(1);</strong></span>
+    this.dataProvider = dataProvider;
+    this.userService = userService;
+    this.activities = [];
+
+    // We're creating a subscription to our datastore to get 
+    // updates on activities
+    this.activitiesSubscription = this.dataProvider.getLiveChanges()
+      .map((change) =&gt; change.doc)
+<span class="strong"><strong>      .filter((document) =&gt; document.type === 'activity')</strong></span>
+      .subscribe((changedActivity) =&gt; {
+        this.activities = this.activities.slice();
+        // Since activities can only be added we can assume that 
+        // this change is a new activity
+<span class="strong"><strong>        this.activities.push(changedActivity);</strong></span>
+        // Sorting the activities by time to make sure there's no 
+        // sync issue messing with the ordering
+        this.activities.sort((a, b) =&gt; 
+          a.time &gt; b.time ? -1 : a.time &lt; b.time ? 1 : 0);
+<span class="strong"><strong>        this.change.next(this.activities);</strong></span>
+      });
+  }
+
+  // This method is logging a new activity
+  logActivity(subject, category, title, message) {
+    // Using the DataProvider to create a new document in our
+    // datastore
+<span class="strong"><strong>    this.dataProvider.createOrUpdateDocument({</strong></span>
+<span class="strong"><strong>      type: 'activity',</strong></span>
+<span class="strong"><strong>      user: this.userService.currentUser,</strong></span>
+<span class="strong"><strong>      time: new Date().getTime(),</strong></span>
+<span class="strong"><strong>      subject,</strong></span>
+<span class="strong"><strong>      category,</strong></span>
+<span class="strong"><strong>      title,</strong></span>
+<span class="strong"><strong>      message</strong></span>
+<span class="strong"><strong>    });</strong></span>
+  }
+}</pre></div><p>In the constructor of our activity service, we've subscribed to changes to our data store and have filtered any incoming change by type so we will only receive activity updates.</p><p>Since activities can't <a id="id230" class="indexterm"/>be edited or deleted, we only need to be concerned about newly added activities. We update the internal array of activities with any added activity in the subscription. This way, we'll not only receive all the initial activities, but also the activities that are subsequently added directly from the data store. Other services and components can then directly access the activity list of the system.</p><p>In order for other application components to react to changes in the activity list, we've exposed a <code class="literal">ReplaySubject</code> observable on the <code class="literal">change</code> member field.</p><p>In the <code class="literal">logActivity</code> <a id="id231" class="indexterm"/>method, we've simply added a new activity to the data store. <code class="literal">UserService</code> will provide us with information on the currently logged-in user, and we can use <code class="literal">DataProvider</code> to write to the data store.</p><p>So, we have created a simple platform that will help us keep track of activities within our application. Since we want only one instance of <code class="literal">ActivityService</code> within our application, let's add it to the <code class="literal">providers</code> list on our root <code class="literal">App</code> component. You'll find this component in the <code class="literal">app.js</code> file, located within our <code class="literal">lib</code> folder:</p><div class="informalexample"><pre class="programlisting">@Component({
+  selector: 'ngc-app',
+  …
+<span class="strong"><strong>  providers: [ProjectService, UserService, ActivityService]</strong></span>
+})</pre></div><p>Because all dependency <a id="id232" class="indexterm"/>injectors will inherit the dependencies <a id="id233" class="indexterm"/>from our <code class="literal">App</code> component, we can inject it in any component of our application going forward.</p><div class="section" title="Logging activities"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec35"/>Logging activities</h2></div></div></div><p>We have created a <a id="id234" class="indexterm"/>nice system to log activities. Now let's go ahead and use it <a id="id235" class="indexterm"/>within our components to keep an audit of all the activities.</p><p>First, let's use <code class="literal">ActivityService</code> to log activities within the <code class="literal">TaskList</code> component. The following code excerpt highlights the changes made to the <code class="literal">TaskList</code> component within the <code class="literal">task-list/task-list.js</code> file in our <code class="literal">lib</code> folder:</p><div class="informalexample"><pre class="programlisting">...
+<span class="strong"><strong>import {ActivityService} from '../activities/activity-service/activity-service';</strong></span>
+<span class="strong"><strong>import {limitWithEllipsis} from '../utilities/string-utilities';</strong></span>
+
+@Component({
+  selector: 'ngc-task-list',
+  ...
+})
+export class TaskList {
+  …
+<span class="strong"><strong>  // Subject for logging activities</strong></span>
+<span class="strong"><strong>  @Input() activitySubject;</strong></span>
+
+  onTaskUpdated(task, updatedData) {
+    ...
+<span class="strong"><strong>    // Creating an activity log for the updated task</strong></span>
+<span class="strong"><strong>    this.activityService.logActivity(</strong></span>
+<span class="strong"><strong>      this.activitySubject.id,</strong></span>
+<span class="strong"><strong>      'tasks',</strong></span>
+<span class="strong"><strong>      'A task was updated',</strong></span>
+<span class="strong"><strong>      'The task "${limitWithEllipsis(oldTask.title, 30)}" was updated on #${this.activitySubject.document.data._id}.'</strong></span>
+<span class="strong"><strong>    );</strong></span>
+  }
+
+  onTaskDeleted(task) {
+    ...
+<span class="strong"><strong>    // Creating an activity log for the deleted task</strong></span>
+<span class="strong"><strong>    this.activityService.logActivity(</strong></span>
+<span class="strong"><strong>      this.activitySubject.id,</strong></span>
+<span class="strong"><strong>      'tasks',</strong></span>
+<span class="strong"><strong>      'A task was deleted',</strong></span>
+<span class="strong"><strong>      'The task "${limitWithEllipsis(removed.title, 30)}" was deleted from #${this.activitySubject.document.data._id}.'</strong></span>
+<span class="strong"><strong>    );</strong></span>
+  }
+
+  addTask(title) {
+    ...
+<span class="strong"><strong>    // Creating an activity log for the added task</strong></span>
+<span class="strong"><strong>    this.activityService.logActivity(</strong></span>
+<span class="strong"><strong>      this.activitySubject.id,</strong></span>
+<span class="strong"><strong>      'tasks',</strong></span>
+<span class="strong"><strong>      'A task was added',</strong></span>
+<span class="strong"><strong>      'A new task "${limitWithEllipsis(title, 30)}" was added to #${this.activitySubject.document.data._id}.'</strong></span>
+<span class="strong"><strong>    );</strong></span>
+  }
+  ...
+}</pre></div><p>Using the <code class="literal">logActivity</code> method of <code class="literal">ActivityService</code>, we can easily log any number of activities within the already existing <code class="literal">TaskList</code> methods to modify tasks.</p><p>In the message body of our activities, we've used a new utility function, <code class="literal">limitWithEllipsis</code>, which we've imported from a new module, namely <code class="literal">string-utilities</code>. This function takes a string and a number as parameters. The returned string is a truncated version of the <a id="id236" class="indexterm"/>input string, which is cut off at the position specified <a id="id237" class="indexterm"/>with the second parameter. In addition, there's an ellipsis character (<code class="literal">...</code>) appended to the string. I won't bother you with the rather simple code within this helper. If you'd like to know how it's implemented, you can always check the implementation after downloading this chapter's code.</p><p>If you go back to the specification of our activity logs, you will see that we always need to specify a subject in order to log activities. We've implemented this on our <code class="literal">TaskList</code> component by introducing a new input parameter called <code class="literal">activitySubject</code>. The assumption here is that each activity subject contains <code class="literal">LiveDocument</code> stored under the document member. From there, we can obtain the ID in the data store and use it for our activity message.</p><p>If we revisit our <code class="literal">Project</code> component, you will see that we're already following the prerequisites of being an activity subject. We've stored a reference to the underlying <code class="literal">LiveDocument</code> instance under the <code class="literal">document</code> member field.</p><p>All we need to do now is change the template of our <code class="literal">ProjectTaskList</code> wrapper component to pass the <code class="literal">activitySubject</code> project input of the <code class="literal">TaskList</code> component. Let's look at the <a id="id238" class="indexterm"/>changes in the <code class="literal">lib/project/project-task-list/project-task-list.html</code> file quickly:</p><div class="informalexample"><pre class="programlisting">&lt;ngc-task-list [tasks]="project.tasks"
+<span class="strong"><strong>               [activitySubject]="project"</strong></span>
+             (tasksUpdated)="updateTasks($event)"&gt;&lt;/ngc-task-list&gt;</pre></div><p>You might wonder why <a id="id239" class="indexterm"/>we care about this rather cumbersome way of dealing with our task list, if we could just pass in a hard reference to the project and use project tasks and the project ID directly. The beautiful aspect of our current solution is that we do not have any dependency on a project as such. We could also use our <code class="literal">TaskList</code> component without the context of a project. And we can still pass a list of tasks to the <code class="literal">tasks</code> input and use a different activity subject for the activity logs.</p><p>We're also going to use <code class="literal">ActivityService</code> within the <code class="literal">Comments</code> component to create logs for added, edited, and deleted comments. Since the steps involved are very similar to what we've just done for the <code class="literal">TaskList</code> component, we're going to skip this. You can always take a look at the final codebase for this chapter to add activity logs for the <code class="literal">Comments</code> component.</p></div></div></div>
+<div class="section" title="Leveraging the power of SVG"><div class="titlepage" id="aid-1AT9A2"><div><div><h1 class="title"><a id="ch06lvl1sec39"/>Leveraging the power of SVG</h1></div></div></div><p>SVG has been a <a id="id240" class="indexterm"/>part of the Open Web Platform standards since 1999 and was first recommended in 2001 under the SVG 1.0 standard. SVG is a consolidation of two independent proposals for an XML-based vector image format. <span class="strong"><strong>Precision Graphics </strong></span><a id="id241" class="indexterm"/>
+<span class="strong"><strong>Markup Language</strong></span> (<span class="strong"><strong>PGML</strong></span>)—mainly <a id="id242" class="indexterm"/>developed by Adobe and Netscape—as well as <span class="strong"><strong>Vector Markup Language</strong></span> (<span class="strong"><strong>VML</strong></span>)—which was mainly represented by Microsoft and Macromedia—were both different XML formats that served the same purpose. The W3C consortium declined both the proposals in favor of the newly developed SVG standard that unified the best of both worlds into a single standard:</p><div class="mediaobject"><img src="../Images/image00323.jpeg" alt="Leveraging the power of SVG"/><div class="caption"><p>Timeline showing the development of the SVG standard</p></div></div><p style="clear:both; height: 1em;"> </p><p>All three standards had a common goal, which was to provide a format for the Web to display vector graphics in the browser. SVG is a declarative language that specifies graphical objects using XML elements and attributes.</p><p>Let's look at a simple <a id="id243" class="indexterm"/>example on how to create an SVG image with a black circle, using SVG:</p><div class="informalexample"><pre class="programlisting">&lt;?xml version="1.0" encoding="utf-8"?&gt;  
+&lt;svg version="1.1"  
+     width="20px" height="20px"&gt;
+  &lt;circle cx="10" cy="10" r="10" fill="black" /&gt;
+&lt;/svg&gt;</pre></div><p>This rather simple example represents an SVG image with a black circle, whose center is located at <span class="emphasis"><em>x = 10 px</em></span> and <span class="emphasis"><em>y = 10 px</em></span>. The radius of the circle is 10 px, which makes this circle 20 px in width and height.</p><p>The origin of the coordinate system in SVG sits on the top-left corner, where the <span class="emphasis"><em>y</em></span> axis faces the south direction and the <span class="emphasis"><em>x</em></span> axis eastward:</p><div class="mediaobject"><img src="../Images/image00324.jpeg" alt="Leveraging the power of SVG"/><div class="caption"><p>The coordinate system within SVG</p></div></div><p style="clear:both; height: 1em;"> </p><p>Using not only primitive shapes, such as circles, lines, and rectangles, but also complex polygons, the possibilities for creating graphical content are nearly unlimited.</p><p>SVG is not only used within the Web, but has also become a very important intermediate format for exchanging vector graphics between different applications. Almost any application that supports vector graphics also supports the import of SVG files.</p><p>The real power of SVG <a id="id244" class="indexterm"/>comes to the surface when we do not include an SVG file as an HTML image, but rather include the SVG content directly within our DOM. Since HTML5 directly supports the SVG namespace within an HTML document and will render the graphics we define within our HTML, a whole bunch of new possibilities spring up. We can now style our SVG with CSS, manipulate the DOM with JavaScript, and easily make our SVG interactive.</p><p>Taking the previous example of our circle image to the next level, we could make it interactive by changing the circle color by clicking it. First, let's create a minimal HTML document and include our SVG elements directly within the DOM:</p><div class="informalexample"><pre class="programlisting">&lt;!doctype html&gt;
+&lt;title&gt;Minimalistic Circle&lt;/title&gt;
+&lt;svg width="20px" height="20px"&gt;
+  &lt;circle id="circle" cx="10" cy="10" r="10" fill="black"&gt;
+&lt;/svg&gt;
+&lt;script&gt;
+  document
+    .getElementById('circle')
+    .addEventListener('click', function(event) {
+      event.target.setAttribute('fill', 'red');
+    });
+&lt;/script&gt;</pre></div><p>As you can see, we can get rid of the version and the XML namespace declaration when we use SVG directly within the DOM of our HTML document. What's interesting here is that we can treat SVG very much like regular HTML. We can assign an ID and even classes to SVG elements and access them from JavaScript.</p><p>Within the <code class="literal">script</code> tag of our HTML document, we can directly access our <code class="literal">circle</code> element using the ID we've previously assigned to it. We can add event listeners, the way we already know, from regular HTML elements. In this example, we added a <code class="literal">click</code> event listener and changed the color of our circle to red.</p><p>For the sake of simplicity, we <a id="id245" class="indexterm"/>used an inline <code class="literal">script</code> tag in this example. It would of course be much cleaner to have a separate JavaScript file to do the scripting.</p><div class="section" title="Styling SVG"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec36"/>Styling SVG</h2></div></div></div><p>I'm a purist when it <a id="id246" class="indexterm"/>comes to the separation of concerns within the Web. I still strongly believe in the separation of structure (HTML), appearance (CSS), and behavior (JavaScript), as well as producing the most maintainable applications when following this practice.</p><p>First, it seems weird to have SVG in your HTML, and you might think that this breaks the contract of a clean separation. Why is this graphical content, consisting of only appearance-relevant data, sitting in my HTML that is supposed to only contain raw information? After dealing with a lot of SVGs within a DOM, I have come to the conclusion that we can establish a clean separation when using SVG by dividing our appearance responsibilities into the following two subgroups:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem"><span class="strong"><strong>Graphical structure</strong></span>: This subgroup deals with the process of defining the basic structure of your <a id="id247" class="indexterm"/>graphical content. This is about shapes and layout.</li><li class="listitem"><span class="strong"><strong>Visual appearance</strong></span>: This subgroup deals with the process of defining the look and feel of <a id="id248" class="indexterm"/>our graphical structures, such as colors, line widths, line styles, and text alignment.</li></ul></div><p>If we separate the concerns of SVG into these groups, we can actually gain great maintainability. Graphical structure is defined by the SVG shapes themselves. They are directly written within our HTML but don't have a particular look and feel. We only store the basic structural information within HTML.</p><p>Luckily, all the properties of visual appearance, such as colors, cannot only be expressed through the attributes in our SVG elements; however, there's a corresponding CSS property that allows us to offload all the look-and-feel-relevant aspects of the structure to CSS.</p><p>Go back to the example where we drew a black circle; we'll tweak this a bit to fit our demands of separation of concerns so that we can distinguish graphical structure from graphical appearance:</p><div class="informalexample"><pre class="programlisting">&lt;!doctype html&gt;
+&lt;title&gt;Minimalistic Circle&lt;/title&gt;
+&lt;svg width="20px" height="20px"&gt;
+  &lt;circle class="circle" cx="10" cy="10" r="10"&gt;
+&lt;/svg&gt;</pre></div><p>Styling our graphical structures can now be achieved using CSS by including a stylesheet with the following content:</p><div class="informalexample"><pre class="programlisting">.circle {
+  fill: black;
+}</pre></div><p>This is fantastic, as we can now not only reuse some graphical structures, but also apply different visual appearance parameters using CSS, similar to those enlightening moments when we managed to reuse some semantic HTML by only changing some CSS.</p><p>Let's look at the most important <a id="id249" class="indexterm"/>CSS properties we can use to style SVG shapes:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem"><code class="literal">fill</code>: While working with solid SVG shapes, there's always a shape fill and stroke option available; the <code class="literal">fill</code> property specifies the color of the shape fill.</li><li class="listitem"><code class="literal">stroke</code>: This property specifies the color of the SVG shape's outline.</li><li class="listitem"><code class="literal">stroke-width</code>: This property specifies the width of the SVG shape's outline on solid shapes. For nonsolid shapes, such as lines, this can be thought of as line width.</li><li class="listitem"><code class="literal">stroke-dasharray</code>: This specifies a dash pattern for strokes. Dash patterns are space-separated values that define a pattern.</li><li class="listitem"><code class="literal">stroke-dashoffset</code>: This specifies an offset for the dash pattern, which is specified with the <code class="literal">stroke-dasharray</code> property.</li><li class="listitem"><code class="literal">stroke-linecap</code>: This property defines how line caps should be rendered. They can be rendered as square, butt, or rounded caps.</li><li class="listitem"><code class="literal">stroke-linejoin</code>: This property specifies how lines are joined together within a path.</li><li class="listitem"><code class="literal">shape-rendering</code>: Using this property, you can override the shape-rendering algorithm that, as the name suggests, is used to render shapes. This is particularly useful if you need crispy edges on your shapes.</li></ul></div><p>For a complete reference of the available appearance-relevant SVG attributes, visit the Mozilla Developer <a id="id250" class="indexterm"/>website at <a class="ulink" href="https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute">https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute</a>.</p><p>I hope this brief introduction <a id="id251" class="indexterm"/>gave you a better feeling about SVG and the great power it comes with. In this chapter, we're going to use some of that power to create nice, interactive graphical components. If you would like to learn more about SVG, I strongly recommend that you go through the great articles by <span class="emphasis"><em>Sara Soueidan</em></span>.</p></div><div class="section" title="Building SVG components"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec37"/>Building SVG components</h2></div></div></div><p>When building Angular <a id="id252" class="indexterm"/>components with SVG templates, there are a couple of things we need to be aware of. The first and most obvious one, is XML namespaces. Modern browsers are very intelligent when parsing HTML. Besides being probably the most fault-tolerant parser in the history of computer science, DOM parsers are very smart in recognizing markup and then deciding how to treat it. They will automatically decide the correct namespaces for us, based on element names, so we don't need to deal with them when writing HTML.</p><p>If you've messed around with the DOM API a bit, you would've probably recognized that there are two methods for creating new elements. In the document object, for example, there's a <code class="literal">createElement</code> function, but there's also <code class="literal">createElementNS</code> that accepts an additional namespace URI parameter. Also, every created element has a <code class="literal">namespaceURI</code> property that tells you the namespace of the specific element. This is important since HTML5 is a standard that consists of at least three namespaces:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem"><span class="strong"><strong>HTML</strong></span>: This is the <a id="id253" class="indexterm"/>standard HTML namespace with the <a class="ulink" href="http://www.w3.org/1999/xhtml">http://www.w3.org/1999/xhtml</a> URI.</li><li class="listitem"><span class="strong"><strong>SVG</strong></span>: This embraces all SVG elements and attributes and uses the <a class="ulink" href="http://www.w3.org/2000/svg">http://www.w3.org/2000/svg</a> URI. You can sometimes see this namespace URI <a id="id254" class="indexterm"/>in an <code class="literal">xmlns</code> attribute of the <code class="literal">svg</code> elements. In fact, this is not really required, as the browser is smart enough to decide on the correct namespace itself.</li><li class="listitem"><span class="strong"><strong>MathML</strong></span>: This is an <a id="id255" class="indexterm"/>XML-based format to describe mathematical formulas and is supported in most modern browsers. It uses the <a class="ulink" href="http://www.w3.org/1998/Math/MathML">http://www.w3.org/1998/Math/MathML</a> namespace URI.</li></ul></div><p>We can mix all these elements from different standards and namespaces within a single document, and our browser will figure out the correct namespace itself when it creates elements within the DOM.</p><div class="note" title="Note"><h3 class="title"><a id="tip12"/>Tip</h3><p>If you want more information on namespaces, I recommend that you go through the <span class="emphasis"><em>Namespaces </em></span><a id="id256" class="indexterm"/>
+<span class="emphasis"><em>Crash Course</em></span> article on the Mozilla Developer Network at <a class="ulink" href="https://developer.mozilla.org/en/docs/Web/SVG/Namespaces_Crash_Course">https://developer.mozilla.org/en/docs/Web/SVG/Namespaces_Crash_Course</a>.</p></div><p>As Angular will compile templates for us and render elements into the DOM using the DOM API, it needs to be aware of the namespaces when doing that. Similar to the browser, Angular provides some intelligence for deciding the correct namespace while creating elements. However, there are some situations where you need to help Angular recognize the correct namespace.</p><p>To illustrate some of this <a id="id257" class="indexterm"/>behavior, let's transform our circle example that we've been working on into an Angular component:</p><div class="informalexample"><pre class="programlisting">@Component({
+  selector: 'awesome-circle',
+  template: `
+    &lt;svg <span class="strong"><strong>[attr.width]="size" [attr.height]="size"</strong></span>&gt;
+      &lt;circle <span class="strong"><strong>[attr.cx]="size/2" [attr.cy]="size/2"</strong></span>
+              <span class="strong"><strong>[attr.r]="size/2"</strong></span> fill="black" /&gt;
+    &lt;/svg&gt;
+  `
+})
+export class AwesomeCircle {
+<span class="strong"><strong>  @Input() size;</strong></span>
+}</pre></div><p>We've wrapped our circle SVG graphics into a simple Angular component. The <code class="literal">size</code> input parameter determines the actual width and height of the circle by controlling the SVG's <code class="literal">width</code> and <code class="literal">height</code> attributes and the circle's <code class="literal">cx</code>, <code class="literal">cy</code>, and <code class="literal">r</code> attributes.</p><p>To use our <code class="literal">Circle</code> component, simply use the following template within another component:</p><div class="informalexample"><pre class="programlisting">&lt;awesome-circle [size]="20"&gt;&lt;/awesome-circle&gt;</pre></div><div class="note" title="Note"><h3 class="title"><a id="note09"/>Note</h3><p>It's important to note that we need to use attribute bindings on SVG elements, and we can't set DOM element properties directly. This is due to the nature of SVG elements that have special property types—for example, <code class="literal">SVGAnimatedLength</code>—that can be animated with <span class="strong"><strong>Synchronized Multimedia Integration </strong></span><a id="id258" class="indexterm"/>
+<span class="strong"><strong>Language</strong></span> (<span class="strong"><strong>SMIL</strong></span>). Instead of interfering with these rather complex element properties, we can simply use attribute bindings to set the attribute values of the DOM element.</p></div><p>Let's go back to our namespace discussion. Angular would know that it needs to use the SVG namespace to create the elements within this template. It will function in this way simply because we're using the <code class="literal">svg</code> element as a root element within our component, and it could switch the namespace within the template parser for any child elements automatically.</p><p>However, there are certain situations where we need to help Angular determine the correct namespace for the elements we'd like to create. This strikes us if we're creating nested SVG components <a id="id259" class="indexterm"/>that don't contain a root <code class="literal">svg</code> element:</p><div class="informalexample"><pre class="programlisting">@Component({
+  selector: '[awesomeCircle]',
+  template: `
+<span class="strong"><strong>      &lt;svg:circle [attr.cx]="size/2" [attr.cy]="size/2"</strong></span>
+<span class="strong"><strong>                  [attr.r]="size/2" fill="black" /&gt;</strong></span>
+  '
+})
+export class AwesomeCircle {
+  @Input('awesomeCircle') size;
+}
+
+@Component({
+  selector: 'app'
+  template: `
+   &lt;svg width="20" height="20"&gt;
+    &lt;g [awesomeCircle]="20"&gt;&lt;/g&gt;
+   &lt;/svg&gt;
+  `,
+  directives: [AwesomeCircle]
+})
+export class App {}</pre></div><p>In this example, we're nesting SVG components, and our <code class="literal">AwesomeCircle</code> component does not have an <code class="literal">svg</code> root element to tell Angular to switch the namespace. This is why we've created the <code class="literal">svg</code> element within our <code class="literal">App</code> component and then included the <code class="literal">AwesomeCircle</code> component in an SVG group.</p><p>We need to explicitly tell Angular to switch to the SVG namespace within our <code class="literal">Circle</code> component, and we can do this by including the namespace name as a prefix separated by a colon, as you can see in the highlighted section of the preceding code excerpt.</p><p>If you have multiple elements that need to be created within the SVG namespace explicitly, you can rely on the fact that Angular does apply the namespace for child elements too and does group all your elements with an SVG group element. So, you only need to prefix the group element <code class="literal">&lt;svg:g&gt; ... &lt;/svg:g&gt;</code>, but none of the contained SVG elements.</p><p>This is enough to know about Angular internals when dealing with SVG. Let's move on and create some real components!</p></div></div>
+<div class="section" title="Building an interactive activity slider component"><div class="titlepage" id="aid-1BRPS2"><div><div><h1 class="title"><a id="ch06lvl1sec40"/>Building an interactive activity slider component</h1></div></div></div><p>In the previous topics, we've covered the basics of working with SVG and dealing with SVG in Angular <a id="id260" class="indexterm"/>components. Now it's time to apply our knowledge to the task management application and create some components using SVG.</p><p>The first component we'll be creating in this context is an interactive slider that allows the user to select the time range of activities that he or she is interested to check out. Displaying a simple HTML5 range input could be a solution, but since we've gained some SVG superpower, we can do better! We'll use SVG to render our own slider that will show existing activities as ticks on the slider. Let's look at a mock-up of the slider component that we're going to create:</p><div class="mediaobject"><img src="../Images/image00325.jpeg" alt="Building an interactive activity slider component"/><div class="caption"><p>A mockup of the activity slider component</p></div></div><p style="clear:both; height: 1em;"> </p><p>Our slider component will actually serve two purposes. It should be a user control and should provide a way to select a time range for filtering activities. However, it should also provide an overview of all the activities so that a user can filter the range more intuitively. By drawing vertical bars that represent activities, we can already give the user a feeling of the range he or she is interested in.</p><p>First of all, we'll create a new file for our <code class="literal">ActivitySlider</code> component called <code class="literal">activity-slider.js</code> within the <code class="literal">activities/activity-slider</code> path and define our component class:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>import styles from './activity-slider.css!text';</strong></span>
+
+@Component({
+  selector: 'ngc-activity-slider',
+  host: {
+    class: 'activity-slider'
+  },
+<span class="strong"><strong>  styles: [styles],</strong></span>
+<span class="strong"><strong>  encapsulation: ViewEncapsulation.Native,</strong></span>
+  …
+})
+export class ActivitySlider {
+  // The input expects a list of activities
+<span class="strong"><strong>  @Input() activities;</strong></span>
+  // If the selection of date range changes within our slider 
+  // component, we'll emit a change event
+<span class="strong"><strong>  @Output() selectionChange = new EventEmitter();</strong></span>
+
+  constructor(@Inject(ElementRef) elementRef) {
+    // We'll use the host element for measurement when drawing
+    // the SVG
+<span class="strong"><strong>    this.sliderElement = elementRef.nativeElement;</strong></span>
+    // The padding on each side of the slider
+<span class="strong"><strong>    this.padding = 20;</strong></span>
+  }
+
+  ngAfterViewInit() {
+    // We'll need a reference to the overlay rectangle so we can 
+    // update its position and width
+<span class="strong"><strong>    this.selectionOverlay = this.sliderElement</strong></span>
+<span class="strong"><strong>     .shadowRoot.querySelector('.selection-overlay');</strong></span>
+  }
+}</pre></div><p>The first thing we should mention, and which differs from all the other components we've written so far, is that we're using <code class="literal">ViewEncapsulation.Native</code> for this component. As we learned from the <span class="emphasis"><em>Creating our application component</em></span> section in <a class="link" title="Chapter 2. Ready, Set, Go!" href="part0020.xhtml#aid-J2B81">Chapter 2</a>, <span class="emphasis"><em>Ready, Set, Go!</em></span>, when we use <code class="literal">ViewEncapsulation.Native</code> for our component encapsulation, Angular actually uses <a id="id261" class="indexterm"/>Shadow DOM to create the component. We briefly looked at this in the <span class="emphasis"><em>Shadow DOM</em></span> section in <a class="link" title="Chapter 1. Component-Based User Interfaces" href="part0014.xhtml#aid-DB7S1">Chapter 1</a>, <span class="emphasis"><em>Component-Based User Interfaces</em></span> as well.</p><p>Using Shadow DOM for our component will give us this advantage: our component will be fully encapsulated from the CSS side of things. This not only means that none of the global CSSes will leak into our component, but it also means that we'll need to create local styles in order to style our component.</p><p>So far, we've used a CSS naming convention called BEM that provides us with some necessary prefixes to avoid name clashes within CSS and establish a clean and simple CSS specificity. However, when using Shadow DOM, we can forego prefixes to avoid name clashes, since we're only applying styles locally within the component.</p><p>Because we're using Shadow DOM for this component, we need to have a way to define local styles. Angular provides us with an option to pass styles into the component using the <code class="literal">styles</code> property of the component annotation.</p><div class="note" title="Note"><h3 class="title"><a id="tip13"/>Tip</h3><p>Chrome supports Shadow DOM natively since version 35. Within Firefox, Shadow DOM can be enabled by visiting the <code class="literal">about:config</code> page and turning on the <code class="literal">dom.webcomponents.enabled</code> flag. IE, Edge, and Safari don't support this standard at all; however, we can set things up in a way that they could deal with Shadow DOM, by including a polyfill named <code class="literal">webcomponents.js</code>. You <a id="id262" class="indexterm"/>can find more information on this polyfill at <a class="ulink" href="https://github.com/webcomponents/webcomponentsjs">https://github.com/webcomponents/webcomponentsjs</a>.</p></div><p>Using the text plugin of SystemJS, we can import a stylesheet containing only the local styles of our component and then pass them to the <code class="literal">styles</code> property. By appending a <code class="literal">!text</code> postfix to the import of our CSS file, we tell SystemJS to load our CSS file as raw text. Note that the <code class="literal">styles</code> <a id="id263" class="indexterm"/>property is expecting an array, which is why we wrap our imported styles into an array literal.</p><p>If you take a look at the stylesheet for the <code class="literal">ActivitySlider</code> component, you can immediately see that we're no longer prefixing the classes with the component name:</p><div class="informalexample"><pre class="programlisting">.slide {
+  fill:#f9f9f9;
+}
+
+.activity {
+  fill:#3699cb;
+}
+
+.time {
+  fill:#bbb;
+  font-size:14px;
+}
+
+.tick {
+  stroke:#bbb;
+  stroke-width:2px;
+  stroke-dasharray:3px;
+}
+
+.selection-overlay {
+  fill:#d9d9d9;
+}</pre></div><p>Usually, such short class names would probably lead to name clashes within our project, but since the styles will be local to the Shadow DOM of our component, we don't need to worry about name clashes any more.</p><p>As an input parameter, we define the list of activities that will be used not only to determine the available range in the slider, but also to render activities on the background of the slider.</p><p>Once a selection is made by the user, our component will use the <code class="literal">selectionChange</code> event emitter to notify the outside world about the change.</p><p>Within the constructor, we're <a id="id264" class="indexterm"/>setting aside the component DOM element for some measurement we need to make in order to draw later on:</p><div class="informalexample"><pre class="programlisting">this.sliderElement = <span class="strong"><strong>elementRef.nativeElement</strong></span>;</pre></div><p>By injecting the <code class="literal">ElementRef</code> instance to the constructor, we can easily access the native DOM element of our component.</p><div class="section" title="Projection of time"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec38"/>Projection of time</h2></div></div></div><p>Our slider component <a id="id265" class="indexterm"/>needs to be able to project timestamps into the coordinate system of SVG. Also, when a user clicks on the timeline to select a range, we'll need to be able to project coordinates back into timestamps. For this purpose, we need to create two projection functions within our component that will use a few helper functions and states to calculate the values, from coordinates to time and vice-verse:</p><div class="mediaobject"><img src="../Images/image00326.jpeg" alt="Projection of time"/><div class="caption"><p>Visualization of important variables and functions for our calculations</p></div></div><p style="clear:both; height: 1em;"> </p><p>While we will use percentage to position our SVG elements on the slider component, the padding on the sides will need to be specified in pixels. The <code class="literal">totalWidth</code> function will return the total width of the area in pixels; this is where we'll draw the activity indicators. The <code class="literal">timeFirst</code>, <code class="literal">timeLast</code>, and <code class="literal">timeSpan</code> variables will also be used by the calculations and are specified in milliseconds.</p><p>Let's add some code to our slider to deal with the projection of our activities on the slider in the <code class="literal">activity-slider.js</code> file:</p><div class="informalexample"><pre class="programlisting">// Getting the total available width of the slider
+<span class="strong"><strong>totalWidth() {</strong></span>
+<span class="strong"><strong>  return this.sliderElement.clientWidth - this.padding * 2;</strong></span>
+<span class="strong"><strong>}</strong></span>
+
+// Projects a time stamp into percentage for positioning
+<span class="strong"><strong>projectTime(time) {</strong></span>
+<span class="strong"><strong>  let position = this.padding +</strong></span>
+<span class="strong"><strong>    (time - this.timeFirst) / this.timeSpan * this.totalWidth();</strong></span>
+<span class="strong"><strong>  return position / this.sliderElement.clientWidth * 100;</strong></span>
+<span class="strong"><strong>}</strong></span>
+
+// Projects a pixel value back to a time value. This is required 
+// for calculating time stamps from user selection.
+<span class="strong"><strong>projectLength(length) {</strong></span>
+<span class="strong"><strong>  return this.timeFirst + (length - this.padding) / this.totalWidth() * this.timeSpan;</strong></span>
+<span class="strong"><strong>}</strong></span>
+</pre></div><p>Since we have put aside the <a id="id266" class="indexterm"/>reference to the root element as the <code class="literal">sliderElement</code> member variable, we can use its <code class="literal">clientWidth</code> property to get the full width of the component and subtract the padding. This will give us the full width of the area where we'd like to draw activity indicators, in pixels.</p><p>In the <code class="literal">projectTime</code> function, we will first transform the timestamp into a position by a simple rule of three. Because we have access to the timestamp of the first activity as well as the total time span, this will be quite a simple task. Once we do this, we can convert our position value, which is of unit pixels, into percentage, by dividing it by the total component width and then multiplying it by 100.</p><p>To project a pixel value back to a timestamp, we can do more or less the reverse of <code class="literal">projectTime</code>, except that we're not dealing with percentage here but assuming the length parameter of the <code class="literal">projectLength</code> function is in pixel unit.</p><p>We've used some member variables—<code class="literal">timeFirst</code>, <code class="literal">timeLast</code>, and <code class="literal">timeSpan</code>—within our projection code, but how do we set these member variables? Since we have an <code class="literal">activities</code> component input, which is expected to be a list of relevant activities, we can observe the input for changes and set the values based on the input. To observe component input for changes, we can use the <code class="literal">ngOnChanges</code> life cycle hook:</p><div class="informalexample"><pre class="programlisting">ngOnChanges(changes) {
+  // If the activities input changes we need to re-calculate and 
+  // re-draw
+  if (changes.activities &amp;&amp; changes.activities.currentValue) {
+    const activities = changes.activities.currentValue;
+    // For later calculations we set aside the times of the 
+    // first and the last activity
+    if (activities.length === 1) {
+      // If we only have one activity we use the same time for 
+      // first and last
+<span class="strong"><strong>      this.timeFirst = this.timeLast = activities[0].time;</strong></span>
+    } else if (activities.length &gt; 1) {
+      // Take first and last time
+<span class="strong"><strong>      this.timeFirst = activities[activities.length - 1].time;</strong></span>
+<span class="strong"><strong>      this.timeLast = activities[0].time;</strong></span>
+    } else {
+      // No activities yet, so we use the current time for both 
+      // first and last
+<span class="strong"><strong>      this.timeFirst = this.timeLast = new Date().getTime();</strong></span>
+    }
+
+    // The time span is the time from the first activity to the 
+    // last activity. We need to limit to lower 1 for not messing 
+    // up later calculations.
+<span class="strong"><strong>    this.timeSpan = Math.max(1, this.timeLast - this.timeFirst);</strong></span>
+  }
+}</pre></div><p>First, we need to check whether the changes include changes to the <code class="literal">activities</code> input and that the current value of the input is valid. After checking for the input value, we can determine our member <a id="id267" class="indexterm"/>variables, namely <code class="literal">timeFirst</code>, <code class="literal">timeLast</code>, and <code class="literal">timeSpan</code>. We limit the <code class="literal">timeSpan</code> variable to <code class="literal">1</code> at least, as our projection calculations would be messed up otherwise.</p><p>The preceding code will ensure that we will always recalculate our member variables when the <code class="literal">activities</code> input changes and that we'd be using the most recent data-rendering activities.</p></div><div class="section" title="Rendering activity indicators"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec39"/>Rendering activity indicators</h2></div></div></div><p>We've already <a id="id268" class="indexterm"/>implemented the basics of the component and laid the groundwork for drawing time information into the coordinate system of our component. It's time to use our projection functions and draw our activities as indicators on the slider using SVG.</p><p>First, let's take a look at the required template that we are going to create in a file called <code class="literal">activity-slider.html</code> within our <code class="literal">activity-slider</code> directory:</p><div class="informalexample"><pre class="programlisting">&lt;svg width="100%" height="70px"&gt;
+  …
+  &lt;rect x="0" y="30" width="100%" height="40" 
+        class="slide"&gt;&lt;/rect&gt;
+  &lt;rect <span class="strong"><strong>*ngFor="let activity of activities"</strong></span>
+<span class="strong"><strong>        [attr.x]="projectTime(activity.time) + '%'"</strong></span>
+        height="40" width="2px" y="30" <span class="strong"><strong>class="activity"</strong></span>&gt;&lt;/rect&gt;
+&lt;/svg&gt;</pre></div><p>Since we need to create an indicator for every activity within our activities list, we can simply use the <code class="literal">NgFor</code> directive to repeat the rectangle that represents our activity indicator.</p><p>As we know from building our <code class="literal">ActivityService</code> class in a previous topic, activities always contain a <code class="literal">time</code> field with the timestamp of the activity. Within our component, we have already created a projection function that converts time into percentage, relative to our component width. We can simply use the <code class="literal">projectTime</code> function within our attribute binding for the <code class="literal">x</code> attribute of the <code class="literal">rect</code> element to position our activity indicators at the correct positions.</p><p>By using only an <a id="id269" class="indexterm"/>SVG template and our backing function to project time, we have created a nice little chart that displays activity indicators on a timeline.</p><p>You can imagine that if we have a lot of activities, our slider will actually look pretty stuffed, and it will be hard to get a feeling for when those activities may have occurred. We need to have some sort of a grid that will help us associate the chart with a timeline.</p><p>As already shown in the mock-up of our slider component, we're now going to introduce some ticks on the slider background that will divide the slider into sections. We'll also label each tick with a calendar time. This will give our users a rough sense for time when looking at the activity indicators on the slider.</p><p>Let's look at the code changes within our <code class="literal">ActivitySlider</code> class that will enable the rendering of our ticks:</p><div class="informalexample"><pre class="programlisting">ngOnChanges(changes) {
+  // If the activities input changes we need to re-calculate and 
+  // re-draw
+  if (changes.activities &amp;&amp; changes.activities.currentValue) {
+    ...
+    // Re-calculate the ticks that we display on top of the slider
+<span class="strong"><strong>    this.computeTicks();</strong></span>
+  ...
+}
+
+// This function computes 5 ticks with their time and position on 
+// the slider
+<span class="strong"><strong>computeTicks() {</strong></span>
+<span class="strong"><strong>  const count = 5;</strong></span>
+<span class="strong"><strong>  const timeSpanTick = this.timeSpan / count;</strong></span>
+<span class="strong"><strong>  this.ticks = Array.from({length: count}).map(</strong></span>
+<span class="strong"><strong>    (element, index) =&gt; {</strong></span>
+<span class="strong"><strong>      return this.timeFirst + timeSpanTick * index;</strong></span>
+<span class="strong"><strong>    });</strong></span>
+<span class="strong"><strong>}</strong></span>
+...</pre></div><p>First of all, we need to create a function that computes some ticks for us that we can place onto the timeline. For this purpose, we need to create the <code class="literal">computeTicks</code> method that will divide the whole timeline into five equal segments and generate timestamps that represent the position in time for individual ticks. We store these ticks in a new <code class="literal">ticks</code> member variable. With the help of these timestamps, we can render the ticks within our view easily.</p><div class="note" title="Note"><h3 class="title"><a id="tip14"/>Tip</h3><p>We use the <code class="literal">Array.from</code> ES6 function to create a new array with the desired length, and use the functional array extra function <code class="literal">map</code> to generate tick model objects from this array. Using <code class="literal">Array.from</code> is a nice trick to create an initial array of a given length that can be used to establish functional style.</p></div><p>Let's look at the <a id="id270" class="indexterm"/>template of our component and how we can use our array of timestamps to render ticks on our slider component. We're going to modify our component template in <code class="literal">activity-slider.html</code>:</p><div class="informalexample"><pre class="programlisting">...
+&lt;g <span class="strong"><strong>*ngFor="let tick of ticks"</strong></span>&gt;
+  &lt;text <span class="strong"><strong>[attr.x]="projectTime(tick) + '%'"</strong></span> y="14" class="time"&gt; 
+    <span class="strong"><strong>{{tick | calendarTime}}</strong></span>&lt;/text&gt;
+  &lt;line <span class="strong"><strong>[attr.x1]="projectTime(tick) + '%'"</strong></span>
+<span class="strong"><strong>        [attr.x2]="projectTime(tick) + '%'"</strong></span>
+        y1="30" y2="70" class="tick"&gt;&lt;/line&gt;
+&lt;/g&gt;
+...</pre></div><p>To render our ticks, we've used an SVG group element to place our <code class="literal">NgFor</code> directive that repeats the tick timestamps we've stored in the <code class="literal">ticks</code> member variable.</p><p>For each tick, we need to place a label as well as a line that spans over the slider background. We can use the SVG text element to render our label with the timestamp on top of the slider. Within the attribute binding for the <code class="literal">x</code> attribute of our <code class="literal">text</code> element, we've used our <code class="literal">projectTime</code> projection function to receive the projected percentage value from our timestamp. The <code class="literal">y</code> coordinate of our <code class="literal">text</code> element is fixed at a position where the labels will just sit on top of our slider.</p><p>SVG lines consist of four coordinates: <code class="literal">x1</code>, <code class="literal">x2</code>, <code class="literal">y1</code>, and <code class="literal">y2</code>. Together they define two coordinate points where a line will be drawn from one point to the other.</p><p>Now we are getting closer to the final slider that we specified in the mock-up at the beginning of this topic. The last missing piece of the puzzle is to make our slider interactive so a <a id="id271" class="indexterm"/>user can select a range of activities.</p></div><div class="section" title="Bringing it to life"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec40"/>Bringing it to life</h2></div></div></div><p>So far, we've covered the <a id="id272" class="indexterm"/>rendering of the slider background as well as the rendering of the activity indicators. We've also generated ticks and displayed them with a grid line and a label to display the calendar time of each tick.</p><p>Well, that does not really make a slider, does it? Of course, we also need to handle user input and make the slider interactive so users can select a time range they want to display the activities for.</p><p>To do this, add the following changes to the component class:</p><div class="informalexample"><pre class="programlisting">ngOnChanges(changes) {
+  // If the activities input changes we need to re-calculate and 
+  // re-draw
+  if (changes.activities &amp;&amp; changes.activities.currentValue) {
+    ...
+    // Setting the selection to the full range
+<span class="strong"><strong>    this.selection = {</strong></span>
+<span class="strong"><strong>      start: this.timeFirst,</strong></span>
+<span class="strong"><strong>      end: this.timeLast</strong></span>
+<span class="strong"><strong>    };</strong></span>
+<span class="strong"><strong>    // Selection changed so we need to emit event</strong></span>
+<span class="strong"><strong>    this.selectionChange.next(this.selection);</strong></span>
+  }
+}</pre></div><p>When we detect a change in the <code class="literal">activities</code> input property within the <code class="literal">ngOnChanges</code> life cycle hook, we initialize a model for the user selection in our slider component. It consists of a <code class="literal">start</code> and <code class="literal">end</code> property, both containing timestamps that represent the selected range on our activity slider.</p><p>Once we've set our initial selection, we need to use the <code class="literal">selectionChange</code> output property to emit an event. This way, we can let our parent component know that the selection within the slider has changed.</p><p>To display the selected range, we use an overlay rectangle within our template that will be placed above the slider background. If you look at the mock-up image of the slider again, you'll notice that this overlay is painted in gray:</p><div class="informalexample"><pre class="programlisting">  &lt;rect <span class="strong"><strong>*ngIf="selection"</strong></span>
+<span class="strong"><strong>        [attr.x]="projectTime(selection.start) + '%'"</strong></span>
+<span class="strong"><strong>        [attr.width]="projectTime(selection.end) - projectTime(selection.start) + '%'"</strong></span>
+        y="30" height="40" class="selection-overlay"&gt;&lt;/rect&gt;</pre></div><p>This rectangle will be placed just above our slider background and will use our projection function to calculate the <code class="literal">x</code> and <code class="literal">width</code> attributes. As we need to wait for change detection to initialize our selection within the <code class="literal">ngOnChanges</code> life cycle hook, we'll just check for a valid selection object by <a id="id273" class="indexterm"/>making use of the <code class="literal">NgIf</code> directive.</p><p>Now we need to start tackling user input in our <code class="literal">ActivitySlider</code> component. The mechanics for storing the state and rendering our selection is already in place, so we can implement the required host listeners to handle user input:</p><div class="informalexample"><pre class="programlisting">...
+// If the component receives a mousedown event, we need to start a 
+// new selection
+<span class="strong"><strong>@HostListener('mousedown', ['$event'])</strong></span>
+onMouseDown(event) {
+  // Starting a new selection by setting selection start and end 
+  // to the projected time of the clicked position.
+<span class="strong"><strong>  this.selection.start = this.selection.end = </strong></span>
+<span class="strong"><strong>    this.projectLength(event.offsetX);</strong></span>
+  // Selection changed so we need to emit event an
+<span class="strong"><strong>  this.selectionChange.next(this.selection);</strong></span>
+  // Setting a flag so we know that the user is currently moving 
+  // the selection
+<span class="strong"><strong>  this.modifySelection = true;</strong></span>
+}
+
+// We also need to track mouse moves within our slider component
+<span class="strong"><strong>@HostListener('mousemove', ['$event'])</strong></span>
+onMouseMove(event) {
+  // We should only modify the selection if the component is in 
+  // the correct mode
+<span class="strong"><strong>  if (this.modifySelection) {</strong></span>
+<span class="strong"><strong>    // Update the selection end with the projected time from the </strong></span>
+<span class="strong"><strong>    // mouse coordinates</strong></span>
+<span class="strong"><strong>    this.selection.end = Math.max(this.selection.start, </strong></span>
+<span class="strong"><strong>      this.projectLength(event.offsetX));</strong></span>
+<span class="strong"><strong>    // Selection changed so we need to emit event an</strong></span>
+<span class="strong"><strong>    this.selectionChange.next(this.selection);</strong></span>
+    // To prevent side effects, we should stop propagation and 
+    // prevent browser default
+    event.stopPropagation();
+    event.preventDefault();
+  }
+}
+
+// If the user is releasing the mouse button, we should stop the 
+// modify selection mode
+<span class="strong"><strong>@HostListener('mouseup')</strong></span>
+onMouseUp() {
+<span class="strong"><strong>  this.modifySelection = false;</strong></span>
+}
+
+// If the user is leaving the component with the mouse, we should 
+// stop the modify selection mode
+<span class="strong"><strong>@HostListener('mouseleave')</strong></span>
+onMouseLeave() {
+<span class="strong"><strong>  this.modifySelection = false;</strong></span>
+}
+...</pre></div><p>In the preceding code <a id="id274" class="indexterm"/>excerpt, we handled a total of four events on the slider host element:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem"><code class="literal">onMouseDown</code>: We set our selection model's <code class="literal">start</code> and <code class="literal">end</code> properties with the same value. Since we're using timestamps for these properties, we projected the mouse position into the timespace first. The mouse position comes in pixels relative to the slider component's origin. Since we know the slider's width and the total time duration displayed, we can convert this into timestamps easily. We're using the <code class="literal">projectLength</code> method for this purpose. By passing a second argument to the <code class="literal">@HostListener</code> decorator, we specified that we'd like to pass the DOM event to our <code class="literal">onMouseDown</code> method. We also set a state flag, <code class="literal">modifySelection</code>, in our component to indicate that a selection is under progress.</li><li class="listitem"><code class="literal">onMouseMove</code>: If the component is in selection mode (the <code class="literal">modifySelection</code> flag is <code class="literal">true</code>), you can adjust the end property of the <code class="literal">selection</code> object. Here, we also made sure that we ruled out the possibility of creating a negative selection by using <code class="literal">Math.max</code> and limiting the end of the selection to not be smaller than the start.</li><li class="listitem"><code class="literal">onMouseUp</code>: When the user releases the mouse button, the component exits the selection mode. This can be done by setting the <code class="literal">modifySelection</code> flag to <code class="literal">false</code>.</li><li class="listitem"><code class="literal">onMouseLeave</code>: This is the same as the <code class="literal">onMouseUp</code> event; the difference is that here the component will just exit the selection mode.</li></ul></div><p>Using the <code class="literal">@HostListener</code> decorator, we were able to handle all of the necessary user input to complete our component with the interactive elements that were still missing.</p></div><div class="section" title="Recap"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec41"/>Recap</h2></div></div></div><p>In this topic, we learned how to use SVG in order to create graphical and interactive components with Angular. By creating attribute bindings on our SVG elements and controlling the instantiation of graphical elements using the <code class="literal">NgFor</code> and <code class="literal">NgIf</code> directives, we built a custom slider component that provides a nice overview of our activities. At the same time, we also learned <a id="id275" class="indexterm"/>how to handle user input using the <code class="literal">@HostListener</code> decorator in order to make our component interactive:</p><div class="mediaobject"><img src="../Images/image00327.jpeg" alt="Recap"/><div class="caption"><p>A screenshot of the finished activity slider component</p></div></div><p style="clear:both; height: 1em;"> </p><p>To sum things up, we learned about the following concepts:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem">Encapsulating component views using <code class="literal">ViewEncapsulation.Native</code> and importing local styles</li><li class="listitem">Covering some basic projections of timestamps onto screen coordinates to be used with SVG elements</li><li class="listitem">Handling user input and creating a custom selection mechanism using the <code class="literal">@HostListener</code> decorator</li></ul></div></div></div>
+<div class="section" title="Building the activity timeline"><div class="titlepage" id="aid-1CQAE2"><div><div><h1 class="title"><a id="ch06lvl1sec41"/>Building the activity timeline</h1></div></div></div><p>So far, we've built a <a id="id276" class="indexterm"/>service to log activities and a slider component to select a time range and provide an overview using activity indicators. Since we needed to perform a lot of drawing tasks within the slider component, SVG was a perfect fit for this use case. To complete our <code class="literal">Activities</code> component tree, we still need to render the activities that were selected using the <code class="literal">ActivitySlider</code> component.</p><p>Let's continue to work on our activities component tree. Well create a new component that will be responsible for rendering an individual activity within an activity timeline. Let's start with the template of the <code class="literal">Activity</code> component, which we will create in a new <code class="literal">activities/activity/activity.html</code> file:</p><div class="informalexample"><pre class="programlisting">&lt;img <span class="strong"><strong>[attr.src]="activity.user.pictureDataUri"</strong></span>
+<span class="strong"><strong>     [attr.alt]="activity.user.name"</strong></span>
+     class="activity__user-image"&gt;
+&lt;div <span class="strong"><strong>[class.activity__info--align-right]="isAlignedRight()"</strong></span>
+     class="activity__info"&gt;
+  &lt;h3 class="activity__title"&gt;{{activity.title}}&lt;/h3&gt;
+  &lt;p class="activity__author"&gt;
+<span class="strong"><strong>    by {{activity.user.name}} {{activity.time | fromNow}}</strong></span>
+  &lt;/p&gt;
+  &lt;p<span class="strong"><strong>&gt;{{activity.message}}</strong></span>&lt;/p&gt;
+&lt;/div&gt;</pre></div><p>Each activity will consist of a user image as well as an information box that will contain the activity title, message, and authoring details.</p><p>Our activity will use an input to determine its alignment. This allows us to align the activity from outside the component. The <code class="literal">isAlignedRight</code> method helps us set an additional CSS class, <code class="literal">activity__info--align-right</code>, on the activity information box.</p><p>We also need to create a <a id="id277" class="indexterm"/>component class for our <code class="literal">Activity</code> component, which we will create under a new <code class="literal">activities/activity/activity.js</code> file:</p><div class="informalexample"><pre class="programlisting">
+<span class="strong"><strong>import {FromNowPipe} from '../../pipes/from-now';</strong></span>
+
+@Component({
+  selector: 'ngc-activity',
+  …
+  // We are using the FromNow pipe to display relative times 
+  // within our template
+<span class="strong"><strong>  pipes: [FromNowPipe]</strong></span>
+})
+export class Activity {
+<span class="strong"><strong>  @Input() activity;</strong></span>
+  // Input that should be a string 'left' or 'right' and will 
+  // determine the activity alignment using CSS
+<span class="strong"><strong>  @Input() alignment;</strong></span>
+<span class="strong"><strong>  @Input() @HostBinding('class.activity--start-mark') startMark;</strong></span>
+<span class="strong"><strong>  @Input() @HostBinding('class.activity--end-mark') endMark;</strong></span>
+
+  // Function with that will tell us if the activity should be 
+  // aligned to the right. It's used for setting a modifier class 
+  // on the info element.
+<span class="strong"><strong>  isAlignedRight() {</strong></span>
+<span class="strong"><strong>    return this.alignment === 'right';</strong></span>
+<span class="strong"><strong>  }</strong></span>
+}</pre></div><p>Our <code class="literal">Activity</code> component expects four inputs:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem"><code class="literal">activity</code>: This property takes the data model of the activity that needs to be rendered with the component. This is the activity that we created using <code class="literal">ActivityService</code>.</li><li class="listitem"><code class="literal">alignment</code>: This input property should be set to a string containing the word <code class="literal">left</code> or <code class="literal">right</code>. We used this to determine whether we needed to add an additional CSS class to our template in order to align the activity information box to the right.</li><li class="listitem"><code class="literal">startMark</code>: This input property acts as an input and a host binding at the same time. If this input is set to <code class="literal">true</code>, the activity will get an additional CSS class, <code class="literal">activity--start-mark</code>, which will cause a small mark on top of the timeline to indicate the timeline termination.</li><li class="listitem"><code class="literal">endMark</code>: In the same way as <code class="literal">startMark</code>, this input uses a host binding to set an additional CSS class, <code class="literal">activity--end-mark</code>, which will cause a small mark on the bottom of the timeline to indicate the timeline termination.</li></ul></div><p>The <code class="literal">isAlignedRight</code> <a id="id278" class="indexterm"/>method is used within the template to determine whether we need to add an additional CSS class to the information box in order to align it to the right.</p><p>We formatted the timestamp of the activity using the <code class="literal">FromNow</code> pipe, which we created in <a class="link" title="Chapter 4. No Comments, Please!" href="part0036.xhtml#aid-12AK82">Chapter 4</a>, <span class="emphasis"><em>No Comments, Please!</em></span>. In order to use the pipe in the template, we need to import it and add it to the <code class="literal">pipes</code> property of our component annotation.</p><p>We now have almost all the components to display our activities. But still, there's something missing, which is the glue to combine <code class="literal">ActivitySlider</code> with our <code class="literal">Activity</code> components and also make our component subtree navigable. For this, we'll create a new component called <code class="literal">Activities</code>. Let's create an <code class="literal">activities/activities.js</code> file to write our component class:</p><div class="informalexample"><pre class="programlisting">@Component({
+  selector: 'ngc-activities',
+  ...
+<span class="strong"><strong>  directives: [ActivitySlider, Activity]</strong></span>
+})
+export class Activities {
+<span class="strong"><strong>  @Input() activitySubject;</strong></span>
+
+  constructor<span class="strong"><strong>(@Inject(ActivityService) activityService</strong></span>) {
+    this.activityService = activityService;
+  }
+
+  ngOnChanges(changes) {
+    if (changes.activitySubject) {
+      // If we have a subscription to the activities service 
+      // already we need to unsubscribe first
+      if (this.activitiesChangeSubscription) {
+        this.activitiesChangeSubscription.unsubscribe();
+      }
+
+      // When the project data is updated we need to filter for 
+      // activities again
+      this.activitiesChangeSubscription = 
+        this.activityService.change.subscribe((activities) =&gt; {
+        // Filter for all activities that have the project ID as subject
+<span class="strong"><strong>        this.activities = activities</strong></span>
+<span class="strong"><strong>          .filter((activity) =&gt; activity.subject === this.activitySubject.document.data._id);</strong></span>
+<span class="strong"><strong>        this.onSelectionChange();</strong></span>
+      });
+    }
+  }</pre></div><p>First of all, we need to know which activities we want to display within our component. For this, we need to provide a component input, namely <code class="literal">activitySubject</code>. Once this is done, we can pass an activity subject from the parent component and use it to filter activities we're interested in.</p><p>Since we've used activity subjects to log activities as well, we can use the same subjects to display activities. In the <code class="literal">ngOnChanges</code> life cycle hook, we set up a subscription on the <code class="literal">ActivityService</code> instance to react to newly created activities. Because the activity service will notify us with an updated list of activities, we can simply use the <code class="literal">Array.prototype.filter</code> function to filter only relevant items. We've made use of the <code class="literal">activitySubject</code> input to obtain the ID from the subject.</p><p>Next, we need to create a <a id="id279" class="indexterm"/>method to apply a date range filter to our activities. The <code class="literal">onSelectionChange</code> method will be called from our <code class="literal">activities</code> template, where we created a binding to our <code class="literal">ActivitySlider</code> component:</p><div class="informalexample"><pre class="programlisting">  // If the selection within the activity slider changes, we need 
+  // to filter out activities again
+<span class="strong"><strong>  onSelectionChange(selection = this.selection) {</strong></span>
+    this.selection = selection;
+    // Store filtered activities that fall into the date range 
+    // selection specified by the slider
+<span class="strong"><strong>    this.selectedActivities = this.selection ? this.activities.filter(</strong></span>
+<span class="strong"><strong>      (activity) =&gt; activity.time &gt;= this.selection.start</strong></span>
+<span class="strong"><strong>                 &amp;&amp; activity.time &lt;= this.selection.end</strong></span>
+<span class="strong"><strong>    );</strong></span>
+<span class="strong"><strong>  }</strong></span>
+</pre></div><p>Whenever the time range is updated by the user within the slider, we'll override the <code class="literal">selectedActivities</code> member variable with a new filtered version of the activities, which we'd obtain from <code class="literal">ActivityService</code>. The filter will narrow down the activities by comparing the activity time against the selection range from the slider component.</p><p>Now we will set up some <a id="id280" class="indexterm"/>helper functions to be used within our template:</p><div class="informalexample"><pre class="programlisting">  // Get an alignment string based on the index. Activities with 
+  // even index get aligned left while odds get aligned right.
+<span class="strong"><strong>  getAlignment(index) {</strong></span>
+<span class="strong"><strong>    return index % 2 === 0 ? 'left' : 'right';</strong></span>
+<span class="strong"><strong>  }</strong></span>
+
+  // Function to determine if an activity index is first
+<span class="strong"><strong>  isFirst(index) {</strong></span>
+<span class="strong"><strong>    return index === 0;</strong></span>
+<span class="strong"><strong>  }</strong></span>
+
+  // Function to determine if an activity index is last
+<span class="strong"><strong>  isLast(index) {</strong></span>
+<span class="strong"><strong>    return index === this.selectedActivities.length - 1;</strong></span>
+<span class="strong"><strong>  }</strong></span>
+</pre></div><p>The three methods, namely <code class="literal">getAlignment</code>, <code class="literal">isFirst</code>, and <code class="literal">isLast</code>, are used within the template as input for the <code class="literal">Activity</code> component. If you take a look at the code of <code class="literal">ActivityComponent</code> again, you will see that we need to provide some input in order to set some CSS classes for appearance. The three methods we created here will be used for this purpose:</p><div class="informalexample"><pre class="programlisting">  // If the component gets destroyed, we need to unsubscribe from 
+  // the activities change observer
+<span class="strong"><strong>  ngOnDestroy() {</strong></span>
+<span class="strong"><strong>    this.activitiesChangeSubscription.unsubscribe();</strong></span>
+<span class="strong"><strong>  }</strong></span>
+}</pre></div><p>Finally, we added an <code class="literal">OnDestroy</code> life cycle hook that will unsubscribe us from the activity's change observable.</p><p>The template for this component is rather simple. The only thing we need to do is render the <code class="literal">ActivitySlider</code> component, as well as iterate over the selected activities and wire in the <code class="literal">Activity</code> component for each iteration:</p><div class="informalexample"><pre class="programlisting">&lt;ngc-activity-slider <span class="strong"><strong>[activities]="activities"</strong></span>
+<span class="strong"><strong>                   (selectionChange)="onSelectionChange($event)"</strong></span>&gt;
+&lt;/ngc-activity-slider&gt;
+&lt;div class="activities__l-container"&gt;
+  &lt;ngc-activity 
+<span class="strong"><strong>   *ngFor="let activity of selectedActivities, let index = index"</strong></span>
+<span class="strong"><strong>   [activity]="activity"</strong></span>
+<span class="strong"><strong>   [alignment]="getAlignment(index)"</strong></span>
+<span class="strong"><strong>   [startMark]="isLast(index)"</strong></span>
+<span class="strong"><strong>   [endMark]="isFirst(index)"&gt;</strong></span>
+  &lt;/ngc-activity&gt;
+&lt;/div&gt;</pre></div><p>There's not much we need to <a id="id281" class="indexterm"/>explain here. We've bound <code class="literal">activities</code> and our <code class="literal">onSelectionChange</code> method to the slider component and iterated over all the selected activities to render our <code class="literal">Activity</code> components. We've created a local view variable, <code class="literal">index</code>, which we will use for the appearance input of the <code class="literal">Activity</code> component.</p><p>That's it for our activities page! We've created three components that are composed together and display an activity stream, which provides a slider to filter activities for dates:</p><div class="mediaobject"><img src="../Images/image00328.jpeg" alt="Building the activity timeline"/><div class="caption"><p>A screenshot of the finished activities view</p></div></div><p style="clear:both; height: 1em;"> </p></div>
+<div class="section" title="Summary" id="aid-1DOR01"><div class="titlepage"><div><div><h1 class="title"><a id="ch06lvl1sec42"/>Summary</h1></div></div></div><p>In this chapter, we created an interactive slider component using SVG. While doing this, we learned about some SVG basics and the power of SVG within the DOM. Using Angular, we were able to make SVG composable, which it isn't by nature. We learned about namespaces, how Angular handles them, and how we can tell Angular that we'd like to use namespaces explicitly.</p><p>Besides using SVG for our slider component, we also learned how to use Shadow DOM to create native view encapsulation. As a result of this, we were able to use local styles for our component. We don't need to worry about CSS name clashes, specificity, and global CSS side effects any more when using local styles.</p><p>The whole code for this chapter can be found in the ZIP file of the book resources that you can download from the Packt Publishing website.</p><p>In the next chapter, we're going to enhance what we've built throughout the chapters so far. We will create some components to enrich the user experience within our application.</p></div></body></html>

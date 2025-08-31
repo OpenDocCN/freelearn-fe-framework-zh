@@ -1,0 +1,754 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Explaining Pipes and Communicating with RESTful Services</h1>
+                </header>
+            
+            <article>
+                
+<p>In the previous chapter, we covered some very powerful features of the framework. However, we can go even deeper into the functionality of Angular's forms module and router. In this chapter, we'll explain how we can perform the following:</p>
+<ul>
+<li>Developing model-driven forms</li>
+<li>Defining parameterized routes</li>
+<li>Defining child routes</li>
+<li>Using the HTTP module for communication with RESTful APIs</li>
+<li>Transforming data with custom pipes</li>
+</ul>
+<p>We will explore all these concepts in the process of extending the functionality of the "Coders repository" application. At the beginning of the preceding chapter, we mentioned that we will allow the import of developers from GitHub. However, before we implement this feature, let's extend the functionality of the form.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Developing model-driven forms in Angular</h1>
+                </header>
+            
+            <article>
+                
+<p>These will be the last steps for finishing "Coders repository". You can build on top of the code available at <kbd>ch7/step-1/</kbd> (or <kbd>ch7/step-2</kbd>, depending on your previous work), in order to extend the functionality of the application with the new concepts we will cover. The complete example is located at <kbd>ch8/multi-page-model-driven</kbd>.</p>
+<p>This is the result that we will achieve by the end of this section:</p>
+<div class="CDPAlignCenter CDPAlign"><img height="506" width="654" src="assets/5bbecb65-7340-4363-a5df-54c6c66615c7.png"/></div>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 1</div>
+<p>In the preceding screenshot, there are two forms:</p>
+<ul>
+<li>A form that has the following controls:
+<ul>
+<li>The text input for the GitHub handle</li>
+<li>A checkbox that points out whether we want to import the developer from GitHub or enter them manually</li>
+</ul>
+</li>
+<li>A form for entering new users manually</li>
+</ul>
+<p>The second form looks exactly the way we left it in the previous chapter. However, this time, its definition looks a little bit different:</p>
+<pre>&lt;form class="form col-md-4" [formGroup]="addDevForm" [hidden]="submitted"&gt;
+  &lt;!-- TODO --&gt; 
+&lt;/form&gt; </pre>
+<p>Note that this time, we don't have the <kbd>submit</kbd> handler or the <kbd>#f="ngForm"</kbd> attribute. Instead, we bind the <kbd>[formGroup]</kbd> input to the <kbd>addDevForm</kbd> property, which is defined inside the component's controller. Using this input, we can bind to something called <kbd>FormGroup</kbd>. As its name states, the <kbd>FormGroup</kbd> class consists of a list of controls grouped together with the sets of validation rules associated with them.</p>
+<p>We need to use a similar declaration in the form used for importing a developer. However, this time, we will provide a different value of the <kbd>[formGroup]</kbd> property, as we will define a different form group in the component's controller. Place the following snippet above the form we introduced earlier:</p>
+<pre>&lt;form class="form col-md-4" [formGroup]="importDevForm" [hidden]="submitted"&gt;
+&lt;!-- TODO --&gt; 
+&lt;/form&gt; </pre>
+<p>Now, let's declare the <kbd>importDevForm</kbd> and <kbd>addDevForm</kbd> properties in the component's controller:</p>
+<pre>import {FormGroup} from '@angular/forms';
+ 
+@Component(...) 
+export class AddDeveloper { 
+  importDevForm: FormGroup; 
+  addDevForm: FormGroup; 
+  ... 
+  constructor(private developers: DeveloperCollection, 
+    fb: FormBuilder) {...} 
+  addDeveloper() {...} 
+} </pre>
+<p>Initially, we import the <kbd>FormGroup</kbd> class from the <kbd>@angular/forms</kbd> module, and later, declare the required properties in the controller. Notice that we have one additional parameter of <kbd>constructor</kbd> of <kbd>AddDeveloper</kbd> called <kbd>fb</kbd> of the <kbd>FormBuilder</kbd> type.</p>
+<p>The <kbd>FormBuilder</kbd> type provides a programmable API for the definition of <kbd>FormGroup</kbd> where we can attach validation behavior to each control in the group. Let's use the <kbd>FormBuilder</kbd> instance for the initialization of the <kbd>importDevForm</kbd> and <kbd>addDevForm</kbd> properties:</p>
+<pre>... 
+constructor(private developers: DeveloperCollection, 
+  fb: FormBuilder) {<br/>  this.importDevForm = fb.group({
+    githubHandle: ['', Validators.required],
+    fetchFromGitHub: [false]
+  });<br/>  this.addDevForm = fb.group({
+    realName: ['', Validators.required],
+    email: ['', validateEmail],
+    technology: ['', Validators.required],
+    popular: [false]
+  });<br/>} 
+... </pre>
+<p>The <kbd>FormBuilder</kbd> instance has a method called <kbd>group</kbd> that allows us to define controls and set their properties, such as their default values and validators.</p>
+<p>According to the previous snippet, <kbd>importDevForm</kbd> has two fields: <kbd>githubHandle</kbd> and <kbd>fetchFromGitHub</kbd>. We declare that the default value of the <kbd>githubHandle</kbd> control is the empty string and its value is required, and set the default value of the <kbd>fetchFromGitHub</kbd> control to <kbd>false</kbd>.</p>
+<p>In the second form, <kbd>addDevForm</kbd>, we declare four controls. For the <kbd>realName</kbd> control, as the default value, we set the empty string, and use <kbd>Validators.requred</kbd> in order to introduce validation behavior (which is exactly what we did for the <kbd>githubHandle</kbd> control). As a validator for the email input, we will use the <kbd>validateEmail</kbd> function and set the control's initial value to the empty string. The <kbd>validateEmail</kbd> function is the one we defined in the previous chapter:</p>
+<pre>function validateEmail(emailControl) { 
+  if (!emailControl.value || 
+     /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/.test(emailControl.value)) { 
+    return null; 
+  } else { 
+    return { 'invalidEmail': true }; 
+  } 
+} </pre>
+<p>The last two controls we define here are the <kbd>technology</kbd> control, which has a required value validator and has an empty string as its initial value, and the <kbd>popular</kbd> control, with its initial value set to <kbd>false</kbd>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using composition of control validators</h1>
+                </header>
+            
+            <article>
+                
+<p>We took a look at how we can apply a single validator to form controls. Using the model-driven approach, we applied the <kbd>Validators.required</kbd> validator in a way equivalent to what we did in the previous chapter, where we used template-driven forms and added the <kbd>required</kbd> attribute. However, in some applications, the domain may require a more complex validation logic. For example, if we want to apply both the required and the <kbd>validateEmail</kbd> validators to the email control, we should do the following:</p>
+<pre>this.addDevForm = fb.group({ 
+  ... 
+  email: ['', Validators.compose([ 
+      Validators.required, 
+      validateEmail<br/>    ])<br/>  ], 
+  ... 
+}); </pre>
+<p>The <kbd>compose</kbd> method of the <kbd>Validators</kbd> object accepts an array of validators as an argument and returns a new validator. The new validator's behavior will be a composition of the logic defined in the individual validators passed as an argument, and they will be applied in the same order as they were introduced in the array.</p>
+<p>The property names in the object literal passed to the <kbd>group</kbd> method, of <kbd>FormBuilder</kbd>, should match with the values that we set to the <kbd>formControlName</kbd> attributes of the inputs in the template. This is the complete template of <kbd>importDevForm</kbd>:</p>
+<pre>&lt;form class="form col-md-4" [formGroup]="importDevForm" [hidden]="submitted"&gt;
+  &lt;div class="form-group"&gt;
+  &lt;label class="control-label" for="githubHandleInput"&gt;GitHub handle&lt;/label&gt;
+  &lt;div&gt;
+    &lt;input id="githubHandleInput" class="form-control"
+           type="text" formControlName="githubHandle"&gt;
+    &lt;control-errors control="githubHandle"
+      [errors]="{
+        'required': 'The GitHub handle is required'
+      }"&gt;&lt;/control-errors&gt;
+   &lt;/div&gt;
+  &lt;/div&gt;
+  &lt;div class="form-group"&gt;
+    &lt;label class="control-label" for="fetchFromGitHubCheckbox"&gt;
+      Fetch from GitHub
+    &lt;/label&gt;
+    &lt;input class="checkbox-inline" id="fetchFromGitHubCheckbox"
+      type="checkbox" formControlName="fetchFromGitHub"&gt;
+  &lt;/div&gt;
+&lt;/form&gt;</pre>
+<p>In the preceding template, we can see that, once the <kbd>submitted</kbd> flag has the <kbd>true</kbd> value, the form will be hidden from the user. Next to the first input element, we will set the value of the <kbd>formControlName</kbd> attribute to <kbd>githubHandle</kbd>. The <kbd>formControlName</kbd> attribute associates an existing form input in the template with one declared in the <kbd>FormGroup</kbd> class, corresponding to the form element where HTML input resides. This means that the key associated with the controls definition inside the object literal, which we pass to the <kbd>group</kbd> method of <kbd>FormBuilder</kbd>, must match with the name of the corresponding control in the template, set with <kbd>formControlName</kbd>.</p>
+<p>Now we want to implement the following behavior:</p>
+<ul>
+<li>When the <span class="packt_screen">Fetch from GitHub</span> checkbox is checked, <kbd>disable</kbd> the form for entering a new developer and enable the form for importing a developer from GitHub</li>
+<li>When the current active (or enabled) form is invalid, <kbd>disable</kbd> the <kbd>submit</kbd> button</li>
+</ul>
+<p>We'll explore how we can achieve this functionality using Angular's reactive forms (also known as model-driven forms) API.</p>
+<p>Inside the <kbd>AddDeveloper</kbd> class, add the following methods definitions:</p>
+<pre>...
+export class AddDeveloper {
+  //...
+  ngOnInit() {
+    this.toggleControls(this.importDevForm.controls['fetchFromGitHub'].value);
+    this.subscription = this.importDevForm.controls['fetchFromGitHub']
+      .valueChanges.subscribe(this.toggleControls.bind(this));
+  }
+
+  ngOnDestroy() {
+    this.subscription.unsubscribe();
+  }
+
+  private toggleControls(importEnabled: boolean) {
+    const addDevControls = this.addDevForm.controls;
+    if (importEnabled) {
+      this.importDevForm.controls['githubHandle'].enable();
+      Object.keys(addDevControls).forEach((c: string) =&gt;
+        addDevControls[c].disable());
+    } else {
+      this.importDevForm.controls['githubHandle'].disable();
+      Object.keys(addDevControls).forEach((c: string) =&gt;
+        addDevControls[c].enable());
+    }
+  }
+}
+<span>...</span></pre>
+<p>Notice that in <kbd>ngOnInit</kbd>, we invoke the <kbd>toggleControls</kbd> method with the current value of the <kbd>fetchFromGitHub</kbd> checkbox. We can get reference to <kbd>AbstractControl</kbd>, which represents the checkbox, by getting the <kbd>fetchFromGitHub</kbd> property of <kbd>controls</kbd> within <kbd>importDevForm</kbd>.</p>
+<p>After that, we subscribe to the <kbd>valueChange</kbd> event of the checkbox by passing a callback to its <kbd>subscribe</kbd> method. Each time the value of the checkbox is changed, the callback we've passed to <kbd>subscribe</kbd> will be invoked.</p>
+<p>Later, in <kbd>ngOnDestroy</kbd>, we unsubscribe from the <kbd>valueChange</kbd> subscription in order to prevent our code from memory leaks.</p>
+<p>Finally, the most interesting thing happens in <kbd>toggleControls</kbd>. To this method, we pass a flag that indicates whether we want <kbd>importDevForm</kbd> to be enabled or not. If we want the form to be enabled, all we need to do is to invoke the <kbd>enable</kbd> method of the <kbd>githubHandle</kbd> control and <kbd>disable</kbd> all the <kbd>controls</kbd> in <kbd>addDevForm</kbd>. We can <kbd>disable</kbd> all the <kbd>controls</kbd> in <span><kbd>addDevForm</kbd> by iterating over the control names (that is, the keys of the <kbd>controls</kbd> property of</span> <kbd>addDevForm</kbd><span>), getting the corresponding control instance for each individual name, and invoking its <kbd>disable</kbd> method. In case the <kbd>importEnabled</kbd> flag has the <kbd>false</kbd></span><span> </span><span>value</span><span>, we do the exact opposite, by invoking the</span> <kbd>enable</kbd> <span>method of the</span> <kbd>controls</kbd> <span>from</span> <kbd>addDevForm</kbd> <span>and the</span> <kbd>disable</kbd> <span>method of the control from</span> <kbd>importDevForm</kbd><span>.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Exploring the HTTP module of Angular</h1>
+                </header>
+            
+            <article>
+                
+<p>Now, after we have developed both forms—for importing existing developers and adding new developers, it is time to implement the logic behind them in the controller of the component.</p>
+<p>For this purpose, we will need to communicate with the GitHub API. Although we can do this directly from the component's controller, by approaching the problem this way, we would couple the view with the RESTful API of GitHub. In order to enforce better separation of concerns, we can extract the logic for communication with GitHub into a separate service called <kbd>GitHubGateway</kbd>. Open the file called <kbd>github_gateway.ts</kbd>, and enter the following content:</p>
+<div>
+<pre><span>import</span><span> </span><span>{</span><span> </span><span>Injectable</span><span> </span><span>}</span><span> </span><span>from</span><span> </span><span>'</span><span>@angular/core</span><span>'</span><span>;<br/></span><span>import</span><span> </span><span>{</span><span> </span><span>HttpClient</span><span> </span><span>}</span><span> </span><span>from</span><span> </span><span>'</span><span>@angular/common/http</span><span>'</span><span>;<br/></span><span>import</span><span> </span><span>{</span><span> </span><span>Observable</span><span> </span><span>}</span><span> </span><span>from</span><span> </span><span>'</span><span>rxjs/Observable</span><span>'</span><span>;<br/></span><span><br/>export</span><span> </span><span>interface</span><span> </span><span>GitHubUser</span><span> </span><span>{<br/></span><span>  id</span><span>:</span><span> </span><span>number</span><span>;<br/></span><span>  login</span><span>:</span><span> </span><span>string</span><span>;<br/></span><span>  email</span><span>:</span><span> </span><span>string</span><span>;<br/></span><span>  followers</span><span>:</span><span> </span><span>number</span><span>;<br/></span><span>  name</span><span>:</span><span> </span><span>string</span><span>;</span><span><br/></span><span>  avatar_url</span><span>:</span><span> </span><span>string</span><span>;<br/></span><span>}<br/><br/></span><span>@Injectable</span><span>()<br/></span><span>export</span><span> </span><span>class</span><span> </span><span>GitHubGateway</span><span> </span><span>{<br/></span><span>  </span><span>constructor</span><span>(</span><span>private</span><span> </span><span>http</span><span>:</span><span> </span><span>HttpClient</span><span>)</span><span> </span><span>{</span><span> </span><span>}<br/></span><span>  </span><span>getUser</span><span>(</span><span>username</span><span>:</span><span> </span><span>string</span><span>)</span><span>:</span><span> </span><span>Observable</span><span>&lt;</span><span>GitHubUser</span><span>&gt;</span><span> </span><span>{<br/></span><span>    </span><span>return</span><span> </span><span>this</span><span>.</span><span>http</span><span>.</span><span>get</span><span>&lt;</span><span>GitHubUser</span><span>&gt;</span><span>(</span><span>`</span><span>https://api.github.com/users/</span><span>${</span><span>username</span><span>}`</span><span>)</span><span>;<br/></span><span>  </span><span>}<br/></span><span>}</span></pre></div>
+<p>Initially, we import the <kbd>HttpClient</kbd> class from the <kbd>@angular/common/http</kbd> module. All the HTTP-related functionalities are externalized outside the Angular's core.</p>
+<p>Right after that we declare the <kbd>GitHubUser</kbd> interface. We use it in order to describe the expected type of the response returned from GitHub. In this case, we create the interface declaration manually; however, usually, such interfaces are generated using an API schema (such as OpenAPI, for instance), which is shared between the frontend and the backend.</p>
+<p>After a dependency acceptance of <kbd>GitHubGateway</kbd>, needs to be injected through the DI mechanism of the framework, we will decorate the class with the <kbd>@Injectable</kbd> decorator.</p>
+<p>The only functionality from the GitHub's API we use is the one for fetching users, so we define a single method called <kbd>getUser</kbd>. As an argument, it accepts the GitHub handle of the developer.</p>
+<div class="packt_infobox"><span>Note that</span> <span>if you make more than 60 requests per day to the GitHub's API, you might get this error:</span> <span class="packt_screen">GitHub API Rate limit exceeded</span><span>. This is due to the rate limits for requests without a GitHub API token. For further information, visit</span> <a href="https://github.com/blog/1509-personal-api-tokens"><span class="URLPACKT">https://github.com/blog/1509-personal-api-tokens</span></a><span>.</span></div>
+<p>Inside the <kbd>getUser</kbd> method, we use the instance of the <kbd>HttpClient</kbd> service that we received in <kbd>constructor</kbd>. Notice that the <kbd>get</kbd> method of the client has a type parameter and returns <kbd>Observable</kbd>. The purpose of the type parameter is to indicate what will be the type of the response, which is wrapped inside of <kbd>Observable</kbd>. As the expected type, we set the <kbd>GitHubUser</kbd> interface. There are a few benefits of using observables instead of promises for <kbd>HttpClient</kbd>; for instance, consider the following benefits:</p>
+<ul>
+<li>Observables are cancellable by design</li>
+<li>Observables can be easily retried</li>
+<li>We can map and filter the responses received from a given request</li>
+</ul>
+<div class="packt_infobox">The complete API of the <kbd>HttpClient</kbd> service can be found at <a href="https://angular.io/api/common/http/HttpClient">https://angular.io/api/common/http/HttpClient</a>.</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using Angular's HTTP module</h1>
+                </header>
+            
+            <article>
+                
+<p>Now, let's implement the logic for importing the existing developers from GitHub. First, we will need to import <kbd>HttpClientModule</kbd> in our <kbd>AppModule</kbd> class:</p>
+<pre>import {HttpClientModule} from '@angular/common/http';
+...
+
+@NgModule({
+  imports: [..., HttpClientModule],
+  declarations: [...],
+  providers: [...],
+  bootstrap: [...]
+})
+class AppModule {}
+...</pre>
+<p>After that, open the <kbd>ch7/step-2/add_developer.ts</kbd> file and enter the following imports:</p>
+<pre>import {GitHubGateway} from './github_gateway'; </pre>
+<p>Add <kbd>GitHubGateway</kbd> to the list of providers of the <kbd>AddDeveloper</kbd> component:</p>
+<pre>@Component({ 
+  ... 
+  providers: [GitHubGateway] 
+}) 
+class AddDeveloper {...} </pre>
+<p>As the next step, we have to include the following parameters in <kbd>constructor</kbd> of the class:</p>
+<pre>constructor(private githubAPI: GitHubGateway, 
+  private developers: DeveloperCollection, 
+  fb: FormBuilder) { 
+  //... 
+} </pre>
+<p>This way, the <kbd>AddDeveloper</kbd> class instances will have a private property called <kbd>githubAPI</kbd>.</p>
+<p>The only thing left is to implement the <kbd>addDeveloper</kbd> method and allow the user to import the existing developers using the <kbd>GitHubGateway</kbd> instance.</p>
+<p>Once the user clicks on the <span class="packt_screen">Add</span> button, we will need to check whether we need to import an existing GitHub user or add a new developer. For this purpose, we can use the value of the <kbd>fetchFromGitHub</kbd> control:</p>
+<pre>if (this.importDevForm.controls['fetchFromGitHub'].value) { 
+  // Import developer 
+} else { 
+  // Add new developer 
+} </pre>
+<p>If it has a truthy value, then we can invoke the <kbd>getUser</kbd> method of the <kbd>githubAPI</kbd> property and pass the value of the <kbd>githubHandle</kbd> control as an argument:</p>
+<pre>this.githubAPI.getUser(model.githubHandle) </pre>
+<p>In the <kbd>getUser</kbd> method of the <kbd>GitHubGateway</kbd> instance, we delegate the call to the<span> </span><kbd>get</kbd><span> method of the</span> <kbd>HttpClient</kbd> <span>service</span><span>, which returns</span> <kbd>Observable</kbd><span>. In order to get the result that</span> <kbd>Observable</kbd> <span>will push, we will need to pass a callback to its</span> <kbd>subscribe</kbd> <span>method:</span></p>
+<pre>this.githubAPI.getUser(model.githubHandle) 
+  .subscribe((res: GitHubUser) =&gt; { 
+    // "res" contains the response of the GitHub's API.
+  }); </pre>
+<p>In the preceding snippet, we first perform an HTTP <kbd>GET</kbd> request. After this, we get the corresponding <kbd>Observable</kbd> <span>instances</span> that, in general cases, will emit a series of values; in this case, only a single one—the body of the response, parsed to JSON. If the request fails, then we will get an error.</p>
+<p class="mce-root"><span>Note that in order to reduce the bundle size of Angular, the team at Google has included only the core of RxJS in the framework. In order to use the</span> <kbd>map</kbd> <span>and</span> <kbd>catch</kbd> <span>methods, you will need to add the following imports at</span> <kbd>add_developer.ts</kbd><span>:</span> <kbd>import 'rxjs/add/operator/map';</kbd> and <kbd>import 'rxjs/add/operator/catch';</kbd>.</p>
+<div class="packt_tip">Keep in mind that RxJS version 5.5 introduced the so called <em>lettable operators</em>, which allows us to import operators with named imports, compared to the preceding example, which uses imports with side effects. This is a big step forward type safety. More about lettable operators can be found here:<br/>
+<a href="https://github.com/ReactiveX/rxjs/blob/master/doc/lettable-operators.md">https://github.com/ReactiveX/rxjs/blob/master/doc/lettable-operators.md</a></div>
+<p>Now, let's implement the body of the callback we pass to <kbd>subscribe</kbd>:</p>
+<pre>let dev = new Developer(); 
+dev.githubHandle = res.login; 
+dev.email = res.email; 
+dev.popular = res.followers &gt;= 1000; 
+dev.realName = res.name; 
+dev.id = res.id; 
+dev.avatarUrl = res.avatar_url; 
+this.developers.addDeveloper(dev); 
+this.successMessage = `Developer ${dev.githubHandle} successfully imported from GitHub`; </pre>
+<p>In the preceding example, we set the properties of a new <kbd>Developer</kbd> instance. Here, we establish the mapping between the object returned from GitHub's API and the developer's representation in our application. We consider a developer as popular if they have more than <kbd>1000</kbd> followers.</p>
+<p>The entire implementation of the <kbd>addDeveloper</kbd> method can be found at <kbd>ch8/multi-page-model-driven/add_developer.ts</kbd>.</p>
+<div class="packt_infobox">In order to handle failed requests, we can use the catch method of the Observable instances: <kbd>this.githubAPI.getUser(model.githubHandle)</kbd><br/>
+<kbd>.catch((error, source, caught) =&gt; {</kbd><br/>
+<kbd>console.log(error);</kbd><br/>
+<kbd>return error;</kbd><br/>
+<kbd>});</kbd></div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Defining parameterized views</h1>
+                </header>
+            
+            <article>
+                
+<p>As the next step, once the user clicks on the name of any of the developers on the home page of the application, they should be redirected to a view with a detailed profile of the selected developer. The end result will look as follows:</p>
+<div class="CDPAlignCenter CDPAlign"><img height="404" width="746" src="assets/b1564a7f-12c4-4447-abaa-74ba5697e9e0.png"/></div>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 2</div>
+<p>In order to do this, we will need to pass an identifier of the developer to the component that shows the developer's detailed profile. Open <kbd>app.ts</kbd>, and add the following import:</p>
+<pre>import {DeveloperDetails} from './developer_details'; </pre>
+<p>We haven't developed the <kbd>DeveloperDetails</kbd> component yet, so, if you run the application, you will get an error. We will define the component in the next paragraph, but before this, let's alter the routes definition of <kbd>app.ts</kbd>:</p>
+<pre>const routingModule = RouterModule.forRoot([
+  ...
+  {
+    component: DeveloperDetails,
+    path: 'dev-details/:id',
+    children: devDetailsRoutes
+  }
+]);</pre>
+<p>Here, we add a single route with the <kbd>dev-details/:id</kbd> path and associate the <kbd>DeveloperDetails</kbd> component with it.</p>
+<p>Note that in the <kbd>path</kbd> property, we declare that the route has a single parameter called <kbd>id</kbd> and also set the <kbd>children</kbd> property to <kbd>devDetailsRoutes</kbd>. The <kbd>devDetailsRoutes</kbd> children contains the nested routes, which should be rendered within <kbd>router-outlet</kbd> located in the <kbd>DeveloperDetails</kbd> component.</p>
+<p>Now, let's pass <kbd>id</kbd> of the current developer as a parameter to the <kbd>routerLink</kbd> directive. Open <kbd>home.html</kbd> in your working directory and replace the table cell, where we display the developer's <kbd>realName</kbd> property with the following content:</p>
+<pre>&lt;td&gt; 
+  &lt;a [routerLink]="['/dev-details', dev.id, 'dev-basic-info']"&gt; 
+    {{dev.realName}} 
+  &lt;/a&gt; 
+&lt;/td&gt; </pre>
+<p>The value of the <kbd>routerLink</kbd> directive is an array with the following three elements:</p>
+<ul>
+<li><kbd>'/dev-details'</kbd>: A string that shows the root route</li>
+<li><kbd>dev.id</kbd>: The ID of the developer whose details we want to see</li>
+<li><kbd>'dev-basic-info'</kbd>: The path of a route that shows which component within the nested route should be rendered</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Defining nested routes</h1>
+                </header>
+            
+            <article>
+                
+<p>Now, let's jump to the <kbd>DeveloperDetails</kbd> definition. In your working directory, create a file called <kbd>developer_details.ts</kbd> and enter the following content:</p>
+<pre>import {Component} from '@angular/core';
+import {ActivatedRoute} from '@angular/router';
+import {Developer} from './developer';
+import {DeveloperCollection} from './developer_collection';
+import {DeveloperBasicInfo} from './developer_basic_info';
+import {DeveloperAdvancedInfo} from './developer_advanced_info';
+
+import 'rxjs/add/operator/take';
+
+@Component({
+  selector: 'dev-details',
+  template: `...`,
+})
+export class DeveloperDetails {
+  public dev: Developer;
+
+  constructor(private route: ActivatedRoute,
+    private developers: DeveloperCollection) {}
+
+  ngOnInit() {
+    this.route.params.take(1)
+     .subscribe((params: any) =&gt; {
+       this.dev = this.developers.getUserById(parseInt(params['id']));
+    });
+  }
+}
+
+export const devDetailsRoutes = [...];</pre>
+<div class="packt_tip">For the sake of simplicity, in order to not introduce a complex directory/file structure in the examples for this book, we have a few components and route declarations in a single file. Keep in mind that according to best practices, the individual declarations should be placed into separate files. For further information, visit <a href="https://angular.io/styleguide">https://angular.io/styleguide</a>.</div>
+<p>In the previous snippet, we define a component with controller called <kbd>DeveloperDetails</kbd>. Note that within the controller's <kbd>constructor</kbd> function, through the DI mechanism of Angular, we inject a parameter associated with the <kbd>ActivatedRoute</kbd> token. The injected parameter provides us with access to the parameters visible by the current route. In <kbd>ngOnInit</kbd>, we apply an imperative approach, where we subscribe changes in the value of the route's <kbd>params</kbd> property, get the first set of parameters, and assign the <kbd>dev</kbd> property to the result of the invocation of <kbd>this.developers.getUserById</kbd> with the selected developer's identifier as an argument.</p>
+<div class="packt_tip">
+<p>Note that a more declarative and reactive approach would be to take advantage of the higher-order functions provided by RxJS, where we'd be able to get access to the selected developer using code similar to the following:</p>
+<p><kbd>...</kbd><br/>
+<kbd>get dev$() {</kbd><br/>
+<kbd>return this.route.params.map((params: any) =&gt;</kbd><br/>
+<kbd>this.developers.getUserById(parseInt(params['id'])));</kbd><br/>
+<kbd>}</kbd><br/>
+<kbd>...</kbd></p>
+<p>Later, we can bind to the result of the invocation with the Angular's async pipe, that we will explain later in this chapter.</p>
+</div>
+<p>Since the parameter we got from <kbd>routeParams.params['id']</kbd> is a string, we will need to parse it to a number in order to get the developer associated with the given route.</p>
+<p>Now, let's define the child routes, which will be rendered in the template of <kbd>DeveloperDetails</kbd>:</p>
+<pre>export const devDetailsRoutes = [
+  { path: '', redirectTo: 'dev-basic-info', pathMatch: 'full' },
+  { component: DeveloperBasicInfo, path: 'dev-basic-info' },
+  { component: DeveloperAdvancedInfo, path: 'dev-details-advanced' }
+];</pre>
+<p>There is nothing new for us in the preceding declarations. The route definition follows the exact same rules we're already familiar with.</p>
+<p>Now, to the template of the component, let's add links associated with the individual nested routes:</p>
+<pre>@Component({
+ selector: 'dev-details',
+ template: `
+   &lt;section class="col-md-4"&gt;
+   &lt;ul class="nav nav-tabs"&gt;
+     &lt;li&gt;&lt;a [routerLink]="['./dev-basic-info']"&gt;Basic profile&lt;/a&gt;&lt;/li&gt;
+     &lt;li&gt;&lt;a [routerLink]="['./dev-details-advanced']"&gt;Advanced details&lt;/a&gt;&lt;/li&gt;
+   &lt;/ul&gt;
+   &lt;router-outlet&gt;&lt;/router-outlet&gt;
+   &lt;/section&gt;
+ `
+})
+export class DeveloperDetails {...}</pre>
+<p>Within the template, we declare two links that are relative to the current path. The first one points to <kbd>dev-basic-info</kbd>, which is the path of the first route defined within <kbd>devDetailsRoutes</kbd>, and the second one points to <kbd>dev-details-advanced</kbd>.</p>
+<p>Since the implementations of the components associated with both routes are quite similar, let's take a look only at <kbd>DeveloperBasicInfo</kbd>. The implementation of the second one can be found at <kbd>ch8/multi-page-model-driven/developer_advanced_info.ts</kbd>:</p>
+<pre>import {Component, Inject, OnInit, forwardRef, Host} from '@angular/core';
+import {DeveloperDetails} from './developer_details';
+import {Developer} from './developer';
+
+@Component({
+  selector: 'dev-details-basic',
+  styles: [`
+    .avatar {
+      border-radius: 150px;
+    }`
+  ],
+  template: `
+    &lt;h2&gt;{{dev.githubHandle | uppercase}}&lt;/h2&gt;
+    &lt;img *ngIf="dev.avatarUrl == null" class="avatar"
+     src="http://hippycanada.ca/wordpress/wp-content/uploads/2014/12/gravatar-60-grey.jpg" width="150"&gt;
+    &lt;img *ngIf="dev.avatarUrl != null" class="avatar" [src]="dev.avatarUrl" width="150"&gt;
+ `
+})
+export class DeveloperBasicInfo implements OnInit {
+  dev: Developer;
+
+  constructor(@Inject(forwardRef(() =&gt; DeveloperDetails))
+     @Host() private parent: DeveloperDetails) {
+  }<br/><br/>  ngOnInit() {<br/>    this.dev = this.parent.dev;<br/>  }
+}</pre>
+<p>In the preceding snippet, we inject the parent component using the <kbd>@Inject</kbd> parameter decorator. Inside <kbd>@Inject</kbd>, we use <kbd>forwardRef</kbd>, since we have a circular dependency between the <kbd>developer_basic_info</kbd> and <kbd>developer_details</kbd> packages (inside <kbd>developer_basic_info</kbd>, we import <kbd>developer_details</kbd>, and within <kbd>developer_details</kbd>, we import <kbd>developer_basic_info</kbd>).</p>
+<p>We need a reference to the instance of the parent component in order to get the instance of the current developer that corresponds to the selected route. We get this reference in the <kbd>ngOnInit</kbd> life cycle hook.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Transforming data with pipes</h1>
+                </header>
+            
+            <article>
+                
+<p>Now it is time to take a look at the last building block that Angular provides for the development of applications that we haven't covered in detail yet—pipes.</p>
+<p>Just like filters in AngularJS, pipes are intended to encapsulate all the data transformation logic. Let's take a look at the template of the home page of the application we have just developed:</p>
+<pre>... 
+&lt;td [ngSwitch]="dev.popular"&gt; 
+  &lt;span *ngSwitchCase="true"&gt;Yes&lt;/span&gt; 
+  &lt;span *ngSwitchCase="false"&gt;Not yet&lt;/span&gt; 
+&lt;/td&gt; 
+... </pre>
+<p>In the preceding snippet, depending on the value of the <kbd>popular</kbd> property, we show different data using the <kbd>NgSwitch</kbd> and <kbd>NgSwitchCase</kbd> directives. Although this works, it is redundant.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Developing stateless pipes</h1>
+                </header>
+            
+            <article>
+                
+<p>Let's develop a pipe that transforms the value of the <kbd>popular</kbd> property and uses it in place of <kbd>NgSwitch</kbd> and <kbd>NgSwitchCase</kbd>. The pipe will accept three arguments: a value that should be transformed, a string that should be displayed when the value is truthy, and another string that should be displayed in case of a falsy value.</p>
+<p>With the use of an Angular custom pipe, we will be able to simplify the template to the following:</p>
+<pre>&lt;td&gt;{{dev.popular | boolean: 'Yes': 'No'}}&lt;/td&gt; </pre>
+<p>We can even use emojis, as follows:</p>
+<pre>&lt;td&gt;{{dev.popular | boolean: '<img height="20" width="20" src="assets/a838c5d7-9008-41eb-851a-6ece76be1707.png"/>': '<img height="18" width="18" src="assets/f9bc5bf7-d886-4774-bee1-54628ae90b21.png"/>'}}&lt;/td&gt; </pre>
+<p>We apply pipe to the value the same way we would do in AngularJS. The arguments we pass to the pipe should be separated by the colon (<kbd>:</kbd>) symbol.</p>
+<p>In order to develop an Angular pipe, we will need the following imports:</p>
+<pre>import {Pipe, PipeTransform} from '@angular/core'; </pre>
+<p>The <kbd>Pipe</kbd> decorator can be used for adding metadata to the class that implements the data transformation logic. The <kbd>PipeTransform</kbd> interface is an interface with a single method, called <kbd>transform</kbd>:</p>
+<pre>import {Pipe, PipeTransform} from '@angular/core'; 
+ 
+@Pipe({ name: 'boolean' })
+export class BooleanPipe implements PipeTransform {
+  transform(flag: boolean, trueValue: any, falseValue: any): string {
+    return flag ? trueValue : falseValue;
+  }
+}</pre>
+<p>The preceding snippet is the entire implementation of <kbd>BooleanPipe</kbd>. The <kbd>name</kbd> type that we pass to the <kbd>@Pipe</kbd> decorator determines how we should reference it in templates.</p>
+<p>The last thing we need to do before being able to use <kbd>BooleanPipe</kbd> is to add it to the list of declarations in our <kbd>AppModule</kbd> class:</p>
+<pre>@NgModule({
+  ...
+  declarations: [..., BooleanPipe, ...],
+  ...
+})
+class AppModule {}</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using Angular's built-in pipes</h1>
+                </header>
+            
+            <article>
+                
+<p>Angular provides the following set of built-in pipes:</p>
+<ul>
+<li><kbd>CurrencyPipe</kbd>: This pipe is used for formatting currency data. As an argument, it accepts the abbreviation of the currency type (that is, <kbd>"EUR"</kbd>, <kbd>"USD"</kbd>, and so on). It can be used in the following way:</li>
+</ul>
+<pre>      {{ currencyValue | currency: 'USD' }} &lt;!-- USD42 --&gt; </pre>
+<ul>
+<li><kbd>DatePipe</kbd>: This pipe is used for the transformation of dates. It can be used in the following way:</li>
+</ul>
+<pre>      {{ dateValue | date: 'shortTime'  }} &lt;!-- 12:00 AM --&gt; </pre>
+<ul>
+<li><kbd>DecimalPipe</kbd>: This pipe is used for transformation of decimal numbers. The argument it accepts is of the following format: <kbd>"{minIntegerDigits}.{minFractionDigits}-{maxFractionDigits}"</kbd>. It can be used in the following way:</li>
+</ul>
+<pre>      {{ 42.1618 | number: '3.1-2' }} &lt;!-- 042.16 --&gt; </pre>
+<ul>
+<li><kbd>JsonPipe</kbd>: This transforms a JavaScript object into a JSON string. It can be used in the following way:</li>
+</ul>
+<pre>      {{ { foo: 42 } | json }} &lt;!-- { "foo": 42 } --&gt; </pre>
+<ul>
+<li><kbd>LowerCasePipe</kbd>: This transforms a string to lowercase. It can be used in the following way:</li>
+</ul>
+<pre>      {{ FOO | lowercase }} &lt;!-- foo --&gt; </pre>
+<ul>
+<li><kbd>UpperCasePipe</kbd>: This transforms a string to uppercase. It can be used in the following way:</li>
+</ul>
+<pre>      {{ 'foo' | uppercase }} &lt;!-- FOO --&gt; </pre>
+<ul>
+<li><kbd>PercentPipe</kbd>: This transforms a number into a percentage. It can be used in the following way:</li>
+</ul>
+<pre>      {{ 42 | percent: '2.1-2' }}  &lt;!-- 4,200.0% --&gt; </pre>
+<ul>
+<li><kbd>SlicePipe</kbd>: This returns a slice of an array. The pipe accepts the start and the end indexes of the slice. It can be used in the following way:</li>
+</ul>
+<pre>      {{ [1, 2, 3] | slice: 1: 2 }} &lt;!-- 2 --&gt; </pre>
+<ul>
+<li><kbd>AsyncPipe</kbd>: This is a stateful pipe that accepts an <kbd>Observable</kbd> object or a promise; we will take a look at it at the end of the chapter.</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Developing stateful pipes</h1>
+                </header>
+            
+            <article>
+                
+<p>There is one common thing among all the pipes mentioned earlier—all of them return exactly the same result each time we apply them to the same value and pass them the same set of arguments. Such pipes, which hold the referentially transparency property, are called <strong>pure pipes</strong>.</p>
+<p>The <kbd>@Pipe</kbd> decorator accepts an object literal of the <kbd>{ name: string, pure?: boolean }</kbd> type, where the default value for the <kbd>pure</kbd> property is <kbd>true</kbd>. This means that when we define any given pipe, we can declare whether it is stateful or stateless. The pure property is important because, in case the pipe doesn't produce side effects and returns the same result when applied to the same set of arguments, the change detection can be optimized.</p>
+<p>Now, let's build a stateful pipe. Our pipe will make an HTTP <kbd>get</kbd> request to a JSON API. For this purpose, we will use the <kbd>@angular/common/http</kbd> module.</p>
+<div class="packt_infobox"><span>Note that having business logic in a pipe is not considered as best practice. This type of logic should be extracted into a service. The example here is for learning purposes only.</span></div>
+<p>In this case, the pipe needs to hold a state depending on the status of the request (that is, whether it is pending or completed). We will use the pipe in the following way:</p>
+<pre>{{ "http://example.com/user.json" | fetchJson | json }} </pre>
+<p>This way, we apply the <kbd>fetchJson</kbd> pipe over the URL. Once we have the body of the response, we can apply the <kbd>json</kbd> pipe over it. This example also shows how we can chain pipes with Angular.</p>
+<p>Similar to stateless pipes, for the development of stateful pipes, we have to decorate the class that implements the pipe's logic with <kbd>@Pipe</kbd> and implement the <kbd>PipeTransform</kbd> interface. This time, because of the HTTP request functionality, we will also need to import the <kbd>HttpClient</kbd> class from the <kbd>@angular/common/http</kbd> module:</p>
+<pre>import {Pipe, PipeTransform} from '@angular/core'; 
+import {HttpClient} from '@angular/common/http'; 
+import 'rxjs/add/operator/toPromise'; </pre>
+<p>Each time it happens to apply the <kbd>fetchJson</kbd> pipe to an argument with a different value, we will need to make a new HTTP <kbd>get</kbd> request. This means that as the state of the pipe, we need to keep at least the values of the response of the remote service and the last URL:</p>
+<pre>@Pipe({ 
+  name: 'fetchJson', 
+  pure: false 
+}) 
+export class FetchJsonPipe implements PipeTransform { 
+  private data: any; 
+  private prevUrl: string = null; 
+  constructor(private http: HttpClient) {} 
+  transform(url: string): any {...} 
+} </pre>
+<p>The only piece of logic we need to implement is the <kbd>transform</kbd> method:</p>
+<pre>... 
+transform(url: string): any { 
+  if (this.prevUrl !== url) { 
+    this.http.get(url).toPromise(Promise) 
+      .then(result =&gt; this.data = result); 
+    this.prevUrl = url; 
+  } 
+  return this.data || {}; 
+} 
+... </pre>
+<p>Inside of it, we initially compare the URL passed as an argument with the one we already have (by default, its value will be <kbd>null</kbd>). If they are different, we initiate a new HTTP <kbd>get</kbd> request using the local instance of the <kbd>HttpClient</kbd> class, which was passed to the <kbd>constructor</kbd> function. Once the request is completed, we set the <kbd>data</kbd> property to the result.</p>
+<p>Now, let's suppose that the pipe has started a <kbd>get</kbd> request, and before it is completed, the change detection mechanism invokes the pipe again. In this case, we will compare the <kbd>prevUrl</kbd> property with the <kbd>url</kbd> parameter. If they are the same, we won't perform a new request and will immediately return the value of the <kbd>data</kbd> property. If <kbd>prevUrl</kbd> has a different value from <kbd>url</kbd>, we will initiate a new request.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using stateful pipes</h1>
+                </header>
+            
+            <article>
+                
+<p>Now, let's use the pipe that we developed. The application that we will implement provides a text input and a button with the <span class="packt_screen">Get Avatar</span> label to the user. Once the user enters a value in the text input and clicks on the button, the avatar corresponding to the GitHub user will appear below the text input, as shown in the following screenshot:</p>
+<div class="CDPAlignCenter CDPAlign"><img height="223" width="374" src="assets/83f87144-99c0-40e7-af79-e1cec060e9a0.png"/></div>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 3</div>
+<p>Now, let's develop a sample component, which will allow us to enter the GitHub user's handle:</p>
+<pre>// ch8/statful_pipe/app.ts 
+ 
+@Component({ 
+  selector: 'app',
+  template: ` 
+    &lt;input type="text" #input&gt; 
+    &lt;button (click)="setUsername(input.value)"&gt;Get Avatar&lt;/button&gt; 
+  ` 
+}) 
+class App { 
+  username: string; 
+  setUsername(user: string) { 
+    this.username = user; 
+  } 
+} </pre>
+<p>The only thing left is to show the GitHub avatar of the user. We can easily achieve this by altering the template of the component with the following <kbd>img</kbd> declaration:</p>
+<pre>&lt;img width="160"
+  [src]="(('https://api.github.com/users/' + username) | fetchJson).avatar_url"&gt; </pre>
+<p>Initially, we append the GitHub handle to the base URL used for fetching users from the API. Later, we will apply the <kbd>fetchJson</kbd> filter over it and get the <kbd>avatar_url</kbd> property from the returned result.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using Angular's AsyncPipe</h1>
+                </header>
+            
+            <article>
+                
+<p>Angular's <kbd>AsyncPipe</kbd> <kbd>transform</kbd> method accepts an <kbd>Observable</kbd> object or a promise as an argument. Once the argument pushes a value (that is, the promise has been resolved or the <kbd>subscribe</kbd> callback of <kbd>Observable</kbd> is invoked), <kbd>AsyncPipe</kbd> will return it as a result. Let's take a look at the following example:</p>
+<pre>// ch8/async-pipe/app.ts 
+
+@Component({ 
+  selector: 'greeting', 
+  template: 'Hello {{ greetingPromise | async }}' 
+}) 
+class Greeting { 
+  greetingPromise = new Promise&lt;string&gt;(resolve =&gt; this.resolve = resolve); 
+  resolve: Function;
+ 
+  constructor() { 
+    setTimeout(_ =&gt; { 
+      this.resolve('Foobar!'); 
+    }, 3000); 
+  } 
+} </pre>
+<p>Here, we define an Angular component that has two properties, that is, <kbd>greetingPromise</kbd> of the <kbd>Promise&lt;string&gt;</kbd> type and <kbd>resolve</kbd> of the <kbd>Function</kbd> type. We initialized the <kbd>greetingPromise</kbd> property with a new <kbd>Promise&lt;string&gt;</kbd> instance, and as the value of the <kbd>resolve</kbd> property, we set the <kbd>resolve</kbd> callback of <kbd>promise</kbd>.</p>
+<p>In <kbd>constructor</kbd> of the class, we start a time-out with the duration of <kbd>3000</kbd> ms, and inside of its callback, we resolve the promise. Once the promise is resolved, the value of the <kbd>{{ greetingPromise | async }}</kbd> <span>expression</span><span> </span><span>will be evaluated to the </span><kbd>Foobar!</kbd><span> </span><span>string</span><span>. The end result</span> that <span>the user will see on the screen is the text, </span><span class="packt_screen">"Hello Foobar!"</span><span>.</span></p>
+<p>The <kbd>async</kbd> pipe is extremely powerful when we combine it with <kbd>Observable</kbd>, which pushes a sequence of values. It automatically unsubscribes from <kbd>Observable</kbd> when the view it used gets destroyed.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using AsyncPipe with observables</h1>
+                </header>
+            
+            <article>
+                
+<p>We're already familiar with the concept of observables from the previous chapters. We can say that an <kbd>Observable</kbd> object allows us to subscribe to the emission of a sequence of values, for instance:</p>
+<pre>let observer = Observable.create(observer =&gt; { 
+  setInterval(() =&gt; { 
+    observer.next(new Date().getTime()); 
+  }, 1000); 
+}); 
+observer.subscribe(date =&gt; console.log(date)); </pre>
+<p>Once we subscribe to <kbd>Observable</kbd>, it will start emitting values each second, which will be printed in the console. Let's combine this snippet with component definition and implement a simple timer:</p>
+<pre>// ch8/async_pipe/app.ts
+ 
+@Component({  selector: 'timer' }) 
+class Timer { 
+  username: string; 
+  timer: Observable&lt;number&gt;;
+ 
+  constructor() { 
+    let counter = 0; 
+    this.timer = new Observable&lt;number&gt;(observer =&gt; { 
+      setInterval(() =&gt; { 
+        observer.next(new Date().getTime()); 
+      }, 1000); 
+    }); 
+  } 
+} </pre>
+<p>The only thing left in order to be able to use the <kbd>timer</kbd> component is to add a template declaration. We can subscribe to <kbd>Observable</kbd> directly in the template using the <kbd>async</kbd> pipe:</p>
+<pre>{{ timer | async | date: "medium" }} </pre>
+<p>This way, each second we will get the new value emitted by <kbd>Observable</kbd>, and the <kbd>date</kbd> pipe will transform it into a readable form.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, we took a deep dive into the Angular's forms module, by developing a model-driven (reactive) form, combining it with the HTTP module. We took a look at some advanced features of the new component-based router and saw how we can use and develop custom stateful and stateless pipes.</p>
+<p>The next chapter is dedicated to how we can make our Angular applications SEO-friendly by taking advantage of the server-side rendering that the module Universal provides. Another thing that we'll take a look at is Angular CLI and other tools that make our experience as developers better. Finally, we'll explain what ahead-of-time compilation is, in the context of Angular, and why we should take advantage of it in our applications.</p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

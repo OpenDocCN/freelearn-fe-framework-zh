@@ -3,91 +3,110 @@
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '8'
 - en: 'Improving Backend Integrations: the Interceptor Pattern'
   id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 改进后端集成：拦截器模式
 - en: In a `Service`. However, many side tasks are common to all communications with
     the backend, such as header processing, authentication, and loading.
   id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 在一个 `Service` 中。然而，许多辅助任务对所有与后端的通信都是通用的，例如头部处理、身份验证和加载。
 - en: We could do this sides task on a service-by-service basis, but in addition to
     being an unproductive activity, the team might not be able to implement some control
     on the request due to the carelessness or ignorance of a new member of the team.
   id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以按服务逐个执行这个辅助任务，但除了这是一个低效的活动外，团队可能由于新成员的疏忽或无知而无法对请求实施一些控制。
 - en: 'In order to simplify the development of side tasks for communicating with the
     backend, the Angular framework implements the interceptor design pattern, which
     we will explore in this chapter. Here, we will cover the following topics:'
   id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了简化与后端通信的辅助任务开发，Angular 框架实现了拦截器设计模式，我们将在本章中探讨这一模式。在此，我们将涵盖以下主题：
 - en: Attaching the token to the request with an interceptor
   id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用拦截器将令牌附加到请求
 - en: Changing the request route
   id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 更改请求路由
 - en: Creating a loader
   id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 创建一个加载器
 - en: Notifying success
   id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 通知成功
 - en: Measuring the performance of a request
   id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 测量请求的性能
 - en: By the end of this chapter, you will be able to create interceptors capable
     of implicitly performing tasks necessary for your backend communication.
   id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 到本章结束时，你将能够创建能够隐式执行后端通信所需任务的拦截器。
 - en: Technical requirements
   id: totrans-11
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: 'To follow the instructions in this chapter, you’ll need the following:'
   id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 要遵循本章的说明，你需要以下内容：
 - en: Visual Studio Code ([https://code.visualstudio.com/Download](https://code.visualstudio.com/Download))
   id: totrans-13
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: Visual Studio Code ([https://code.visualstudio.com/Download](https://code.visualstudio.com/Download))
 - en: Node.js 18 or higher ([https://nodejs.org/en/download/](https://nodejs.org/en/download/))
   id: totrans-14
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: Node.js 18 或更高版本 ([https://nodejs.org/en/download/](https://nodejs.org/en/download/))
 - en: The code files for this chapter are available at [https://github.com/PacktPublishing/Angular-Design-Patterns-and-Best-Practices/tree/main/ch8](https://github.com/PacktPublishing/Angular-Design-Patterns-and-Best-Practices/tree/main/ch8).
   id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章的代码文件可在 [https://github.com/PacktPublishing/Angular-Design-Patterns-and-Best-Practices/tree/main/ch8](https://github.com/PacktPublishing/Angular-Design-Patterns-and-Best-Practices/tree/main/ch8)
+    找到。
 - en: While following this chapter, remember to run the backend of the application
     found in the `gym-diary-backend` folder with the `npm` `start` command.
   id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 在阅读本章时，请记住使用 `npm start` 命令运行位于 `gym-diary-backend` 文件夹中的应用程序的后端。
 - en: Attaching the token to the request with an interceptor
   id: totrans-17
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用拦截器将令牌附加到请求
 - en: 'So far, our backend doesn’t have any kind of authentication control, which
     doesn’t happen (or at least it shouldn’t happen) in the real world. The backend
     was modified to perform authentication, but this was reflected in the frontend
@@ -95,6 +114,7 @@
   id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们的后端没有任何形式的身份验证控制，这在现实世界中不会发生（或者至少不应该发生）。后端被修改以执行身份验证，但这也反映在前端，因为如果我们尝试登录，就会发生以下错误：
 - en: '[PRE0]'
   id: totrans-19
   prefs: []
@@ -106,15 +126,18 @@
   id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个错误意味着我们的请求被服务器拒绝，因为它没有得到授权。这是因为我们的服务器实现了一种非常常见的安全形式，即在每次请求中都要求提供授权令牌。
 - en: This token is created when the user logs in to the application and it must be
     passed in the header of the HTTP request.
   id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个令牌是在用户登录应用程序时创建的，并且它必须在 HTTP 请求的头部传递。
 - en: 'We’ll fix this problem first by making a change to the `AuthService` service:'
   id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们首先通过更改 `AuthService` 服务来解决这个问题：
 - en: '[PRE1]'
   id: totrans-23
   prefs: []
@@ -127,16 +150,20 @@
   id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们更改 `token` 属性的访问模式。我们使用 `#` 符号，这是在标准 JavaScript 中声明 `private` 属性的方式。我们希望令牌只能被其他
+    `component` 读取，但永远不会被覆盖，使用令牌可以确保即使消费者类强制修改也能实现这一点。
 - en: We change the class to the new attribute name and, at the end, we create the
     `token()` accessor method to return the token stored by the service.
   id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将类名更改为新的属性名，并在最后创建一个 `token()` 访问器方法来返回服务存储的令牌。
 - en: 'We’ll refactor the `ExerciseSetsService` service to send the token in the request
     that returns the diary items:'
   id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将重构`ExerciseSetsService`服务，以便在返回日记条目的请求中发送令牌：
 - en: '[PRE2]'
   id: totrans-27
   prefs: []
@@ -148,24 +175,29 @@
   id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们使用Angular的辅助类`HttpHeaders`创建一个头，通过`Authorization`属性传递令牌。然后，我们将此头传递给Angular的`HttpClient`服务的`get`方法。
 - en: 'When we run our application again, it works again (`mario`, and `1234`):'
   id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们再次运行应用程序时，它再次工作（`mario`，和`1234`）：
 - en: '![Figure 8.1 – Gym diary home page](img/B19562_08_1.jpg)'
   id: totrans-30
   prefs: []
   type: TYPE_IMG
+  zh: '![图8.1 – 健身日记主页](img/B19562_08_1.jpg)'
 - en: Figure 8.1 – Gym diary home page
   id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.1 – 健身日记主页
 - en: This approach has a problem, as we would need to replicate this operation for
     all of the service’s methods, and as our application grows, we would need to remember
     to do this token handling.
   id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种方法存在一个问题，因为我们需要为所有服务的方法复制此操作，并且随着应用程序的增长，我们需要记住执行此令牌处理。
 - en: A good software architecture should think about new team members with different
     backgrounds and even the creation of new teams as the project grows. Therefore,
     this type of transversal requirement of our system must be treated in a more intelligent
@@ -173,24 +205,29 @@
   id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个好的软件架构应该考虑随着项目的增长，新团队成员的不同背景甚至新团队的创建。因此，我们系统的此类横向要求必须以更智能的方式处理。
 - en: Enter **Angular Interceptor**, which is a service of a specific type to handle
     the HTTP request flow. This component is based on the design pattern of the same
     name, which aims to change a processing cycle.
   id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 进入**Angular拦截器**，这是一个特定类型的服务，用于处理HTTP请求流程。该组件基于同名的设计模式，旨在改变处理周期。
 - en: 'Let’s illustrate this pattern with the following diagram:'
   id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们通过以下图表来说明此模式：
 - en: '![](img/B19562_08_2.jpg)![Figure 8.2 – Interceptor design pattern](img/B19562_08_3.jpg)'
   id: totrans-36
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/B19562_08_2.jpg)![图8.2 – 拦截器设计模式](img/B19562_08_3.jpg)'
 - en: Figure 8.2 – Interceptor design pattern
   id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.2 – 拦截器设计模式
 - en: In this diagram, we have the Angular application that makes an HTTP request
     to the backend; in the interceptor pattern, we have an Angular service in the
     middle of the request that can change both the request and the return from the
@@ -198,12 +235,14 @@
   id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 在此图表中，我们有发出HTTP请求到后端的Angular应用程序；在拦截器模式中，我们有一个位于请求中间的Angular服务，可以更改请求和后端的返回。
 - en: 'We will refactor our previous solution to see this pattern in practice. We’ll
     clean up the `ExerciseSetsService` service by removing the handling from the `Authorization`
     header:'
   id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将重构我们的前一个解决方案，以看到此模式在实际中的应用。我们将通过从`Authorization`头中删除处理来清理`ExerciseSetsService`服务：
 - en: '[PRE3]'
   id: totrans-40
   prefs: []
@@ -214,6 +253,7 @@
   id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了创建拦截器，我们将使用Angular CLI为Angular创建整个服务的模板：
 - en: '[PRE4]'
   id: totrans-42
   prefs: []
@@ -224,6 +264,7 @@
   id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 创建了`AuthInterceptor`服务后，让我们创建我们的逻辑来附加`Authorization`头：
 - en: '[PRE5]'
   id: totrans-44
   prefs: []
@@ -236,6 +277,8 @@
   id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们首先可以注意到，拦截器是一个常见的Angular服务，因此它具有`@Injectable`注解；有关Angular服务的更多详细信息，请参阅[*第5章*](B19562_05.xhtml#_idTextAnchor163)*，*
+    *Angular服务和单例模式*。
 - en: This service implements the `HttpInterceptor` interface, which requires the
     class to have the `inject` method. This method receives the request we want to
     handle and expects an observable as a return. This signature indicates the characteristic
@@ -244,6 +287,7 @@
   id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 此服务实现了`HttpInterceptor`接口，要求类必须具有`inject`方法。此方法接收我们想要处理的请求，并期望返回一个可观察对象。此签名表明了拦截器的特征，因为此类始终位于发出请求的组件和后端之间的流程中间。
 - en: Therefore, the service receives information from the flow and must return the
     flow represented by the observable. In our case, we use the `AuthService` service
     to get the token. The service cannot attach the token to the login endpoint because
@@ -252,6 +296,7 @@
   id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，服务从流程中接收信息，并必须返回由可观察对象表示的流程。在我们的案例中，我们使用`AuthService`服务来获取令牌。服务不能将令牌附加到登录端点，因为那里我们将获取令牌，所以我们通过分析请求使用的URL来创建一个`if`语句。
 - en: If we have a token, we clone the request, but this time, we inform the header
     with the token. The reason we need to use the `clone` method to get a new object
     is that the request object is immutable – that is, it is not possible to change
@@ -396,6 +441,7 @@
   id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前端项目中，性能不仅关乎拥有更快的请求，还关乎提高用户对应用程序的感知。没有任何反馈信号的空白屏幕会向用户传达页面没有加载，他们的互联网有问题，或其他任何负面感知。
 - en: 'That’s why we always need to signal that the action the user expects is being
     performed. One way to show this is a loading indicator, and that’s what we’re
     going to do in this session. In the command line of our operating system, we will
@@ -403,6 +449,8 @@
   id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 正因如此，我们始终需要向用户发出信号，表明他们期望的操作正在执行。展示这一点的其中一种方式是加载指示器，这正是我们在这个会话中将要做的。在我们的操作系统命令行中，我们将使用
+    Angular CLI：
 - en: '[PRE12]'
   id: totrans-72
   prefs: []
@@ -414,11 +462,13 @@
   id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过这样，我们创建了`overlay`组件，控制加载状态的服务，以及根据HTTP请求控制加载开始和结束的拦截器。
 - en: 'Let’s create the loading overlay screen in the HTML template of the `LoadingOverlayComponent`
     component:'
   id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们在`LoadingOverlayComponent`组件的HTML模板中创建加载覆盖屏幕：
 - en: '[PRE13]'
   id: totrans-75
   prefs: []
@@ -429,6 +479,7 @@
   id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将实现`LoadService`服务，它将维护和控制加载状态：
 - en: '[PRE14]'
   id: totrans-77
   prefs: []
@@ -439,10 +490,12 @@
   id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们创建了两个方法来开启和关闭加载状态，以及一个属性来公开此状态。
 - en: 'In the load interceptor, we will implement the following:'
   id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 在加载拦截器中，我们将实现以下功能：
 - en: '[PRE15]'
   id: totrans-80
   prefs: []
@@ -453,6 +506,7 @@
   id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: '`intercept`方法首先开启加载状态，并返回未修改的请求。'
 - en: However, in the flow of the request, we placed the `finalize` operator from
     RxJs, which has the characteristic of executing a function when an observable
     arrives in the complete state – here, turning off the loading state. For more
@@ -461,10 +515,12 @@
   id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，在请求流程中，我们放置了RxJs的`finalize`操作符，它具有在可观察者到达完成状态时执行函数的特征 – 在这里，关闭加载状态。有关RxJS的更多详细信息，请参阅[*第9章*](B19562_09.xhtml#_idTextAnchor242)，*使用RxJS探索反应性*。
 - en: 'To activate the interceptor, we will add it to `AppModule`:'
   id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 要激活拦截器，我们将将其添加到`AppModule`：
 - en: '[PRE16]'
   id: totrans-84
   prefs: []
@@ -475,6 +531,7 @@
   id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们希望覆盖层在整个应用程序中执行，因此我们将`overlay`组件包含在`AppComponent`组件中：
 - en: '[PRE17]'
   id: totrans-86
   prefs: []
@@ -485,10 +542,12 @@
   id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们只需要注入`LoadService`服务，因为那里我们将拥有加载状态。
 - en: 'Finally, let’s place the `overlay` component in the HTML template:'
   id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，让我们将`overlay`组件放置在HTML模板中：
 - en: '[PRE18]'
   id: totrans-89
   prefs: []
@@ -500,29 +559,35 @@
   id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 运行我们的应用程序，因为我们是在机器上运行带有后端的程序，我们可能不会注意到加载屏幕。然而，对于这些情况，我们可以使用Chrome的一个功能来模拟慢速3G网络。
 - en: 'Open **Chrome DevTools** and, in the **Network** tab, use the throttling option,
     as shown in the following figure:'
   id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 打开**Chrome开发者工具**，在**网络**标签页中，使用如下所示的节流选项：
 - en: '![Figure 8.3 – Simulation of a slow 3G network to notice the loading screen](img/B19562_08_4.jpg)'
   id: totrans-92
   prefs: []
   type: TYPE_IMG
+  zh: '![图8.3 – 模拟慢速3G网络以注意加载屏幕](img/B19562_08_4.jpg)'
 - en: Figure 8.3 – Simulation of a slow 3G network to notice the loading screen
   id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.3 – 模拟慢速3G网络以注意加载屏幕
 - en: In the next section, we will learn how to notify the success of a backend request
     to the user.
   id: totrans-94
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一节中，我们将学习如何通知用户后端请求的成功。
 - en: Notifying success
   id: totrans-95
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 通知成功
 - en: In addition to the loading screen to inform the user that the system is looking
     for the information they want, it is important to notify the user after processing
     an item. We can handle this notification directly from the service or component,
@@ -530,6 +595,7 @@
   id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了通知用户系统正在寻找他们所需的信息的加载屏幕外，在处理完一个项目后通知用户也同样重要。我们可以直接从服务或组件中处理此通知，但也可以通过拦截器以通用和隐式的方式实现它。
 - en: 'We will refactor our application to add this treatment. But first, let’s install
     a library to show the `toaster` component on the screen with an animation. In
     the command line of our operating system, we will use the following command in
@@ -537,6 +603,7 @@
   id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将重构我们的应用程序以添加这种处理。但首先，让我们安装一个库，在屏幕上使用动画显示`toaster`组件。在我们的操作系统命令行中，我们将在前端项目的`main`文件夹中使用以下命令：
 - en: '[PRE19]'
   id: totrans-98
   prefs: []
@@ -547,6 +614,7 @@
   id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了使包正常工作，我们需要通过编辑`angular.json`文件将我们的CSS添加到项目中：
 - en: '[PRE20]'
   id: totrans-100
   prefs: []
@@ -556,6 +624,7 @@
   id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了使toaster动画工作，我们需要更改`AppModule`模块：
 - en: '[PRE21]'
   id: totrans-102
   prefs: []
@@ -567,11 +636,13 @@
   id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们应用程序的`main`模块中，我们正在添加来自库的`ToastrModule`模块，并将`BrowserModule`更改为`BrowserAnimationsModule`，这为库添加了Angular动画服务。
 - en: 'With the new package configured, we can proceed with creating the new interceptor
     using the Angular CLI:'
   id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 配置了新包后，我们可以使用Angular CLI创建新的拦截器：
 - en: '[PRE22]'
   id: totrans-105
   prefs: []
@@ -582,6 +653,7 @@
   id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 创建拦截器后，我们将更改通知的处理文件：
 - en: '[PRE23]'
   id: totrans-107
   prefs: []
@@ -594,6 +666,7 @@
   id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如在*创建加载器*部分中，我们正在利用请求被视为流的事实，使用RxJS及其可观察对象来验证请求的特征。我们使用`tap`操作符，该操作符旨在对请求执行副作用而不改变它。
 - en: This operator will execute an anonymous function that will check the HTTP event,
     which brings us to an interesting point. As we are interested in the return of
     the request, we only select the event of type `HttpResponse` and the event code
@@ -601,16 +674,19 @@
   id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: 此操作符将执行一个匿名函数，该函数将检查HTTP事件，这带我们到一个有趣的观点。由于我们对请求的返回感兴趣，我们只选择类型为`HttpResponse`的事件，事件代码为`201-Created`。
 - en: When we develop an interceptor, we have to remember that it is called in the
     request and the response, so it is important to use conditionals to execute what
     we need when we need it.
   id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 在开发拦截器时，我们必须记住它在请求和响应时被调用，因此使用条件执行我们需要的操作是很重要的。
 - en: 'The last point we need to configure is the main `AppModule` module:'
   id: totrans-111
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们需要配置的最后一点是主要的`AppModule`模块：
 - en: '[PRE24]'
   id: totrans-112
   prefs: []
@@ -621,30 +697,36 @@
   id: totrans-113
   prefs: []
   type: TYPE_NORMAL
+  zh: 运行我们的项目并创建一个条目，我们注意到配置的消息在屏幕上显示为toast。
 - en: '![Figure 8.4 – Success notification](img/B19562_08_5.jpg)'
   id: totrans-114
   prefs: []
   type: TYPE_IMG
+  zh: '![图8.4 – 成功通知](img/B19562_08_5.jpg)'
 - en: Figure 8.4 – Success notification
   id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.4 – 成功通知
 - en: Another use for interceptors is to instrument our application to measure performance
     and stability, which we’ll learn about in the next section.
   id: totrans-116
   prefs: []
   type: TYPE_NORMAL
+  zh: 拦截器的一个用途是测量我们的应用程序的性能和稳定性，我们将在下一节中了解。
 - en: Measuring the performance of a request
   id: totrans-117
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 测量请求的性能
 - en: As a development team, we must always seek to offer the best experience for
     our users, and, in addition to developing quality products, we must allow the
     application to be monitored to maintain quality during production.
   id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: 作为一支开发团队，我们必须始终寻求为用户提供最佳体验，除了开发高质量的产品外，我们还必须允许应用程序在生产过程中被监控以维持质量。
 - en: There are several tools available on the market, and many of them need some
     level of instrumentation to accurately measure the user experience. We will develop
     a simpler telemetry example, but it can be applied to the monitoring tool your
@@ -652,10 +734,12 @@
   id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: 市面上有几种工具可供选择，其中许多需要一定程度的仪器来准确测量用户体验。我们将开发一个更简单的遥测示例，但它可以应用于你们团队使用的监控工具。
 - en: 'Using the Angular CLI, we will create a new interceptor:'
   id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用Angular CLI，我们将创建一个新的拦截器：
 - en: '[PRE25]'
   id: totrans-121
   prefs: []
@@ -665,6 +749,7 @@
   id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: 在由Angular CLI生成的文件中，我们将开发我们的拦截器：
 - en: '[PRE26]'
   id: totrans-123
   prefs: []
@@ -676,6 +761,7 @@
   id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了说明自定义拦截器的能力，我们同意只有当请求带有名为`X-TELEMETRY`的自定义头时，才会使用遥测，并在函数的开始处进行此验证。
 - en: As we did in the loader example, we used the `finalize` operator to measure
     the performance of the request in a simplified way and presented it in `console.log`.
     You could put your telemetry provider call or even your custom backend here.

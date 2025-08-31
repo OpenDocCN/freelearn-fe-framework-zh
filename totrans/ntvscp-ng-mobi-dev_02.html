@@ -1,0 +1,262 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Feature Modules</h1>
+                
+            
+            <article>
+                
+<p class="mce-root">We are going to continue building the foundation of our app by scaffolding the core feature modules our app will need, the player and recorder. We will also want to keep in mind that the recording features will only be loaded and available when a user authenticates. Lastly, we will finish the implementation of our services from the <kbd class="calibre11">CoreModule</kbd> we created in <a href="part0023.html#LTSU0-289fe2426d594f99a90e4363b2c9c34d" class="calibre3">Chapter 1</a>, <em class="calibre21">Get Into Shape with @NgModule</em>.</p>
+<p class="mce-root">In this chapter, we will be covering the following topics:</p>
+<ul class="calibre13">
+<li class="calibre14">Creating feature modules</li>
+<li class="calibre14">Separation of concerns with app features</li>
+<li class="calibre14">Setting up the <kbd class="calibre11">AppModule</kbd> to bootstrap efficiently, only loading upfront the feature modules we need for our first view</li>
+<li class="calibre14">Using the NativeScript <kbd class="calibre11">application-settings</kbd> module as our key/value store</li>
+<li class="calibre14">Providing the ability to control our app's debug logs at one spot</li>
+<li class="calibre14">Creating a new service that will use other services to demonstrate our scalable architecture</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Player and recorder modules</h1>
+                
+            
+            <article>
+                
+<p class="mce-root">Let's create the shell of our two main feature modules. Take note that we also add <kbd class="calibre11">NativeScriptModule</kbd> to the imports of both of the following modules:</p>
+<ol class="calibre16">
+<li value="1" class="calibre14"><kbd class="calibre11">PlayerModule</kbd>: It will provide player-specific services and components that will be usable whether the user is authenticated or not. </li>
+</ol>
+<p class="calibre25">Let's create <kbd class="calibre11">app/modules/player/player.module.ts</kbd>:</p>
+<pre class="calibre26">// nativescript<br class="title-page-name"/>import { NativeScriptModule } from 'nativescript-angular/nativescript.module'; <br class="title-page-name"/>// angular<br class="title-page-name"/>import { NgModule, NO_ERRORS_SCHEMA } from '@angular/core';<br class="title-page-name"/><br class="title-page-name"/>@NgModule({<br class="title-page-name"/>  imports: [ NativeScriptModule ]<br class="title-page-name"/>  schemas: [ NO_ERRORS_SCHEMA ]<br class="title-page-name"/>})<br class="title-page-name"/>export class PlayerModule { }</pre>
+<ol start="2" class="calibre16">
+<li value="2" class="calibre14"><kbd class="calibre11">RecorderModule</kbd>: This will provide recording-specific services and components that will only be loaded if the user is authenticated and enters the record mode for the first time.</li>
+</ol>
+<p class="calibre25">Let's create <kbd class="calibre11">app/modules/recorder/recorder.module.ts</kbd>:</p>
+<pre class="calibre26">// nativescript<br class="title-page-name"/>import { NativeScriptModule } from 'nativescript-angular/nativescript.module'; <br class="title-page-name"/><br class="title-page-name"/>// angular<br class="title-page-name"/>import { NgModule, NO_ERRORS_SCHEMA } from '@angular/core';<br class="title-page-name"/><br class="title-page-name"/>@NgModule({<br class="title-page-name"/>  imports: [ NativeScriptModule ],<br class="title-page-name"/>  schemas: [ NO_ERRORS_SCHEMA ]<br class="title-page-name"/>})<br class="title-page-name"/>export class RecorderModule { }</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">A shared model for our data</h1>
+                
+            
+            <article>
+                
+<p class="mce-root">Before we go about creating our services, let's create an interface and model implementation for the core piece of data our app will be using. The <kbd class="calibre11">TrackModel</kbd> will represent a single track with the following:</p>
+<ul class="calibre13">
+<li class="calibre14"><kbd class="calibre11">filepath</kbd>: (to the local file)</li>
+<li class="calibre14"><kbd class="calibre11">name</kbd>: (for our view)</li>
+<li class="calibre14"><kbd class="calibre11">order</kbd>: Position (for the view listing of tracks)</li>
+<li class="calibre14"><kbd class="calibre11">volume</kbd>: We want our player to be able to mix different tracks together with different volume level settings</li>
+<li class="calibre14"><kbd class="calibre11">solo</kbd>: Whether we want to hear just this track in our mix</li>
+</ul>
+<p class="mce-root">We will also add a convenient constructor to our model, which will take an object to initialize our model with.</p>
+<p class="mce-root">Create <kbd class="calibre11">app/modules/core/models/track.model.ts</kbd>, since it will be shared across both our player and recorder:</p>
+<pre class="calibre22">export interface ITrack {<br class="title-page-name"/>  filepath?: string;<br class="title-page-name"/>  name?: string;<br class="title-page-name"/>  order?: number;<br class="title-page-name"/>  volume?: number;<br class="title-page-name"/>  solo?: boolean;<br class="title-page-name"/>}<br class="title-page-name"/>export class TrackModel implements ITrack {<br class="title-page-name"/>  public filepath: string;<br class="title-page-name"/>  public name: string;<br class="title-page-name"/>  public order: number;<br class="title-page-name"/>  public volume: number = 1; // set default to full volume<br class="title-page-name"/>  public solo: boolean;<br class="title-page-name"/><br class="title-page-name"/>  constructor(model?: any) {<br class="title-page-name"/>    if (model) {<br class="title-page-name"/>      for (let key in model) {<br class="title-page-name"/>        this[key] = model[key];<br class="title-page-name"/>      }<br class="title-page-name"/>    }<br class="title-page-name"/>  }<br class="title-page-name"/>}</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Scaffolding out the service APIs</h1>
+                
+            
+            <article>
+                
+<p class="mce-root">Now, let's create the API our services will provide to our app. Starting with <kbd class="calibre11">PlayerService</kbd>, we could imagine the following API might be useful to manage tracks and control playback. Most of it should be fairly self-explanatory. We may refactor this later but this is a great start:</p>
+<ul class="calibre13">
+<li class="calibre14"><kbd class="calibre11">playing: boolean;</kbd></li>
+<li class="calibre14"><kbd class="calibre11">tracks: Array&lt;ITrack&gt;;</kbd></li>
+<li class="calibre14"><kbd class="calibre11">play(index: number): void;</kbd></li>
+<li class="calibre14"><kbd class="calibre11">pause(index: number): void;</kbd></li>
+<li class="calibre14"><kbd class="calibre11">addTrack(track: ITrack): void;</kbd></li>
+<li class="calibre14"><kbd class="calibre11">removeTrack(track: ITrack): void;</kbd></li>
+<li class="calibre14"><kbd class="calibre11">reorderTrack(track: ITrack, newIndex: number): void;</kbd></li>
+</ul>
+<p class="mce-root">Create <kbd class="calibre11">app/modules/player/services/player.service.ts</kbd> and stub out a few of the methods; some of them we could go ahead and implement:</p>
+<pre class="calibre22">// angular<br class="title-page-name"/>import { Injectable } from '@angular/core';<br class="title-page-name"/><br class="title-page-name"/>// app<br class="title-page-name"/>import { ITrack } from '../../core/models';<br class="title-page-name"/>@Injectable()<br class="title-page-name"/>export class PlayerService {<br class="title-page-name"/>  <br class="title-page-name"/>  public playing: boolean;<br class="title-page-name"/>  public tracks: Array&lt;<span>ITrack</span>&gt;;<br class="title-page-name"/>  <br class="title-page-name"/>  constructor() {<br class="title-page-name"/>    this.tracks = [];<br class="title-page-name"/>  }<br class="title-page-name"/><br class="title-page-name"/>  public play(index: number): void {<br class="title-page-name"/>    this.playing = true;<br class="title-page-name"/>  }<br class="title-page-name"/>  public pause(index: number): void {<br class="title-page-name"/>    this.playing = false;<br class="title-page-name"/>  }<br class="title-page-name"/>  public addTrack(track: ITrack): void {<br class="title-page-name"/>    this.tracks.push(track);<br class="title-page-name"/>  }<br class="title-page-name"/>  public removeTrack(track: ITrack): void {<br class="title-page-name"/>    let index = this.getTrackIndex(track);<br class="title-page-name"/>    if (index &gt; -1) {<br class="title-page-name"/>      this.tracks.splice(index, 1);<br class="title-page-name"/>    }<br class="title-page-name"/>  }<br class="title-page-name"/>  public reorderTrack(track: ITrack, newIndex: number) {<br class="title-page-name"/>    let index = this.getTrackIndex(track);<br class="title-page-name"/>    if (index &gt; -1) {<br class="title-page-name"/>      this.tracks.splice(newIndex, 0, this.tracks.splice(index, 1)[0]);<br class="title-page-name"/>    }<br class="title-page-name"/>  }<br class="title-page-name"/>  private getTrackIndex(track: ITrack): number {<br class="title-page-name"/>    let index = -1;<br class="title-page-name"/>    for (let i = 0; i &lt; this.tracks.length; i++) {<br class="title-page-name"/>      if (this.tracks[i].filepath === track.filepath) {<br class="title-page-name"/>        index = i;<br class="title-page-name"/>        break;<br class="title-page-name"/>      }<br class="title-page-name"/>    }<br class="title-page-name"/>    return index;<br class="title-page-name"/>  }<br class="title-page-name"/>}</pre>
+<p class="mce-root">Now, let's apply our standard by exporting this service for our module.</p>
+<p class="mce-root">Create <kbd class="calibre11">app/modules/player/services/index.ts</kbd>:</p>
+<pre class="calibre22">import { PlayerService } from './player.service';<br class="title-page-name"/><br class="title-page-name"/>export const PROVIDERS: any[] = [<br class="title-page-name"/>  PlayerService<br class="title-page-name"/>];<br class="title-page-name"/><br class="title-page-name"/>export * from './player.service';</pre>
+<p class="mce-root">Lastly, modify our <kbd class="calibre11">PlayerModule</kbd> to specify the correct providers so our final module should look like the following:</p>
+<pre class="calibre22">// nativescript<br class="title-page-name"/>import { NativeScriptModule } from 'nativescript-angular/nativescript.module'; <br class="title-page-name"/><br class="title-page-name"/>// angular<br class="title-page-name"/>import { NgModule, NO_ERRORS_SCHEMA } from '@angular/core';<br class="title-page-name"/><br class="title-page-name"/>// app<br class="title-page-name"/>import { PROVIDERS } from './services';<br class="title-page-name"/><br class="title-page-name"/>@NgModule({<br class="title-page-name"/>  imports: [ NativeScriptModule ],<br class="title-page-name"/>  providers: [ ...PROVIDERS ],<br class="title-page-name"/>  schemas: [ NO_ERRORS_SCHEMA ]<br class="title-page-name"/>})<br class="title-page-name"/>export class PlayerModule { }</pre>
+<p class="mce-root">Next, we can design <kbd class="calibre11">RecorderService</kbd> to provide a simple recording API.</p>
+<p class="mce-root">Create <kbd class="calibre11">app/modules/recorder/services/recorder.service.ts</kbd>:</p>
+<ul class="calibre13">
+<li class="calibre14"><kbd class="calibre11">record(): void</kbd></li>
+<li class="calibre14"><kbd class="calibre11">stop(): void</kbd></li>
+</ul>
+<pre class="calibre22">// angular<br class="title-page-name"/>import { Injectable } from '@angular/core';<br class="title-page-name"/>@Injectable()<br class="title-page-name"/>export class RecorderService {<br class="title-page-name"/>  public record(): void { }<br class="title-page-name"/>  public stop(): void { }<br class="title-page-name"/>}</pre>
+<p class="mce-root">Now, apply our standard by exporting this service for our module.</p>
+<p class="mce-root">Create <kbd class="calibre11">app/modules/recorder/services/index.ts</kbd>:</p>
+<pre class="calibre22">import { RecorderService } from './recorder.service';<br class="title-page-name"/><br class="title-page-name"/>export const PROVIDERS: any[] = [<br class="title-page-name"/>  RecorderService<br class="title-page-name"/>];<br class="title-page-name"/><br class="title-page-name"/>export * from './recorder.service';</pre>
+<p class="mce-root">Lastly, modify our <kbd class="calibre11">RecorderModule</kbd> to specify the correct providers so our final module should look like the following:</p>
+<pre class="calibre22">// nativescript<br class="title-page-name"/>import { NativeScriptModule } from 'nativescript-angular/nativescript.module'; <br class="title-page-name"/><br class="title-page-name"/>// angular<br class="title-page-name"/>import { NgModule, NO_ERRORS_SCHEMA } from '@angular/core';<br class="title-page-name"/><br class="title-page-name"/>// app<br class="title-page-name"/>import { PROVIDERS } from './services';<br class="title-page-name"/><br class="title-page-name"/>@NgModule({<br class="title-page-name"/>  imports: [ NativeScriptModule ],<br class="title-page-name"/>  providers: [ ...PROVIDERS ],<br class="title-page-name"/>  schemas: [ NO_ERRORS_SCHEMA ]<br class="title-page-name"/>})<br class="title-page-name"/>export class RecorderModule { }</pre>
+<p class="mce-root">With our two primary feature modules scaffolded and ready to go, let's revisit the two low-level services we created in <a href="" target="_blank" class="calibre3">Chapter 1</a>, <em class="calibre21">Get Into Shape with @NgModule</em>, and provide implementations.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Implementing LogService</h1>
+                
+            
+            <article>
+                
+<p class="mce-root">Logging is an important ally that you want during the development lifecycle of your app as well as in production. It can help you debug as well as gain important insights into how your app is used. Having a single pathway to run all logging through also provides an opportunity to reroute all the app logs somewhere else with the flip of a switch. For example, you could use a third-party debug tracking service, such as TrackJS (<a href="https://trackjs.com" target="_blank" class="calibre3">https://trackjs.com</a>), via Segment (<a href="https://segment.com" target="_blank" class="calibre3">https://segment.com</a>). You will want to run a lot of important aspects of your app through logging and it serves as a great place to have a lot of control and flexibility. </p>
+<p class="mce-root">Let's open <kbd class="calibre11">app/modules/core/services/log.service.ts</kbd> and get to work. Let's start by defining a static boolean that will serve as a simple flag we can toggle in our <kbd class="calibre11">AppModule</kbd> to enable/disable. Let's also add a few helpful methods:</p>
+<pre class="calibre22">import { Injectable } from '@angular/core';<br class="title-page-name"/><br class="title-page-name"/>@Injectable()<br class="title-page-name"/>export class LogService {<br class="title-page-name"/><br class="title-page-name"/> public static ENABLE: boolean = true;<br class="title-page-name"/> <br class="title-page-name"/> public debug(msg: any, ...formatParams: any[]) {<br class="title-page-name"/>   if (LogService.ENABLE) {<br class="title-page-name"/>     console.log(msg, formatParams);<br class="title-page-name"/>   }<br class="title-page-name"/> }<br class="title-page-name"/><br class="title-page-name"/> public error(msg: any, ...formatParams: any[]) {<br class="title-page-name"/>   if (LogService.ENABLE) {<br class="title-page-name"/>     console.error(msg, formatParams);<br class="title-page-name"/>   }<br class="title-page-name"/> }<br class="title-page-name"/> <br class="title-page-name"/> public inspect(obj: any) {<br class="title-page-name"/>   if (LogService.ENABLE) {<br class="title-page-name"/>     console.log(obj);<br class="title-page-name"/>     console.log('typeof: ', typeof obj);<br class="title-page-name"/>     if (obj) {<br class="title-page-name"/>       console.log('constructor: ', obj.constructor.name);<br class="title-page-name"/>       for (let key in obj) {<br class="title-page-name"/>         console.log(`${key}: `, obj[key]);<br class="title-page-name"/>       }<br class="title-page-name"/>     }<br class="title-page-name"/>   }<br class="title-page-name"/>  }<br class="title-page-name"/>}</pre>
+<ul class="calibre13">
+<li class="calibre14"><kbd class="calibre11">debug</kbd>: This will serve as our most commonly used output API for logging.</li>
+<li class="calibre14"><kbd class="calibre11">error</kbd>: When we know a certain condition is an error, this will help identify those spots in our log.</li>
+<li class="calibre14"><kbd class="calibre11">inspect</kbd>: There are times when viewing an object can help find a bug or help us understand the state of our app at any given moment.</li>
+</ul>
+<p class="mce-root">With our <kbd class="calibre11">LogService</kbd> implemented, we will now use it throughout our app and the rest of this book instead of using the console directly.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Implementing DatabaseService</h1>
+                
+            
+            <article>
+                
+<p class="mce-root">Our <kbd class="calibre11">DatabaseService</kbd> needs to provide several things:</p>
+<ul class="calibre13">
+<li class="calibre14">A persistent store to save and retrieve any data our app needs.</li>
+<li class="calibre14">It should allow any type of data to be stored; however, we will specifically want it to handle JSON serialization.</li>
+<li class="calibre14">Static keys of all the data we will want to store. </li>
+<li class="calibre14">A static reference to a saved user? Well, yes it could. However, this brings up a point that we will address in a moment.</li>
+</ul>
+<p class="mce-root">Regarding the first item, we can use NativeScript's <kbd class="calibre11">application-settings</kbd> module. Under the hood, this module provides a consistent API to work with two native mobile APIs:</p>
+<ul class="calibre13">
+<li class="calibre14"><strong class="calibre1">iOS</strong>: <kbd class="calibre11"><span>NSUserDefaults</span></kbd>: <a href="https://developer.apple.com/reference/foundation/userdefaults" target="_blank" class="calibre3">https://developer.apple.com/reference/foundation/userdefaults</a></li>
+<li class="calibre14"><span><strong class="calibre1">Android</strong></span>: <span><kbd class="calibre11">SharedPreferences</kbd></span>: <a href="https://developer.android.com/reference/android/content/SharedPreferences.html" target="_blank" class="calibre3">https://developer.android.com/reference/android/content/SharedPreferences.html</a></li>
+</ul>
+<p class="mce-root">Regarding serializing JSON data, the <kbd class="calibre11">application-settings</kbd> module provides a <kbd class="calibre11">setString</kbd> and <kbd class="calibre11">getString</kbd> method, which will allow us to use it in conjunction with <kbd class="calibre11">JSON.stringify</kbd> and <kbd class="calibre11">JSON.parse</kbd>. </p>
+<p class="mce-root">Using string values throughout your codebase in several different spots to refer to the same key that should remain constant can become error prone. Because of this, we will keep a typed (for type safety) static hash of valid keys that our app will use. We may only know one at this point in time (authenticated user as <kbd class="calibre11">'current-user'</kbd>) but creating this will provide a single spot to scale these out over time. </p>
+<p class="mce-root">Four? We will address four in a moment.</p>
+<p class="mce-root">Open <kbd class="calibre11">app/modules/core/services/database.service.ts</kbd> and modify it to provide a similar API to the web's <kbd class="calibre11">localStorage</kbd> API for simplicity:</p>
+<pre class="calibre22">// angular<br class="title-page-name"/>import { Injectable } from '@angular/core';<br class="title-page-name"/><br class="title-page-name"/>// nativescript<br class="title-page-name"/>import * as appSettings from 'application-settings';<br class="title-page-name"/><br class="title-page-name"/>interface IKeys {<br class="title-page-name"/>  currentUser: string;<br class="title-page-name"/>}<br class="title-page-name"/>@Injectable()<br class="title-page-name"/>export class DatabaseService {<br class="title-page-name"/><br class="title-page-name"/>  public static KEYS: IKeys = {<br class="title-page-name"/>    currentUser: 'current-user'<br class="title-page-name"/>  };<br class="title-page-name"/><br class="title-page-name"/>  public setItem(key: string, value: any): void {<br class="title-page-name"/>    appSettings.setString(key, JSON.stringify(value));<br class="title-page-name"/>  }<br class="title-page-name"/><br class="title-page-name"/>  public getItem(key: string): any {<br class="title-page-name"/>    let item = appSettings.getString(key);<br class="title-page-name"/>    if (item) {<br class="title-page-name"/>      return JSON.parse(item);<br class="title-page-name"/>    } <br class="title-page-name"/>    return item;<br class="title-page-name"/>  }<br class="title-page-name"/><br class="title-page-name"/>  public removeItem(key: string): void {<br class="title-page-name"/>    appSettings.remove(key);<br class="title-page-name"/>  }<br class="title-page-name"/>}</pre>
+<p class="mce-root">This service now provides a way to store an object via <kbd class="calibre11">setItem</kbd>, which ensures the object is properly stored as a string via <kbd class="calibre11">JSON.stringify</kbd>. It also provides a way to retrieve values via <kbd class="calibre11">getItem</kbd>, which also handles the serialization back to an object for us via <kbd class="calibre11">JSON.parse</kbd>. We also have the <kbd class="calibre11">remove</kbd> API to simply remove values from our persisted store. Lastly, we have a nice static reference to all the valid keys that our persistent store will keep track of.</p>
+<p class="mce-root">Now, what about that static reference to the saved user?</p>
+<p class="mce-root">We want to be able to easily access our authenticated user from anywhere in the app. We could provide a static reference in our <kbd class="calibre11">DatabaseService</kbd> for simplicity, but our aim here is to have a clear separation of concerns. Since we know we will want the ability to show a modal asking the user to register and unlock those recording features, a new service to manage this makes sense. Since we have designed scalable architecture, we can easily add another service into the mix, so let's do that now!</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Create AuthService to help handle the authenticated state of our app</h1>
+                
+            
+            <article>
+                
+<p class="mce-root">One important consideration for our <kbd class="calibre11">AuthService</kbd> is to understand that certain components in our app may benefit from getting notified when the authenticated state changes. This is a perfect use case to utilize RxJS. RxJS is a very powerful library that is used to simplify dealing with changing data and events using observables. An observable is a data type that you can use not only to listen to events, but filter, map, reduce, and run sequences of code against anytime something occurs. By using observables, we can simplify our asynchronous development dramatically. We will use a specific type of observable called the <kbd class="calibre11">BehaviorSubject</kbd> to emit changes that our components could subscribe to.</p>
+<p class="mce-root">Create <kbd class="calibre11">app/modules/core/services/auth.service.ts</kbd> and add the following:</p>
+<pre class="calibre22">// angular<br class="title-page-name"/>import { Injectable } from '@angular/core';<br class="title-page-name"/><br class="title-page-name"/>// lib<br class="title-page-name"/>import { BehaviorSubject } from 'rxjs/BehaviorSubject';<br class="title-page-name"/><br class="title-page-name"/>// app<br class="title-page-name"/>import { DatabaseService } from './database.service';<br class="title-page-name"/>import { LogService } from './log.service';<br class="title-page-name"/><br class="title-page-name"/>@Injectable()<br class="title-page-name"/>export class AuthService {<br class="title-page-name"/><br class="title-page-name"/> // access our current user from anywhere<br class="title-page-name"/> public static CURRENT_USER: any;<br class="title-page-name"/> <br class="title-page-name"/> // subscribe to authenticated state changes<br class="title-page-name"/> public authenticated$: BehaviorSubject&lt;boolean&gt; = <br class="title-page-name"/>   new BehaviorSubject(false);<br class="title-page-name"/> <br class="title-page-name"/> constructor(<br class="title-page-name"/>   private databaseService: DatabaseService,<br class="title-page-name"/>   private logService: LogService<br class="title-page-name"/> ) {<br class="title-page-name"/>   this._init();<br class="title-page-name"/> } <br class="title-page-name"/><br class="title-page-name"/> private _init() {<br class="title-page-name"/>   AuthService.CURRENT_USER = this.databaseService<br class="title-page-name"/>     .getItem(DatabaseService.KEYS.currentUser);<br class="title-page-name"/>   this.logService.debug(`Current user: `,<br class="title-page-name"/>     AuthService.CURRENT_USER);<br class="title-page-name"/>   this._notifyState(!!AuthService.CURRENT_USER);<br class="title-page-name"/> }<br class="title-page-name"/><br class="title-page-name"/> private _notifyState(auth: boolean) {<br class="title-page-name"/>   this.authenticated$.next(auth);<br class="title-page-name"/> }<br class="title-page-name"/>}</pre>
+<p class="mce-root">We have a few interesting things going on here. We are putting two other services we designed to work right away, <kbd class="calibre11">LogService</kbd> and <kbd class="calibre11">DatabaseService</kbd>. They are helping us check whether a user was saved/authenticated as well as log that result.</p>
+<p class="mce-root">We are also calling on a <kbd class="calibre11">private _init</kbd> method when our service gets constructed via Angular's dependency injection system. This allows us to immediately check whether an authenticated user exists in our persistent store. Then, we call a private reusable method <kbd class="calibre11">_notifyState</kbd>, which will emit <kbd class="calibre11">true</kbd> or <kbd class="calibre11">false</kbd> on our <kbd class="calibre11">authenticated$</kbd> observable. This will provide a nice way for other components to easily get notified when the auth state changes by subscribing to this observable. We have made <kbd class="calibre11">_notifyState</kbd> reusable because our login and register methods (to be implemented in the future) will be able to use it when the results are returned from modals we may display in the UI.</p>
+<p class="mce-root">We can now easily add <kbd class="calibre11">AuthService</kbd> to our <kbd class="calibre11">PROVIDERS</kbd> and we don't need to do anything else to ensure it's added to our <kbd class="calibre11">CoreModule</kbd> because our <kbd class="calibre11">PROVIDERS</kbd> are already added to the <kbd class="calibre11">CoreModule</kbd>. </p>
+<p class="mce-root">All we need to do is modify <kbd class="calibre11">app/modules/core/services/index.ts</kbd> and add our service:</p>
+<pre class="calibre22">import { AuthService } from './auth.service';<br class="title-page-name"/>import { DatabaseService } from './database.service';<br class="title-page-name"/>import { LogService } from './log.service';<br class="title-page-name"/><br class="title-page-name"/>export const PROVIDERS: any[] = [<br class="title-page-name"/> AuthService,<br class="title-page-name"/> DatabaseService,<br class="title-page-name"/> LogService<br class="title-page-name"/>];<br class="title-page-name"/><br class="title-page-name"/>export * from './auth.service';<br class="title-page-name"/>export * from './database.service';<br class="title-page-name"/>export * from './log.service';</pre>
+<p class="mce-root">WAIT! There is one important thing we want to do to ensure our AuthService initializes!</p>
+<p class="mce-root">Angular's dependency injection system will only instantiate a service that is injected somewhere. Although we have all our services specified as providers in our <kbd class="calibre11">CoreModule</kbd>, they <span>will not </span>actually be constructed until they are injected somewhere!</p>
+<p class="mce-root">Open <kbd class="calibre11">app/app.component.ts</kbd> and replace its contents with this:</p>
+<pre class="calibre22">// angular<br class="title-page-name"/>import { Component } from '@angular/core';<br class="title-page-name"/><br class="title-page-name"/>// app<br class="title-page-name"/>import { AuthService } from './<span>modules</span>/core/services';<br class="title-page-name"/><br class="title-page-name"/>@Component({<br class="title-page-name"/> selector: 'my-app',<br class="title-page-name"/> templateUrl: 'app.component.html',<br class="title-page-name"/>})<br class="title-page-name"/>export class AppComponent {<br class="title-page-name"/><br class="title-page-name"/> constructor(private authService: AuthService) { }<br class="title-page-name"/><br class="title-page-name"/>}</pre>
+<p class="mce-root">We inject our <kbd class="calibre11">AuthService</kbd> by specifying it as an argument to our component's constructor. This will cause Angular to construct our service. All subsequent injects throughout our code will all receive the same singleton. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Prepare to bootstrap the AppModule </h1>
+                
+            
+            <article>
+                
+<p class="mce-root">We now have a good setup for our feature modules and it's time to bring them all together in our root <kbd class="calibre11">AppModule</kbd> responsible for bootstrapping our app. </p>
+<div class="packt_tip"><br class="calibre24"/>
+Bootstrap only what is needed for your initial view. Lazy load the rest.</div>
+<p class="mce-root">It's important to keep the bootstrap of our app as fast as possible. To achieve that, we only want to bootstrap the app with the main features needed for our initial view and lazy load the rest when needed. We know we want our low-level services to be available and ready to use anywhere in the app, so we will definitely want <kbd class="calibre11">CoreModule</kbd> upfront.</p>
+<p class="mce-root">Our initial view from our sketch is going to start with the player and 2-3 tracks on the list, so the user can immediately playback a mix of pre-recorded tracks we will ship with the app for demonstration purposes. For this reason, we will specify the <kbd class="calibre11">PlayerModule</kbd> to load upfront when our app bootstraps, since it will be a primary feature we want to immediately engage with.</p>
+<p class="mce-root">We will set up a routing configuration, which will lazy load our <kbd class="calibre11">RecorderModule</kbd> when the user taps the record button at the top right of our initial view to begin a recording session.</p>
+<p class="mce-root">With this in mind, we can set up our <kbd class="calibre11">AppModule</kbd> located at <kbd class="calibre11">app/app.module.ts</kbd>, as follows:</p>
+<pre class="calibre22">// angular <br class="title-page-name"/>import { NgModule } from '@angular/core'; <br class="title-page-name"/><br class="title-page-name"/>// app<br class="title-page-name"/>import { AppComponent } from './app.component';<br class="title-page-name"/>import { CoreModule } from './<span>modules</span>/core/core.module';<br class="title-page-name"/>import { PlayerModule } from './<span>modules</span>/player/player.module'; <br class="title-page-name"/><br class="title-page-name"/>@NgModule({ <br class="title-page-name"/>  imports: [ <br class="title-page-name"/>    CoreModule, <br class="title-page-name"/>    PlayerModule <br class="title-page-name"/>  ], <br class="title-page-name"/>  declarations: [AppComponent],<br class="title-page-name"/>  bootstrap: [AppComponent] <br class="title-page-name"/>})<br class="title-page-name"/>export class AppModule { }</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Summary</h1>
+                
+            
+            <article>
+                
+<p class="mce-root">Throughout, we have been working hard creating a solid foundation to build our app on. We created a <kbd class="calibre11">CoreModule</kbd> to provide some low-level services, such as logging, and a persistent store and designed the module to easily scale in more services as needed . Plus, this module is portable and can be dropped into other projects with your own company's special sauce intact.</p>
+<p class="mce-root">In typical app development, you may want to run your app on the iOS and/or Android simulator along the way, during this process to double-check some of your design/architecture choices and that would be advisable! We just haven't done that yet, since we have an app pre-planned here and want you to stay focused on the choices we are making and why.</p>
+<p class="mce-root">We also created the two primary feature modules that our app needs for its core competency, <kbd class="calibre11">PlayerModule</kbd> and <kbd class="calibre11">RecorderModule</kbd>. The player will be pre-setup with 2-3 recorded tracks loaded and ready to play right upon launch, so we will be bootstrapping our app with the <kbd class="calibre11">PlayerModule</kbd> features. </p>
+<p class="mce-root">We will provide a simple way to allow a user to register an account, which will allow them to record their own tracks to throw in the mix. Once they are logged in, they will be able to enter the record mode via a route, which will lazily load the <kbd class="calibre11">RecorderModule</kbd>.</p>
+<p class="mce-root">In the next chapter, we will create our first view, configure our routes, and finally, get our first glimpse at our app.</p>
+<p class="mce-root"> </p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

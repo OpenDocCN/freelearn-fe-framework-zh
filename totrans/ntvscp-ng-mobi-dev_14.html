@@ -1,0 +1,258 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Deployment Preparation with webpack Bundling</h1>
+                
+            
+            <article>
+                
+<p class="mce-root">We want to deploy our app to the two leading mobile app stores, Apple App Store and Google Play; however, there are several things that we need to do to prepare our app for distribution.</p>
+<p class="mce-root">To ensure that you use the smallest JavaScript size in addition to Angular's AoT compiler to help our app execute as fast as possible, we will use webpack to bundle everything. It's worth noting that webpack is not a requirement to create a distributable NativeScript app. However, it provides very nice benefits that should make it an important step for anyone when distributing their apps.</p>
+<p class="mce-root">In this chapter, we will cover the following topics:</p>
+<ul class="calibre13">
+<li class="calibre14">Installing webpack for a NativeScript for Angular project</li>
+<li class="calibre14">Preparing a project to be bundled with webpack</li>
+<li class="calibre14">Solving various webpack bundling issues</li>
+<li class="calibre14">A primer on writing your own custom webpack plugin to solve specific cases</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Using webpack to bundle the app</h1>
+                
+            
+            <article>
+                
+<p class="mce-root">If it weren't for Sean Larkin, you might have never heard of webpack. His contributions and involvement in the bundler community have helped bring webpack into the Angular CLI and also make it a primary <em class="calibre21">go-to</em> bundler for many things. We greatly appreciate his efforts and kindness in the community.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Preparing to use webpack</h1>
+                
+            
+            <article>
+                
+<p class="mce-root">Let's take a look at how webpack can be utilized to reduce the packaged size of our NativeScript for Angular app in addition to ensuring that it executes optimally on a user's mobile device.</p>
+<p class="mce-root">Let's first install the plugin:</p>
+<pre class="calibre22"><strong class="calibre1">npm install nativescript-dev-webpack --save-dev</strong></pre>
+<p class="mce-root">This automatically creates a <kbd class="calibre11">webpack.config.js</kbd> file (at root of project) preconfigured with a basic setup that will get you reasonably further with most apps. Additionally, it creates a <kbd class="calibre11">tsconfig.aot.json</kbd> file (also at root of project) since NativeScript's webpack usage will use Angular's AoT compiler while bundling. It also adds some nifty npm scripts to our <kbd class="calibre11">package.json</kbd> to help handle all the various bundling options we will want; consider the following example:</p>
+<ul class="calibre13">
+<li class="calibre14"><span><kbd class="calibre11">npm run build-android-bundle</kbd> to build for Android</span></li>
+<li class="calibre14"><kbd class="calibre11">npm run build-ios-bundle</kbd> to build for iOS</li>
+<li class="calibre14"><kbd class="calibre11">npm run start-android-bundle</kbd> to run on Android</li>
+<li class="calibre14"><kbd class="calibre11">npm run start-ios-bundle</kbd> to run on iOS</li>
+</ul>
+<p class="mce-root">However, before we attempt those new commands, we will need to audit our app for a couple of things.</p>
+<p class="mce-root">We should start by ensuring that all NativeScript import paths are preceded with <kbd class="calibre11">tns-core-modules/[module]</kbd>; consider the following example:</p>
+<pre class="calibre22">BEFORE:<br class="title-page-name"/>import { isIOS } from 'platform';<br class="title-page-name"/>import { topmost } from 'ui/frame';<br class="title-page-name"/>import * as app from 'application';<br class="title-page-name"/><br class="title-page-name"/>AFTER:<br class="title-page-name"/>import { isIOS } from '<strong class="calibre1">tns-core-modules/</strong>platform';<br class="title-page-name"/>import { topmost } from '<strong class="calibre1">tns-core-modules/</strong>ui/frame';<br class="title-page-name"/>import * as app from '<strong class="calibre1">tns-core-modules/</strong>application';</pre>
+<p class="mce-root">We'll go through our app and do this now. This works fine for development and production builds.</p>
+<p class="mce-root">You might wonder, <em class="calibre21">Hey! Why did you even use the other form if we needed to go through the entire codebase and change the imports after the fact?</em></p>
+<p class="mce-root">Great concern! There's actually a ton of examples out there that show the convenient shortform import path, so we chose to build the app using that throughout in this chapter to demonstrate that it works just fine for development to help avoid confusion, in case you come across examples such as these in the future. Besides, it doesn't take too much to edit that after the fact to prepare for webpack but now you know.</p>
+<p class="mce-root">Run the following command right now:</p>
+<pre class="calibre22"><strong class="calibre1">npm run build-ios-bundle</strong></pre>
+<p class="mce-root">We can see the following errors—which I have enumerated—and we will present solutions for it sequentially in the next section:</p>
+<ol class="calibre16">
+<li value="1" class="calibre14"><span>ERROR in Unexpected value</span> <kbd class="calibre11">SlimSliderDirective</kbd> <span>in</span> <kbd class="calibre11">/path/to/TNSStudio/app/modules/player/directives/slider.directive.d.ts declared by the module PlayerModule in /path/to/TNSStudio/app/modules/player/player.module.ts</kbd><span>. Please add a</span> <kbd class="calibre11">@Pipe/@Directive/@Component</kbd> <span>annotation.</span></li>
+<li value="2" class="calibre14"><span>ERROR in Cannot determine the module for class</span> <kbd class="calibre11">SlimSliderDirective</kbd> <span>in</span> <kbd class="calibre11">/path/to/TNSStudio/app/modules/player/directives/slider.directive.android.ts</kbd><span>! Add</span> <kbd class="calibre11">SlimSliderDirective</kbd> <span>to the</span> <kbd class="calibre11">NgModule</kbd> <span>to fix it. Cannot determine the module for class</span> <kbd class="calibre11">SlimSliderDirective</kbd> <span>in</span> <kbd class="calibre11">/path/to/TNSStudio/app/modules/player/directives/slider.directive.ios.ts</kbd><span>! Add</span> <kbd class="calibre11">SlimSliderDirective</kbd> <span>to the</span> <kbd class="calibre11">NgModule</kbd> <span>to fix it.</span></li>
+<li value="3" class="calibre14"><span>ERROR in Error encountered resolving symbol values statically. Calling function</span> <kbd class="calibre11">ModalDialogParams</kbd><span>, function calls are not supported. Consider replacing the function or lambda with a reference to an exported function, resolving symbol</span> <kbd class="calibre11">RecorderModule</kbd> <span>in</span> <kbd class="calibre11">/path/to/TNSStudio/app/modules/recorder/recorder.module.ts</kbd><span>, resolving symbol</span> <kbd class="calibre11">RecorderModule</kbd> <span>in</span> <kbd class="calibre11">/path/to/TNSStudio/app/modules/recorder/recorder.module.ts</kbd><span>.</span></li>
+<li value="4" class="calibre14"><span>ERROR in Entry module not found: Error: Can't resolve</span> <kbd class="calibre11">./app.css</kbd> <span>in</span> <kbd class="calibre11">/path/to/TNSStudio/app</kbd><span>.</span></li>
+<li value="5" class="calibre14"><span>ERROR in [copy-webpack-plugin] unable to locate</span> <kbd class="calibre11">app.css</kbd> <span>at</span> <kbd class="calibre11">/path/to/TNSStudio/app/app.css</kbd><span>.</span></li>
+</ol>
+<p class="mce-root">The first three errors are purely Angular <strong class="calibre1">Ahead of Time</strong> (<strong class="calibre1">AoT</strong>) compilation related. The last two are purely related to webpack configuration. Let's look at each error and how to properly resolve it.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Solution #1: Unexpected value 'SlimSliderDirective...'</h1>
+                
+            
+            <article>
+                
+<p class="mce-root">Consider the first complete error mentioned in the preceding section:</p>
+<pre class="calibre22">ERROR in Unexpected value 'SlimSliderDirective in /path/to/TNSStudio/app/modules/player/directives/slider.directive.d.ts' declared by the module 'PlayerModule in /path/to/TNSStudio/app/modules/player/player.module.ts'. Please add a @Pipe/@Directive/@Component annotation.</pre>
+<p class="mce-root">The solution to the preceding error is to install an additional webpack plugin:</p>
+<pre class="calibre22"><strong class="calibre1">npm install nativescript-webpack-import-replace --save-dev</strong></pre>
+<p class="mce-root">Then, open <kbd class="calibre11">webpack.config.js</kbd> and configure the plugin as follows:</p>
+<pre class="calibre22">function getPlugins(platform, env) {<br class="title-page-name"/>    let plugins = [<br class="title-page-name"/>      ...<br class="title-page-name"/>      new ImportReplacePlugin({<br class="title-page-name"/>          platform: platform,<br class="title-page-name"/>          files: [<br class="title-page-name"/>              'slider.directive'<br class="title-page-name"/>          ]<br class="title-page-name"/>      }),<br class="title-page-name"/>      ...</pre>
+<p class="mce-root">This will find the <kbd class="calibre11">slider.directive</kbd> import in <kbd class="calibre11">app/modules/players/directives/index.ts</kbd> and append the correct target platform suffix, so the AoT compiler will pick up the right target platform implementation file.</p>
+<p class="mce-root">At the time of writing this book, a solution did not exist for that error, so we developed the <kbd class="calibre11">nativescript-webpack-import-replace</kbd> plugin to solve. Since you might encounter situations with webpack bundling that may require some additional webpack help via a plugin, we will share an overview of how we developed the plugin to solve that error in the event that you encounter other obscure errors that might require you to create a plugin.</p>
+<p class="mce-root">Let's look at solutions for the initial remaining errors first, and then we'll highlight webpack plugin development.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Solution #2: Cannot determine the module for class SlimSliderDirective...</h1>
+                
+            
+            <article>
+                
+<p class="mce-root"><span>Consider the second complete error mentioned in the <em class="calibre21">Preparing to use webpack</em> section</span>:</p>
+<pre class="calibre22">ERROR in Cannot determine the module for class SlimSliderDirective in /path/to/TNSStudio/app/modules/player/directives/slider.directive.android.ts! Add SlimSliderDirective to the NgModule to fix it.<br class="title-page-name"/>Cannot determine the module for class SlimSliderDirective in /path/to/TNSStudio/app/modules/player/directives/slider.directive.ios.ts! Add SlimSliderDirective to the NgModule to fix it.</pre>
+<p class="mce-root"><span>The solution to the preceding error is to o</span>pen <kbd class="calibre11">tsconfig.aot.json</kbd>, and make the following change:</p>
+<pre class="calibre22">BEFORE:<br class="title-page-name"/>  ...<br class="title-page-name"/>  "exclude": [<br class="title-page-name"/>    "node_modules",<br class="title-page-name"/>    "platforms"<br class="title-page-name"/>  ],<br class="title-page-name"/><br class="title-page-name"/>AFTER:<br class="title-page-name"/>  ...<br class="title-page-name"/>  <strong class="calibre1">"files": [</strong><br class="title-page-name"/><strong class="calibre1">    "./app/main.ts"</strong><br class="title-page-name"/><strong class="calibre1">  ]</strong></pre>
+<p class="mce-root">Since AoT compilation uses the <kbd class="calibre11">tsconfig.aot.json</kbd> configuration, we want to be more specific with the files that are targeted for compilation. Since <kbd class="calibre11">./app/main.ts</kbd> is our entry point to bootstrap the app, we will target that file and remove the <kbd class="calibre11">exclude</kbd> block. </p>
+<p class="mce-root">If we were to try bundling now at this point, we would have solved the error we saw; however, we would see the following <em class="calibre21">new</em> errors:</p>
+<pre class="calibre22">ERROR in .. lazy<br class="title-page-name"/>Module not found: Error: Can't resolve '/path/to/TNSStudio/app/modules/mixer/mixer.module.ngfactory.ts' in '/path/to/TNSStudio'<br class="title-page-name"/> @ .. lazy<br class="title-page-name"/> @ ../~/@angular/core/@angular/core.es5.js<br class="title-page-name"/> @ ./vendor.ts<br class="title-page-name"/><br class="title-page-name"/>ERROR in .. lazy<br class="title-page-name"/>Module not found: Error: Can't resolve '/path/to/TNSStudio/app/modules/recorder/recorder.module.ngfactory.ts' in '/path/to/TNSStudio'<br class="title-page-name"/> @ .. lazy<br class="title-page-name"/> @ ../~/@angular/core/@angular/core.es5.js<br class="title-page-name"/> @ ./vendor.ts</pre>
+<p class="mce-root">This is because we are targeting our <kbd class="calibre11">./app/main.ts</kbd>, which branches out to all other imports to our app's files, except to those modules that are lazy loaded. </p>
+<p class="mce-root"><span>The solution to the preceding error is to a</span>dd lazy-loaded module paths in the <kbd class="calibre11">files</kbd> section:</p>
+<pre class="calibre22">"files": [<br class="title-page-name"/>  "./app/main.ts",<br class="title-page-name"/>  <strong class="calibre1">"./app/modules/mixer/mixer.module.ts",</strong><br class="title-page-name"/><strong class="calibre1">  "./app/modules/recorder/recorder.module.ts"</strong><br class="title-page-name"/> ],</pre>
+<p class="mce-root">Okay, we solved the <kbd class="calibre11">lazy</kbd> error; however, now this reveals several <em class="calibre21">new</em> errors, as follows:</p>
+<pre class="calibre22">ERROR in /path/to/TNSStudio/app/modules/recorder/components/record.component.ts (128,19): Cannot find name 'CFRunLoopGetMain'.<br class="title-page-name"/>ERROR in /path/to/TNSStudio/app/modules/recorder/components/record.component.ts (130,9): Cannot find name 'CFRunLoopPerformBlock'.<br class="title-page-name"/>ERROR in /path/to/TNSStudio/app/modules/recorder/components/record.component.ts (130,40): Cannot find name 'kCFRunLoopDefaultMode'.<br class="title-page-name"/>ERROR in /path/to/TNSStudio/app/modules/recorder/components/record.component.ts (131,9): Cannot find name 'CFRunLoopWakeUp'.</pre>
+<p class="mce-root">Right about now...</p>
+<p class="mce-root">The funk soul brother.</p>
+<p class="mce-root">Yes, you might be singing Fatboy Slim or about to lose your mind, and we understand. Bundling with webpack can be quite an adventure at times. The best advice that we can provide is to maintain patience and diligence to handle one error at a time; we're almost there.</p>
+<p class="mce-root"><span>The solution to the preceding error is to i</span>nclude the iOS and Android platform declarations since we are using native APIs in our app:</p>
+<pre class="calibre22">"files": [<br class="title-page-name"/>  "./app/main.ts",<br class="title-page-name"/>  "./app/modules/mixer/mixer.module.ts",<br class="title-page-name"/>  "./app/modules/recorder/recorder.module.ts",<br class="title-page-name"/>  <strong class="calibre1">"./node_modules/tns-platform-declarations/ios.d.ts",</strong><br class="title-page-name"/><strong class="calibre1">  "./node_modules/tns-platform-declarations/android.d.ts"</strong><br class="title-page-name"/>]</pre>
+<p class="mce-root">Hooray, we have now fully resolved the second issue. Let's move on to the next one.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Solution #3: Error encountered resolving symbol values statically</h1>
+                
+            
+            <article>
+                
+<p class="mce-root"><span>Consider the third complete error mentioned in the <em class="calibre21">Preparing to use webpack</em></span><span> </span><span>section</span>:</p>
+<pre class="calibre22">ERROR in Error encountered resolving symbol values statically. Calling function 'ModalDialogParams', function calls are not supported. Consider replacing the function or lambda with a reference to an exported function, resolving symbol RecorderModule in /path/to/TNSStudio/app/modules/recorder/recorder.module.ts, resolving symbol RecorderModule in /path/to/TNSStudio/app/modules/recorder/recorder.module.ts</pre>
+<p class="mce-root"><span>The solution to the preceding error is to o</span>pen <kbd class="calibre11">app/modules/recorder/recorder.module.ts</kbd> and make the following change:</p>
+<pre class="calibre22">...<br class="title-page-name"/>// factory functions<br class="title-page-name"/><strong class="calibre1">export function defaultModalParamsFactory() {</strong><br class="title-page-name"/><strong class="calibre1">  return new ModalDialogParams({}, null);</strong><br class="title-page-name"/><strong class="calibre1">};</strong><br class="title-page-name"/>...<br class="title-page-name"/>@NgModule({<br class="title-page-name"/>  ...<br class="title-page-name"/>  providers: [<br class="title-page-name"/>    ...PROVIDERS,<br class="title-page-name"/>    <strong class="calibre1">{ </strong><br class="title-page-name"/><strong class="calibre1">      provide: ModalDialogParams, </strong><br class="title-page-name"/><strong class="calibre1">      useFactory: defaultModalParamsFactory </strong><br class="title-page-name"/><strong class="calibre1">    }</strong><br class="title-page-name"/>  ],<br class="title-page-name"/>  ...<br class="title-page-name"/>})<br class="title-page-name"/>export class RecorderModule { }</pre>
+<p class="mce-root">This will satisfy the Angular AoT compiler's need to resolve symbols statically.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Solution #4 and #5: Can't resolve './app.css'</h1>
+                
+            
+            <article>
+                
+<p class="mce-root"><span>Consider the 4th and 5th errors mentioned in the <em class="calibre21">Preparing to use webpack</em></span><span> </span><span>section</span>:</p>
+<pre class="calibre22">4. ERROR in Entry module not found: Error: Can't resolve './app.css' in '/path/to/TNSStudio/app'<br class="title-page-name"/><br class="title-page-name"/>5. ERROR in [copy-webpack-plugin] unable to locate 'app.css' at '/path/to/TNSStudio/app/app.css'</pre>
+<p class="mce-root"><span>The solution to the preceding error is</span> actually related to the fact that we are using platform-specific <kbd class="calibre11">.ios.css</kbd> and <kbd class="calibre11">.android.css</kbd>, which is compiled via SASS. We need to update our webpack config so that it knows this. Open <kbd class="calibre11">webpack.config.js</kbd>, which the plugin added for us automatically, and make the following changes:</p>
+<pre class="calibre22">module.exports = env =&gt; {<br class="title-page-name"/>  const platform = getPlatform(env);<br class="title-page-name"/><br class="title-page-name"/>  // Default destination inside platforms/&lt;platform&gt;/...<br class="title-page-name"/>  const path = resolve(nsWebpack.getAppPath(platform));<br class="title-page-name"/><br class="title-page-name"/>  const entry = {<br class="title-page-name"/>    // Discover entry module from package.json<br class="title-page-name"/>    bundle: `./${nsWebpack.getEntryModule()}`,<br class="title-page-name"/>    // Vendor entry with third-party libraries<br class="title-page-name"/>    vendor: `./vendor`,<br class="title-page-name"/>    // Entry for stylesheet with global application styles<br class="title-page-name"/>    [mainSheet]: `<strong class="calibre1">./app.${platform}.css</strong>`,<br class="title-page-name"/>  };<br class="title-page-name"/>  ...<br class="title-page-name"/><br class="title-page-name"/>function getPlugins(platform, env) {<br class="title-page-name"/>  ...<br class="title-page-name"/>  // Copy assets to out dir. Add your own globs as needed.<br class="title-page-name"/>  new CopyWebpackPlugin([<br class="title-page-name"/>    {<strong class="calibre1"> from: "app." + platform + ".css", to: mainSheet</strong> },<br class="title-page-name"/>    { from: "css/**" },<br class="title-page-name"/>    { from: "fonts/**" },<br class="title-page-name"/>    { from: "**/*.jpg" },<br class="title-page-name"/>    { from: "**/*.png" },<br class="title-page-name"/>    { from: "**/*.xml" },<br class="title-page-name"/>  ], { ignore: ["App_Resources/**"] }),<br class="title-page-name"/>  ...</pre>
+<p class="mce-root">Okay, we now have the bundling issues all cleared, or wait....<strong class="calibre1">do we?!</strong></p>
+<p class="mce-root">We haven't tried to run the app yet in a simulator or on a device. If we were to try and do this now using <kbd class="calibre11">npm run start-ios-bundle</kbd> or via XCode or <kbd class="calibre11">npm run start-android-bundle</kbd>, you might get an app crash right when it tries to boot with an error like this:</p>
+<pre class="calibre22">JS ERROR Error: No NgModule metadata found for 'AppModule'.</pre>
+<p class="mce-root"><span>The solution to the preceding error is to en</span>sure that your app contains an <kbd class="calibre11">./app/main.aot.ts</kbd> file with the following contents:</p>
+<pre class="calibre22">import { platformNativeScript } from "nativescript-angular/platform-static";<br class="title-page-name"/>import { AppModuleNgFactory } from "./app.module.ngfactory";<br class="title-page-name"/><br class="title-page-name"/>platformNativeScript().bootstrapModuleFactory(AppModuleNgFactory);</pre>
+<p class="mce-root">If you recall we have a demo composition setup which loads it's track files from an <kbd class="calibre11">audio</kbd> folder. We also utilize font-awesome icons with the help of a font-awesome.css file loaded from an <kbd class="calibre11">assets</kbd> folder. We need to make sure these folders also get copied into our production webpack build. Open <kbd class="calibre11">webpack.config.js</kbd> and make the following change:</p>
+<pre class="calibre22">new CopyWebpackPlugin([<br class="title-page-name"/>  { from: "app." + platform + ".css", to: mainSheet },<br class="title-page-name"/>  <strong class="calibre1">{ from: "assets/**" },</strong><br class="title-page-name"/><strong class="calibre1">  { from: "audio/**" },</strong><br class="title-page-name"/>  { from: "css/**" },<br class="title-page-name"/>  { from: "fonts/**" },<br class="title-page-name"/>  { from: "**/*.jpg" },<br class="title-page-name"/>  { from: "**/*.png" },<br class="title-page-name"/>  { from: "**/*.xml" },<br class="title-page-name"/>], { ignore: ["App_Resources/**"] }),</pre>
+<p class="mce-root">SUCCESS! </p>
+<p class="mce-root">We can now run our bundled app with no errors using the following commands:</p>
+<ul class="calibre13">
+<li class="calibre14"><kbd class="calibre11">npm run start-ios-bundle</kbd></li>
+<li class="calibre14">Opening the XCode project and running <kbd class="calibre11">npm run start-android-bundle</kbd></li>
+</ul>
+<p class="mce-root">It's worth noting that all the changes we made to enable webpack bundling for release of our app also work perfectly well in development, so rest assured that you have only improved your app's setup at this point.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Detour – Overview of developing a webpack plugin</h1>
+                
+            
+            <article>
+                
+<p class="mce-root">We now want to return to the first error we encountered when bundling our app which was:</p>
+<ul class="calibre13">
+<li class="packt_figref">
+<p class="calibre44">ERROR in Unexpected value <kbd class="calibre11">SlimSliderDirective</kbd> in <kbd class="calibre11">/path/to/TNSStudio/app/modules/player/directives/slider.directive.d.ts</kbd> declared by the module <kbd class="calibre11">PlayerModule</kbd> in <kbd class="calibre11">/path/to/TNSStudio/app/modules/player/player.module.ts</kbd>. Please add a <kbd class="calibre11">@Pipe/@Directive/@Component</kbd> annotation.</p>
+</li>
+</ul>
+<p class="mce-root">A solution for this error did not exist at the time of writing <span>this book, </span>so we created the <kbd class="calibre11">nativescript-webpack-import-replace</kbd> (<a href="https://github.com/NathanWalker/nativescript-webpack-import-replace" class="calibre3">https://github.com/NathanWalker/nativescript-webpack-import-replace</a>) plugin to solve the problem.</p>
+<p class="mce-root">Developing a webpack plugin in detail is out of the scope of this book, but we wanted to give you some highlights to the process in case you end up needing to create one to solve a particular case for your app.</p>
+<p class="mce-root">We started by creating a separate project with a <kbd class="calibre11">package.json</kbd> file so we could install our webpack plugin like any other npm plugin:</p>
+<pre class="calibre22">{<br class="title-page-name"/>  "name": "nativescript-webpack-import-replace",<br class="title-page-name"/>  "version": "1.0.0",<br class="title-page-name"/>  "description": "Replace imports with .ios or .android suffix for target mobile platforms.",<br class="title-page-name"/>  "files": [<br class="title-page-name"/>    "index.js",<br class="title-page-name"/>    "lib"<br class="title-page-name"/>  ],<br class="title-page-name"/>  "engines": {<br class="title-page-name"/>    "node": "&gt;= 4.3 &lt; 5.0.0 || &gt;= 5.10"<br class="title-page-name"/>  },<br class="title-page-name"/>  "author": {<br class="title-page-name"/>    "name": "Nathan Walker",<br class="title-page-name"/>    "url": "http://github.com/NathanWalker"<br class="title-page-name"/>  },<br class="title-page-name"/>  "keywords": [<br class="title-page-name"/>    "webpack",<br class="title-page-name"/>    "nativescript",<br class="title-page-name"/>    "angular"<br class="title-page-name"/>  ],<br class="title-page-name"/>  "nativescript": {<br class="title-page-name"/>    "platforms": {<br class="title-page-name"/>      "android": "3.0.0",<br class="title-page-name"/>      "ios": "3.0.0"<br class="title-page-name"/>    },<br class="title-page-name"/>    "plugin": {<br class="title-page-name"/>      "nan": "false",<br class="title-page-name"/>      "pan": "false",<br class="title-page-name"/>      "core3": "true",<br class="title-page-name"/>      "webpack": "true",<br class="title-page-name"/>      "category": "Developer"<br class="title-page-name"/>    }<br class="title-page-name"/>  },<br class="title-page-name"/>  "homepage": "https://github.com/NathanWalker/nativescript-webpack-import-replace",<br class="title-page-name"/>  "repository": "NathanWalker/nativescript-webpack-import-replace",<br class="title-page-name"/>  "license": "MIT"<br class="title-page-name"/>}</pre>
+<p class="mce-root">The <kbd class="calibre11">nativescript</kbd> key actually helps categorize this plugin on the various NativeScript plugin listing sites. </p>
+<p class="mce-root">We then created <kbd class="calibre11">lib/ImportReplacePlugin.js</kbd> to represent the actual plugin class we would be able to import and use in our webpack config. We created this file inside a <kbd class="calibre11">lib</kbd> folder for good measure in case we need to add extra supporting files to aid our plugin for a nice clean separation of concerns with our plugin organization. In this file, we set up an export by defining a closure containing a constructor for our plugin:</p>
+<pre class="calibre22">exports.ImportReplacePlugin = (function () {<br class="title-page-name"/>  function ImportReplacePlugin(options) {<br class="title-page-name"/>    if (!options || !options.platform) {<br class="title-page-name"/>      throw new Error(`Target platform must be specified!`);<br class="title-page-name"/>    }<br class="title-page-name"/><br class="title-page-name"/>    this.platform = options.platform;<br class="title-page-name"/>    this.files = options.files;<br class="title-page-name"/>    if (!this.files) {<br class="title-page-name"/>      throw new Error(`An array of files containing just the filenames to replace with platform specific names must be specified.`);<br class="title-page-name"/>    }<br class="title-page-name"/>  }<br class="title-page-name"/><br class="title-page-name"/>  return ImportReplacePlugin;<br class="title-page-name"/>})();</pre>
+<p class="mce-root">This will take the target <kbd class="calibre11">platform</kbd> defined in our webpack config and pass it through as options along with a <kbd class="calibre11">files</kbd> collection, which will contain all the filenames of the imports we need to replace.</p>
+<p class="mce-root">We then want to wire into webpack's <kbd class="calibre11">make</kbd> lifecycle hook to grab hold of the source files being processed in order to parse them:</p>
+<pre class="calibre22">ImportReplacePlugin.prototype.apply = function (compiler) {<br class="title-page-name"/>    compiler.plugin("make", (compilation, callback) =&gt; {<br class="title-page-name"/>      const aotPlugin = getAotPlugin(compilation);<br class="title-page-name"/>      aotPlugin._program.getSourceFiles()<br class="title-page-name"/>        .forEach(sf =&gt; {<br class="title-page-name"/>          this.usePlatformUrl(sf)<br class="title-page-name"/>        });<br class="title-page-name"/><br class="title-page-name"/>      callback();<br class="title-page-name"/>    })<br class="title-page-name"/> };<br class="title-page-name"/><br class="title-page-name"/>  function getAotPlugin(compilation) {<br class="title-page-name"/>    let maybeAotPlugin = compilation._ngToolsWebpackPluginInstance;<br class="title-page-name"/>    if (!maybeAotPlugin) {<br class="title-page-name"/>      throw new Error(`This plugin must be used with the AotPlugin!`);<br class="title-page-name"/>    }<br class="title-page-name"/>    return maybeAotPlugin;<br class="title-page-name"/>  }</pre>
+<p class="mce-root">This grabs hold of all the AoT source files. Then we setup a loop to process them one by one and add processing methods for what we need:</p>
+<pre class="calibre22">ImportReplacePlugin.prototype.usePlatformUrl = function (sourceFile) {<br class="title-page-name"/>    this.setCurrentDirectory(sourceFile);<br class="title-page-name"/>    forEachChild(sourceFile, node =&gt; this.replaceImport(node));<br class="title-page-name"/>}<br class="title-page-name"/><br class="title-page-name"/>ImportReplacePlugin.prototype.setCurrentDirectory = function (sourceFile) {<br class="title-page-name"/>   this.currentDirectory = resolve(sourceFile.path, "..");<br class="title-page-name"/>}<br class="title-page-name"/><br class="title-page-name"/>ImportReplacePlugin.prototype.replaceImport = function (node) {<br class="title-page-name"/>    if (node.moduleSpecifier) {<br class="title-page-name"/>      var sourceFile = this.getSourceFileOfNode(node);<br class="title-page-name"/>      const sourceFileText = sourceFile.text;<br class="title-page-name"/>      const result = this.checkMatch(sourceFileText);<br class="title-page-name"/>      if (result.index &gt; -1) {<br class="title-page-name"/>        var platformSuffix = "." + this.platform;<br class="title-page-name"/>        var additionLength = platformSuffix.length;<br class="title-page-name"/>        var escapeAndEnding = 2; // usually "\";" or "\';"<br class="title-page-name"/>        var remainingStartIndex = result.index + (result.match.length - 1) + (platformSuffix.length - 1) - escapeAndEnding;<br class="title-page-name"/><br class="title-page-name"/>        sourceFile.text =<br class="title-page-name"/>          sourceFileText.substring(0, result.index) +<br class="title-page-name"/>          result.match +<br class="title-page-name"/>          platformSuffix +<br class="title-page-name"/>          sourceFileText.substring(remainingStartIndex);<br class="title-page-name"/><br class="title-page-name"/>        node.moduleSpecifier.end += additionLength;<br class="title-page-name"/>      }<br class="title-page-name"/>    }<br class="title-page-name"/>  }<br class="title-page-name"/><br class="title-page-name"/>  ImportReplacePlugin.prototype.getSourceFileOfNode = function (node) {<br class="title-page-name"/>    while (node &amp;&amp; node.kind !== SyntaxKind.SourceFile) {<br class="title-page-name"/>      node = node.parent;<br class="title-page-name"/>    }<br class="title-page-name"/>    return node;<br class="title-page-name"/>  }<br class="title-page-name"/><br class="title-page-name"/>  ImportReplacePlugin.prototype.checkMatch = function (text) {<br class="title-page-name"/>    let match = '';<br class="title-page-name"/>    let index = -1;<br class="title-page-name"/>    this.files.forEach(name =&gt; {<br class="title-page-name"/>      const matchIndex = text.indexOf(name);<br class="title-page-name"/>      if (matchIndex &gt; -1) {<br class="title-page-name"/>        match = name;<br class="title-page-name"/>        index = matchIndex;<br class="title-page-name"/>      }<br class="title-page-name"/>    });<br class="title-page-name"/>    return { match, index };<br class="title-page-name"/>  }</pre>
+<p class="mce-root">An interesting part to building webpack plugins (<em class="calibre21">and arguably the most challenging</em>) is working with <strong class="calibre1">Abstract Syntax Trees</strong> (<strong class="calibre1">ASTs</strong>) of your source code. A critical aspect of our plugin is getting the "source file" node from the AST as follows:</p>
+<pre class="calibre22">ImportReplacePlugin.prototype.getSourceFileOfNode = function (node) {<br class="title-page-name"/>  while (node &amp;&amp; node.kind !== SyntaxKind.SourceFile) {<br class="title-page-name"/>    node = node.parent;<br class="title-page-name"/>  }<br class="title-page-name"/>  return node;<br class="title-page-name"/>}</pre>
+<p class="mce-root">This effectively weeds out any other nodes that are not source files since that is all our plugin needs to deal with.</p>
+<p class="mce-root">Lastly, we create an <kbd class="calibre11">index.js</kbd> file in the root to simply export the plugin file for use:</p>
+<pre class="calibre22">module.exports = require("./lib/ImportReplacePlugin").ImportReplacePlugin;</pre>
+<p class="mce-root">With the aid of this webpack plugin, we are able to completely solve all the webpack bundling errors we encountered in our app.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    </header><h1 class="header-title" id="calibre_pb_0">Summary</h1>
+                
+            
+            <article>
+                
+<p class="mce-root">In this chapter, we prepared our app for distribution by adding webpack into our build chain to help ensure that we have the smallest JavaScript size and the optimal execution performance of our code. This also enabled Angular's AoT compilation on our app, which helps to provide an optimal performance of our code.</p>
+<p class="mce-root">Along the way, we provided a cookbook of solutions to various webpack bundling errors that you might run into during the course of your app's development. In addition, we took a high-level look at developing a custom webpack plugin to help solve a particular error condition in our app to achieve a successful bundle.</p>
+<p class="mce-root">Now that we have an optimal bundle of our app code, we are now ready to finish our distribution steps to finally deploy our app in the next chapter.</p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

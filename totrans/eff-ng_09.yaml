@@ -1,0 +1,764 @@
+- en: '9'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Enhancing the Performance and Security of Angular Applications
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you’ll learn how to improve the performance and security of
+    your Angular applications. You will do a deep dive into the change detection mechanism
+    of Angular so you will know how you can reduce the number of components Angular
+    has to check for changes and re-render in the browser. Next, you will learn about
+    actions you can take to optimize the page load times and runtime performance of
+    your Angular applications. Once you know how to enhance your Angular applications’
+    performance, you will learn about security. You will learn what risks you can
+    encounter when building Angular applications and how you can mitigate these risks
+    so you can build safe applications for your end users.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding Angular change detection
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Enhancing the performance of Angular applications
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building secure Angular applications
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding Angular change detection
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: For small applications, performance isn’t usually a bottleneck. Still, when
+    applications grow and you start to add and compose more components, your application
+    can become slow, impairing the user experience and decreasing user retention.
+    One of the reasons your applications become slow is that Angular will check more
+    and more components for changes if you develop without taking measures to help
+    Angular perform better change detection. So, to build performant Angular applications,
+    you need to understand how the **change detection mechanism** works so you can
+    reduce the number of components the framework has to check for changes and re-render
+    in the browser.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To better understand the problem, you must first understand how Angular performs
+    change detection and where the problems start.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s say you have a simple component with a title property and a `changeTitle()`
+    function, like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: If you call the `changeTitle()` function, Angular can keep everything synchronized
+    after changing the title. Inside the call stack, Angular will first call the `changeTitle()`
+    function, and all subsequent functions will be called due to the `changeTitle()`
+    function being called. Then, behind the scenes, Angular will call a `tick()` function
+    to run the change detection. The change detection will run for the entire component
+    tree because you might change a value inside a service that is used in one or
+    more components inside the component tree. This scenario will work as expected;
+    although Angular must check the entire component tree, it will keep the application
+    state and the view synchronized.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, imagine you run some asynchronous code before updating the title property;
+    the problems will start in this scenario. Angular will detect that `changeTitle()`
+    has been called and run the change detection. Because of how the call stack works,
+    Angular will not wait for the asynchronous operations to complete before calling
+    a function to run the change detection behind the scenes. As a result, Angular
+    will run change detection before you update the title property, resulting in a
+    broken application because the old value is still shown.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: In reality, asynchronous changes don’t break the synchronization between the
+    code and view because Angular uses Zone.js to tackle this issue!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now you know that asynchronous changes can lead to undetected changes. Next,
+    let’s learn about Zone.js and how Angular uses it to account for this issue so
+    it can perform successful change detection for synchronous and asynchronous changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Zone.js and Angular
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '`Zone.JS` library monkey patches (i.e., dynamically updates the behavior at
+    runtime) the browser API and allows you to hook into the life cycle of browser
+    events. This means you can run code before and after browser events happen. Using
+    Zone.js, you can create a **Zone** and run code before the code inside the Zone
+    is executed and after all code within the Zone has finished, including asynchronous
+    events.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To demonstrate this, here is a simple example of such a Zone:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, a Zone is created, and inside the Zone, we perform asynchronous
+    code – in our case, a `setTimeout` function. The preceding code will first log
+    the message we declared before the `delegate.InvokeTask()` method. Next, it will
+    run the code we declared inside the `zone.run()` callback function; this can be
+    both synchronous and asynchronous code. Lastly, when the code inside the callback
+    is finished, the message we declared after the `delegate.InvokeTask()` method
+    will be logged.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Behind the scenes, Angular uses a similar approach to our Zone example to create
+    a Zone wrapped around our entire application called the `onMicrotaskEmpty` that
+    emits a value when no more microtasks are in the queue. Angular uses this `onMicrotaskEmpty`
+    Observable to determine when all synchronous and asynchronous code within the
+    NgZone is finished, and Angular can safely run change detection without potentially
+    missing changed values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In *Figure 9**.1*, you can see an illustration of how the NgZone created by
+    Angular wraps around the entire component tree, allowing Angular to safely monitor
+    asynchronous changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.1: Component tree inside NgZone](img/B21625_09_001.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.1: Component tree inside NgZone'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When running change detection, Angular will check all components in the component
+    tree and update and re-render the components if any bindings are changed (bindings
+    are values bound to the HTML template).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now you know how Angular uses Zone.js to trigger change detection when all synchronous
+    and asynchronous tasks are finished, and that Angular checks the entire component
+    tree when change detection runs. Let’s learn why Angular checks the entire component
+    tree and how you can reduce the number of components Angular has to check and
+    re-render when change detection runs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Improving change detection efficiency
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Angular marks components as `OnPush` change detection strategy in your components,
+    like in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When using the `OnPush` change detection strategy, Angular only runs change
+    detection for components marked as dirty, significantly reducing the number of
+    components that must be checked and re-rendered. There are a couple of things
+    that mark a component as dirty:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Browser events handled inside the component (hover, click, keydown, etc.)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Changed component input values
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Component output emissions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'When a component is marked as dirty, Angular will also mark all ancestors of
+    the component as dirty. In *Figure 9**.2*, you can see this visualized to better
+    grasp the concept:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.2: Dirty component tree](img/B21625_09_002.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.2: Dirty component tree'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, components that use the `OnPush` change detection strategy and aren’t dirty
+    will not be checked for changes when Angular runs change detection, reducing the
+    number of components that must be checked by the framework. Angular will also
+    skip all child components of the components that use `OnPush` and aren’t marked
+    as dirty.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 9**.3* illustrates the mechanism of change detection with the `OnPush`
+    strategy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 9.3: Change detection with the OnPush strategy](img/B21625_09_003.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.3: Change detection with the OnPush strategy'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see in *Figure 9**.3*, Angular will not check whether it must refresh
+    the bindings for all child components of non-dirty components using the `OnPush`
+    change detection strategy. This also illustrates why all ancestor components must
+    be marked as dirty when using `OnPush`. Angular checks whether it must refresh
+    bindings from the top down, starting at the root component. So, if you click on
+    a component at the bottom of the component tree, Angular starts at the root and
+    works its way down the component tree. If the parent of the clicked component
+    uses the `OnPush` change detection strategy, Angular will skip the children if
+    the component isn’t marked as dirty. As a result, Angular wouldn’t check the component
+    where you click, resulting in a mismatch between the code and view because the
+    changes related to the click will not be processed. Because of the aforementioned
+    reason, Angular must mark all parent components as dirty when the components use
+    `OnPush` change detection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Another interesting case for `OnPush` change detection is Observables. Observables
+    are the primary tool within the Angular framework to handle asynchronous events
+    and data streams, yet Observables receiving new values will not mark the component
+    as dirty. So, when using the `OnPush` change detection strategy, the component
+    will not be updated if the Observable receives a new value. To tackle this issue,
+    you can use the `async` pipe because the `async` pipe will automatically mark
+    the component to be checked and handle the update like a regular event, marking
+    the component as dirty and running change detection afterward. Alternatively,
+    you can use `ChangeDetectorRef` and call the `markForCheck()` or `detectChanges()`
+    method manually, like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `markForCheck()` method will mark the component to be checked during the
+    next change detection cycle, whereas `detectChanges()` will mark the component
+    as dirty and immediately trigger change detection for that specific component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, you have to be careful when using the `detectChanges()` method because
+    it can also cause performance issues. The `detectChanges()` method will run the
+    entire change detection in a single browser task, blocking the main threat until
+    that task is completed. When, for example, you display a large array on the screen
+    and must frequently detect change for this array, that results in a lot of work
+    for the browser, slowing down your Angular application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that you better understand how `OnPush` change detection works and how you
+    can mark components as dirty or run change detection manually, let’s learn how
+    Signals are handled by the Angular change detection mechanism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Angular change detection and Signals
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In Angular 17, **Signals** was released as a developer preview, and with that,
+    the change detection mechanism received an upgrade. When using a signal inside
+    the template, Angular will register an effect that listens to the signal used
+    in the template. When the value of the signal changes, the effect runs and will
+    mark the component to be checked by Angular change detection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The change detection cycle will work differently when the component is marked
+    to be checked because a signal value changed. First, the component with the signal
+    change will receive a `RefreshView` flag. Next, it will traverse up the component
+    tree and mark all its ancestors with `HAS_CHILD_VIEWS_TO_REFRESH`. It will not
+    mark ancestors as dirty. Now, when change detection runs, Angular will perform
+    so-called **glo-cal** (**global + local**) change detection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When running glo-cal change detection, the component tree will be checked top-down,
+    just as usual. But when Angular encounters a non-dirty `OnPush` component with
+    the `HAS_CHILD_VIEWS_TO_REFRESH` flag, it will skip the `OnPush` component but
+    continue down the component tree to look for the component with the `RefreshView`
+    flag. As a result, only the component with the `RefreshView` flag will be updated
+    and re-rendered; all its parent components with the `OnPush` change detection
+    strategy will not be checked or re-rendered, further improving the efficiency
+    of the Angular change detection mechanism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You now know how Angular change detection works and how to use the `OnPush`
+    change detection strategy to make the change detection process more efficient.
+    Then, you learned how to handle Observables when using `OnPush` change detection
+    for your components. You also know how to manually mark components to be checked
+    or run change detection using the `markForCheck()` and `detectChanges()` functions.
+    Lastly, you’ve seen how you can improve change detection even more by using Signals
+    combined with the `OnPush` change detection strategy and trigger glo-cal change
+    detection. All these changes will significantly enhance the performance of your
+    application, especially when your application grows and you have large and complex
+    component trees.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will explore other methods to enhance the performance
+    of your Angular applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Enhancing the performance of Angular applications
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Understanding how Angular change detection works using the `OnPush` change detection
+    strategy on as many components as possible and using Signals to further improve
+    the change detection is a good first step to building a performant application.
+    However, the framework has more to offer when developing performant applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will explore the built-in tools and learn tips you can use
+    to enhance the performance of your Angular applications and ensure swift page
+    loads and good runtime performance. The first built-in tool to enhance performance
+    that we will explore is the `runOutsideAngular()` method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding and using the runOutsideAngular() method
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In Angular applications, optimizing performance sometimes involves executing
+    specific tasks outside the Angular Zone. In the previous section, you learned
+    about Zone.js, how Angular uses it to create the NgZone, and how it relates to
+    change detection and the update behavior of your application. The `runOutsideAngular()`
+    method provides a way to run specific code outside Angular’s change detection
+    mechanism, which can improve the responsiveness and efficiency of your application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By executing tasks outsideAngular’s Zone using `runOutsideAngular()`, you can
+    prevent unnecessary change detection cycles from being triggered. This can lead
+    to smoother user interactions and reduce the overhead associated with Angular’s
+    change detection mechanism. Tasks executed outside the Angular Zone are not automatically
+    detected by Angular’s change detection cycle, improving the overall performance
+    of your application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `runOutsideAngular()` method is provided by Angular’s NgZone service. The
+    `runOutsideAngular()` method can run heavy computational functions outside the
+    NgZone. Some examples of heavy computational functions are complex mathematical
+    computations, sorting large arrays, and processing large datasets. Other scenarios
+    in which you might want to run something outside the NgZone are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Running code from third-party libraries**: Running code related to initializing,
+    configuring, or interacting with third-party libraries outside the Angular zone
+    prevents Angular from performing unnecessary change detection, leading to better
+    performance and avoiding potential side effects.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Handling WebSocket communication or long-polling requests**: This involves
+    frequent updates to the application state without triggering user-initiated actions.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Animations or rendering optimizations that involve low-level DOM manipulation
+    or canvas drawing operations**: Running the related code outside the Angular zone
+    can enhance performance by bypassing Angular’s change detection and allowing for
+    more direct control over rendering updates.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'By strategically utilizing `runOutsideAngular()`, you can improve the performance
+    and responsiveness of your Angular application, particularly when dealing with
+    computationally intensive tasks or interactions with external libraries. However,
+    it’s crucial to balance performance optimization with maintaining the integrity
+    and functionality of your application. When running tasks inside `runOutsideAngular()`,
+    change detection will not detect the tasks, so you risk showing incorrect data
+    to the user. A good countermeasure to this is running the heavy computation inside
+    the `runOutsideAngular()` method, and then assigning the values to your component
+    properties inside the NgZone again by using the `run()` method, as shown in the
+    following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, you can see how to use the `runOutsideAngular()` and
+    `run()` methods. You inject the NgZone and call the methods on the service provided
+    to you by Angular. Within the callbacks of each method, you can perform any logic
+    you want to perform inside or outside of the NgZone.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that you know how to use `runOutsideAngular()` and run code outside the
+    NgZone to improve the performance of your application, let’s move on to the next
+    tool Angular offers us to develop more performant applications: the `NgOptimizedImage`
+    directive.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding and using the NgOptimizedImage directive
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Another crucial aspect when building performant applications is optimizing your
+    images. The load time of your images is a huge factor in the **Largest Contentful
+    Paint** (**LCP**) of your website, which is one of the three Core Web Vital metrics
+    [the other two Core Web Vital metrics are **First Input Delay** (**FID**) and
+    **Cumulative Layout Shift** (**CLS**)]. The LCP indicates the speed at which the
+    primary content of a webpage loads, specifically measuring the duration from when
+    the user triggers the page load to when the largest image or text block is displayed
+    within the visible area of the browser window. Because images mostly take longer
+    to load compared to text content, how your images are loaded and displayed plays
+    a vital role in the LCP of your applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Within the Angular framework, you can improve how images are loaded by using
+    the `NgOptimizedImage` directive. `NgOptimizedImage` focuses on prioritizing the
+    loading of the LCP images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By default, this directive enables lazy loading for non-priority images, conserving
+    bandwidth and improving initial page load times. Additionally, `NgOptimizedImage`
+    generates a `preconnect` link tag in the document head, optimizing resource fetching
+    strategies. `NgOptimizedImage` automatically sets the `fetchpriority` attribute
+    on the `img` tag, emphasizing the loading priority of the LCP image. Furthermore,
+    the directive streamlines the process of generating `srcset` attributes. By using
+    `srcset` attributes, the browsers request images at the right size for the user’s
+    viewport and because of that, no time and resources are wasted downloading an
+    image that’s too large.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Besides prioritizing the loading of LCP images, `NgOptimizedImage` ensures
+    a series of image best practices are applied:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Image CDN utilization**: The directive encourages the use of image content
+    delivery network (CDN) URLs, facilitating image optimizations and efficient delivery
+    across global networks.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`NgOptimizedImage` incorrectly or not setting dimensions results in a warning.
+    By setting width and height properties, you mitigate layout shifts, improve your
+    CLS, and ensure proper rendering.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`NgOptimizedImage` alerts developers to potential visual distortions in rendered
+    images.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Now that you know why you need the `NgOptimizedImage` directive, let’s see
+    how you can use it. The `NgOptimizedImage` directive is standalone, so you begin
+    by importing the `NgOptimizedImage` directive directly into the necessary `NgModule`
+    or standalone component. Next, you can use `NgOptimizedImage` by replacing the
+    `src` attribute on an `img` tag with `ngSrc`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As mentioned, you also need to set the width and height properties:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: <img ngSrc="dog.jpg" width="400" height="200 priority ">
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: <img ngSrc="dog.jpg" fill attribute is used when you want the image to fill
+    the containing element. A good use case for the fill attribute is when you want
+    to use the image as a background image, or when you don’t know the exact size
+    of your image and want to fit it inside a container of which you do know the size
+    in relation to the screen size. When using the fill attribute, you don’t have
+    to set the width and height properties, as Angular will set them for you behind
+    the scenes when the sizes are resolved.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To control how the image will fill the container, you can use the `object-fit`
+    CSS property.
+  prefs: []
+  type: TYPE_NORMAL
+- en: More information
+  prefs: []
+  type: TYPE_NORMAL
+- en: Besides the `priority` and `fill` attributes, when using a third-party service
+    for your images, the `NgOptimizedImage` directive has more cool features such
+    as low-resolution placeholders and custom image loaders. These features are out
+    of scope for this book, but if you want, you can read about them in the official
+    Angular documentation at [https://angular.io/guide/image-directive](https://angular.io/guide/image-directive).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that you know about `NgOptimizedImage` and how you can use it to optimize
+    your image and improve the LCP of your applications, let’s dive into the next
+    performance optimization step: using the `trackBy` or `track` function for loops
+    inside the HTML template.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding and using the trackBy and track functions
+  prefs: []
+  type: TYPE_NORMAL
+- en: In Angular applications, rendering large lists or collections of data can sometimes
+    lead to performance issues due to frequent DOM manipulations. To optimize the
+    performance of your Angular application, it’s crucial you understand and leverage
+    tools such as the `trackBy` or `track` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `trackBy` function is a feature provided by Angular that improves the performance
+    when rendering lists using the `*ngFor` directives. The `track` function is the
+    counterpart of the Angular control flow syntax. The `trackBy` function is optional,
+    whereas the `track` function is required when using the control flow syntax.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By default, Angular uses object identifiers to track changes in the data provided
+    to an `*ngFor` directive. However, this approach can lead to unnecessary re-renders
+    of DOM elements, particularly when dealing with dynamic data. The `track` and
+    `trackBy` functions allow Angular to efficiently track changes in the collection
+    by providing a unique identifier for each item. This results in fewer DOM manipulations
+    and significantly improves rendering performance, especially when dealing with
+    large datasets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When you use the `*ngFor` directive, you assign the `trackBy` property to a
+    function and declare the corresponding function inside your component class. The
+    function should return the unique identifier you want to use to track the items
+    inside the list you are rendering:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'trackById(index: number, item: Item) { return item.id }'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: '@for (item of items; track item.id) { … }'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: ng generate web-worker <location>
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: addEventListener('message', ({ data }) => {
+  prefs: []
+  type: TYPE_NORMAL
+- en: const response = `worker response to ${data}`;
+  prefs: []
+  type: TYPE_NORMAL
+- en: postMessage(response);
+  prefs: []
+  type: TYPE_NORMAL
+- en: '});'
+  prefs: []
+  type: TYPE_NORMAL
+- en: if (typeof Worker !== 'undefined') {
+  prefs: []
+  type: TYPE_NORMAL
+- en: const worker = new Worker(new URL(‹./heavy-duty.worker', import.meta.url));
+  prefs: []
+  type: TYPE_NORMAL
+- en: worker.onmessage = ({ data }) => {
+  prefs: []
+  type: TYPE_NORMAL
+- en: console.log(`page got message ${data}`);
+  prefs: []
+  type: TYPE_NORMAL
+- en: '};'
+  prefs: []
+  type: TYPE_NORMAL
+- en: worker.postMessage(‹hello›);
+  prefs: []
+  type: TYPE_NORMAL
+- en: '} else { // Fallback for environment. }'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: '@Component({……})'
+  prefs: []
+  type: TYPE_NORMAL
+- en: export class FooComponent {
+  prefs: []
+  type: TYPE_NORMAL
+- en: heavyDutyResult;
+  prefs: []
+  type: TYPE_NORMAL
+- en: heavyDutyInput = {……};
+  prefs: []
+  type: TYPE_NORMAL
+- en: constructor() { this.runWebWorker() }
+  prefs: []
+  type: TYPE_NORMAL
+- en: runWebWorker () {
+  prefs: []
+  type: TYPE_NORMAL
+- en: if (typeof Worker !== ‹undefined›) {
+  prefs: []
+  type: TYPE_NORMAL
+- en: const worker = new Worker(new URL(‹./heavy-duty.worker›, import.meta.url));
+  prefs: []
+  type: TYPE_NORMAL
+- en: worker.onmessage = ({ data }) => {
+  prefs: []
+  type: TYPE_NORMAL
+- en: this.heavyDutyResult = data;
+  prefs: []
+  type: TYPE_NORMAL
+- en: '};'
+  prefs: []
+  type: TYPE_NORMAL
+- en: worker.postMessage(this. heavyDutyInput);
+  prefs: []
+  type: TYPE_NORMAL
+- en: '} else { // Fall back }'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '}'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '}'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: addEventListener('message', ({ data }) => {
+  prefs: []
+  type: TYPE_NORMAL
+- en: const response = heavyDutyFunction(data);
+  prefs: []
+  type: TYPE_NORMAL
+- en: postMessage(response);
+  prefs: []
+  type: TYPE_NORMAL
+- en: '});'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '{'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'path: ‹…'','
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'loadComponent: () => import(‹……''),'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'canMatch: [],'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'canActivate: [],'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '}'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'canMatch: [() => inject(UserService).loggedIn],'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'export const hasRouteSegements: CanMatchFn = (route: Route, segments: UrlSegment[])
+    => {'
+  prefs: []
+  type: TYPE_NORMAL
+- en: return inject(UserService).loggedIn && segments.length > 1;
+  prefs: []
+  type: TYPE_NORMAL
+- en: '};'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'canMatch: [hasRouteSegements]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'canDeactivate: [(component: UserComponent) => !component.hasUnsavedChanges]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: <div>{{ data }}</div> + userInput
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: <div [innerHTML]="htmlSnippet"></div>
+  prefs: []
+  type: TYPE_NORMAL
+- en: <div [style]="userProvidedStyles">...</div>
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: protected readonly sanitizer = inject(DomSanitizer);
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: this.trustedUrl = this.sanitizer.bypassSecurityTrustUrl(this.dangerousUrl);
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'export const MockInterceptor: HttpInterceptorFn = ('
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'req: HttpRequest<unknown>,'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'next: HttpHandlerFn,'
+  prefs: []
+  type: TYPE_NORMAL
+- en: ) => {
+  prefs: []
+  type: TYPE_NORMAL
+- en: const csrfToken = inject(AuthService).getCsrfToken();
+  prefs: []
+  type: TYPE_NORMAL
+- en: const csrfReq = req.clone({
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'setHeaders: {'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '‹X-XSRF-TOKEN›: csrfToken,'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '},'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '});'
+  prefs: []
+  type: TYPE_NORMAL
+- en: return next(csrfReq);
+  prefs: []
+  type: TYPE_NORMAL
+- en: '};'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE

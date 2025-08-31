@@ -1,0 +1,770 @@
+- en: '12'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Processing Real-Time Updates
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Real time** refers to the capability of an application to handle and respond
+    to data or events immediately as they happen, without any noticeable delay or
+    latency. This is a very hot topic nowadays, with the demand for real-time features
+    growing in web applications, particularly in areas such as live financial trading,
+    live tracking systems, and live monitoring, analytics, and healthcare. Ultimately,
+    the quicker you get the data, the sooner you can react and make decisions, increasing
+    the chances of higher profits.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, how can you process real-time messages in the frontend and update the displayed
+    data automatically in the UI? This is what we will cover in this chapter. We will
+    start by explaining the real-time requirement, and then we will walk you through
+    the different steps to implement the reactive pattern for consuming real-time
+    updates. Finally, we will learn the reactive pattern for handling reconnection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we’re going to cover the following main topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the requirements of real time
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning the reactive pattern for consuming real-time messages
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning the reactive pattern for handling reconnection
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This chapter assumes that you have a basic understanding of RxJS.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We used the `ws` library, which is a WebSocket Node.js library, in order to
+    support WS in our backend. For more details, check out this link: [https://github.com/websockets/ws](https://github.com/websockets/ws).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The source code of this chapter is available at [https://github.com/PacktPublishing/Reactive-Patterns-with-RxJS-for-Angular-16-2nd-Edition/tree/main/Chap12](https://github.com/PacktPublishing/Reactive-Patterns-with-RxJS-for-Angular-16-2nd-Edition/tree/main/Chap12).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the requirements of real time
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'There are two techniques available for publishing real-time data on the web:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Pull technique**: This is where the client raises a request to get the latest
+    version of data. **HTTP polling** and **HTTP long polling** are two examples of
+    implementations of this pull technique.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Push technique**: This is where the server pushes updates to the client.
+    **WebSockets** and **server-sent events** are two implementations of this push
+    technique.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We are not going to discuss or compare these techniques in detail, as it is
+    not the goal of this chapter; however, in general, push techniques have a lower
+    latency compared to pull ones. For this reason, we will use the push technique
+    and WebSocket as the implementation for our requirements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In short, the WebSocket protocol is a stateful communication protocol that establishes
+    a low-latency bi-directional communication channel between a client and a server.
+    In this way, messages can be sent back and forth between the server and the client.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram illustrates the WebSocket communication flow:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.1 – WebSocket communication](img/B21180_12_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 12.1 – WebSocket communication
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As illustrated, there are three steps in WebSocket communication:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Opening the connection**: In this step, the client issues an HTTP request
+    to tell the server that a protocol upgrade will occur (from HTTP to WebSocket).
+    If the server supports WebSockets, then the protocol switch will be accepted.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Establishing the communication channel**: Once the protocol upgrade is done,
+    then a bi-directional communication channel will be created, and messages start
+    to be sent back and forth between the server and the client.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Closing the connection**: When the communication is over, a request will
+    be issued to close the connection.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: At this level, that is all that you need to know about WebSockets. Now, let’s
+    quickly review what we’ll be doing in our app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In our recipe app, `RecipesListComponent` is responsible for displaying the
+    list of recipes. We will simulate the addition of a new recipe (a recipe for chilli
+    chicken) after a delay of 5 seconds following the rendering of `RecipesListComponent`.
+    The UI should then be updated instantly to include this new recipe by rendering
+    it in the `RecipesList` page.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You will find a ready-to-use WebSocket backend under the `recipes-book-api`
+    folder; this is what pushes the new recipe to the frontend 5 seconds after establishing
+    the connection. We will also use a timer in the backend to simulate the arrival
+    of a new recipe. `RecipesListComponent` should then consume the message coming
+    from the WebSocket server and push the newly received recipe in the already displayed
+    list of recipes. The UI should be updated automatically without having to trigger
+    any **Refresh** button to get the updates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, without further ado, in the next section, let’s see how we can implement
+    all of this using RxJS’s `WebSocketSubject`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning the reactive pattern for consuming real-time messages
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: RxJS has a special type of subject called `WebSocketSubject`; this is nothing
+    but a wrapper around the W3C WebSocket object, which is available in the browser.
+    It allows you to communicate with a WebSocket server, both sending and consuming
+    data through a WebSocket connection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s explore the capabilities of `WebSocketSubject` and learn how to use it
+    to consume real-time messages in our project.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating and using WebSocketSubject
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In order to use `WebSocketSubject`, you have to call the `webSocket` factory
+    function that produces this special type of subject and takes the endpoint of
+    your WebSocket server as input. The following is the function signature:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It accepts two types of arguments, either of the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A string representing the URL of your WebSocket server endpoint
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A special object of the `WebSocketSubjectConfig` type that contains the URL
+    of your endpoint, along with other properties (we will explore `WebSocketSubjectConfig`
+    in detail in the *Learning the reactive pattern for handling* *reconnection* section)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The following code is an example of calling the `webSocket` factory function
+    with the first type of argument:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The next piece of code is an example of calling the `webSocket` factory function
+    using the second type of argument:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: In our case, the URL of our endpoint is `ws://localhost:8081`. You can use `wss`
+    for a secure WebSocket connection (which is the same as HTTPS for a secure HTTP
+    connection).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will be using both types of arguments in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s now see how we can establish the connection to the WebSocket in the following
+    section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Opening the connection
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Now that you have a reference for `WebSocketSubject`, you should subscribe
+    to it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: This will establish the connection with your `ws` endpoint and allow you to
+    start receiving and sending data. Of course, if you don’t subscribe, the connection
+    will not be created.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Listening to incoming messages from the server
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '`WebSocketSubject` is nothing but a regular RxJS subject, whereby you can register
+    callbacks to listen and process the incoming messages from the WebSocket server.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to listen to messages, you should subscribe to the produced `WebSocketSubject`
+    from the `webSocket` factory function and register a callback, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we’re simply subscribing to the WebSocket subject to initiate a connection
+    with the WebSocket server and then logging any received messages to the console.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pushing messages to the server
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'To send messages to the server, we just use the `next` method available in
+    the `subject` type:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: Handling errors
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'You can also catch errors coming from the server using `catchError` as usual
+    and push errors to the server by calling the `error` method. Here’s an example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: However, bear in mind that when you send an error, the server will get notified
+    about this error, and then the connection will be closed. So, nothing will get
+    emitted thereafter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Closing the connection
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'You can use `unsubscribe` or `complete` to close the connection:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'So, to wrap up what we’ve been discussing, only the creation of `WebSocketSubject`
+    is specific to this special kind of subject. However, all the other APIs used
+    (`subscribe`, `unsubscribe`, `complete`, `catchError`, `next`, and so on) are
+    the same as those used for regular subjects. The following figure illustrates
+    this whole process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 12.2 – WebSocketSubject possible events](img/B21180_12_2.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 12.2 – WebSocketSubject possible events
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we’ve covered various WebSocket manipulations, from creating and establishing
+    connections to sending messages, handling errors, and consuming incoming messages,
+    let’s explore a common pitfall you should keep in mind.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Connection management
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: At this point, there is a particular behavior you should be aware of. If the
+    same instance of `WebSocketSubject` has many subscribers, then they will share
+    the same connection to save resources. However, if we have two different instances
+    of `WebSocketSubject`, it will establish two distinct connections, even if they
+    are referencing the same endpoint.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following code explains the connection management for both use cases:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let’s explain what’s happening in this code. First, we create two instances
+    of `WebSocketSubject` called `firstSubject$` and `secondSubject$`, respectively,
+    which both reference the same `ws` endpoint.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, we create a subscription to `firstSubject$`; this first subscription will
+    open the WebSocket connection. Then, we create a second subscription to the same
+    Observable, `firstSubject$`; this second subscription will use the already opened
+    WebSocket connection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, the subscription to `secondSubject$` will open a new WebSocket connection.
+    Why? Because it is a new reference to the WebSocket subject, even though it references
+    the same `ws` endpoint as `firstSubject$`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, if we have many subscribers sharing the same connection and one of those
+    subscribers decides to complete, then the connection will be released unless there
+    are no more subscribers listening, as described in the following code block:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is all that you need to know to make a basic scenario work. Simple, right?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s see the recommended pattern for putting our recipe app in place.
+  prefs: []
+  type: TYPE_NORMAL
+- en: WebSocketSubject in action
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Now that we know how to create a connection to our `ws` endpoint, it is time
+    to explore the different steps to consume real-time messages in our `RecipesApp`.
+    In particular, we will establish a connection to the WebSocket server, and once
+    the new recipe is sent to the frontend, we will update it in the UI. Let’s delve
+    into the various steps necessary to fulfill this requirement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Step one – create a real-time service
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The first step is to isolate all the interactions with `WebSocketSubject` in
+    a separate Angular service. To do this, we will create an Angular service called
+    `RealTimeService` under the `src/app/core/services` path. `RealTimeService` will
+    look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let’s break down what’s happening at the level of this code in the service
+    that we defined:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have a private property, `socket$`, of type `WebSocketSubject<Recipe[]>|undefined`,
+    as we will receive an array containing one or more recipes from the backend. `socket$`
+    contains the reference to the WebSocket subject that we will create using the
+    `getNewWebSocket()` method.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We have a private `BehaviorSubject` named `messagesSubject$`, which is responsible
+    for transmitting the latest incoming messages from the WebSocket server to new
+    subscribers. We’ve provided the type `Observable<Recipe[]>` for `messagesSubject$`,
+    as it will emit an Observable containing an array of recipe objects. Initially,
+    we’ve set it to `EMPTY`, which is an Observable that immediately completes without
+    emitting any values.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We have a private method, `getNewWebSocket()`, that calls the `webSocket` factory
+    function, passing a constant named `WS_ENDPOINT` as input, and this returns `WebSocketSubject`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`WS_ENDPOINT` represents the endpoint of the WebSocket server defined in the
+    `src/environments/environment.ts` file as `wsEndpoint`. Note that URLs are environment-specific
+    configurations, which means they can change from one environment to another (e.g.,
+    development, staging, and production). Defining endpoint URLs in the `environment.ts`
+    file is a common practice in Angular applications because it provides a centralized
+    location to handle environment-specific configuration settings, so you can easily
+    switch between environments without modifying your application code.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We have a public method, `sendMessage()`, that sends a message that is given
+    as input to the socket, which will forward the message to the server.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Finally, we have a public method, `close()`, that closes the connection by completing
+    the subject.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Then, we will add the `connect()` method, which will listen to the incoming
+    messages in a reactive way and emit messages to the subscribers as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let’s break down what is going on in this method. If `socket$` is undefined
+    (not yet created) or closed, then `socket$` will be populated by the newly produced
+    `WebSocketSubject` from the `getNewWebSocket` method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, we will combine the `tap` and `catchError` operators; the `tap` operator
+    is used to log a message when an error occurs or when the connection closes, and
+    the `catchError` operator handles errors and returns an empty Observable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The returned Observable from the pipe operation will be stored in a constant
+    called `messages`. The `messagesSubject$` Observable will emit the messages’ Observable
+    (so, it is an Observable of Observables):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After that, we will provide a read-only copy from the `messagesSubject$` Observable
+    through the `messages$` public Observable defined in `RealTimeService` as follows:
+    :'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: We used the `SwitchAll` operator to flatten the Observable of an Observable,
+    and we will be subscribing to `messages$` in every component that needs to consume
+    real-time updates. Why do we do this? The idea is to protect `Subject$` and the
+    incoming messages from any external update and expose the messages to the consumers
+    as read only. In this way, any component interested in consuming the real-time
+    messages has to subscribe to `messages$`, and all the logic related to the socket
+    will be handled privately in this service.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Step two – trigger the connection
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'After putting the service in place, we should call the `connect` method. As
+    we want the `connect` method to be triggered just once, we will call it from the
+    root component, `src/app/app.component.ts`, after injecting `RealTimeService`.
+    Here’s the code to be added:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Step three – define the Observable emitting live updates
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Next, we should call the `messages$` Observable in the adequate Angular component.
+    As we want to update the list of recipes with the newest ones, we should define
+    the Observable in `RecipesListComponent`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But wait! We already have an Observable in `RecipesListComponent` named `recipes$`
+    that fetches the list of recipes from `RecipesService`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Could we use this existing Observable instead of creating a new one? Absolutely!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our goal is to initially display the list of recipes emitted by `recipes$` and
+    then seamlessly incorporate any newly added recipes emitted by `messages$`. We
+    can achieve this using the `combineLatest` operator from RxJS.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `combineLatest` operator merges the latest values from multiple Observables
+    into an array and emits a new array whenever any of the source Observables emits
+    a value. By leveraging this operator, we can combine `recipes$` and `messages$`
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the code, we combined `recipes$` and `messages$` and then used the `map`
+    operator to extract the latest values emitted by each. We then merge these values
+    into a single array, which is then returned. This ensures that `recipes$` consistently
+    emits a unified array containing all recipes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preventing data loss with the scan operator
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Now, let’s quickly consider a scenario where a recipe with an ID of 12 is initially
+    pushed and added to the recipes list. If another recipe with, for example, an
+    ID of 14 is pushed afterward from the server, then the newest pushed recipe (ID
+    14) will override the previous one (ID 12). Therefore, the ID 12 recipe will be
+    lost. To prevent this data loss, we can use the `scan` operator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `scan` operator in RxJS is similar to the reduce function in JavaScript.
+    It applies an accumulator function over an Observable sequence and returns each
+    intermediate result, emitting the accumulated value each time a new value is emitted
+    by the source Observable. In simpler terms, it continuously applies a function
+    to each value emitted by the source Observable, accumulating these values over
+    time and emitting the intermediate results. This operator is useful for maintaining
+    the state, accumulating values, or performing any kind of stateful transformation
+    on Observable streams.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, in our case, we can use the `scan` operator as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this context, `scan` ensures that all emitted recipes, including both the
+    initial recipes fetched from the `this.service.recipes$` stream and any subsequent
+    updates received from `this.realTimeService.messages$`, are accumulated into a
+    single array. This prevents the loss of data that could occur if a simple mapping
+    operation were used. As a result, the `recipes$` Observable stream contains a
+    comprehensive and up-to-date list of recipes, reflecting all changes from both
+    sources throughout its lifetime.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Step four – subscribe to the Observable emitting live updates
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Finally, we just have to subscribe to the `recipes$` Observable in our component’s
+    template using the async pipe, which is already carried out in `recipes-list.component.html`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'However, we have one more tweak to consider! Since we’ve established that `messages$`
+    emits after a 5-second delay following the emission of `recipes$`, there’s a slight
+    problem: `combineLatest` only emits once both Observables have emitted values.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To circumvent this brief latency while waiting for `messages$` to emit, in
+    `RealTimeService`, we can use the `startWith()` operator on the `messages$` subject
+    to supply an initial value of an empty array as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: After executing this code, you will notice that 5 seconds after displaying 11
+    recipes, the recipe with an ID of `12` (chili chicken) will be added to the list
+    on the second page of our cards list. If another recipe is pushed afterward, it
+    will be accumulated to the current list of recipes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that in the case of frequent updates in the UI, it is highly recommended
+    to set the change detection strategy to `onPush` in order to optimize the performance,
+    like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: And that’s it! You will be able to consume live updates in a reactive way using
+    this pattern.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At this point, you may be wondering how to handle reconnection. When the server
+    is restarted or the connection crashes for whatever reason, does this subject
+    restore the lost connection under the hood?
+  prefs: []
+  type: TYPE_NORMAL
+- en: The answer is `WebSocketSubject`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, you can implement this easily in your web application using RxJS. Let’s
+    learn how you can do this in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning the reactive pattern for handling reconnection
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When the connection to the WebSocket server is lost, the channel will be closed,
+    and `WebSocketSubjet` will no longer emit values. This is not the expected behavior
+    in the world of real time. The reconnection capability is a must in most cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, let’s imagine, for example, that after a disconnection, a system
+    tries to reconnect after every 3 seconds. The solution, in this case, is intercepting
+    the closure of the socket and retrying the connection. How can we intercept the
+    closure of the connection?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is possible thanks to `WebSocketSubjectConfig`, which is responsible for
+    customizing some behavior in the socket life cycle. The `WebSocketSubjectConfig`
+    interface in RxJS provides several properties that you can use to configure a
+    WebSocketSubject. These properties allow you to customize various aspects of WebSocket
+    communication:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let’s explain the different properties available in `WebSocketSubjectConfig`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`url`: This property specifies the URL of the WebSocket endpoint to connect
+    to (we’ve already explained and and used this in this chapter).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`protocol`: This property specifies the subprotocol to use during the WebSocket
+    handshake (refer to *Figure 12**.1*). It can be a single string or an array of
+    strings representing the subprotocols.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`resultSelector`: This property specifies a function that takes the WebSocket
+    event as input and returns the value to be emitted by `WebSocketSubject`. It’s
+    commonly used to extract specific data from WebSocket events; however, it is deprecated
+    and will be removed in version 8 of RxJS.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`closeObserver`: This property specifies an observer object that listens for
+    the WebSocket connection closing. It can be used to handle cleanup tasks or perform
+    actions when the connection is closed.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`openObserver`: This property specifies an observer object that listens for
+    the WebSocket connection opening. It can be used to perform actions when the connection
+    is successfully established.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`binaryType`: This property specifies the binary type of WebSocket messages.
+    It can be either of the JavaScript types `blob` or `arraybuffer`. By default,
+    it’s set to `blob`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`serializer`: This property specifies a function used to serialize outgoing
+    messages before sending them over the WebSocket connection. It’s commonly used
+    to convert objects or complex data structures into strings.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`deserializer`: This property specifies a function used to deserialize incoming
+    messages received over the WebSocket connection. It’s commonly used to parse received
+    strings back into objects or other data types.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: These properties provide flexibility and control over WebSocket communication
+    in RxJS. You can customize them according to your specific requirements to optimize
+    WebSocket interactions in your application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The full description of each property is available in the official documentation
+    link: [http://bit.ly/RxJS-WebSocket](http://bit.ly/RxJS-WebSocket).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to benefit from `WebSocketSubjectConfig`, you should call the `webSocket`
+    factory function, which takes the second type of parameter. The following code
+    creates `WebSocketSubject` using `WebSocketSubjectConfig` and simply intercepts
+    the closure event to display a custom message:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now that we know how to intercept the closure of the connection, let’s learn
+    how to retry the reconnection. We can combine the `retryWhen` operator that conditionally
+    resubscribes to an Observable after it completes using the `delayWhen` operator
+    that sets the delay between two consecutive connections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, let’s create a function that will retry to connect to a given Observable
+    for every configurable `RECONNECT_INTERVAL`; we will log into the browser’s console
+    on every attempt at reconnection:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This `reconnect` function will be used as an RxJS custom operator to handle
+    the reconnection after the socket’s closure in the `connect()` method of our `RealTimeService`,
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, a new Boolean `reconnect` parameter is added to the `connect`
+    function to differentiate between the reconnection and the first connection. This
+    optimizes the code and avoids adding an additional function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, all you have to do is call the `connect` function with `reconnect: true`
+    when intercepting the connection closure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this way, after the connection closure, you will see many outgoing requests
+    from the client trying to reach the server every 3 seconds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The reconnection capability is a must in the world of real time. This is how
+    we handled it using RxJS in a few lines of code. Many developers don’t know that
+    RxJS offers this feature, which enables you to consume real-time messages coming
+    from WebSocket and add many third-party libraries to handle this requirement,
+    and it is also available out of the box. So, choosing RxJS, in this case, is one
+    less dependency!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we delved into a practical demonstration of consuming real-time
+    messages from a WebSocket server in a reactive manner. We first outlined the requirements
+    and provided context for the implementation. Subsequently, we explored the capabilities
+    of WebSocketSubject and described the step-by-step process, from establishing
+    a connection to handling incoming messages from the socket.Next. We applied these
+    concepts to a real-world scenario within the recipe app, gaining insights into
+    best practices for implementing real-time functionality and ensuring robust connection
+    control.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we expanded our understanding by incorporating a reconnection mechanism
+    in a reactive way, leveraging the WebSocketSubjectConfig and RxJS operators to
+    achieve seamless connection management.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, as we approach the final chapter of this book, let’s switch gears and focus
+    on testing Observables.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Part 5: Final Touches'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this part, you’ll discover the different strategies to test reactive streams.
+    We’ll explore their benefits and when to use each one, reinforcing your learning
+    with practical examples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This part includes the following chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[*Chapter 13*](B21180_13.xhtml#_idTextAnchor191), *Testing RxJS Observables*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

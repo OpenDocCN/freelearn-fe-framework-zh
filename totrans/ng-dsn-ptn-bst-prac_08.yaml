@@ -1,0 +1,565 @@
+- en: '8'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Improving Backend Integrations: the Interceptor Pattern'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In a `Service`. However, many side tasks are common to all communications with
+    the backend, such as header processing, authentication, and loading.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We could do this sides task on a service-by-service basis, but in addition to
+    being an unproductive activity, the team might not be able to implement some control
+    on the request due to the carelessness or ignorance of a new member of the team.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to simplify the development of side tasks for communicating with the
+    backend, the Angular framework implements the interceptor design pattern, which
+    we will explore in this chapter. Here, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Attaching the token to the request with an interceptor
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Changing the request route
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating a loader
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Notifying success
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Measuring the performance of a request
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: By the end of this chapter, you will be able to create interceptors capable
+    of implicitly performing tasks necessary for your backend communication.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'To follow the instructions in this chapter, you’ll need the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Visual Studio Code ([https://code.visualstudio.com/Download](https://code.visualstudio.com/Download))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Node.js 18 or higher ([https://nodejs.org/en/download/](https://nodejs.org/en/download/))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The code files for this chapter are available at [https://github.com/PacktPublishing/Angular-Design-Patterns-and-Best-Practices/tree/main/ch8](https://github.com/PacktPublishing/Angular-Design-Patterns-and-Best-Practices/tree/main/ch8).
+  prefs: []
+  type: TYPE_NORMAL
+- en: While following this chapter, remember to run the backend of the application
+    found in the `gym-diary-backend` folder with the `npm` `start` command.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Attaching the token to the request with an interceptor
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'So far, our backend doesn’t have any kind of authentication control, which
+    doesn’t happen (or at least it shouldn’t happen) in the real world. The backend
+    was modified to perform authentication, but this was reflected in the frontend
+    because, if we tried to log in, the following error would occur:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: This error means that our request was rejected by the server because it was
+    not authorized. That’s because our server implements a very common form of security
+    that consists of asking for an authorization token in every request.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This token is created when the user logs in to the application and it must be
+    passed in the header of the HTTP request.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’ll fix this problem first by making a change to the `AuthService` service:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: First, we change the access mode of the `token` attribute. We are using the
+    `#` symbol, which is the way to declare a `private` attribute in standard JavaScript.
+    We want the token to be read by the other `component` but never overwritten, and
+    using the token ensures that this happens even if the consumer class forces manipulation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We change the class to the new attribute name and, at the end, we create the
+    `token()` accessor method to return the token stored by the service.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’ll refactor the `ExerciseSetsService` service to send the token in the request
+    that returns the diary items:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we create a header using the accessory class of Angular, `HttpHeaders`,
+    passing the token in the `Authorization` attribute. Then, we pass this header
+    in the `get` method of Angular’s `HttpClient` service.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When we run our application again, it works again (`mario`, and `1234`):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.1 – Gym diary home page](img/B19562_08_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.1 – Gym diary home page
+  prefs: []
+  type: TYPE_NORMAL
+- en: This approach has a problem, as we would need to replicate this operation for
+    all of the service’s methods, and as our application grows, we would need to remember
+    to do this token handling.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A good software architecture should think about new team members with different
+    backgrounds and even the creation of new teams as the project grows. Therefore,
+    this type of transversal requirement of our system must be treated in a more intelligent
+    way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Enter **Angular Interceptor**, which is a service of a specific type to handle
+    the HTTP request flow. This component is based on the design pattern of the same
+    name, which aims to change a processing cycle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s illustrate this pattern with the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B19562_08_2.jpg)![Figure 8.2 – Interceptor design pattern](img/B19562_08_3.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.2 – Interceptor design pattern
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this diagram, we have the Angular application that makes an HTTP request
+    to the backend; in the interceptor pattern, we have an Angular service in the
+    middle of the request that can change both the request and the return from the
+    backend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will refactor our previous solution to see this pattern in practice. We’ll
+    clean up the `ExerciseSetsService` service by removing the handling from the `Authorization`
+    header:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To create the interceptor, we are going to use the Angular CLI for Angular
+    to create the entire boilerplate of the service:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'With the `AuthInterceptor` service created, let’s create our logic to attach
+    the `Authorization` header:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first thing we can notice is that the interceptor is a common Angular service,
+    so it has the `@Injectable` notation; for more details about Angular services,
+    see [*Chapter 5*](B19562_05.xhtml#_idTextAnchor163)*,* *Angular Services and the*
+    *Singleton Pattern*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This service implements the `HttpInterceptor` interface, which requires the
+    class to have the `inject` method. This method receives the request we want to
+    handle and expects an observable as a return. This signature indicates the characteristic
+    of the interceptor because this class is always in the middle of a flow between
+    the component making the request and the backend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, the service receives information from the flow and must return the
+    flow represented by the observable. In our case, we use the `AuthService` service
+    to get the token. The service cannot attach the token to the login endpoint because
+    that is where we will get the token, so we make an `if` statement by analyzing
+    which URL the request is using.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we have a token, we clone the request, but this time, we inform the header
+    with the token. The reason we need to use the `clone` method to get a new object
+    is that the request object is immutable – that is, it is not possible to change
+    it; we need to create a new one, identical to the old one, but this time, we put
+    the header.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, the flow is returned but, this time, with the new request object.
+    To configure the interceptor, we need to change the `AppModule` module:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: We’re including the `AuthInterceptor` service in the `HTTP_INTERCEPTORS` token.
+    This tells the framework to call the service whenever a component uses Angular’s
+    `HttpClient` service. The `multi` attribute informs the framework that we can
+    have more than one interceptor because, by default, Angular adds only one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Running the application again, we can see that it is working now with the addition
+    that all the resources are attaching the header, but implicitly, without the need
+    to change each `HttpClient` call.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s explore this feature further with a very common task in our project, which
+    is URL routing in the API call.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Changing the request route
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In our project so far, we have two services that make requests to the backend.
+    If we analyze them, we see that they both point directly to the backend URL. This
+    is not a good practice since, as the project scales and grows in complexity, errors
+    can occur by pointing to the wrong URL. In addition to the need to change the
+    host, we will need to change numerous files.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are a few ways to handle this problem, but a very useful tool for this
+    is the Angular interceptor. Let’s see it in practice starting with the Angular
+    CLI, where we are going to create the new interceptor:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'With the generated file, let’s create the `intercept` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this function, we have the URL of the backend and, in the `resource` variable,
+    we receive the original URL of the request that we want to intercept and modify.
+    We use an `if` statement next because we want to avoid errors in case some service
+    needs to call another API directly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we create a new request object (this time, with the URL changed) and
+    we pass this new object to the request flow. For this interceptor to be triggered
+    by Angular, we need to add it to the `providers` array of the `AppModule` module:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will refactor our service to only care about the features they need, starting
+    with the `ExerciseSetsService` service:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We follow this with the `Authentication` service:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can see that if we needed new services or changed the URL, the HTTP requests
+    would not need to be refactored, as we created an interceptor to work on that.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we’ll learn how to give our users a better experience if a request takes
+    too long.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a loader
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In a frontend project, performance is not only about having faster requests
+    but also improving the user’s perception of the application. A blank screen without
+    any feedback signals to the user that the page did not load, that their internet
+    is having a problem, or any other type of negative perception.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'That’s why we always need to signal that the action the user expects is being
+    performed. One way to show this is a loading indicator, and that’s what we’re
+    going to do in this session. In the command line of our operating system, we will
+    use the Angular CLI:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: With that, we created the `overlay` component, the service that will control
+    the loading state, and the interceptor that will control the beginning and end
+    of the loading based on HTTP requests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s create the loading overlay screen in the HTML template of the `LoadingOverlayComponent`
+    component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will implement the `LoadService` service, which will maintain and control
+    the loading state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: We create two methods to turn the loading state on and off and a property to
+    expose this state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the load interceptor, we will implement the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `intercept` method starts by turning on the loading state and returning
+    requests without modifying anything in them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, in the flow of the request, we placed the `finalize` operator from
+    RxJs, which has the characteristic of executing a function when an observable
+    arrives in the complete state – here, turning off the loading state. For more
+    details about RxJS, read [*Chapter 9*](B19562_09.xhtml#_idTextAnchor242), *Exploring
+    Reactivity* *with RxJS*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To activate the interceptor, we will add it to `AppModule`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We want the overlay to be executed in the application as a whole, so we will
+    include the `overlay` component in the `AppComponent` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: We just need to inject the `LoadService` service because that’s where we’ll
+    have the loading state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, let’s place the `overlay` component in the HTML template:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: Running our application, as we are running it with a backend on our machine,
+    we may not notice the loading screen. However, for these cases, we can use a Chrome
+    feature that simulates a slow 3G network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Open **Chrome DevTools** and, in the **Network** tab, use the throttling option,
+    as shown in the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.3 – Simulation of a slow 3G network to notice the loading screen](img/B19562_08_4.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.3 – Simulation of a slow 3G network to notice the loading screen
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will learn how to notify the success of a backend request
+    to the user.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notifying success
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In addition to the loading screen to inform the user that the system is looking
+    for the information they want, it is important to notify the user after processing
+    an item. We can handle this notification directly from the service or component,
+    but we can also implement it generically and implicitly using interceptors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will refactor our application to add this treatment. But first, let’s install
+    a library to show the `toaster` component on the screen with an animation. In
+    the command line of our operating system, we will use the following command in
+    the `main` folder of our frontend project:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In order for the package to work, we need to add our CSS to our project by
+    editing the `angular.json` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For the toaster animations to work, we need to change the `AppModule` module:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the `main` module of our application, we are adding the `ToastrModule` module
+    from the library and changing `BrowserModule` to `BrowserAnimationsModule`, which
+    adds Angular animation services used by the library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With the new package configured, we can proceed with creating the new interceptor
+    using the Angular CLI:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'With the interceptor created, we will change the file with the treatment for
+    the notification:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: As in the *Creating a loader* section, we are using the fact that the request
+    is treated as a flow to use RxJS and its observables to verify the request’s characteristics.
+    We are using the `tap` operator, which aims to perform side effects on the request
+    without changing it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This operator will execute an anonymous function that will check the HTTP event,
+    which brings us to an interesting point. As we are interested in the return of
+    the request, we only select the event of type `HttpResponse` and the event code
+    is `201-Created`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When we develop an interceptor, we have to remember that it is called in the
+    request and the response, so it is important to use conditionals to execute what
+    we need when we need it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The last point we need to configure is the main `AppModule` module:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: Running our project and creating an entry, we notice that the toast appears
+    on the screen with the configured message.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.4 – Success notification](img/B19562_08_5.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.4 – Success notification
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another use for interceptors is to instrument our application to measure performance
+    and stability, which we’ll learn about in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Measuring the performance of a request
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As a development team, we must always seek to offer the best experience for
+    our users, and, in addition to developing quality products, we must allow the
+    application to be monitored to maintain quality during production.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are several tools available on the market, and many of them need some
+    level of instrumentation to accurately measure the user experience. We will develop
+    a simpler telemetry example, but it can be applied to the monitoring tool your
+    team uses.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using the Angular CLI, we will create a new interceptor:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the file generated by the Angular CLI, we will develop our interceptor:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: To illustrate the ability to customize an interceptor, we agree that telemetry
+    will only be used if the request made has a custom header called `X-TELEMETRY`,
+    and right at the beginning of the function, we do this verification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we did in the loader example, we used the `finalize` operator to measure
+    the performance of the request in a simplified way and presented it in `console.log`.
+    You could put your telemetry provider call or even your custom backend here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To exemplify, we use `console.log` to show the information. As in the other
+    sections, we need to configure the interceptor in the main `AppModule` module:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, in the `ExerciseSetsService` service, we will send the customized
+    header to carry out the telemetry of this request only:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: Header passing is a way to configure an interceptor to behave differently depending
+    on the situation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Running our project, we can see the messages in the browser log:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: With this development, HTTP requests with the configured header will be logged
+    in `console.log`. You can replace this interceptor with an integration to a telemetry
+    service, improving the monitoring of your application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we explored the interceptor feature in Angular and the possibilities
+    that this feature can give our team. We learned how to attach the authentication
+    token to the requests without having to change all the services in our project.
+    We also worked on changing the URL of the request, making our project more flexible
+    to its execution environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We also improved our users’ experience by creating a loader in case their internet
+    is slow and notifying them on the screen when a new entry is registered in their
+    gym diary. Finally, we created a simple example of telemetry using a custom header
+    to give the team the ability to select which requests are telemetry capable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we’ll explore RxJS, the most powerful library in the Angular
+    utility belt.
+  prefs: []
+  type: TYPE_NORMAL

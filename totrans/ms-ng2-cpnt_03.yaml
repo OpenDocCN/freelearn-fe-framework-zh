@@ -1,0 +1,1107 @@
+- en: Chapter 3. Composing with Components
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we will go one step further in structuring our application
+    and working on the layout and architecture that serves as the base for our task
+    management system. Besides introducing new components and creating larger compositions
+    with the existing components, we'll also look at the way that we deal with data.
+    So far, we've obtained task data synchronously from the `TaskListService` that
+    we created in the previous chapter. However, in real-world scenarios, this would
+    rarely be the case. In a real application, data is mostly retrieved in an asynchronous
+    form. Usually, we acquire data through a RESTful web service, and we use `XMLHttpRequest`
+    or the recently standardized fetch API. However, as we're trying to build a cutting-edge
+    application, we will go one step further. In this chapter, we'll look at how we
+    can restructure our application to deal with observable data structures using
+    RxJS—a functional and reactive programming library that is used in Angular.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will look at the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Restructuring our application to deal with observable data structures
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The basics of RxJS and its operators in order to build a reactive data model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using pure components in Angular
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using `ChangeDetectionStrategy.OnPush` for pure components
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using content projection points and `@ContentChildren` to create a `Tab` component
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating a simple navigation component
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Injecting parent components and establishing direct component communication
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Combining internal and external content to create a flexible component API
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Data – Fake to real
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Starting with this chapter, we are switching to a document-based database to
+    store our tasks and project data. As a data store, we use the PouchDB project,
+    which is an in-browser database that is designed to run with IndexedDB and various
+    fallback strategies. PouchDB is designed similarly to Apache CouchDB, and it can
+    even be synchronized with it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to provide a quality experience for you while you build your application,
+    it's important that we work in real-life conditions. This means that we should
+    use asynchronous data in our components and not rely on a simple JavaScript array
+    of data. In order to make this as smooth as possible, the whole data layer is
+    already set up for you, and you don't need to worry about the internals too much.
+    Of course if you're still interested, I'm not holding you back from exploring
+    the source code that is in the `data-access` folder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reactive programming with observable data structures
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we used simple array data structures in the task list that we created.
+    This is not really what we'll find in real-world scenarios. In real applications,
+    we have to deal with asynchronous data and the changes of the data that needs
+    to be synchronized between users. The requirements for modern applications sometimes
+    even go further and also provide view updates on the changed data in real time.
+    As we're building a modern task management system here, we should try to keep
+    up with these requirements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Both of these, handling asynchronous data and handling real-time data updates,
+    require a major redesign of the data flow in our application. Using observable
+    data structures, we enable our application to master the challenges of asynchronous
+    data where we need to react to change.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Handling data in applications behaves very similarly to streams. You take input,
+    transform it, combine it, merge it, and finally, write it into output. In systems
+    such as this, it's also very likely that input is in a continuous form and sometimes
+    even of infinite duration. Just take a live feed as an example; this type of data
+    flows continuously, and the data also flows infinitely. Functional and reactive
+    programming are paradigms to help us deal with this kind of data in a cleaner
+    way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Reactive programming with observable data structures](img/image00309.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: A simple observable subscription with value emission and a transformation
+  prefs: []
+  type: TYPE_NORMAL
+- en: Angular 2 is reactive at its very core and the whole of the change detection
+    and bindings are built using a reactive architecture. The input and output of
+    components, which we've learned about in the previous chapter, is nothing but
+    a data flow that is established using a reactive event-driven approach. Angular
+    uses RxJS, a functional and reactive programming library for JavaScript, to implement
+    this data flow. In fact, the `EventEmitter`, which we've used to send custom events
+    from within our components, is just a wrapper around an RxJS observable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Reactive and functional programming is exactly what we are looking for to redesign
+    our application in order to handle asynchronous data and data changes. As we already
+    have RxJS at hand from the production dependency of Angular, let''s use it to
+    establish a continuous data flow from our data source into our application. The
+    `DataProvider` service that is present in the `data-access` folder of our project
+    provides a nice wrapper around our data store using RxJS. As we will use this
+    service in our whole application, we can directly provide it to the bootstrap
+    in the `bootstrap.js` file, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: As a second argument to the `bootstrap` function of Angular, we can provide
+    application-level dependencies, which will be available for injection in all components
+    and directives.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's now use the `DataProvider` service as an abstraction to obtain data from
+    the PouchDB data store and create a new service responsible to provide project
+    data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will create a new `ProjectService` class on the `lib/project/project-service/project-service.js`
+    path, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: Looking at the import section of our new module, you can see that we import
+    the necessary dependencies from the Angular core module for dependency injection.
+    Our service class uses the `@Injectable` decorator so that we can provide this
+    to the injectors of components. We also inject the `DataProvider` service into
+    the constructor of our newly-created service.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `ReplaySubject` class, which we import from the RxJS library, is used to
+    make our service reactive. A subject in the RxJS world is both an observer as
+    well as an observable. It can observe something for changes and then emit further
+    on to all its subscribers. You can think of a subject like a proxy, where it sits
+    in the middle between a source for changes and a group of observers. Whenever
+    the source emits changes, the subject will notify all subscribers about these
+    changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, the `ReplaySubject` class is a special kind of subject that allows you
+    to replay a buffer of changes when new subscribers get added. This is especially
+    useful if you always need to provide some initial data to subscribers. Imagine
+    our data, which we'd like to get propagated into the UI. We want to immediately
+    get the initial data when we subscribe to our service and then going forward,
+    we also want to get notified about changes. Using a `ReplySubject` class, which
+    is buffering just one change, suits this use-case perfectly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at the following figure, which illustrates the behavior of `ReplaySubject`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Reactive programming with observable data structures](img/image00310.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: A source connected to an observer using a ReplaySubject class, which buffers
+    the most recent value and emits on subscription
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding figure, you can see that we're connecting a `ReplaySubject`
+    class to a source that is emitting value changes over time. After two emissions,
+    an observer subscribes to our `ReplaySubject` class. `ReplaySubject` will then
+    replay all buffered changes to the new subscriber as if these events just occurred.
+    In this example, we use a replay buffer length of one. On subsequent value emissions,
+    these will be directly re-emitted to the subscribers of the `ReplaySubject` class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's go back to our `ProjectService` class and add some logic to the `constructor`
+    function in order to emit project data using a `ReplaySubject` class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will start off with some member field initialization, for which we''re going
+    to need to implement the logic:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that we created a new `ReplaySubject` class with a buffer length of one,
+    and assign it to the member filed with the name `change`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We also assign the `DataProvider` service, which was previously injected in
+    the constructor parameters, to the `dataProvider` member field.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, it''s time to make use of the `DataProvider` service in order to subscribe
+    for any changes within our data store. This establishes a reactive connection
+    to our data that is stored in PouchDB:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: The observable that is returned by the `getLiveChanges()` function emits data
+    in our data store as changes. In addition to this, this will also emit any future
+    changes that are applied to our store after we've received the initial data. You
+    can imagine a persistent connection to the database, and whenever a document is
+    updated in the database, our observer will receive this change as a value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Observables provide a large amount of so-called operators that allow you to
+    transform the data stream that originated at the observable. You might already
+    know about some of these functional operators from the ECMAScript 5 array extra
+    functions, such as `map` and `filter`. Using operators, you can model a whole
+    transformation flow until you finally subscribe to the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As we receive changed objects from the data store, we first need to transform
+    them into document objects. This is fairly easy because each change object contains
+    a `doc` property that actually holds the whole data of the changed document for
+    which we have received an update. Using the `map` function, we can transform the
+    changed objects into project objects before we return them back into the data
+    flow:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`DataProvider` will provide us with data for all the documents in the store.
+    As we are only interested in project data at the moment, we also apply a filter
+    that filters out all the documents that are not of the `project` type:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we can subscribe to the transformed stream, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `subscribe` operator is where we terminate our observation path. This is
+    like an endpoint at which we sit and observe. Inside our `subscribe` function,
+    we listen for project document updates and incorporate them into the `projects`
+    member property of our `App` component. This includes not only adding the new
+    projects that were added to the document store, but it also includes updating
+    existing projects. Each project contains a unique identifier that can be accessed
+    by the `_id` property. This allows us to find the right action easily.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After updating our actual view of the projects and storing the list of projects
+    in the `projects` member field, we can emit the updated list using our `ReplaySubject`
+    class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our `ProjectService` class is now ready to be used, and applications components
+    that need to obtain project data can subscribe to the exposed `ReplaySubject`
+    class in order to react on these data changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s refactor our `App` component in `lib/app.js` and get rid of the fake
+    `TaskListService` that we''ve used so far:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: In our `App` component, we now obtain a list of projects using the changed observable
+    on our `ProjectService` class. Using a reactive subscription to `ReplaySubject`
+    on the service, we make sure that our projects list that is stored in the `App`
+    component will always be updated after any changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We use the `OnDestroy` lifecycle hook to unsubscribe from the `ProjectService`
+    change observable. This is a necessary manual step if you like to do proper housekeeping
+    in your application. Depending on the source, forgetting to unsubscribe could
+    lead to memory leaks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With the preceding code, we already established the base for a reactive data
+    architecture. We observe our data store for changes and our user interface will
+    react on them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Reactive programming with observable data structures](img/image00311.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: This figure shows the reactive data flow end-to-end from our data-store into
+    the view
+  prefs: []
+  type: TYPE_NORMAL
+- en: Immutability
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Immutable data was originally a core concept of functional programming. This
+    topic will not cover immutable data in much depth, but it will explain the core
+    concept so that we can talk about how to apply this concept to Angular components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Immutable data structures force you to create a full copy of the data that you
+    want to modify before you can do this. You'll never operate on the data directly
+    but on a copy of this same data. This has many benefits over standard mutable
+    data, the most obvious probably being the application state. When you always operate
+    on new copies of data, there's no chance that you're messing up the data that
+    you actually didn't want to modify.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s take this simple example, which illustrates the issues object references
+    can cause:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Although this seems odd at first, it actually makes sense that the output of
+    this example is true. `Array.reverse()` is a mutable operation, and it will modify
+    the innards of the array. The actual reference will stay the same because JavaScript
+    will not create a copy of the array to reverse it. Although technically this makes
+    a lot of sense, this is not what we expected in the first place when we look at
+    this code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can easily change this example to an immutable procedure by creating a copy
+    of the array before we reverse it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The issue with references is that they can cause a lot of unexpected side-effects.
+    Also, if we come back to our encapsulation topic from [Chapter 1](part0014.xhtml#aid-DB7S1
+    "Chapter 1. Component-Based User Interfaces"), *Component-Based User Interfaces*,
+    they are completely against the concept of encapsulation. Although we might think
+    that it would be safe to pass complex data types into a capsule, it''s actually
+    not. As we''re dealing with references here, the data can still be modified from
+    the outside, and our capsule will not have the complete ownership. Consider the
+    following example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Even if we only wanted to store the data internally in our `Sum` class, we would
+    have created an unwanted side-effect of referencing and modifying the data object
+    that's outside the instance. Multiple `sum` instances would also share the same
+    data from outside and cause more side-effects. As a developer, you've learned
+    to treat object references right, but they still can cause a lot of problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We don''t have these problems with immutable data, which can be illustrated
+    easily with primitive data types in JavaScript. Primitive data types don''t use
+    references, and they are immutable by design:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: There's no way we can modify an instance of a string. Every modification that
+    we perform on a string will generate a new string, and this prevents the unwanted
+    side-effects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, why do we still have object references within programming languages, even
+    though they cause so many issues? Why aren't we performing all these operations
+    on immutable data, and why are we only dealing with values rather than object
+    references?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course, imperative data structures also come with their benefits, and it
+    always depends on the context if immutable data brings value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the main reasons that is often used against immutable data is bad performance.
+    Of course, it costs some performance if we need to create tons of copies of our
+    data every time we want to modify it. However, there are great optimization techniques,
+    which fully eliminate the performance issues that we would usually expect from
+    immutable data structures. Using a tree data structure that allows internal structural
+    sharing, copies of the data will be shared internally. This allows very efficient
+    memory management, which in some situations, even outperforms mutable data structures.
+    I can highly recommend the paper by Chris Okasaki about *Purely Functional Data
+    Structures* if you would like to read more about performance in immutable data
+    structures.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Tip
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: JavaScript does not support immutable data structures out of the box. However,
+    you can use libraries, such as `Immutable.js` by Facebook, which provide you with
+    an easy API to deal with immutable data. `Immutable.js` even implements structural
+    sharing and makes it a perfect power tool if you decide to build on an immutable
+    architecture in your application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As with every paradigm, there are pros and cons, and depending on the context,
+    one concept may fit better than another one. In our application, we won''t use
+    immutable data structures that are provided by third-party libraries, but we''ll
+    borrow some of the benefits that you get from immutable data by the following
+    immutable idioms:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**It''s much easier to reason about immutable data**: You can always tell why
+    your data is in a given state because you know the exact transformation path.
+    This may sound irrelevant, but in practice, this is a huge benefit not only for
+    humans to write code, but also for compilers and interpreters to optimize it.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Using immutable objects makes change detection much faster**: If we rely
+    on immutable patterns to treat our data, we can rely on object reference checks
+    to detect change. We no longer need to perform complex data analysis and comparison
+    for dirty checking, and can fully rely on checking references. We have the guarantee
+    that object properties don''t change without the object identity changing as well.
+    This makes change detection as easy as `oldObject === newObject`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Pure components
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The idea of a "pure" component is that its whole state is represented by its
+    inputs, where all inputs are immutable. This is effectively a stateless component,
+    but additionally, all the inputs are immutable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'I like to call such components "pure" because their behavior can be compared
+    to the concept of pure functions in functional programming. A pure function is
+    a function which has the following properties:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It does not rely on any state outside of the function scope
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It always behave the same if input parameters don't change
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It never changes any state outside the function scope (side-effect)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: With pure components, we have a simple guarantee. A pure component will never
+    change without its input parameters being changed. We can ignore a component and
+    its subcomponents in change detection until one of the component inputs changes.
+    Sticking to this idea about components gives us several advantages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It''s very easy to reason about pure components and their behavior can be predicted
+    very easily. Let''s look at a simple illustration of a component tree where we
+    use pure components:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Pure components](img/image00312.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: A component tree with immutable components
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we have the guarantee that each component in our tree has a stable state
+    until an immutable input property changes, we can safely ignore change detection
+    that would usually be triggered by Angular. The only way that such a component
+    could change is if an input of the component changes. Let''s say that there''s
+    an event that causes the **A** root component to change the input binding value
+    of the **B** component, which will change the value of a binding on the **E**
+    component. This event, and the resulting procedure, would mark a certain path
+    in our component tree to be checked by change detection:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Pure components](img/image00313.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure that shows a marked path for change detection (in black) with "pure"
+    components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although the state of the root component changed, which also changed input properties
+    of the subcomponents on two levels, we only need to be concerned about a given
+    path when thinking about possible changes in the system. Pure components give
+    us the promise that they will not change if their inputs will not. Immutability
+    plays a big role here. Imagine that you're binding a mutable object to the component,
+    **B**, and the **A** component would change a property of this object. As we use
+    object references and mutable objects, the property would also be changed for
+    the **B** component. However, there's no way for the **B** component to notice
+    this change, as we can't track who knows about our object within the component
+    tree. Basically, we'd need to go back to regular dirty checking of the whole tree
+    again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By knowing that all our components are pure and that their inputs are immutable,
+    we can tell Angular to disable change detection until an input property value
+    changes. This makes our component tree very efficient, and Angular can optimize
+    change detection effectively. When thinking about large component trees, this
+    can make the difference between a stunningly-fast application and a slow one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The change detection of Angular is very flexible, and each component gets its
+    own change detector. We can configure the change detection of a component by specifying
+    the `changeDetection` property of the component decorator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using `ChangeDetectionStrategy`, we can choose from a list of strategies that
+    apply for the change detection of our component. In order to tell Angular that
+    our component should only be checked if an immutable input was changed, we can
+    use the `OnPush` strategy, which is designed exactly for this purpose.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s take a look at the different configuration possibilities of component
+    change-detection strategies and some possible use cases:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Change-detection strategy | Description |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `CheckAlways` | This strategy tells Angular to check this component during
+    every change-detection cycle, and this is obviously the most expensive strategy.
+    This is the only strategy that guarantees that a component gets checked for changes
+    on every possible application state change. If we''re not working with stateless
+    or immutable components, or we are using an inconsistent data flow within our
+    application, this is still the most reliable change-detection method. Change detection
+    will be executed on every browser event that runs within the zone of this component.
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `Detached` | This strategy tells Angular to completely detach a component
+    subtree from change detection. This strategy can be used to create a manual change-detection
+    mechanism. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `OnPush` | This strategy tells Angular that a given component subtree will
+    only change under one of the following conditions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the input properties changes where changes need to be immutable
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: An event binding within the component subtree is receiving an event
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| `Default` | This strategy simply evaluates to `CheckAlways` |'
+  prefs: []
+  type: TYPE_TB
+- en: Purifying our task list
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In the previous topic, we changed our main application component to use RxJS
+    Observables in order to get notified about the data changes in our data store.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We also looked into the basics of using immutable data structures and that Angular
+    can be configured to assume component changes only occur when component input
+    changes ("pure" components). As we'd like to get the performance benefits that
+    result from this optimization, let's refactor our task list component to make
+    use of this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the previous chapter, we built our `TaskList` component and directly placed
+    the task data in the component. We then refactored our code so that we could place
+    the task data into a service and use injection to obtain data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, we're rebuilding our `TaskList` component to make it "pure" and only dependent
+    on its input properties. As we'll make sure that the data flowing into the component
+    is always immutable, we can use the `OnPush` change-detection strategy on our
+    refactored component. This will certainly give our task list a performance boost.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Equally important as performance, are the structural benefits that we get from
+    using pure components. A "pure" component does not change any data directly because
+    it's not allowed to modify application state. Instead, it uses output properties
+    to emit events on changed data. This allows our parent component to react to these
+    events and perform the necessary steps to handle the changes. As a result of this,
+    the parent component will possibly change the input properties of the pure component.
+    This will trigger change detection and effectively change the state of the pure
+    component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What might sound a bit overcomplicated at first is actually an immense benefit
+    to the structure of our application. This allows us to reason about our component
+    with high confidence. The unidirectional data flow as well as stateless nature
+    makes it easy to understand, examine, and test our components. Also, the loose
+    nature of inputs and outputs makes our component extremely portable. We can decide
+    on a parent component, what data we'd like to run into our component, and how
+    we'd like to handle changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s take a look at our `TaskList` component and how we change it to conform
+    to our concept of "pure" components:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: All the operations in our task list component are now immutable. We never directly
+    modify our task's data that was passed in as input, but rather we create new task
+    data arrays to perform mutable operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: From what we've learned from the previous section, this effectively makes our
+    component a "pure" component. This component itself is only relying on its input
+    and makes our component very easy to reason about.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You''ve probably noticed that we''ve also configured the change-detection strategy
+    of our component. As we have a "pure" component now, we can configure our change-detection
+    strategy accordingly to save some performance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: As we're rendering a `Task` component for each data record in our task list,
+    we should also check what we can change there in order to round this out.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at the changes in our `Task` component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: We also use the `OnPush` strategy for our `Task` component, and we can do this
+    because we also have a pure component here. This component only depends on its
+    inputs. Both inputs expect native values (a `String` for title and a `Boolean`
+    for done), which actually makes them immutable by nature. Changes on the task
+    will be communicated using the `taskUpdated` output property.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, this is a good time to think about where to place our task list in the
+    application. As we''re writing a task management system that gives our users the
+    ability to manage tasks within projects, we need to have a container that will
+    encapsulate the concerns of projects. We create a new `Project` component, on
+    the path `lib/project/project.js`, which will display project details and renders
+    the `TaskList` component as a subcomponent:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Again, we make the state of this component dependent only on its immutable inputs,
+    and we use the `OnPush` strategy in order to get the positive performance implications
+    of using a pure component. It's also important to note that the `updateTasks`
+    function acts as some sort of a delegate from our `TaskList` component. When we
+    update a task inside the `TaskList` component, we catch the event in the project
+    template and call the `updateTasks` function with the new updated task list. From
+    here, we're just emitting the updated project data with the new task list further
+    up in the component tree.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s also take a look at the template of our `Project` component quickly
+    to understand the wiring behind this component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: The binding logic in the template tells us how the whole data flow with our
+    purified components work. While the `Project` component itself receives the list
+    of tasks as input, it directly forwards this data to the `tasks` input of the
+    `TaskList` component. If the `TaskList` component fires a `tasksUpdated` event,
+    we're calling the `updateTasks` method on the `Project` component, which in fact
+    just emits a `projectUpdated` event again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Recap
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The refactoring of our task list is now completed, and we applied our knowledge
+    about immutable components and observable data structures to gain some performance
+    wins in this structure. There won't be unnecessary dirty checking on our `Task`
+    component any more because we switched to the `OnPush` change-detection strategy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have also reduced the complexity of the `TaskList` and `Task` components
+    a lot, and it's now far easier to reason about these components and their state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A further benefit of this refactoring is the great encapsulation level that
+    we achieved using immutable inputs. Our `TaskList` component is not relying on
+    any task container as a project. We can also pass it a list of tasks across all
+    the projects, and it can still work as expected.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Composition using content projection
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we will create a tabbed interface for our `Project` component
+    that will help us further organize the structure of our application user interface.
+    In order to create a `Tabs` component, we'll look at content projection and content
+    child injection using observable query lists.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Input and output properties are great to establish encapsulation, and this is
+    a main property of proper composition. However, sometimes the requirements are
+    not to only pass data but to also pass content from the outside of a component
+    into the component. In Shadow DOM, this is done using so-called slots. In Angular
+    components, we can create content projection points using the `<ng-content>` element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at a simple content projection example that helps us understand
+    what this is good for:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: Looking at the `App` component in this example, we can see that we've put elements
+    inside the actual `<child>` element. Usually, this content would be ignored and
+    removed by Angular before it renders the `Child` component with its template.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, when using content projection, the elements that are placed inside
+    our component HTML element can be sucked into the `Child` component. This is what
+    content projection is all about. Content projection is actually very similar to
+    the concept of transclusion from Angular 1.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All that we need to do in order to enable content projection within a `Child`
+    component is to place a `<ng-content>` element within its template. In this way,
+    we specify at what locations in our component template we want to insert the content
+    that is sucked in from the parent component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Additionally, we can use the select attribute on the `<ng-content>` element
+    to set a CSS-like selector. This selector will be used to only suck in specific
+    elements, which match this selector. In this way, you can have multiple insertion
+    points that cover different content requirements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Elements from the component element can only be inserted once, and the content
+    projection works by going through all the `<ng-content>` elements in sequential
+    order by project matching elements. If you have multiple competing content projection
+    points in your template that are interested in the same elements, the first one
+    will actually win.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a tabbed interface component
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let's introduce a new UI component in our `ui` folder in the project that will
+    provide us with a tabbed interface that we can use for composition. We use what
+    we learned about content projection in order to make this component reusable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll actually create two components, one for `Tabs`, which itself holds individual
+    `Tab` components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let''s create the component class within a new `tabs/tab` folder in
+    a file called `tab.js`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: The only state that we store in our `Tab` component is whether the tab is active
+    or not. The name that is displayed on the tab will be available through an input
+    property.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We use a class property binding to make a tab visible, based on the active flag
+    we set a class; without this, our tabs are hidden.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s take a look at the `tab.html` template file of this component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is it already? Actually, yes it is! The `Tab` component is only responsible
+    for the storage of its name and active state, as well as the insertion of the
+    host element content in the content projection point. There's no additional templating
+    that is needed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, we'll move one level up and create the `Tabs` component that will be responsible
+    for grouping all the `Tab` components. As we won't include `Tab` components directly
+    when we want to create a tabbed interface but use the `Tabs` component instead,
+    this needs to forward content that we put into the `Tabs` host element. Let's
+    look at how we can achieve this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the `tabs` folder, we will create a `tabs.js` file that contains our `Tabs`
+    component code, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let's observe what's happening here. We used a new `@ContentChildren` annotation,
+    in order to query our inserted content for directives that match the type that
+    we pass to the decorator. The `tabs` property will contain an object of the `QueryList`
+    type, which is an observable list type that will be updated if the content projection
+    changes. You need to remember that content projection is a dynamic process, as
+    the content in the host element can actually change, for example, using the `NgFor`
+    or `NgIf` directives.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We use the `AfterContentInit` lifecycle hook, which we've already briefly discussed
+    in the *Custom UI elements* section of [Chapter 2](part0020.xhtml#aid-J2B81 "Chapter 2. Ready,
+    Set, Go!"), *Ready, Set, Go!* This lifecycle hook is called after Angular has
+    completed content projection on the component. Only then do we have the guarantee
+    that our `QueryList` object will be initialized, and we can start working with
+    child directives that were projected as content.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `activateTab` function will set the `Tab` component's active flag, deactivating
+    any previous active tab. As the observable `QueryList` object is not a native
+    array, we first need to convert it using `toArray()` before we start working with
+    it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s now look at the template of the `Tabs` component that we created in
+    a file called `tabs.html` in the `tabs` directory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: The structure of our `Tabs` component is as follows.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First we render all the `tab` buttons in an unordered list.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: After the unordered list, we have a `tabs` container that will contain all our
+    `Tab` components that are inserted using content projection and the `<ng-content>`
+    element. Note that the selector that we use is actually the selector we use for
+    our `Tab` component.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Tabs that are not active will not be visible because we control this using CSS
+    on our `Tab` component class attribute binding (refer to the `Tab` component code).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This is all that we need to create a flexible and well-encapsulated tabbed interface
+    component. Now we can go ahead and use this component in our `Project` component
+    to provide a segregation of our project detail information.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will create three tabs for now, where the first one will embed our task list.
+    We will address the content of the other two tabs in a later chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's modify our `Project` component template in the `project.html` file as
+    a first step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Instead of including our `TaskList` component directly, we now use the `Tabs`
+    and `Tab` components to nest the task list into our tabbed interface:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'You should have noticed by now that we are actually nesting two components
+    within this template code using content projection, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, the `Tabs` component uses content projection to select all the `<ngc-tab>`
+    elements. As these elements happen to be components too (our `Tab` component will
+    attach to elements with this name), they will be recognized as such within the
+    `Tabs` component once they are inserted.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In the `<ngc-tab>` element, we then nest our `TaskList` component. If we go
+    back to our `Task` component template, which will be attached to elements with
+    the name `ngc-tab`, we will have a generic projection point that inserts any content
+    that is present in the host element. Our task list will effectively be passed
+    through the `Tabs` component into the `Tab` component.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Recap
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this topic, we created a very handy tabbed interface component that we can
+    use to segregate our user interface and provide a focused context for our users.
+    We used content projection points using the `<ng-content>` elements. We also learned
+    how to access inserted components using the `@ContentChildren` annotation and
+    observable lists using the `QueryList` type.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Mixing projected with generated content
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Our task management application supports the listing of multiple projects where
+    a user can manage tasks. We need to provide a navigation that enables a user to
+    browse through the existing projects. As projects come from our data store, the
+    navigation will need to be generated dynamically. However, we also would like
+    to have the possibility of specifying some navigation items within our navigation,
+    as static content with pure templating.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will create a simple navigation component, which will use
+    content projection, so that we can add static navigation items. At the same time,
+    navigation items can be generated from data and mixed with the static content-based
+    navigation items.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s first take a look at an illustration of the architectural design and
+    composition that we''re going to use to implement our navigation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Mixing projected with generated content](img/image00314.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: An illustration of the navigation component tree and interactions
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll use an intermediate component between the `Navigation` and `NavigationItem`
+    components. The `NavigationSection` component is responsible for the division
+    of multiple items into a section. The navigation sections also have a title that
+    will be displayed on top of the item list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The illustration shows two `NavigationSection` components, where the left one
+    uses pure content projection to create items, as we have learned in the previous
+    section. The right `NavigationSection` component generates items using an input
+    data structure, which is a list of navigation item models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we have intermediate components between the `Navigation` and `NavigationItems`
+    components (we can only have one selected navigation), we also establish a direct
+    communication path between them. We will achieve this using ancestor component
+    injection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The architectural approach for this navigation is just one of many possible
+    approaches. We choose this approach in order to show you how we can easily mix
+    content projection and generated content. In this example, we don't use the Angular
+    router to provide navigation state and route mapping. This will be part of a later
+    chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s start bottom up with the `NavigationItem` component and create a new
+    `navigation-item.js` file in a newly-created `navigation/navigation-section/navigation-item`
+    path:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: From the `NavigationItem` component code, we can see that we're directly communicating
+    with the `Navigation` ancestor component. We can simply inject the `NavigationComponent`,
+    as this is a child of the component. As the `Navigation` items will never exist
+    without a `Navigation` component, we should be fine with this direct dependency.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's move on to the `NavigationSection` component that is the intermediate
+    component between the `Navigation` component and the items and is responsible
+    for the grouping of items together.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will create a file called `navigation-section.js` in the `navigation/navigation-section`
+    path:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: Hold on! That's all that this needs? Didn't we say that we want our `NavigationSection`
+    component to also be responsible for not only providing a way to insert content,
+    but also accepting data in order to generate items? Well, this is true. However,
+    this is actually pure templating logic, and it can be done solely within the template
+    file of the component. All that we need is an optional input with item data that
+    we will use to generate the `NavigationItem` components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s create the view template for this component in a file named `navigation-section.html`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Well, this wasn''t rocket science, was it? However, this shows the great flexibility
+    that we have in Angular component templates:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Firstly, we create a content projection point that selects all the elements
+    from the host element that match the name `ngc-navigation-item`. This means that
+    the `NavigationItem` components can be placed outside the component in a very
+    static fashion to create, for example, static links. As the model properties of
+    navigation items are directly exposed as bindable attributes on the `NavigationItem`
+    element, we can also place them statically into a pure HTML template with regular
+    DOM attributes.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Secondly, we can use the `NgFor` directive to generate the `NavigationItem`
+    components inside the component. Here, we just iterate over the list of navigation
+    item models that acts as an optional input to our component. We use bindings in
+    the items model so that we can even propagate change into our navigation item
+    components.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'As a final step, we create the `Navigation` component itself that uses content
+    projection points so that we can manage the `NavigationSection` component from
+    outside. We create a file called `navigation.js` to write the code of the `Navigation`
+    component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the `Navigation` component, we store the state of which navigation item is
+    activated. This is also provided as input to the component so that we can set
+    the activated link with an input binding from outside. The `isItemActive` and
+    `activateLink` functions are there to monitor and change the state of the active
+    item within the navigation. These functions are directly used within the `NavigationItem`
+    components, which inject the navigation using ancestor component injection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, the only bit that is missing is to include our navigation in the main
+    application. For this, we will edit the `app.html` template of the component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here, we only use the generative approach to write a `NavigationSection` component
+    where we actually pass a list of navigation item models into the navigation component.
+    This list is generated by the `getProjectNavigationItems` function on our main
+    application component using the available projects from our observable data structure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Mixing projected with generated content](img/image00315.jpeg)'
+  prefs: []
+  type: TYPE_IMG
+- en: A screenshot of the newly-created project navigation
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned about how we can profit from concepts, such as reactive
+    programming, observable data structures, and immutable objects, in order to make
+    our application perform better, and most importantly, simple and easy to reason
+    about.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We touched on the different change-detection strategies and learned how to use
+    the `OnPush` strategy to gain better performance in combination with immutable
+    data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We built a tabbed user interface component that we can reuse wherever we need
+    it, and we learned about the concept of content projection. We also created a
+    simple navigation component tree that uses a mix of content projection and generation.
+    The navigation items also directly communicate with their ancestor `Navigation`
+    component, in order to manage their state using ancestor component injection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we switched to a reactive approach to manage data within our application,
+    I want you to perform a little experiment. If you've downloaded the final chapter's
+    code, go ahead and open two browser windows that point to the task management
+    application. You will be amazed that we already have a working real-time synchronization
+    in place that allows us to work in both browser windows and have both of them
+    updated at the same time. This has all been made possible because of the reactive
+    and functional way that we work with data in our components.
+  prefs: []
+  type: TYPE_NORMAL

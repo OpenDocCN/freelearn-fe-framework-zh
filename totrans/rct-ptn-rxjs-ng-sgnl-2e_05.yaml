@@ -1,0 +1,636 @@
+- en: '5'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Combining Streams
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we have learned about the reactive pattern to fetch data as streams
+    and have covered error-handling patterns. However, we have only explored the asynchronous
+    data emitted from only one stream. What if we want to work with the asynchronous
+    data emitted from different streams? Do you know how we can proceed?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Luckily, RxJS ships with one of the most powerful concepts: combining streams.
+    Combining streams is the process of bringing together the emissions of multiple
+    Observables in one stream. This allows you to explore multiple sources of asynchronous
+    data as if they were a single stream. The main idea behind combining streams is
+    manipulating asynchronous data in a more structured way.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter revolves around a common use case, which is filtering data; we
+    will resolve this by combining streams. We will start by explaining the filtering
+    requirement, and then we will explore the imperative, classic pattern that can
+    be used to implement this requirement, followed by a declarative, reactive implementation.
+    Finally, we will highlight the common pitfalls to avoid when combining streams
+    and discuss best practices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we’re going to cover the following main topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the filtering requirement
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exploring the imperative pattern for filtering data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exploring the declarative pattern for filtering data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Highlighting common pitfalls and best practices
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The source code of this chapter (except the samples) is available at [https://github.com/PacktPublishing/Reactive-Patterns-with-RxJS-and-Angular-Signals-Second-Edition/tree/main/Chap05](https://github.com/PacktPublishing/Reactive-Patterns-with-RxJS-and-Angular-Signals-Second-Edition/tree/main/Chap05).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the filtering requirement
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In our recipe application, we want to filter the displayed recipes according
+    to certain criteria to refine the results. The following figure shows the implementation
+    of the mockup described in the *View 1 – The landing page* section of [*Chapter
+    2*](B21180_02.xhtml#_idTextAnchor031), *Walking Through* *our Application*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.1 – The filtering requirement](img/B21180_05_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.1 – The filtering requirement
+  prefs: []
+  type: TYPE_NORMAL
+- en: From a user’s perspective, the user will fill out some criteria in the **Filters**
+    area and click on the **See results** button to see the results that match the
+    filled criteria. The user can filter by using the keywords in the recipe title,
+    recipe category, ingredients, tags, preparation, and cooking time. A filtering
+    functionality is a must in the majority of applications that display data collections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When it comes to filtering, there are a lot of strategies you can adopt, and
+    the choice depends highly on the size of your data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you have a small volume of data that you can fetch entirely on the client
+    side, then it is unnecessary to perform server-side filtering; instead, it is
+    faster to perform client-side filtering, which will not harm your application’s
+    performance.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If you have a large amount of data, then you should be lazy when loading your
+    data through pagination or virtual scroll in order to enhance the performance
+    and the user experience as well. Therefore, in this case, conducting server-side
+    filtering is unavoidable since you don’t have all the data on the client side.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For demonstration purposes, we will filter only 11 recipes in total. So we’re
+    going to use client-side filtering (however, note that the reactive pattern we’re
+    going to discuss does not need a specific type of filtering – it can be used with
+    both client and server-side filtering).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring the imperative pattern for filtering data
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we will explore the imperative way to approach filtering data
+    from the UI to the logic of filtering.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s start by setting up the UI code by creating a new standalone component,
+    `RecipesFilterComponent`, under `src/app`. It is responsible for displaying the
+    different filters to refine the initial results. The HTML template code of the
+    filter component looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the previous code, we used Angular reactive forms to display the search
+    criteria inside a form. Then, we included two buttons: the `filterResults()` in
+    the `OnClick` callback. This method will replace the displayed recipes with those
+    that match the filled criteria. Then, the UI will be updated automatically, thanks
+    to the Angular change detection mechanism.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: For more details about Reactive forms, please refer to [https://angular.dev/guide/forms/reactive-forms](https://angular.dev/guide/forms/reactive-forms).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let’s move to `RecipesListComponent`, where we should consider a small
+    change in the template. We should bind the `[value]` input of the `p-dataView`
+    component to a new property, the `filteredRecipes` property, that holds the filtered
+    results. The `filteredRecipes` property initially holds all the recipes requested
+    from the server. This is what the template looks like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The focus is not the HTML template, of course, but the process of filtering;
+    however, it is important to point out when providing a complete workflow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now let’s look at the logic of the classic pattern in `RecipesListComponent`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let’s break down what is happening. Here, we declared three variables:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`filteredRecipes`: The array that contains the filtered recipes. It is the
+    property binded in the HTML template to the `[value]` input of the `p-dataview`
+    component.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`recipes`: The initial array of recipes.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`destroy$`: A subject to clean up the subscription.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Then, in the `ngOninit()` method, we called the recipes (`recipes$`) that represent
+    our Observable recipes. After that, we subscribe to it and initialize the recipes
+    and `filteredRecipes` arrays with the emitted array from `recipes$`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we don’t use the async pipe in this example, we should clean up the subscription
+    manually using the `takeUntil()` pattern or `takeUntilDestroyed()`, as explained
+    in [*Chapter 3*](B21180_03.xhtml#_idTextAnchor047), *Fetching Data* *as Streams*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `filterResults(recipe:Recipe)` method called when clicking on the `recipe.title;`,
+    containing the value the user filled out in the title input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: For demonstration purposes, in this imperative implementation example, we’ve
+    chosen to display `RecipesFilterComponent` within `RecipesListComponent`. This
+    approach involves sending an output event, which encapsulates the filter form’s
+    value available in `RecipesFilterComponent`, to `RecipesListComponent`. Subsequently,
+    `RecipesListComponent` executes the `filterResult` method based on this input
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you use server-side filtering, in other words, if you have a service that
+    handles filtering data according to a given criteria, then `filterResults()` should
+    call a backend service and will look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: That’s it! It works fine, and I would say this is probably how most people would
+    approach implementing filtering in an Angular application. The imperative way
+    is kind of the obvious way to do it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, you may have noticed that we are no longer able to take advantage of
+    `recipes$` as a stream in the template, as explained in [*Chapter 3*](B21180_03.xhtml#_idTextAnchor047),
+    *Fetching Data as Streams*. Plus, what if your recipes service emits new recipes?
+    This will overwrite the active filter until the user clicks on **See results**
+    again to update the list with the current filter. This can be handled imperatively,
+    of course, but it is a shame to use Observables and not take advantage of the
+    power of reactivity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, without further ado, let’s explore a better way to implement the filtering
+    requirement by using a declarative and reactive way using the fundamentals of
+    combining streams.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remember, I always really want to highlight the classic way and the reactive
+    way straight after to enable a smooth transition from imperative to declarative.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring the declarative pattern for filtering data
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You should think of everything as a stream; this is the golden rule!
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have `recipes$`, which is already our **data stream**, but what if we consider
+    the click on the **See results** button as a stream as well? We will call it the
+    **action stream** and consider it an asynchronous data flow; we don’t know when
+    it happens, but every time the user clicks on **See results**, the action stream
+    should emit the value of the filter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, in total, we need two streams:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The data stream*: In our case, it is `recipes$`, which is defined in `RecipesListComponent`,
+    which we created in [*Chapter 3*](B21180_03.xhtml#_idTextAnchor047), *Fetching
+    Data* *as Streams*:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '*The action stream*: In our case, it’s named `filterRecipesSubject`; it is
+    responsible for emitting the latest value of the filter every time the user clicks
+    on the `RecipesService` service (which we also created in [*Chapter 3*](B21180_03.xhtml#_idTextAnchor047),
+    *Fetching Data as Streams* as follows:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, let’s explain the previous code block. Here, we created two attributes:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'A `BehaviorSubject` named `filterRecipeSubject` to prevent the external parts
+    of the code from emitting values in the stream, erroring out, or completing the
+    stream. We initialized `filterRecipeSubject` with a default value—an empty object—defined
+    in the constructor argument. We can use either `Subject` or `BehaviorSubject`
+    to create our action stream:'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`Subject` is a special type of Observable in that it enables multicasting.
+    We will explore multicasting in detail in [*Chapter 9*](B21180_09.xhtml#_idTextAnchor146),
+    *Demystifying Multicasting*. For now, keep in mind that a subject is an observer
+    and an Observable at the same time, so you can use it to share values among observers.'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`BehaviourSubject` is a special type of subject that requires an initial value
+    and always retains the last value to emit it to new subscribers. In other words,
+    if you have any subscribers coming late to the game, they will get the last value
+    emitted by the stream. This will always give you a value when you subscribe. We
+    will discuss why we used `BehaviourSubject` instead of `Subject` at the end of
+    the chapter.'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A `filterRecipeAction$` (created from `filterRecipeSubject` through the method
+    `asObservable()`) so that the other parts of the app can subscribe to and get
+    the data.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'So, just to recap, the `RecipesService` service will now look like this after
+    adding the previous code block:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, it is time to combine the streams. Both of the streams rely on each other;
+    when `recipes$` emits a new value, the filter should stay active, and when the
+    filter emits a new value, the recipes list should be updated accordingly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What we are really trying to do is get information from both streams. Whenever
+    you want to join information from multiple Observables, you should think of the
+    RxJS combination strategy. Instead of getting the data from both streams separately,
+    we can combine it to form a single new stream. RxJS has a set of combination operators
+    to use in that matter. In the next section, we will explore one of the most used
+    combination operators, which is the `combineLatest` operator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The combineLatest operator
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The `combineLatest` operator will combine the latest values emitted by the
+    input Observables. So, every time one of the Observables emits, `combineLatest`
+    will emit the last emitted value from each. Does that make sense? If not, don’t
+    worry; we will detail it further by using a marble diagram as usual:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.2 – The combineLatest marble diagram](img/B21180_05_2.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.2 – The combineLatest marble diagram
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s break this down:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first line in the marble diagram represents the timeline of the first input
+    Observable.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The second line represents the timeline of the second input Observable. So,
+    `combineLatest` has two inputs.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The last line represents the timeline of the output Observable returned from
+    the `combineLatest` operator.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Now, let’s dig deeper into the execution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first Observable emitted the value `combineLatest`. Why? Because `combineLatest`
+    will not emit until all the input Observables emit one value each. So, when the
+    second Observable emits `combineLatest` will emit **a1**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Bear in mind that `combineLatest` will not emit an initial value until each
+    Observable emits at least one value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, the first Observable emitted another value, `combineLatest` will emit
+    the last value emitted by each input stream, which is `combineLatest` will emit
+    **b2**, and so on and so forth.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s come back to our example and see how we can combine the data stream and
+    the action stream that we have just created in order to filter results reactively
+    using the `combineLatest` operator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In `RecipesListComponent`, we will create a new stream named `filteredRecipes$`,
+    which represents the result of combining the data and the action stream:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'So, here, we used the `combineLatest` operator and passed to it (as a parameter)
+    an array of two values: the first one is the `recipes$` data stream, and the second
+    one is the `filterRecipeAction$` action stream. `combineLatest` will then return
+    an array of two values (as the number of input Observables): the first element
+    of the array is the last emitted value from the first stream, and the second element
+    of the array is the last emitted value from the second stream. It respects the
+    order.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we will use `filteredRecipes$` from the `RecipesListComponent` template,
+    where we will bind it to the `[value]` input of `p-dataview` so that the following
+    occurs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`filteredRecipes$` should return all the recipes when loading the page'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`filteredRecipes$` should return only the recipes that match the selected criteria
+    when filtering'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Then, the HTML code of the `RecipesListComponent` template will look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the template, we have included both the `RecipesList` and `RecipesFilter`
+    components. This separation of components enhances the maintainability and readability
+    of the codebase, promoting a modular and scalable architecture for the application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Still, there is one change that we need to make in `RecipesListComponent`. In
+    our UI, we want to display all the recipes when loading the page and the filtered
+    recipes when refining the results; because of this, we need to edit `filteredRecipes$`
+    so it should not return the result of the combination directly (and in most cases,
+    that won’t happen anyway). Instead, we will process the result of the combination
+    (the returned array), take the information that we need from the combined streams,
+    and transform it into whatever we need.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this case, we want to modify the result stream so that rather than just
+    giving us the latest recipes and criteria values, it will give us an array of
+    recipes filtered by the received criteria as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: The result of the combination is the `resultAsArray` parameter. The first element,
+    `resultAsArray [0]`, represents the last emitted recipes from `recipes$`, and
+    the second element, `resultAsArray [1]`, represents the last emitted criteria
+    from `filterRecipesAction$`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, we can do even better! We can enhance the code using the array destructuring
+    technique like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, the `recipes` parameter represents the first element of the returned array,
+    and the `filter` parameter represents the second element of the returned array.
+    After `:`, we have the parameter types, and that’s it. So, instead of obtaining
+    the elements by using the index directly, the array destructuring technique provides
+    you with a way to name the array elements and get the values directly from those
+    variables. Finally, we used the `filter` method to filter the list of recipes
+    that match the criteria.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At this point, we put in place all the mechanisms to filter the values reactively.
+    The last thing left to do is update the filter value every time it changes, and
+    this is what we’re going to explore in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Updating the filter value
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As we said, every time the user clicks on the `filterRecipesAction$` should
+    emit the criteria so that our `combineLatest` re-executes and returns the filtered
+    recipes. To achieve this, we created a new method called `updateFilter` in the
+    `RecipesService` that takes the filter value as input and simply emits it using
+    the next method over the `filterRecipesSubject` subject:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we will call this method in `RecipesFilterComponent` when the user clicks
+    on the **See results** button to update the filter value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: We passed the value of the “Filters” form created in the `RecipesFilterComponent`
+    to the `updateFilter` method. That’s it; now, on every emission of criteria, it
+    will re-execute the `combineLatest` operator and will consequently filter the
+    values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To summarize, this is what the complete code looks like in `RecipesListComponent`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `RecipesFilterComponent` component looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, `RecipesService` looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The complete code is available in the GitHub repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s answer the question, Why did we choose `BehaviorSubject` instead
+    of `Subject`?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Between loading the page and clicking on `filteredRecipes$` to hold all the
+    recipes, as explained in the *Combine streams* section. If we use a plain `Subject`,
+    the criteria will only get emitted when we click on the button. That means that
+    when loading the page, only `recipes$` is emitted, and `combineLatest` will wait
+    for all the streams to emit one value before emitting more. In our UI, we would
+    then get an empty list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, when we use `BehaviorSubject`, it will emit the default value for all
+    the subscribers immediately, so `combineLatest` will emit a first value, and everything
+    will work fine and that’s it. Seems like magic, right?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s an example of the filtered recipes when searching for `Lemon` in the
+    keyword:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.3 – Filtered recipes](img/B21180_05_3.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.3 – Filtered recipes
+  prefs: []
+  type: TYPE_NORMAL
+- en: To sum up, in order to resolve the use case we’ve looked at in this chapter,
+    we started with defining the data stream responsible for getting the data; then,
+    we created the action stream. Afterwards, we combined the streams, did some manipulation
+    on the combined stream, binded it in our template, and, finally, updated the filter
+    value in the filter event.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s highlight some of the common pitfalls when using `combineLatest`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Highlighting common pitfalls and best practices
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Here are some common pitfalls or scenarios to avoid when using `combineLatest`
+    in RxJS:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unnecessary subscriptions
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '`combineLatest` subscribes to all provided Observables automatically. Make
+    sure you unsubscribe from the returned subscription when you no longer need the
+    combined values, especially for long-running or infinite Observables. This prevents
+    memory leaks and unnecessary processing.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Missing or incomplete values
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '`combineLatest` only emits a value when all its source Observables have emitted
+    at least one value. If any Observable completes or throws an error before all
+    have emitted, `combineLatest` will also complete or error out, respectively. Consider
+    using the `withLatestFrom` operator if you only need the latest value from one
+    Observable combined with the entire emission history from another.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Performance overhead
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Combining a large number of Observables with `combineLatest` can introduce performance
+    overhead. Evaluate the need for combining so many streams and consider using simpler
+    operators, such as `forkJoin`, if you only need all emissions as a single array
+    once all the Observables complete. We will delve into the `forkJoin` operator
+    in [*Chapter 11*](B21180_11.xhtml#_idTextAnchor170), *Performing* *Bulk Operations*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Confusing error handling
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '`combineLatest` propagates errors from any of its source Observables. If error
+    handling is complex, consider using custom operators to handle errors for each
+    Observable individually before combining them. Implement proper error handling
+    by using the `catchError` operator on individual Observables or using a custom
+    operator that combines the emissions and errors from each source.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, `combineLatest` is a powerful operator for combining multiple
+    Observables, but it’s important to understand its behavior and potential pitfalls
+    in order to use it effectively in your RxJS applications. Choose the right operator
+    based on your specific use case and prioritize clear and maintainable code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we embarked on a journey through filtering data, beginning
+    with an exploration of the imperative pattern. We then transitioned to one of
+    the most commonly used RxJS patterns for data filtering, which can be used in
+    many use cases where data updates are triggered by actions. By delving deeper,
+    we outlined the different steps needed to implement the reactive pattern, from
+    creating the streams to their combination, using the `combineLatest` operator.
+    We learned how this operator works and how we can use it in a practical implementation.
+    We used the combined stream in our template and handled data updates reactively.
+    Finally, we explored some of the common pitfalls to avoid when using `combineLatest`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Combining streams is a fundamental concept in RxJS that enables you to build
+    more complex and powerful asynchronous data processing. It allows you to join
+    data from various sources and apply operators and transformations to create new
+    streams that meet your specific application requirements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we know about this useful pattern, let’s move on to the next reactive
+    pattern, transforming streams.
+  prefs: []
+  type: TYPE_NORMAL

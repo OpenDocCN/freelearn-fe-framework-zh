@@ -1,0 +1,532 @@
+- en: '10'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Boosting Performance with Reactive Caching
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Caching data and assets is one of the most efficient ways to improve the user
+    experience of our web applications. It’s a good way to speed up the load times
+    of our web applications and keep the number of network requests to a minimum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will start this chapter by defining the caching requirement for our application’s
+    client side and looking at its motivation. Then, we will learn how to implement
+    this requirement reactively using RxJS operators. After that, we will describe
+    a better way to do this using the latest features of RxJS 7\. Finally, we will
+    highlight another use case of caching streams, which is for side effects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we’re going to cover the following main topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the caching requirement
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exploring the reactive pattern to cache streams
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Highlighting the use of caching for side effects
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This chapter assumes that you have a basic understanding of RxJS.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The source code of this chapter is available at [https://github.com/PacktPublishing/Reactive-Patterns-with-RxJS-and-Angular-Signals-Second-Edition/tree/main/Chap10](https://github.com/PacktPublishing/Reactive-Patterns-with-RxJS-and-Angular-Signals-Second-Edition/tree/main/Chap10).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the caching requirement
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As you have learned throughout the previous chapters, the `HTTPClient` module
+    is Observable-based, which means that methods such as `get`, `post`, `put`, and
+    `delete` return an Observable. Subscribing multiple times to this Observable will
+    cause the source Observable to be created repeatedly, hence performing a request
+    on each subscription – as we learned in [*Chapter 9*](B21180_09.xhtml#_idTextAnchor146),
+    *Demystifying Multicasting*, this means it is a cold Observable. This behavior
+    will result in an overhead of HTTP requests, which may decrease the performance
+    of your web applications, especially if the server takes some time to respond.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reducing HTTP requests by caching the result on the client side is one of the
+    most commonly used techniques to optimize web applications. **Client-side caching**
+    involves storing previously requested data so that you don’t raise repetitive
+    requests to the server and harm your application’s performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s picture this with a streaming service scenario. Imagine that you’re watching
+    your favorite TV show on a streaming service. When you start watching, the streaming
+    service fetches the episodes from the internet and streams them to your device.
+    Now, let’s say you want to rewind a bit and watch a scene again. Instead of fetching
+    the episodes from the internet again, the streaming service has already stored
+    the episodes you’ve watched in a special memory bank. This memory bank allows
+    you to rewind and rewatch scenes without having to re-fetch them from the internet.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But when should we cache data? When data is shared (used by more than one component
+    in your app) and doesn’t change frequently, it makes a lot of sense to cache it
+    and share it among multiple components. For example, the user’s profile data is
+    subject to caching. We generally retrieve the user’s profile information after
+    they log in, and it won’t change during the user’s session.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Additionally, reference data, such as lists of countries, currencies, or categories,
+    are subjects for caching. Since this doesn’t change frequently, you can cache
+    it and share it among multiple components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the case of `RecipesApp`, the `/api/recipes` GET request is called every
+    time the `RecipesList` component is rendered to load the list of recipes. In other
+    words, whenever the user clicks on the recipe app's logo or navigates between
+    `HomeComponent` and `RecipeCreationComponent`, a GET request will be issued, even
+    if the list of recipes hasn’t changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following screenshot shows the raised requests in the **Network** tab:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 10.1 – The GET HTTP requests and their overhead](img/B21180_10_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 10.1 – The GET HTTP requests and their overhead
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you may have noticed, all those outgoing requests result from the navigation
+    between `HomeComponent` and the other components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will assume that the list of recipes does not change frequently.
+    In this case, it is useless to request the server on every component’s load; it
+    would be better to cache the result and read the data from the cache to enhance
+    the performance and the user experience.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But what if there are new recipes? What about updates? Well, there are two
+    techniques we can utilize to handle updates:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We could update the cache data after each interval of time to retrieve the most
+    recent version of the data – this technique is called **polling**
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We could place a server push notification to get real-time updates instantly
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In this chapter, to understand the caching behavior in RxJS through basic examples,
+    we will keep it simple and implement a client-side cache with and without a refresh
+    capability.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Though we will cover the polling technique in this chapter, we will cover the
+    second technique in [*Chapter 11*](B21180_11.xhtml#_idTextAnchor170), *Processing*
+    *Real-Time Updates*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, without further ado, let’s look at how we can implement this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring the reactive pattern to cache streams
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You’ll be glad to know that RxJS ships with a very useful operator to implement
+    a stream caching mechanism – this is the `shareReplay` multicast operator. Let’s
+    take a look.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The shareReplay operator
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In RxJS, `shareReplay` works similarly to the streaming service memory bank,
+    sharing an Observable’s execution with multiple subscribers. When you subscribe
+    to an Observable that uses `shareReplay`, it fetches the data, just like streaming
+    a show. However, `shareReplay` caches or remembers the emitted values from the
+    Observable. If you subscribe again later, instead of fetching the data again,
+    it replays the cached values from its memory bank.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This can be useful when you have multiple subscribers to an Observable, but
+    you don’t want each subscriber to trigger a new data fetch. Instead, you want
+    them to share the same set of data, like multiple viewers sharing the same TV
+    show episodes. This can improve performance and reduce unnecessary data fetching
+    in your application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, in a nutshell, the `shareReplay` operator does the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Shares an Observable’s execution with multiple subscribers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Offers the possibility to replay a specified number of emissions to the subscribers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Now, let’s see how we can use the `shareReplay` operator for our requirement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using shareReplay in RecipesApp
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Our goal is to cache the list of recipes in our app. This is represented by
+    the `recipes$` stream defined in `RecipesService`, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `recipes$` stream is initially a cold Observable, meaning the stream’s
+    data is re-emitted for every subscriber, resulting in an overhead of HTTP requests.
+    This is not what we want. We want to share the last stream’s emission with all
+    subscribers – in other words, we want to transform the cold stream into a hot
+    stream using the `shareReplay` operator, like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: By passing `1` as an argument, `shareReplay` cached the last emission from `recipes$`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let’s explain the complete data-sharing workflow:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, `HomeComponent` is initialized.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Then, `HomeComponent` triggers the rendering of the child component – that is,
+    `RecipesListComponent`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`RecipesListComponent` loads the `recipes$` Observable that’s available in
+    `RecipeService`. It will perform the GET HTTP request to retrieve the list of
+    recipes since this is the first time we have asked for the data.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Then, the cache will be initialized by the data coming back from the server.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The next time the data is requested, it will be retrieved from the cache thanks
+    to the `shareReplay` operator. Under the hood, the `shareReplay` operator creates
+    a `ReplaySubject` instance that will replay the emissions of the source Observable
+    with all future subscribers. After the first subscription, it will connect the
+    subject to the source Observable and broadcast all its values.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This is the multicasting concept we explained in [*Chapter 9*](B21180_09.xhtml#_idTextAnchor146),
+    *Demystifying Multicasting*. The next time we request the recipes list, our cache
+    will replay the most recent value and send it to the subscriber. No additional
+    HTTP call is involved. So, when the user leaves the page, it unsubscribes and
+    replays the values from the cache.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram also illustrates the complete workflow:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 10.2 – ShareReplay execution](img/B21180_10_2.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 10.2 – ShareReplay execution
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This works perfectly fine when the data doesn’t need to be refreshed at all.
+    But as described in the requirement, we need to refresh `RecipesList` every interval.
+    If the polling technique is used, we can update the cache like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we created a `timer$` Observable that will emit every 50 seconds. This
+    interval is configured in the `REFRESH_INTERVAL` constant, using the `timer` function
+    available in RxJS to create the `timer$` Observable. For more details about the
+    `timer` function, please refer to [https://rxjs.dev/api/index/function/timer#examples](https://rxjs.dev/api/index/function/timer#examples).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, for every emission, we use the `switchMap` operator to transform the value
+    into the Observable that’s returned by the HTTP client. This will issue an HTTP
+    GET every 50 seconds and, consequently, update the cache.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is a known RXJS pattern for executing a treatment every *x* seconds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s see how we can customize the `shareReplay` operator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Customizing the shareReplay operator
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'With RxJS 6.4.0, a new `shareReplay` signature was provided to customize the
+    operator’s behavior. The new signature takes a single `config` parameter of the
+    `ShareReplayConfig` type, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `ShareReplayConfig` interface contains the following properties:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let’s discover the purpose of each property:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`refCount`: If `refCount` is enabled (set to `true`), the `shareReplay` stream
+    will unsubscribe from the source Observable when there are no subscribers. Therefore,
+    the source will no longer emit. This means that if a new subscriber comes along
+    later, then a new stream will be created that subscribes to the source Observable.
+    If `refCount` is disabled (set to `false`), the source will not be unsubscribed,
+    meaning that the inner `ReplaySubject` will still be subscribed to the source
+    and potentially run forever. To avoid memory issues, it is highly recommended
+    to set the `refCount` property to `true`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`bufferSize`: This refers to how many values you want to replay. For example,
+    if you just want the one previous value to be replayed for each new subscriber
+    to the shared stream, then you should mention `1` as a `bufferSize` value like
+    so: `shareReplay({bufferSize: 1})`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`windowTime`: This refers to the time limit in milliseconds for data stored
+    in the buffer to be emitted to future subscribers.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`scheduler`: This is used to control the execution and provide a way to manage
+    concurrency (for more details, please refer to the official documentation: [https://rxjs.dev/api/index/interface/SchedulerLike](https://rxjs.dev/api/index/interface/SchedulerLike)).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In our case, we need to configure `bufferSize` to `1` to store only the latest
+    value and set `refCount` to `true` to prevent memory leaks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, using the `shareReplayConfig` object, the final code of `RecipesService`
+    will look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: When using `shareReplay` on Observables that don’t complete on their own, always
+    consider the `refCount` flag.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we know the behavior of `shareReplay`, I want to shed light on an improvement
+    that’s become available starting from RxJS 7 that allows you to replace the `shareReplay`
+    operator with the `share` operator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Replacing the shareReplay operator with the share operator
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The `share` operator is similar to `shareReplay` but, by default, it doesn’t
+    have a buffer and it doesn’t replay that buffer on subscription.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the `share` operator, once the subscriber count reaches `0`, the source
+    Observable automatically unsubscribes. On the other hand, when the `refCount`
+    option of `shareReplay` is set to `true`, it behaves similarly to the `share`
+    operator in terms of reference counting, but it also offers the ability to replay
+    emitted values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s a table that compares the two:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Feature** | `share` | `shareReplay` |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **Behavior** | Creates a multicast Observable. | Creates a multicast Observable.
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **Replaying** | Does not replay the previous emission.It uses `Subjects`
+    under the hood. | Replays the latest or a specified number of previous emissions
+    to new subscribers.It uses `ReplaySubject` under the hood. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **Unsubscription logic** | Unsubscribes when the last subscriber unsubscribes.
+    | Offers a `refCount` option to unsubscribe when the last subscriber unsubscribes.
+    By default, `refCount` is set to `false`. However, if you keep it set to `false`,
+    the source Observable will remain active even when the subscriber count reaches
+    zero. This situation can be risky because if the source Observable never completes,
+    it might lead to memory leaks. |'
+  prefs: []
+  type: TYPE_TB
+- en: Figure 10.3 – share and shareReplay comparison table
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In RxJS 7, the `share` operator was enhanced with an optional configuration
+    object as an argument, `share(config)`, which makes it more flexible and ready
+    to do the job of other operators, such as `shareReplay()`. In this configuration
+    object, there are four properties:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`Connector`: With this option, you can control whether or not `share` will
+    replay emissions. You can choose the subject type you’re connecting through (such
+    as `ReplaySubject`).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`resetOnRefCountZero`: With this option, you can control when your Observable
+    should be reset. If this option is enabled and all the subscriptions of our Observable
+    are unsubscribed, the Observable is reset. However, if this option is disabled,
+    the subject will remain connected to the source.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`resetOnComplete`: If enabled, the resulting Observable will reset on completion.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`resetOnError`: If enabled, the resulting Observable will reset after an error.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: So, `shareReplay` is nothing but a `share` operator that uses `ReplaySubject`
+    as a connector and a specific reset strategy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following code shows how we can achieve the behavior of the optimized `shareReplay`
+    operator by using the `share` operator instead:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding code shows the `share` operator with the same behavior as the
+    `shareReplay` operator. This is because we referenced `ReplaySubject` as a connector,
+    so we’re telling `share` to use replay logic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, for the reset strategy, we enabled all the reset options – `resetOnRefCountZero`,
+    `resetOnComplete`, and `resetOnError` – to get optimized behavior and enhanced
+    performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That’s it – by using the `share` operator, we can achieve the same behavior
+    as the `shareReplay` operator!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Apart from the `shareReplay` operator, a lot of work was done in RxJS 7 to consolidate
+    multicasting operators. The `multicast`, `publish`, `publishReplay`, `publishLast`,
+    and `refCount` operators were deprecated and will be removed in RxJS 8, and the
+    only operators that will remain are `shareReplay`, `share`, and `connectable`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we have seen in this section, the `share` operator rules them all, meaning
+    that in most cases, it is highly recommended to use the `share` operator instead
+    of `connectable` and `shareReplay`. The `shareReplay` operator is too popular
+    to deprecate but may be deprecated in future versions as there is an alternative
+    to it, especially because `shareReplay`, when not used carefully, can cause memory
+    leaks, particularly with infinite streams.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, if you’re using RxJS 7, it is highly recommended to call the `share` operator
+    instead of `shareReplay`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we’ve learned how we can optimize HTTP requests by caching our data
+    using `shareReplay` and `share` operators and have put those operators in place
+    in `RecipesApp` to cache the list of recipes, let’s discover another situation
+    where caching streams is very useful.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Highlighting the use of caching for side effects
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The use case we covered in this chapter involved optimizing HTTP requests to
+    enhance our web applications’ performance. All you have to do is put the result
+    in a cache, which acts as a shared place for all consumers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are other use cases where caching streams makes a lot of sense, namely
+    when accounting for expensive side effects on the streams. In general, we call
+    the actions that we perform after a value is emitted **side effects**. This could
+    be logging, displaying messages, doing a mapping, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s an example of a side effect using the `tap` operator:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, we are performing a transformation for every number that’s
+    emitted, multiplying it by 2, and returning the multiplied value. If the value
+    is not a number, an error is thrown. However, we need to log the initial value
+    before the transformation. That’s why we called the `tap` operator before the
+    `map` operator – so that we can log the original value. This is a basic example
+    of a side effect, but others could also occur, such as handling errors or displaying
+    messages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For further details about the `tap` operator, please refer to the official
+    documentation: [https://rxjs.dev/api/operators/tap](https://rxjs.dev/api/operators/tap).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In some situations, side effects can perform other actions that are more complex
+    than logging, such as displaying messaging and handling errors. This can include
+    some computations that represent an expensive treatment in terms of performance.
+    Unfortunately, every subscriber will execute those treatments, even though it
+    is enough to run them only once. Otherwise, it will harm the performance of your
+    application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you have this use case in your application, it is highly recommended that
+    you use the `share` operator to cache the result and execute heavy treatments
+    only once.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we explained various caching concepts in web applications,
+    including their benefits and use cases. We focused on a concrete example in our
+    recipe app, detailed the requirement, and implemented it reactively. Through this,
+    we learned about the behavior of the `shareReplay` operator, as well as the alternative
+    implementation – that is, using the `share` operator in RxJS 7\. Finally, we highlighted
+    how caching can help us when we have heavy side effects in our app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will explore the reactive pattern for bulk operations.
+  prefs: []
+  type: TYPE_NORMAL

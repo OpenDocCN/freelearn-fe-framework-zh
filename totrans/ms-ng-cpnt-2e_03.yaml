@@ -1,0 +1,1129 @@
+- en: Dealing with Data and State
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we will go one step further in structuring our application
+    and work on the data architecture that serves as the base for our task management
+    system. So far, we've obtained task data synchronously from the task service which
+    we created in the previous chapter. However, in real-world scenarios, this will
+    rarely be the case. In a real application, we would obtain data in an asynchronous
+    way where we need to manage client state, and we need to ensure the integrity
+    of our state and data at all times. In this chapter, we'll look at how we can
+    restructure our application to deal with a RESTful interface using the HTTP client
+    module which comes with Angular. We will use an in-memory database to simulate
+    our HTTP backend. Furthermore, we will be looking at some critical concepts like
+    reactive programming, immutability, and "pure" components to help us build a data
+    architecture that shines on both a small as well as large scale.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will look at the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reactive programming, the basics of RxJS, and its operators to deal with asynchronous
+    data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Restructuring our application to deal with simulated HTTP calls to an in-memory
+    database
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The concept of immutability
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using pure components in Angular
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The introduction of container components to separate our user interface from
+    application state
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using `ChangeDetectionStrategy.OnPush` for pure components
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Reactive programming with RxJS
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we have used simple array data structures in the task list that we created.
+    That is not really what we'll find in real-world scenarios. In real applications,
+    we have to deal with asynchronous data coming from a server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Handling data in applications behaves very similarly to streams. You take input,
+    transform it, combine it, merge it, and finally, write it into the output. In
+    systems such as this, it''s also very likely that input is in a continuous form
+    and sometimes even of infinite duration. Just take a live feed as an example;
+    this type of data flows continuously, and the data also flows infinitely. Functional
+    and reactive programming are paradigms to help us deal with this kind of data
+    more cleanly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/857c6a52-fa81-44e7-ac6d-39dc549bc8fa.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A simple observable subscription with value emission and a transformation
+  prefs: []
+  type: TYPE_NORMAL
+- en: Angular is reactive at its very core, and the whole change detection and bindings
+    are built using a reactive architecture. The input and output of components, which
+    we've learned about in the previous chapter, is nothing but a data flow that is
+    established using a reactive event-driven approach. Angular uses RxJS, a functional
+    and reactive programming library for JavaScript, to implement this data flow.
+    In fact, the `EventEmitter`, which we've used to send output from within our components,
+    is just a wrapper around a RxJS observable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before we mess around with RxJS within our task management system, let''s take
+    a look at a straightforward RxJS example first to see how we can deal with observable
+    streams in general:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: This simple script will generate an observable sequence from an array of numbers.
+    We pass each number through the observable stream, item by item. We're using two
+    simple operators before we subscribe to the observable and print the resulting
+    items to the console. The map operator is squaring each number, which flows through
+    the observable stream. The filter operator is then filtering out items which are
+    greater or equal to `10`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Observables provide a large number of so-called operators that allow you to
+    transform the data stream that originated at the source observable. You might
+    already know about some of these functional operators from the ECMAScript 5 array
+    extra functions, such as `map` and `filter`. Using operators, you can model a
+    whole transformation flow until you finally subscribe to the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: I often use the analogy of water pipes when talking about RxJS observables.
+    If you think of your transformation operators as pieces within a pipeline, then
+    the `subscribe` function is the final drain valve within the pipe. If you don't
+    open the drain of a water pipe, no water will flow. The behaviour of RxJS is very
+    similar. Without the final subscribe call, RxJS will not perform any of the operators.
+    Only if you subscribe to an observable will it become active. Within the subscribe
+    callback, you can then use the resulting items which flow through the stream.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, building pipelines come with a significant advantage. A transformation
+    system which is built like a pipe is expecting input, and it will deliver some
+    output. However, we don't perform anything immediately. Instead, we're setting
+    up a system which knows how to deal with the data, when there's data flowing through
+    it. This pipeline system is entirely stateless and reactive—reactive in the sense
+    that it will react to incoming data and produce a new output of each input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can treat any source which emits items over time as an observable. Let''s
+    take a look at another example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, we're using the `fromEvent` observable helper to create an
+    observable source from the mouse move event on the window object. For each mouse
+    move event, the event object will be emitted through the observable stream. We
+    will then use the `throttleTime` operator to limit the amount of event emitted
+    by the stream. This operator will block subsequent emissions within a given time
+    frame, therefore throttling the steam. Within a `map` operator, we then format
+    the emitted mouse event and finally subscribe to write the results to the console.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using only a few lines of code, we've implemented an excellent little pipeline
+    which transforms a source into a usable result. There lies the power of observables,
+    reactive programming, and RxJS. We can solve difficult problems regarding building
+    a reactive system in a very lovely and declarative way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: HTTP client and in-memory web APIs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: At the beginning of this chapter, we decided that we'd like to change the way
+    how we handle data within our application. Currently, our task data is embedded
+    within our task service and retrieving as well as manipulating are both happening
+    synchronously. Going forward, we want to change that and come as close as possible
+    to a real-world situation. At the same time, we should keep an eye on the complexity
+    costs of our solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Angular comes with a very nice utility for these use cases. Using the in-memory
+    web API module, we can create a mock back-end service which will allow us to use
+    a RESTful interface the same way as if we would connected to a real server. All
+    remote calls using the Angular HTTP client will, however, be redirected to our
+    local in-memory database. The way we deal with our data will be entirely authentic.
+    At some point, we could even create a real backend server and connect our application
+    to it, while our frontend code would stay the same.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look into the necessary changes in order to implement our data layer
+    using the in-memory web API. As a first step, we need to install the package using
+    npm. Open a command line and navigate to your project directory. Then, execute
+    the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Running this command will install the in-memory web API package and save it
+    to our project `package.json` file. As a next step, we want to create our application''s
+    in-memory database. We''re creating a new TypeScript file on the path `src/app/database.ts`
+    and adding the following content:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using the Angular in-memory web API, we can create a class which holds all our
+    initial data. The class is implementing the `InMemoryDbService` interface, which
+    demands that we create a method named `createDb`. Within this function, we can
+    create resources which will be made available for use with the Angular HTTP client
+    in a RESTful style.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we''re going to update our main application module located in the path
+    `src/app/app.module.ts`, and set up our application for using the in-memory web
+    API with our newly created database. You should only add the highlighted parts
+    of the following code excerpt. The ellipsis character is indicating that there''s
+    more code existing, which is irrelevant for the changes you need to apply to your
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: We've added two more modules to the import section of our main application module.
+    We've added the Angular HTTP client module which we'll use to call our simulated
+    REST endpoint in our database. As discussed earlier, this library would also be
+    used in the same way if we were to call a remote server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second module we are importing is the HTTP client adapter of the in-memory
+    web API module. This module will intercept all HTTP calls executed by the Angular
+    HTTP client and redirect the requests to our local database. We're using the factory
+    method `HttpClientInMemoryWebApiModule.forRoot` to configure the adapter module
+    before we import it. In the first argument to the factory function, we're passing
+    the database class we've created. In the second argument, we can provide some
+    additional options for the adapter. In our case, we're setting the delay to zero.
+    Using higher values will artificially delay the responses from our database, which
+    is nice if you want to simulate a network delay.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using behaviour subjects
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The HTTP client is using RxJS to return observable streams for all HTTP request
+    methods. The response body will then be emitted through the observable streams,
+    and we can subscribe to the streams to retrieve the results:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: Since we know how to deal with observable streams within our components, we
+    could go ahead and directly return the observable resulting from the HTTP client
+    call.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, instead, we want to make use of a RxJS class called `BehaviorSubject`.
+    The problem with directly returning the observable from the HTTP client is that
+    we''re always returning a new observable when the tasks are loaded from the server.
+    That would be impractical, and after reloading tasks when performing updates or
+    adding new tasks, we''d like to be able to reuse the same observable stream to
+    re-emit the updated task list. This way, all components of our system will be
+    notified when we reload our tasks. You can use a behaviour subject whenever you
+    want to create your own source of an observable stream. You can control what should
+    be emitted and when. Let''s look at a simplified example of how a behaviour subject
+    can be used:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Within the constructor of a behaviour subject, we can specify the initial value
+    or item which will be emitted initially to all subscribers. Behaviour subjects
+    are also always emitting the most recent item they have to their new subscribers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A behaviour subject is both an observer as well as an observable. Therefore,
+    it would be possible to directly call the `subscribe` method on the subject. However,
+    if you'd like to convert your subject into a plain observable again, you can use
+    the `asObservable` method. This is especially useful for encapsulation. When you're
+    returning your observable stream to be used outside of your immediate program
+    logic, you don't want to give the outside world the power to emit items. It should
+    only be possible to observe the stream.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, whenever you want to emit a new item through the observable stream,
+    you can use the `next` method on the subject.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading data in the task service
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'It''s time to change our task service and make use of the Angular HTTP client
+    to obtain the task data from our database. Let''s open up the `src/app/tasks/task.service.ts`
+    file and change the file content to the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: We are injecting the Angular HTTP client into our constructor so we can use
+    it within our service. In the `loadTasks` method, we're executing a GET call on
+    the RESTful tasks resource which is provided by our database.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `tasks` member of our service is holding a behaviour subject which is initialised
+    with an empty array. Whenever we call the internal `loadTasks` method, the resulting
+    task list array is emitted through our behaviour subject by calling the next method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `loadTasks` method is first called within the service constructor. That
+    will ensure that the resulting task list obtained from the HTTP call is initially
+    emitted through our behaviour subject. We also call the `loadTasks` method right
+    after we've completed the POST requests within the `addTask` and `updateTask`
+    methods. That will guarantee that we're reloading the updated task list from the
+    "server" and emitting it through our behaviour subject.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Within the `getTasks` method, we're converting our subject to an observable
+    and returning it. This way, we can ensure that no one outside of the service will
+    have the power to emit items through our subject. Using the observable of our
+    behaviour subject, we can have hundreds of components subscribing, which will
+    all receive the most recent task list whenever there is a change in our data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The in-memory web API will automatically generate IDs for our tasks when we
+    add new tasks by executing a post request to the tasks resource. This means that
+    when we call the `addTask` method with a task object, we can skip adding the ID
+    property and the in-memory database will take care of finding the next possible
+    ID value for us.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s use our updated task service in the task list component. Open up
+    the `src/app/tasks/task-list/task-list.component.ts` file and apply the following
+    changes. Again, effective changes are in bold:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: We have changed the type of our `tasks` member, which is now holding an observable
+    with a task array generic type. In TypeScript, RxJS makes use of generics to specify
+    what type of items will be emitted through the observable stream. The `tasks`
+    member will store the observable stream which we obtain by calling our task service.
+    It will make the basis for our filtering inside of the component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the constructor of our task list component, we're still calling the `getTasks`
+    method of our service. However, this time, we won't receive a list of tasks synchronously.
+    Instead, we're an observable stream which will emit a list of tasks when we subscribe.
+    Since we're using a behaviour subject inside of the task service, we will never
+    need to call the task service again to obtain tasks. If there are updates to the
+    task list data, we will receive a new item through the connected observable stream
+    containing the most recent task list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have also changed our `activeTaskFilterType` member to a behavior subject.
+    That will help us in building a consistent reactive data flow within our component.
+    Instead of storing the active filter type directly, we're using a subject to emit
+    the filter type. Within the `activateFilterType` method, we do precisely this.
+    When this method is called from our view, as a filter toggle button is clicked,
+    we will emit the new active filter type using the behavior subject.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our `tasks` observable will always emit the latest list when the underlying
+    data is changed. Also, the `activeTaskFilterType` subject is emitting an item
+    when we change the active task filter. Now, we can combine both streams to implement
+    our filter logic reactively. Again, think of a pipeline system. Instead of filtering
+    immediately, we are building a network of pipes which will filter whenever new
+    data arrives. So, how can we combine two observable streams into one? There are
+    many ways to do this using the broad variety of operators RxJS provides. However,
+    in our current situation, the `combineLatest` operator will work best.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at a small illustration of how this operator combines multiple
+    observable streams into one single observable stream:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/66f0af12-df90-4861-bc4d-68c8203391a4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Combining two observables into one by using the combineLatest operator
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `combineLatest` operator is combining two or more input observables into
+    a single output observable. The first item will be emitted on the output observable
+    when all input observables have emitted at least one item. The emitted item on
+    the output observable is always an array which contains the most recent, or latest
+    items of all input observables. In the preceding example, you can see that the
+    first item is emitted when **Observable 2** emits its item labelled with **(a)**.
+    The emitted item is an array containing both values **(1)** from **Observable
+    1** and **(a)** from **Observable 2**. After the first combined item was emitted,
+    if one of the input streams is emitting a new item, the output observable by `combineLatest`
+    will emit an updated item which again contains the latest items of all input observables.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is exactly the behaviour we're looking for when we're building our filter
+    observable. Just switch **Observable 1** from the preceding example with our tasks
+    observable and **Observable 2** with our active filter type. Now, if we either
+    input an observable, the tasks observable, the active filter subject, or emit
+    a new item, our filtered output observable will also produce a new item. This
+    is reactive programming at its best. We never need to be concerned about updating
+    our state anymore. It's all taken care of using reactive streams.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since `combineLatest` will just produce an array of all the latest values emitted
+    by the input observables, we need to use an additional map operator to provide
+    the desired filtered list output. We're destructuring the value pair emitted by
+    `combineLatest` into a `tasks` and `activeTaskFilterType` variable and performing
+    the filtering based on that data. The resulting filtered list is returned and
+    will be emitted by the output observable of the map operator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Subscribing in the view using the async pipe
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have learned about RxJS observables and that they will not start to emit
+    items if we don't subscribe to them. You can compare this to the analogy of the
+    drain valve of a water pipe. If you don't open the drain, the water will not flow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Within our updated task list component, we now have a `filteredTasks` observable
+    to which we can subscribe to and obtain the latest filtered tasks. However, there's
+    a slightly better way to handle RxJS subscriptions, which we're going to take
+    a look at now.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The problem with subscriptions is that they always want to be cleaned up too.
+    Imagine your subscription is causing many event handlers to be added and other
+    resources which might get allocated for observing your stream. Calling the `subscribe`
+    method will return a subscription object, and on that subscription object, you
+    will find a method called `unsubscribe`. Usually, it's always a good idea to call
+    this method when you don't need the observable subscription anymore. In the case
+    of Angular components, we can say that when a component gets removed from the
+    view, it's a good time to clean up the observable subscriptions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Luckily, there''s a life cycle hook called `OnDestroy` for detecting when a
+    component is removed from the view. We can use this hook to clean up any subscriptions
+    to RxJS observables. Let''s take a look at a straightforward example of a component
+    subscribing to an observable and unsubscribing within the `OnDestroy` life cycle
+    hook:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding example, we''re creating an observable stream from the mouse
+    move events on the window object. All we''d like to do is display the most recent
+    mouse position, which was emitted by the observable stream, within our component
+    view. You can immediately see that this is quite a bit of code just for dealing
+    with one observable. We need to store three things for each observable:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The observable itself
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A property to store the most recent emitted item by the stream
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The subscription object which allows us to unsubscribe and clean up when our
+    component gets destroyed
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This might be okay if we're only dealing with one single observable, however,
+    imagine if your component needs to deal with several observables at the same time.
+    This is going to be quite a mess.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another problematic thing is that we need to manually unsubscribe when our component
+    gets destroyed using the `OnDestroy` life cycle hook. This is a manual, error-prone
+    process and we can lose track over our subscriptions quite easily.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Luckily, Angular comes with a genius solution for this problem. Instead of dealing
+    with the subscription manually, we will use a view pipe with the name `AsyncPipe`
+    to subscribe directly within the view of our component. This means that we don't
+    need to subscribe in our component class and extract the latest emitted item manually.
+    Instead, the async pipe will extract the item for us and update our view automatically
+    whenever there's a new item coming through the stream. The async pipe will also
+    store the subscription internally and automatically unsubscribe for us if it detects
+    that the component has been destroyed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at the same example from before, but now using the async pipe.
+    The component class would look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Wow! That''s a radical simplification, isn''t it? All we need to store now
+    is the observable itself. Extracting the latest emitted item as well as unsubscribing
+    from the stream is all handled by the async pipe. Let''s take a look at how we
+    would need to change our view to use the async pipe:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: How cool is that! By only using the async pipe in our view, we can create a
+    subscription to the observable, render the latest item emitted by the stream,
+    and unsubscribe when our component gets destroyed. Additionally, from a functional
+    and reactive standpoint, we also enhanced our code in a way that we don't create
+    any side effects within our component class. We don't hold any intermediate state,
+    and all we store is the observable stream itself. The async pipe is an excellent
+    addition to your toolset when dealing with asynchronous data, and you should always
+    make use of it when working with RxJS observables.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Okay, I hope you felt the power and simplicity of using the async pipe within
+    the previous example. Now, we'll use that knowledge and refactor our task list
+    component to use the async pipe to subscribe to our observables within the component
+    view.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since we''ve already updated our component logic to expose an observable to
+    emit our filtered task list, we can go directly to the view of our task list component
+    and apply the changes to use the async pipe. Let''s open the `src/app/tasks/task-list/task-list.component.html`
+    file and implement the following changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: We've added two async pipes. The first one is to subscribe to our `activeTaskFilterType`
+    behaviour subject. The async pipe will create a subscription directly from the
+    view, and it will update our binding automatically whenever there's a new item
+    emitted through the stream.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second async pipe is used directly in the binding of the `NgFor` directive.
+    We're subscribing to our `filteredTasks` observable, which will always emit the
+    latest result of our filtered task list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Recap
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Congratulations! We''ve successfully updated our code to establish a reactive
+    data flow within our application using the in-memory web API and the Angular HTTP
+    client. We are using RxJS observables, transforming them using operators, and
+    resolving our data directly within the view using the Angular async pipe. This
+    refactoring was quite a technical but significant change. We''re now following
+    a very clean approach on how to react to application state changes. Our observable
+    streams are router down directly into the view where we then subscribe using the
+    async pipe. If Angular destroys our task list component, the async pipe will also
+    take care of the necessary unsubscriptions. We''ve learned about the following
+    topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Angular in-memory API to simulate a RESTful backend and using HTTP client
+    to obtain data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: RxJS basics, basic operators, as well as behaviour subject and the `combineLatest`
+    operator
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using the async pipe to subscribe from the view of our components
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Establishing an end-to-end reactive data architecture within our application
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Immutability
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Within this section, we're going to learn about the concept of immutability.
+    This knowledge will help us for the upcoming refactoring exercises of our application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Immutable data has initially been a core concept of functional programming.
+    This section will not cover immutable data in much depth, but it will explain
+    the core concept so that we can talk about how to apply this idea to Angular components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Immutable data structures force you to create a full copy of the data before
+    you modify it. You'll never operate on the data directly, but on a copy of this
+    same data. This approach has many benefits over mutable data operations, the most
+    obvious probably being clean application state management. When you always operate
+    on new copies of data, there's no chance that you're messing up data that you
+    didn't want to modify.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s take this simple example, which illustrates the issues object references
+    can cause:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Although this seems odd at first, it makes sense that the output of this case
+    is valid. `Array.reverse()` is a mutable operation, and it will modify the innards
+    of the array. The actual reference will stay the same because JavaScript will
+    not create a copy of the array to reverse it. Although technically this makes
+    a lot of sense, this is not what we expected in the first place when we looked
+    at this code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can quickly change this example to an immutable procedure by creating a
+    copy of the array before we reverse it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The issue with references is that they can cause a lot of unexpected side effects.
+    Also, if we come back to our encapsulation topic from [Chapter 1](237031a7-f616-4811-8486-08b5113d316f.xhtml),
+    *Component-Based User Interfaces*, object references are entirely against the
+    concept of encapsulation. Although we might think that it would be safe to pass
+    complex data types into a capsule, it''s not. As we''re dealing with references
+    here, the data can still be modified from the outside, and our capsule will not
+    have complete ownership. Consider the following example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Even if we only wanted to store the data internally in our `Sum` class, we would
+    have created the unwanted side effect of referencing and modifying the data object
+    which is outside the instance. Multiple `sum` instances would also share the same
+    data from outside and cause more side effects. As a developer, you've learned
+    to treat object references correct, but they still can cause a lot of problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We don''t have these problems with immutable data, which can be illustrated
+    easily with primitive data types in JavaScript. Primitive data types don''t use
+    references, and they are immutable by design:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: There's no way we can modify an instance of a string. Every modification that
+    we perform on a string will generate a new string, and this prevents the unwanted
+    side effects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, why do we still have object references within programming languages, even
+    though they cause so many issues? Why aren't we performing all these operations
+    on immutable data, and why aren't we only dealing with values rather than object
+    references?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course, mutable data structures also come with their benefits, and it always
+    depends on the context if immutable data brings value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the main reasons that is often used against immutable data is its lousy
+    performance. Of course, it costs some performance if we need to create tons of
+    copies of our data every time we want to modify it. However, there are significant
+    optimization techniques which eliminate the performance issues that we would usually
+    expect from immutable data structures. Using a tree data structure that allows
+    internal structural sharing, copies of the data will be shared internally. This
+    technique allows for very efficient memory management, which in some situations
+    even outperforms mutable data structures. I can highly recommend the paper by
+    Chris Okasaki about *Purely Functional Data Structures* if you would like to read
+    more about performance in immutable data structures.
+  prefs: []
+  type: TYPE_NORMAL
+- en: JavaScript does not support immutable data structures out of the box. However,
+    you can use libraries, such as `Immutable.js` by Facebook, which provide you with
+    an excellent API to deal with immutable data. `Immutable.js` even implements structural
+    sharing and makes it a perfect power tool if you decide to build on an immutable
+    architecture in your application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As with every paradigm, there are pros and cons, and depending on the context,
+    one concept may fit better than another one. In our application, we won''t use
+    immutable data structures that are provided by third-party libraries, but we''ll
+    borrow some of the benefits that you get from immutable data by going by the following
+    immutable idioms:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**It''s much easier to reason about immutable data**: You can always tell why
+    your data is in a given state because you know the exact transformation path.
+    This may sound irrelevant, but in practice, this is a huge benefit not only for
+    humans to write code but also for compilers and interpreters to optimize it.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Using immutable objects makes change detection much faster**: If we rely
+    on immutable patterns to treat our data, we can rely on object reference checks
+    to detect change. We no longer need to perform complex data analysis and comparison
+    for dirty checking, and can fully rely on checking references. We have the guarantee
+    that object properties don''t change without the object identity changing as well.
+    This makes change detection as easy as `oldObject === newObject`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Immutability with TypeScript
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: With TypeScript 2, new type features were added which help you to embrace immutable
+    operations. Using the `readonly` type modifier, we can achieve a compile-time
+    immutability guard.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at the following example of how to use the `readonly` modifier
+    to define some immutable data structures:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As you can see from the preceding example, we can use the `readonly` modifier
+    to prevent object properties from being modified. Instead, if we''d like to modify
+    the `person` object, we''ll need to create a copy of that object. There are many
+    ways to do this, however, using the object property spread operator is probably
+    the most convenient of all. Let''s see how we can update our person object in
+    an immutable way using the object property spread operator:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Using the object property spread operator, we can spread all existing properties
+    and their values of the existing person object into a new object literal. In the
+    same step, we can then override any properties, right after the spread operation.
+    This allows us to easily create a copy of an existing object and add or override
+    specific properties. The preceding code could also be written by using `Object.assign`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Actually, this is how the object spread operator is desugaring to JavaScript.
+    However, it's much more convenient to use the spread operator than `Object.assign`.
+    The object spread operator is proposed to the future JavaScript standard and is
+    currently at stage 3.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pure components
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The idea of a "pure" component is that its whole state is represented by its
+    inputs, where all inputs are immutable. This is effectively a stateless component,
+    but additionally, all the inputs are immutable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'I like to call such components "pure" because their behaviour can be compared
+    to the concept of pure functions in functional programming. A pure function is
+    a function which has the following properties:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It does not rely on any state outside of the function scope
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It always behaves the same and returns the same result if input parameters don't
+    change
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It never changes any state outside the function scope (side effect)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: With pure components, we have a simple guarantee. A pure component will never
+    change without its input parameters being changed. Sticking to this idea about
+    components gives us several advantages. Besides having a complete trust in your
+    component state, we can also gain some performance benefits by optimizing the
+    change detection of Angular. We know that a component will render exactly the
+    same if its inputs don't change. This means that we can ignore all components
+    and their subcomponents in change detection if there are no input changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It''s very easy to reason about pure components. Their behaviour can be predicted
+    very easily. Let''s look at a simple illustration of a component tree with only
+    pure components:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4ecbe63d-591d-4b00-9fff-f10b11700f8a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A component tree with immutable components
+  prefs: []
+  type: TYPE_NORMAL
+- en: Usually, Angular performs change detection for every single binding in all of
+    your components within the component tree. It does that on every browser event,
+    which could change your system state. This eventually comes with a large performance
+    overhead.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we have the guarantee that each component in our tree has a stable state
+    until an immutable input property changes, we can safely ignore change detection
+    that would usually be triggered by Angular. The only way that such a component
+    could change is if an input of the component changes. Let''s say that there''s
+    an event that causes the root component (**A**) to change the input binding value
+    of component (**B**), which will change the value of a binding on component (**E**).
+    This event and the resulting procedure would mark a certain path in our component
+    tree to be checked by change detection:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/53dd7069-784c-4b89-8b69-541b23283468.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A marked path for change detection (in black) with "pure" components
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although the state of the root component changed, which also changed input properties
+    of the subcomponents on two levels, we only need to be concerned about a given
+    path when thinking about possible changes in the system. Pure components give
+    us the promise that they will not change if their inputs don't change. Immutability
+    plays a big role here. Imagine that you're binding a mutable object to component
+    (**B**), and component (**A**) would change a property of this object. As we use
+    object references and mutable objects, the property would also be changed for
+    component (**B**). However, there's no way for component (**B**) to notice this
+    change and it would leave our component tree in an unstable state. Basically,
+    we'd need to go back to the regular dirty checking of the whole tree again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By knowing that all our components are pure and that their inputs are immutable,
+    we can tell Angular to disable change detection until an input property value
+    changes. This makes our component tree very efficient, and Angular can optimize
+    change detection effectively. When thinking about large component trees, this
+    can make the difference between a stunningly fast application and a slow one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The change detection of Angular is very flexible, and each component gets its
+    own change detector. We can configure the change detection of a component by specifying
+    the `changeDetection` property of the component decorator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using `ChangeDetectionStrategy`, we can choose from two strategies that apply
+    for the change detection of our component. In order to tell Angular that our component
+    should only be checked if an immutable input was changed, we can use the `OnPush`
+    strategy. This change detection mode is specifically designed for the purpose
+    of pure components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s take a look at the two different configuration possibilities of component
+    change-detection strategies and some possible use cases:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Change-detection strategy** | **Description** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `OnPush` | This strategy tells Angular that a given component subtree will
+    only change under one of the following conditions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the input properties changes where changes need to be immutable. Inputs
+    are always checked for reference changes (using the triple-equals operator `===`)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: An event binding within the component subtree is receiving an event. This condition
+    tells Angular that there might be a change inside of the component itself and
+    it will trigger change detection, even if none of the inputs have changed.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Default | The default strategy of Angular''s change detection will perform
+    change detection for every single browser event which occurs within your application.
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: Introducing container components
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The main topic of this book is to learn how to create scalable user interfaces
+    using Angular components. You can probably already see a trend within this chapter.
+    From a simple task list component holding its own state, we''re slowly moving
+    into a more serious and maintainable application architecture. We''ve already
+    been going through some major refactorings which can be summarized as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a simple task list component to list some tasks coming from a simple
+    list of plain objects
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Splitting the task list component into various subcomponents and finding the
+    right size for our components (task list, task, checkbox, toggle)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introducing a service in order to store our task data and remove any data which
+    was directly embedded into our components
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using the Angular HTTP client and the in-memory web API to simulate asynchronous
+    data fetching and using RxJS observables in our service and components
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Within this section, we''re going to learn about another concept which will
+    enhance our maintainability even further. The concept of container components
+    helps us to separate our user interface from our application state. This might
+    sound difficult at the beginning but it''s actually a concept which blends really
+    nicely into our existing approach. With the introduction of container components,
+    we''re setting clear responsibilities when it comes to state management. Let''s
+    look at the following illustration to see the concept in action:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/76242032-1ff5-46bb-9c26-f662dd4781e6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Container component and interactions with regular UI components
+  prefs: []
+  type: TYPE_NORMAL
+- en: Container components are in charge of your application state. They are the only
+    components of your system which are allowed to manipulate state and data. They
+    are passing this state and data down into your user interface component through
+    component input. Within the preceding illustration, we have a container component
+    surrounding **Component A**. **Component A** is again consisting of a subcomponent,
+    **B**. Data is flowing down from our container component into component **A**
+    and **B**. Whenever the container provides new data, that data is seeping down
+    into your user interface components through their inputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, here comes the tricky part of this concept. User interface components,
+    like component **A** and **B** within our illustration, are never, ever manipulating
+    data directly. They will always delegate to their parent component. I often explain
+    this concept as a kind of **inversion of control** (**IoC**). Instead of performing
+    the action which was triggered by a user controlling the user interface directly,
+    we just delegate to the parent component and tell it to perform this action. If
+    the parent component is a simple UI component too, we delegate again. This goes
+    on until we reach a container component. The container component then has the
+    ability to effectively perform the desired operation on the application state.
+    Once performed, the updated data will then seep back down the component tree.
+    This approach of building user interfaces comes with an amazing list of positive
+    effects on your application architecture:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**All your data manipulation is handled in a central location**:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This is really beneficial since we can always go to one single place if we need
+    to change the way we manipulate our state and data.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '**All user interface components can be "pure"**:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Since we won't have any user interface components which manipulate data directly,
+    and they are only dependent on the data which is flowing down the component tree
+    into their inputs, we can build "pure" components in most cases. This gives all
+    the benefits of "pure" components, including the performance boost.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '**Container components act as adapter layers**:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Since the container components are the only components which interact with your
+    data services, database, state machine, or whatever else you're using to manage
+    your state and data, we can see them as adapters of your application user interface
+    to your data layer. When you decide to go differently about your state management
+    and data sources, the only place where you need to apply changes is your container
+    components.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '**Separation of state and user interface**:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The separation of your application's state from your user interface is underestimated
+    by far. By building a simple UI component which just accepts data through its
+    inputs, we can build highly flexible and reusable components. If we would like
+    to include them in a completely different context of state and data, we simply
+    create another container component.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Purifying our task list
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous three sections, we looked into the basics of using immutable
+    data structures and that Angular can be configured to assume that components only
+    change when their input changes. We learned about the concept of "pure" components
+    and how we can configure Angular's change detection to gain some performance benefits.
+    We also learned about the concept of container components to separate our UI components
+    from our application state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Within this section, we would like to refactor our application to include our
+    newly learned skills about immutability, "pure" components, and container components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's start with our existing task list component. Currently, this component
+    is directly interacting with data coming from the task service. However, we have
+    learned that "pure" UI components should never directly retrieve or manipulate
+    the state or data of our application. Instead, they should only depend on their
+    inputs to retrieve data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Open up the `src/app/tasks/task-list/task-list.component.ts` file and apply
+    the following changes. The code changes are highlighted in bold:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can immediately see that our component is now much simpler. Instead of it
+    containing all the filter logic, we're just relying on the tasks passed to the
+    component using the `tasks` input. Our task list component is now assuming that
+    the tasks coming into the component input are already filtered and that it's no
+    longer in control of the filtering itself. It still renders the filters, however,
+    as you can see from the `activateFilterType` method, we're now using output properties
+    to delegate the filter action to the parent component. We've also added outputs
+    for adding a task as well as for updating a task. We've learned from the previous
+    section about container components that our UI components use inversion of control.
+    That's exactly what is happening here. We're no longer manipulating our state,
+    but instead delegating the manipulation to our parent component using output properties.
+    The `addTask` method, as well as the `updateTask` method, are both just emitting
+    output, nothing else.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The same principle which we used for the tasks is also applied to the filter
+    type list and the active filter type. We're using the input properties `taskFilterTypes`
+    and `activeTaskFilterType` so that we can pass this information down from the
+    parent component. The task list is no longer in charge of controlling the state
+    of the active filter type and we can control this state from the parent container
+    component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since we''re now assuming that tasks passed into the component using the task''s
+    input property are already filtered, we need to apply a small change to our component
+    template, too. Also, we no longer need the async pipe in our task list component,
+    since our component will receive the resolved array of filtered tasks directly.
+    We''ll let our container component deal with the observables. Let''s open the
+    `src/app/tasks/task-list/task-list.component.html` file and apply some changes.
+    Changed code is highlighted in bold and the ellipsis symbol is indicating more
+    hidden but irrelevant code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: That's already it in our task list component. We're now only relying on input
+    properties for obtaining the data required to render our component. This makes
+    our component so much simpler, doesn't it?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's continue with the container component for our task list. We're creating
+    a new component using the Angular CLI. This time, we're creating the component
+    into a separate subfolder called `container`. As our application grows, and we
+    have more container components that need to be created, we will put them all into
+    this folder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Also, note that we''re now starting to use the `-cd onpush` option for generating
+    components using the Angular CLI. This will add the change detection strategy
+    `OnPush` onto our generated component stubs for us:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The task list container is now responsible for dealing with the data necessary
+    to render a task list component. It will also perform all the state and data manipulation
+    required to cover the behaviour of our task list. Let''s open the generated component
+    class file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: When looking at the code of our new task list container component, you should
+    notice something. The code is an exact copy of the code we had in our task list
+    component before we turned it into a "pure" UI component. Well, does this look
+    right? If you look at the code again, now that we have learned about separating
+    the user interface concerns from our application state, you will notice that none
+    of this code is actually the responsibility of a UI task list component. It's
+    code that is mainly concerned with data manipulation and retrieval. It should
+    actually never have been part of our task list UI component. This code clearly
+    belongs to a container component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The next step is to create the view template of our container component. A
+    container component should actually never contain much code in the template. Ideally,
+    the only thing you want to do within the view of a container component is to render
+    the UI component which you''re concerned with in that specific container. Let''s
+    open the `src/app/container/task-list-container/task-list-container.component.html`
+    file and change its content to the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you will have noticed, the only things we're concerned about in the view
+    of our task list container component is to render a task list UI component. We're
+    passing the list of filtered tasks into the task list component. Since we're using
+    an observable within our container component, we use the async pipe again to subscribe
+    and resolve to the most recently filtered task list. Similarly, we're passing
+    the list of filter types and the currently active filter, which we both now store
+    in our container, down into the task list component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the other hand, we're binding the outputs of the task list UI component and
+    calling the necessary method within the container when we get notified about updated
+    tasks, filter changes, and newly added tasks. The task list UI component just
+    tells us **what** to do, and inside of the container component, that we know **how**
+    to do it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we have learned how to deal with data and application state
+    in a way which is best for the maintainability of our application. We have switched
+    our task service from synchronous operations on tasks stored within the service
+    directly to using the Angular in-memory web API and the HTTP client.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We learned about how we can profit from concepts, such as reactive programming,
+    observable data structures, and immutable objects, in order to make our application
+    perform better, and most importantly, simple and easy to reason about.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have also learned about the separation of user interface from application
+    state and implemented the concept of container components into our application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we're going to organize our application on a larger scale.
+    By introducing a new project layer, we can start organizing tasks within projects.
+    We will create the necessary state and UI components in order to view and edit
+    tasks within projects.
+  prefs: []
+  type: TYPE_NORMAL

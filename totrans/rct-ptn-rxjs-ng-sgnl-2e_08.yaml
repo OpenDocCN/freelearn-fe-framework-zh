@@ -1,0 +1,1377 @@
+- en: '8'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Mastering Reactivity with Angular Signals
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Modern web applications thrive on reactivity, where data changes automatically,
+    thereby triggering updates in the UI. Angular Signals, introduced in version 17,
+    streamlines this process by offering a powerful and concise way to manage reactive
+    data within your Angular applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter delves into the core concepts, API functionalities, advantages,
+    and relationship of Signals with RxJS. We will also see how we can improve the
+    reactivity of our Recipe app further using Angular Signals.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, in this chapter, we’re going to cover the following main topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the motivation behind Signals
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Unveiling the Signal API
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Unlocking the Power of RxJS and Angular Signals
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Integrating Signals into our recipe app
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Reactive data binding with Signals
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The source code for this chapter is available at [https://github.com/PacktPublishing/Reactive-Patterns-with-RxJS-and-Angular-Signals-Second-Edition/tree/main/Chap08](https://github.com/PacktPublishing/Reactive-Patterns-with-RxJS-and-Angular-Signals-Second-Edition/tree/main/Chap08)
+    (this only includes the code related to the recipe app).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the motivation behind Signals
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The main goal behind the Angular team’s introduction of Signals is to add more
+    fine-grained reactivity to the framework. This new Signal-based reactive system
+    marks a significant leap forward in the framework’s ability to handle dynamic
+    data and user interactions. It offers a fresh approach to detecting and triggering
+    changes within the framework, replacing the traditional approach that relies on
+    Zone.js.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The traditional Zone.js approach
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Angular’s traditional change detection mechanism assumes that any event handler
+    can potentially change any bound data to the template. That’s why, whenever an
+    event happens in your Angular application, the framework scans all components
+    and their data bindings for any potential changes. This can be a bit heavy-handed,
+    especially for complex applications. For this reason, a more optimized mode `OnPush`
+    change detection was introduced. This mode leverages the concepts of immutability
+    and Observables, allowing Angular to significantly reduce the number of components
+    it needs to check for updates. This was explored in [*Chapter 3*](B21180_03.xhtml#_idTextAnchor047),
+    *Fetching Data* *as Streams*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Whether you use the default change detection or the more optimized `OnPush`
+    mode, Angular still needs to stay informed when event handlers have finished running.
+    This presents a challenge because the browser – not Angular itself – triggers
+    these event handlers. This is where Zone.js steps in, essentially acting as a
+    bridge. Zone.js can detect when an event handler has run, telling Angular, “Hey,
+    there’s a new event; you can take care of any necessary updates now.”
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'While this approach has worked well in the past, it still comes with a few
+    downsides: when changes are made, the whole component tree and all the expressions
+    on every component are always checked. There is no way for Angular to directly
+    identify changed components or to just update the changed parts of a component.
+    That is why Angular cannot make any assumptions about what happened and needs
+    to check everything!'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The new Signals approach
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'With Signals, Angular can easily detect when any part of the application data
+    changes and update any dependencies automatically. Signals enable efficient change
+    detection, smarter re-rendering when data changes, and facilitate fine-grained
+    updates to the DOM, reducing the runtime required for Angular to check all components,
+    even if their consumed data remains unchanged. Ultimately, this can eliminate
+    the need for Zone.js in one of the future versions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.1: Comparing the various change detection approaches](img/B21180_08_01.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.1: Comparing the various change detection approaches'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Apart from improving change detection, there are other advantages of using
+    Signals:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It provides a more intuitive and declarative way to manage reactive data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The syntax aligns more closely with JavaScript, making code easier to read,
+    understand, and maintain.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The compiler performs better type narrowing for improved type safety within
+    your reactive code.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: As we progress through this chapter, you’ll gain a clearer understanding of
+    Signals. Eager to discover more? Let’s continue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unveiling the Signal API
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we’ll delve into the world of Signals, covering exactly what
+    they are, how they work, and the revolutionary changes they bring to Angular.
+    So, without further ado, let’s discover what a Signal is.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining Signals
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A **Signal** is a reactive entity within Angular that encapsulates a value (serving
+    as a container for a value) and automatically notifies consumers whenever that
+    value changes. You can think of Angular’s Signals as a combination of a data value
+    and a change notification mechanism, offering a streamlined approach to tracking
+    changes and seamlessly updating the user interface in response to those changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While the concept of Signals is not novel and has existed in various forms across
+    different frameworks for many years, their integration into Angular provides developers
+    with a familiar yet powerful tool for managing reactive behavior within their
+    applications. They act as wrappers around values, allowing you to efficiently
+    track changes and react accordingly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating Signals using the constructor function
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We can create a Signal using the `signal` constructor function available in
+    the `@``angular/core` package.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An initial value is always required as a Signal must always have a value. Signals
+    can hold a wide range of values, including simple primitives, such as strings
+    and numbers, as well as more complex data structures, such as arrays and objects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Plus, the `signal` function provides type flexibility. You can either explicitly
+    define the type of the Signal’s value or leverage type inference based on the
+    initial value. For example, the following code creates and initializes a Signal
+    with a value of `John Doe`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, we didn’t define a type for our Signal’s value. If you don’t
+    explicitly specify a type, the `signal` function can infer the type based on the
+    initial value you provide. So, here, the type can be inferred from the initial
+    value of `John Doe` as `string`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But what if you want to be extra clear about the type? That’s perfectly possible!
+    Here’s how you would explicitly define the type:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, we added `<string>` after `signal` to explicitly state that
+    the Signal will hold string values. While type inference works well in many cases,
+    explicitly defining types can improve code readability and maintainability, especially
+    for larger projects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let’s look at an example of a Signal holding an array. Imagine that you
+    want to define a Signal that represents an array of currencies:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, the initial value is an array of strings, so the type of the Signal will
+    be inferred as an array of strings, `string[]`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, thinking of our Recipe app, the `favouriteRecipe` Signal holds a `Recipe`
+    object and is of the `Recipe` type:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we explicitly defined the specific type of `Recipe`. If you’re working
+    with a specific type throughout your code, explicit type definition provides clarity
+    and prevents potential type mismatches. However, when the type is different from
+    the initial value or may vary, you can avoid explicitly writing it, making your
+    code cleaner and more concise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we have a Signal, we often want to read it and retrieve its value. But
+    how can we do that? We’ll find out in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reading Signals
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'One way to read a Signal’s value is by using the Signal’s getter. Here’s an
+    example that reads the value of the previously created Signals and logs it in
+    the console:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can use this getter to read Signals in your Angular components, services,
+    and directives.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can also read Signals in your component template to display a value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: Reading a Signal in a template returns the current Signal’s value and registers
+    the Signal as a dependency of the template. If the Signal changes, the portion
+    of the template is re-rendered.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Signals that are created using the signal creator function are *writable*. This
+    means you can modify their values after their creation. We’ll learn how to modify
+    the value of a Signal in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Modifying a writable Signal
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Signals that are created using the `creation` function are of the `WritableSignal`
+    type and offer an API specifically for updating their values. There are two primary
+    methods for modifying the stored value of a writable Signal:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the `set` method
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using the `update` method
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let’s look at them both.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the set method
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The `set` method lets you directly set a new value for the Signal. Here’s an
+    example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we used the `set` method to update the Signal’s value from `John Doe`
+    to `Mary Jane`. This is a simple and effective way to assign a new value when
+    you know how the value needs to be changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the update method
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The `update` method allows us to compute a new value from the previous one,
+    like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the `update` method, we appended `Full Name:` to the old Signal’s value,
+    `John Doe`. The Signal maintains a record of value changes over time. When the
+    value changes, the Signal notifies subscribed components or logic, prompting necessary
+    UI or data flow modifications. Every part of the Angular component that depends
+    on the Signal will be automatically updated once the value changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, so good! Now that you’re comfortable with the basics of Signals, what
+    if you could create Signals that automatically react to changes in other Signals?
+    In other words, what if you need Signals that depend on other Signals? Well, that’s
+    where computed Signals come into play!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Computed Signals
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Computed Signals deduce their value from other Signals, offering a declarative
+    way to define relationships between Signals and ensure your data remains consistent.
+    Let’s focus on a simple example to understand the behavior:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this code block, the `fullName` computed Signal derives its value from both
+    the `firstName` and `lastName` Signals. The `computed` function simply appends
+    the `firstName` and `lastName` values. So, `fullName` depends on the `firstName`
+    and `lastName` Signals, which means that whenever either `firstName` or `lastName`
+    changes, the `fullName` Signal automatically updates, reflecting the complete
+    name.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the computed Signal is lazy evaluated and cached. This means that
+    the `computed` function doesn’t execute to calculate its value until the first
+    time you read the calculated Signal (`fullName`, in our case). The calculated
+    value is then cached, and if you read `fullName` again, it will return the cached
+    value without re-executing the calculation function. Then, if the value of `firstName`
+    or `lastName` changes, Angular knows that the `fullName` cached value is no longer
+    valid, and the next time you read `fullName`, its new value will be re-calculated.
+    So, the calculation function will re-execute again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unlike `WritableSignals`, computed Signals are read-only, so you can’t change
+    their values. Even trying to set a value will result in a compilation error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we’ve looked at computed Signals, which automatically react to changes
+    in other Signals, what if you need to perform actions beyond simply updating data,
+    such as making API calls or interacting with other components? This is where Signal
+    effects step in!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Signal effects
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Signal effects are functions that execute in response to Signal changes. They
+    provide us with a way to perform side effects, such as logging data, or manipulating
+    the DOM to perform custom rendering or adding a custom behavior.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s look at an example. Here’s some code in the HTML template:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And here’s some TypeScript code :'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: This code creates a counter that starts at `0`. Then, clicking the created `1`,
+    and `effect` logs the updated value to the console.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that effects require an injection context to function properly, such as
+    during the construction of a component or service. That’s why we called it inside
+    the constructor in the previous example. This means it needs to be called within
+    a specific environment where Angular’s dependency injection system is available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But why? Well, because Signal effects might internally rely on other Angular
+    services or functionalities that are managed by the dependency injection system.
+    So, we should ensure that all necessary dependencies are properly injected and
+    accessible for effects to work as intended. Running it outside this context could
+    lead to errors because these dependencies wouldn’t be available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having explored the core functionalities and concepts of Signals, you might
+    be wondering how they compare to RxJS. Both offer mechanisms for managing data
+    streams, so how do they differ? And can they work together? These are crucial
+    questions we’ll address in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unlocking the power of RxJS and Angular Signals
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While Angular Signals serves as a lightweight wrapper for reactive data with
+    a simplified API, RxJS offers a comprehensive library for handling asynchronous
+    streams, thus remaining crucial for handling more complex reactive programming
+    requirements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s a concise comparison of Signals and RxJS Observables:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Feature** | **Signals** | **Observables** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **Value representation** | Hold a single value at a time. | Emit values over
+    time. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **Subscription** | Subscription is implicit. | Require explicit subscriptions.
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **Updates capability** | Updated by using the `set`/`update` method or using
+    a computed Signal. | Updated by emitting new values. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **Change detection** | Improve change detection performance. Angular can
+    efficiently track changes and re-render when needed. | Using Observables might
+    trigger inefficient change detection. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **Providing notification** | Notify consumers when the hold data changes,
+    facilitating value recalculation or template re-rendering. | Notify consumers
+    when an event occurs or data is emitted, facilitating value recalculation or template
+    re-rendering. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **Reacting** **to notification** | React to notifications using effects.
+    | React to notifications using callbacks. |'
+  prefs: []
+  type: TYPE_TB
+- en: 'Figure 8.2: Signals versus Observables'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But when should you use each one? Well, RxJS shines in scenarios demanding
+    complex reactive data flows. These include the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Managing multiple streams, often arising from asynchronous operations such as
+    HTTP requests
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Handling complex data manipulation such as combination, merging, transforming,
+    and filtering
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Reacting to each emission
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'On the other hand, Signals are good for the following aspects:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Simple reactive data management within components, side effects, and calculations
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Data binding scenarios where you want to track changes and trigger targeted
+    UI updates
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Situations where a simpler syntax and potentially improved change detection
+    performance are desired
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Signals and RxJS are not mutually exclusive; they can be complementary tools
+    in your Angular development. Angular has several RxJS interop features that make
+    Signals and Observables play nicely in the same app, meaning you can get the benefits
+    of both for a more powerful way to manage your data. These RxJS interop features
+    can be found under the `@angular/core/rxjs-interop` package and include the `toSignal()`
+    and `toObservable()` functions. We’ll look at both of these now.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the behavior of toSignal()
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The `toSignal()` function lets you create a Signal from an Observable. It provides
+    synchronous access to the values that are emitted from the Observable, always
+    containing the most recent emitted values by the Observable. But the coolest part
+    is that `toSignal()` automatically subscribes to the defined Observable and unsubscribes
+    when the component or service that calls `toSignal()` is destroyed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, we don’t have to manage subscriptions. Doesn’t this concept remind you of
+    the async pipe? Indeed; both Signals and the async pipe offer ways to display
+    reactive data in Angular templates. However, Signals provide greater flexibility.
+    Unlike the async pipe, which is primarily used with Observables in templates,
+    Signals can be used anywhere in your application for efficient data management.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But wait – earlier, we learned that a Signal should always have a value while
+    Observables may not emit a value right away. And that’s true. That’s why `toSignal`
+    has the option to provide an initial value, which will represent the Signal’s
+    value until the Observable emits. Here’s a simple example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In this example, we created a `value$` Observable using the `of()` creation
+    function, which emits the `[{ name: ''EURO'', id: 1 }]` array. Then, we created
+    a Signal named `valueAsSignal` using the `toSignal` function. We pass two arguments
+    to the `toSignal` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`this.value$`: The Observable you want to convert into a Signal.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`{ initialValue: [] }`: An optional object that allows you to customize the
+    Signal’s behavior. Here, we’re setting the `initialValue` property to an empty
+    array (`[]`). This ensures that the Signal has a defined value even before the
+    Observable emits its first item.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Finally, we registered an effect to log the Signal’s value in the console.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that if you don’t mention an initial value in the `toSignal` function,
+    the Signal will have `undefined` as the initial value. Be aware that using `undefined`
+    as an initial value can always lead to many errors or inconsistencies, so it would
+    be better to manage this when it’s created and provide an initial value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With that clear, why is this different from using an Observable? Let’s focus
+    on another example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we’re creating an Observable that uses the `of` creation function – we
+    subscribe to it and log the values in the console. This Observable emits `10`,
+    `20`, and `30`, respectively, and those values will get logged in the console.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let’s convert this Observable into a Signal:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we used the same `values$` Observable and converted it into a Signal using
+    `toSignal` while setting an initial value of `0`. Then, we defined an effect to
+    log the value of the Signal. The console output is `30`. Yes, only `30`. Why?
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `of()` creation function emits its values immediately upon subscription.
+    So, when `toSignal` subscribes, all the values are immediately emitted. By the
+    time the effect is scheduled to run, `30` is already in the Signal as the last
+    value emitted and that’s what it is logged as to the Signal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let’s delay the `values$` emission by 5 seconds using the `delay` operator:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: When you re-execute the code, you will see `10`, `20`, and `30` in the console.
+    The effect now has the opportunity to run after each emission because we set up
+    a delay of `5` seconds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The point here is that when we create Signals, the Signal will not necessarily
+    get notified of all emitted items; it depends on how the Observable is created
+    and on its set of operators.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Signals created through the `toSignal()` function are read-only – this makes
+    sense as the Signal here is just a consumer of the values emitted by the Observable.
+    Also, keep in mind that `toSignal()` creates a subscription – you should avoid
+    calling it repeatedly for the same Observable, and instead reuse the Signal it
+    returns.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That is all you need to know about `toSignal()`. Now, let’s explore the `toObservable()`
+    function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the behavior of toObservable()
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: If you want to react to a Signal change and perform an async operation such
+    as issuing an HTTP request, the `toObservable()` function is your friend!
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `toObservable()` function allows you to convert a Signal into an Observable.
+    Whenever the Signal’s value changes, the Observable automatically emits a notification
+    with the new value. This allows you to easily trigger your async operation based
+    on the updated Signal data. Under the hood, `toObservable()` uses effects to track
+    the Signal’s value and emit the latest value to the Observable, as discussed earlier
+    in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `toObservable()` function might remind you of the `asObservable` function
+    that’s available for subjects, something we explored in [*Chapter 7*](B21180_07.xhtml#_idTextAnchor107),
+    *Sharing Data Between Angular Components*, but these functions don’t have the
+    same behavior.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s look at an example of the `asObservable` function first:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: When using `Subject` or `BehaviorSubject`, notifications are asynchronous. Here,
+    we defined a `BehaviourSubject` subject called `value` with an initial value of
+    `10`. Then, we extracted the `readonly` Observable part of the subject using the
+    `asObservable()` function. Each emitted value is piped through a `tap` operator
+    to log it in the console. Then, we subscribe to start receiving notifications.
+    Finally, in `constructor`, we emit new values (`20` and `30`) using the `next`
+    method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, `toObservable` operates differently. It uses an effect where Signal
+    change notifications are scheduled rather than immediately processed, as Observable
+    notifications are. Let’s modify the same example by using Signals and `toObservable`
+    instead:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we defined a Signal instead of the `BehaviorSubject` subject named `value`
+    with an initial value of `10`. Then, we called `toObservable(this.value)` to emit
+    a notification when the Signal’s value changes. In the pipeline, we once again
+    logged the emitted values and subscribed to the Observable to start receiving
+    notifications. Finally, the value of the Signal was updated using the `set` method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, look at the console output – that is, `The value is : 30` . This may
+    not be what you expected, right? This is because the effect behind `toObservable`
+    runs only after the Signal has settled values. The current value of the Signal
+    at that time is the last emitted value, which is `30`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Keep this behavior in mind when you decide to use a subject or a Signal – a
+    subject will emit all the values from its source, while `toObservable` only emits
+    the current value from the Signal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Please note that the `toObservable` and `toSignal` functions require an injection
+    context to function properly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we delved into the powerful capabilities of both `toSignal` and `toObservable`,
+    you might have noticed the potential for synergy between RxJS and Signals. In
+    the next section, we will learn how we can use both RxJS and Signals in our recipe
+    app and get the best of both worlds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Integrating Signals into our recipe app
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we will level up the recipe app’s reactive patterns by integrating
+    Signals. We’ll kick things off by revisiting the data fetching use case we implemented
+    in [*Chapter 3*](B21180_03.xhtml#_idTextAnchor047), and then see how we can adjust
+    the implementation by using Signals in the `RecipesListComponent` to maximize
+    efficiency.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fetching data as streams using Signals
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Let’s briefly review the code snippets we covered for implementing data fetching
+    in `RecipesService` and `RecipesListComponent`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In `recipes.service.ts`, we have the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In `recipes-list.component.ts`, we have this code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, in `recipes-list.component.html`, we have this code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, `recipes$` is created in `RecipesService` and represents the Observable
+    that holds the list of recipes. Then, `recipes$` is defined in `RecipesListComponent`
+    and subscribed to in the template using the async pipe. This code snippet was
+    explained in detail in [*Chapter 3*](B21180_03.xhtml#_idTextAnchor047).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, instead of exposing `recipes$` as an Observable in `RecipesListComponent`,
+    we can consider using a Signal to bind it in the template. To achieve this, we
+    will convert the `recipes$` Observable into a Signal named `recipes` using the
+    `toSignal()` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, to centralize data management in a single place, we will create the
+    `recipes` Signal inside `RecipesService`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here, the `recipes` Signal is created using the `toSignal` function, which
+    takes two arguments:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`This.recipes$`: The Observable to be converted into a Signal.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`{initialValue: [] as Recipe[]}`: This is an optional configuration object
+    that specifies an initial value of an empty array, `[]`. This ensures the Signal
+    always has a value, even before the Observable emits any data. We used the TypeScript
+    `as` assertion to define the type of `Recipe[]`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can optimize the `RecipesService` code by deleting the `recipes$` property
+    and including its result in the `recipes` property, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '``recipes = toSignal(this.http.get<Recipe[]>(`${BASE_PATH}/recipes`), { initialValue:
+    [] as`` `Recipe[] });`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, in `RecipesListComponent`, we will define the Signal we created in `RecipesService`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, as `toSignal` automatically subscribes to the `recipes$` Observable,
+    we will change `recipes$ |async` to `recipes()` in the `RecipesListComponent`
+    template so that it reads the Signal’s value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: No other changes are required. If you go to the app, the list is displayed,
+    and our app still works. By doing this, we kept the Observable-based logic in
+    `RecipesService` for managing async operations using the HTTP client and then
+    created a Signal from that Observable for use in the template. By doing this,
+    we can improve change detection in the template.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, how do we handle errors in our Signals? If they are just simple containers
+    of values, how can they generate an error?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In `RecipesService`, we handled the error using the `catchError` operator (discussed
+    in [*Chapter 4*](B21180_04.xhtml#_idTextAnchor071), *Handling Errors Reactively*)
+    and provided a replacement Observable:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: This code works fine when using `toSignal`. It is an option to handle errors
+    at the Observable level so that when the Observable that’s used in `toSignal`
+    throws an error, this is later caught using the `catchError` operator, and a replacement
+    Observable is provided.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, if an Observable called in `toSignal` rethrows an error and doesn’t
+    handle it (the catch and rethrow strategy detailed in [*Chapter 4*](B21180_04.xhtml#_idTextAnchor071)),
+    then this error will be thrown each time the Signal is read. Consequently, if
+    the Signal is read multiple times, the error will be thrown repeatedly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Therefore, if you intend to rethrow the error and perform actions such as displaying
+    a popup message in the UI, then it is highly recommended to catch the error at
+    the Observable level and return an error object as a value. Here’s an example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we have an Observable that catches errors of the `HttpErrorResponse` type
+    and returns an object containing the status (indicating whether it’s an error
+    or success) and the error description. At this point, you can register an effect
+    to handle this error at the component level.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Another option is to reject errors completely using the `rejectErrors` parameter
+    of `toSignal`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When enabled, errors are thrown back into the Observable and will become uncaught
+    exceptions. You can imagine `toSignal` saying, “I don’t want your errors; take
+    them back.” You can then register a global error handler to handle uncaught exceptions
+    and perform your actions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: If an Observable that’s used in `toSignal` completes, the Signal continues to
+    return the most recently emitted value before completion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we’ve used `toSignal` to improve our implementation and understood
+    its behavior in handling errors, along with the various recommended options available,
+    let’s circle back to the concept of filtering streams, a topic we explored in
+    [*Chapter 5*](B21180_05.xhtml#_idTextAnchor083), *Combining Streams*. We will
+    use computed Signals to meet the filtering requirement using RxJS and Signals.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Combining streams using Signals
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In the recipe app, we implemented filtering using `BehaviorSubjects`, which
+    effectively notifies components when the filter changes to refine the results.
+    However, Signals also offer a mechanism to react to value changes. They can trigger
+    actions within effects or computed Signals.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This functionality overlaps somewhat with `BehaviorSubjects`, which begs the
+    question, can we replace `BehaviorSubjects` with Signals to filter streams? Let’s
+    refresh our memory on the code provided in [*Chapter 5*](B21180_05.xhtml#_idTextAnchor083).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In `recipes.service.ts`, we have the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In `recipes-list.component.ts`, we have this code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, `filterRecipesAction$` is the Observable that holds the latest filter’s
+    value. It’s defined in `RecipesService` and used in `RecipesListComponent` to
+    refine the search. The filter’s value is updated through the `updateFilter` method
+    by `RecipesFilterComponent`. `filteredRecipes$` represents the result of filtering;
+    we subscribed to it in the `RecipesListComponent` template using the async pipe.
+    This code snippet is explained in detail in [*Chapter 5*](B21180_05.xhtml#_idTextAnchor083).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, using Signals, we can replace `BehaviorSubject` and the Observable we
+    created in `RecipesService` with a single Signal named `filterRecipe` and initialize
+    it with an empty value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we created the `filterRecipe` Signal and initialized it with an empty
+    criteria. In the `updateFilter` method, which is used to notify the behavior subject
+    of the change, we will simply update the value of the Signal using the `set` method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, in `RecipesListComponent`, instead of combining streams using `combineLatest`,
+    we will create a computed Signal that will return an array of recipes based on
+    the Signal’s filter and the Signal’s recipes list. Then, we will refine the recipes
+    list given the filter value using the same filtering function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, in the `RecipesListComponent` template, we will be removing the async
+    pipe and replacing it with the call to the `filteredRecipes` Signal, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: This way, we have much cleaner code and an enhanced change detection mechanism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We used `BehaviorSubjects` in [*Chapter 7*](B21180_07.xhtml#_idTextAnchor107),
+    to share the last selected recipe from `RecipesList` **Component** throughout
+    the entire recipe app. Then, we consumed the last shared selected recipe and displayed
+    its details in `RecipeDetailsComponent`. Let’s use Signals for the same purpose
+    in this implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sharing data using Signals
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Before diving into using Signals, let’s review the steps that were covered in
+    [*Chapter 7*](B21180_07.xhtml#_idTextAnchor107).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the `shared-data.service.ts` file, we have the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the `recipe-details.component.ts` file, we have this code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And in the `recipe-details.component.html` file, we have this code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`selectedRecipeAction$` is the Observable that holds the latest selected recipe.
+    It’s defined in `SharedDataService` and used in `RecipeDetailsComponent` to display
+    the details. The last selected recipe is updated through the `updateSelectedRecipe`
+    method by `RecipeListComponent`. Then, we subscribed to `selectedRecipe$` in the
+    template using the async pipe. This code snippet was explained in detail in [*Chapter
+    7*](B21180_07.xhtml#_idTextAnchor107).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we’ll switch from `BehaviorSubject` to Signals in `SharedDataService`.
+    We’ll initialize the created Signal, `selectedRecipe`, with an empty object and
+    change the `updateSelectedRecipe` method so that it updates the value stored in
+    the `selectedRecipe` Signal using the `set` method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: So far, so good – we have a Signal that will always hold the last selected recipe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, let’s consume this Signal’s value in `RecipeDetailsComponent`. We will
+    start by defining the Signal created in `SharedDataService`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then, in the template, replace `selectedRecipe$ | async` with `selectedRecipe()`
+    to read the value of the Signal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: And we’re done. When running this code, you’ll notice that the functionality
+    remains intact. Each time a recipe is selected from the list, `RecipeDetailsComponent`
+    will display its details. Now. let’s use Signals and `toObservable` to fetch a
+    specific recipe from the server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transforming streams using Signals
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Considering the previous example, the recipes array that’s displayed in `RecipesListComponent`
+    already contains all the recipe objects, along with their details, so we simply
+    used the client-side recipe object when clicking on a recipe from the list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, imagine that we need to dynamically fetch a recipe’s details based on its
+    ID, from a backend service with the `/api/recipes/:recipeID` endpoint (this service
+    is implemented in our `recipes-book-api` backend server; the code is available
+    in this book’s GitHub repository). Here’s how we can adapt our previous implementation
+    to handle this use case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can keep using Signals to track the currently selected recipe’s ID. So,
+    in `SharedDataService`, we’ll adjust our implementation as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we defined a Signal named `selectedRecipeId` that’s been initialized to
+    `undefined` as we don’t have an initial selection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `updateSelectedRecipe` method now takes `recipeId` (either a number or undefined)
+    as input and updates the `selectedRecipeId` Signal using the `set` method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, in `RecipeListComponent`, we will update the `editRecipe` method so that
+    it only sends the recipe’s identifier instead of the whole recipe object:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we need to issue an asynchronous HTTP request to fetch the recipe’s details
+    whenever a recipe is selected from the list. Observables are ideal for this process!
+    As we learned in [*Chapter 6*](B21180_06.xhtml#_idTextAnchor097), *Transforming
+    Streams*, we need a higher-order mapping operator that does the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transforms each emitted recipe’s identifier into a new Observable that issues
+    an HTTP request
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Cancels the previous HTTP request when a new recipe’s identifier arrives and
+    switches to the newly created HTTP request for the latest ID
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You may have guessed already, but `switchMap` is the ideal operator to use here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But wait! We need two key streams involved in this situation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*A HTTP request stream*: This stream, which is created using ``this.http.get<Recipe>(`${BASE_PATH}/recipes/${id}`)``,
+    represents the actual HTTP request to retrieve the recipe data based on the provided
+    ID.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*A selected recipe ID stream*: Currently, the selected recipe ID is stored
+    in the `selectedRecipeId` Signal. Here, we can use the `toObservable` function
+    to convert the `selectedRecipeId` Signal into an Observable stream that will emit
+    a notification whenever the selected recipe ID changes in the Signal. It will
+    look like this: `toObservable(this.selectedRecipeId)`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Now, using the `switchMap` operator, we will define the `recipe$` stream in
+    `SharedDataService`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: The resulting Observable, `recipe$`, represents a specific recipe object stream.
+    It emits a new recipe whenever the selected recipe ID changes and a successful
+    HTTP request is made.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, within `RecipeDetailsComponent`, we can convert the `recipe$` Observable
+    back into a signal using the `toSignal` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: This allows us to bind the recipe’s data in the component’s template using Signals.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Awesome, right? This transformation pattern of using Signals is applicable for
+    every similar use case where you need to combine or transform multiple data streams
+    in your Angular applications!
+  prefs: []
+  type: TYPE_NORMAL
+- en: By leveraging both Angular Signals and RxJS, you can achieve a well-balanced
+    approach to reactive data management in your Angular applications. This harmonious
+    blend allows you to build highly dynamic and responsive user interfaces. Now,
+    let’s delve into some interesting new features regarding reactive data binding
+    with Signals.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring reactive data binding with Signals
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Angular’s data binding capabilities have been steadily improving to support
+    reactivity. Starting from version 17.1, Angular introduced some powerful features
+    to leverage reactivity using Signals in component interaction and data binding,
+    such as input Signals, model inputs (starting from 17.2), and support for content
+    and view queries. To align with input Signals, version 17.3 provides a new output
+    API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will explore these new features in this section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Signal inputs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The Angular `@Input` decorator is used to define an input property in a component,
+    allowing data to be passed into the component from its parent component or template.
+    It essentially creates a one-way data flow from the parent to the child component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Angular 17.1 introduces Signal inputs that allow input data to be passed as
+    Signals. This adds a powerful twist to data binding between parent and child components
+    in Angular, transforming traditional Angular inputs into a reactive data source.
+    Here’s an example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In this example, we defined three Signal inputs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`addressLine2`: An optional input that can hold a string value or be undefined.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`identifier`: An optional input that holds a number and has a default value
+    of 0.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`AddressLine1`: A required input that holds a string value. It is declared
+    using the `input.required` function, and by default, the inputs are optional (that’s
+    why Signal inputs are type-safe). If not provided, a compilation error will be
+    thrown, like so: **NG8008: Required input ‘ addressLine1’ from component ShippingComponent
+    must** **be specified**.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Required inputs cannot have a default value. Therefore, you can’t read their
+    values before they’ve been bound, and Angular throws an exception. Consequently,
+    you can’t access their values in the constructor. However, you can safely access
+    the values within `ngOnInit`, `ngOnChanges`, `computed`, or `effects` as they
+    are only triggered when the component has been initialized.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: When referenced in templates, Signal inputs will automatically mark `OnPush`
+    components as dirty.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we’ve got a handle on creating Signal inputs and understanding their
+    syntax, you might be curious about how to use them. Signal inputs are read-only.
+    You can access the value by calling the getter function in the template, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'You can also bind to an input Signal like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In this example, we bound the Signal input property, `addressLine1`, to different
+    values: a string named `2300 Vision Lane`, a component property named `addressProperty`,
+    and a Signal’s value named `addressAsSignalProperty()`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Binding to Signals opens the door to a whole new level of dynamic data flow;
+    any changes made to the input value in the parent component will be automatically
+    reflected in the child component. This is where the real magic happens. In the
+    following example, we’re using the Signal input property’s name to bind the values,
+    but you can provide an alias to the input name using the following syntax:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: This allows you to reference the input by using `<app-shipping [id]=50>` as
+    the alias in the template while still using `this.identifier` as the property
+    name inside your component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition to using signal inputs for value binding in templates, they can
+    also be used within `effects` and `computed` functions. Are you wondering how
+    to do that? Let’s look at some examples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here, we’re appending the values of `addressLine1` and `addressLine2` in the
+    computed function to build `fullAddress`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It’s possible to track the Signal input changes using the `effect` function,
+    like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, the `console.log` function is invoked every time the identifier
+    input changes. This is a new way to track value changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, life cycle hooks such as `ngOnInit` and `ngOnChanges` can now be replaced
+    with `computed` and `effect`, making value monitoring easier. Instead of implementing
+    extra code inside `ngOnInit` or `ngOnChanges`, we can simply register `effect`
+    to monitor values and use `computed` to perform automatic calculations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With that, we’ve covered the essentials of Signal inputs, which enable one-way
+    data binding. Next, we’ll explore how bidirectional data binding can be achieved
+    using Signals.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model inputs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Model inputs are similar to the previously explained Signal inputs, allowing
+    you to bind a value into a property. However, model inputs allow the component
+    to write values into the property, unlike other inputs, which are read-only. This
+    enables two-way reactive data binding, allowing the child component to not only
+    receive data changes from the parent but also notify the parent of any changes
+    it makes to the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s look at an example. Here’s some TypeScript code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And here’s some code in the HTML template:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the TypeScript code, we converted the Signal input named `identifier` into
+    a model input that initially contains a value of `0`. Then, in the constructor,
+    we set up a timer that will update the value of the `identifier` input after `4`
+    seconds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, in the HTML template, we simply used the two-way data binding syntax to
+    bind to a property called `counter` that we defined in the parent component and
+    then display the `counter` value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When running this code, you will see that the model’s input value will get updated
+    after 4 seconds to `000524` and the counter property will have `000524` as its
+    value as well. The parent component is automatically notified.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Another thing to note when defining a model input is that, under the hood,
+    Angular generates an output for that model. The output’s name is just the model
+    input’s name suffixed with `Change`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we called the `idChange` output and triggered the `updateMessagethat`
+    method, which will display an alert when the model value changes. The `idChange`
+    event will be emitted whenever you write a new value into the model input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Signal queries
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Signal queries present a reactive alternative to traditional queries declared
+    with the `@ContentChild`, `@ContentChildren`, `@ViewChild`, or `@ViewChildren`
+    decorators. Signal queries expose query results as Signals, which means that query
+    results can be composed with other Signals (using `computed` or `effect`) and
+    drive change detection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For more details, you can check out the official documentation: [https://angular.dev/guide/signals/queries](https://angular.dev/guide/signals/queries).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This chapter took a deep dive into Angular Signals. We started by figuring out
+    why Signals exist and how they help manage data reactively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, we explored the Signals API, from creating and reading the current value
+    to using computed Signals and effects when the value changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we compared Signals to RxJS Observables. We saw what each is good at and
+    when you’d use one over the other. Angular even provides special interop functions
+    that let Signals and Observables work together nicely, including `toObservable()`
+    and `toSignals()`, both of which we discussed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, to put everything into practice, we used Signals in our recipe app
+    to see how they work with RxJS in real-world scenarios. This hands-on experience
+    helped us solidify what we learned about using Signals and RxJS together. We also
+    walked through the newest improvements regarding reactive data binding and component
+    interaction using Angular Signals.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By incorporating Angular Signals into your Angular applications, you can streamline
+    data management, enhance code readability, and leverage the power of reactive
+    programming. Remember, signals and RxJS work together to empower you to build
+    dynamic and responsive user interfaces.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we’ll move on to the essentials of multicasting, which
+    will be helpful in the following chapters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Part 4: Multicasting Adventures'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this part, we will understand the essentials of multicasting in RxJS, as
+    well as the recommended reactive patterns in many real-world use cases, such as
+    caching data, multiple asynchronous operations, and real-time features.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You will also delve into the best practices when using multicast operators,
+    Subjects, and Behavior Subjects and learn the pitfalls to avoid specifically in
+    the context of multicasting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This part includes the following chapters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[*Chapter 9*](B21180_09.xhtml#_idTextAnchor146), *Demystifying Multicasting*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[*Chapter 10*](B21180_10.xhtml#_idTextAnchor159), *Boosting Performance with
+    Reactive Caching*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[*Chapter 11*](B21180_11.xhtml#_idTextAnchor170), *Performing Bulk Operations*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[*Chapter 12*](B21180_12.xhtml#_idTextAnchor180), *Processing Real-Time Updates*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

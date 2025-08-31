@@ -1,0 +1,1158 @@
+- en: Keeping up with Activities
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we'll build an activity log in our task management system,
+    using **Scalable Vector Graphics** (**SVG**) to build graphical components with
+    Angular. SVG is the perfect candidate when it comes to complex graphical content,
+    and by using Angular components, we can easily build encapsulated and reusable
+    content.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since we want to log all of the activities within our application, such as adding
+    comments or renaming tasks, we are going to create a central repository for activities.
+    We can then display these activities and render them as an activity timeline by
+    using SVG.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To add an overview of all of the activities and to provide user input to narrow
+    the range of activities displayed, we're going to create an interactive slider
+    component. This component will use a projection to render timestamps, in the form
+    of ticks and activities, directly on the slider's background. We'll also use SVG
+    to render the elements within the component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll cover the following topics in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A basic introduction to SVG
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Making SVG composable with Angular components
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using namespaces in component templates
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating a simple pipe to format calendar times using Moment.js
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using the `@HostListener` decorator to handle user input events, to create an
+    interactive slider element
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Making use of Shadow DOM using `ViewEncapsulation.Native`, in order to create
+    native style encapsulation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating a service for logging activities
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The goal of this chapter is to provide a way to keep track of all user activities
+    within a task management application. For that purpose, we'll need a system that
+    will allow us to log activities within components and access previously logged
+    activities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Within this chapter, we'll only track activities on projects. However, the activity
+    tracker can be used in any feature within our application. We're going to use
+    TypeScript discriminated unions to describe our activities. Let's jump right into
+    it and start by creating the model used within our new activities feature.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s open our model file, located in `src/app/model.ts`, and add the following
+    changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Activities, as entities, should be quite generic, and should have the following
+    fields with their respective purposes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`user`: The user object of the user that is responsible for this activity.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`time`: The timestamp of the activity. We will format this timestamp to a readable
+    display format, but will also use it for our projection math when we draw our
+    activity slider.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`category`: This field provides an additional way of tagging the activity.
+    For projects, we will currently use two categories; **comments** and **tasks**.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`title`: This refers to the title of the activity, which will provide a very
+    brief summary of what the activity is about. This could be something such as *New
+    task was added* or *Comment was added*.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`message`: This is the field where the real beef of the activity goes. It should
+    contain enough information to provide good traceability of what happened during
+    the activity.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Additionally, we're creating an interface, `ActivitySliderSelection`, which
+    we're going to use when communicating selection changes within our custom slider
+    UI component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The custom type, `ActivityAlignment`, will be used to store information about
+    the positioning of activities on a timeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s also update our in-memory database with some initial data, so that we
+    have something to work with when creating our UI components for the activities
+    view. Open up the file located in `src/app/database.ts`, and apply the following
+    changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we can go ahead and create a service to load activities and log new activities.
+    Let''s use the Angular CLI to create the stub of our service:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This will generate a new service class on the path `src/app/activities/activities.service.ts`.
+    Let''s open that file and add the necessary code to implement our service:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: There's not much that we need to discuss here. Our service is very similar to
+    the task list or project service that we already created. Additionally, when obtaining
+    an observable of our activities behavior subject, we're performing a sort on the
+    emitted activity list. We always want to emit the activity list sorted by activity
+    time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since activities can't be edited or deleted, we only need to be concerned with
+    newly added activities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the `logProjectActivity` method, we're simply posting a new activity into
+    our in-memory web database, using the Angular HTTP client. The user service will
+    provide us with information on the currently logged-in user.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That's it on the data front. We have created a simple platform that will help
+    us keep track of activities within our application. Later in this book, we can
+    use the activities service to track all sorts of activities. For now, we're just
+    concerned with project-related activities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Logging activities
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have created a nice system to log activities. Now, let's go ahead and use
+    it within our components, to keep an audit of all of the activities happening
+    within the context of projects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, let's use our activities service to log activities when project tasks
+    get updated and created. Logging activities can be viewed as an application side
+    effect, and we don't want to cause side effects within our pure UI components.
+    Instead, the container components are the perfect places to perform these kinds
+    of operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s open the container component for our task list on the path `src/app/container/task-list-container/task-list-container.component.ts`,
+    and apply the following changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using the `logProjectActivity` method of our activities service, we can easily
+    log an activity for creating and updating tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the message body of our activities, we've used a new utility function, `limitWithEllipsis`,
+    which we're importing from a new module, called `string-utilities`. This function
+    truncates an input string and cuts it off at a position specified with a second
+    parameter. In addition, it appends an ellipsis character (`…`) at the end of the
+    truncated string. This is a nice utility for when we want to create a preview
+    of text that might be lengthy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s quickly craft this little helper function and create a new file on the
+    path `src/app/utilities/string-utilities.ts`. Open up the file and add the following
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: That's it for now. We're successfully logging activities upon task creation
+    and updates. We're also going to use the activity service within the project comments
+    container component to create logs for added and edited comments. Since the steps
+    involved are very similar to what we've just done for the task list container
+    component, we're going to skip over this. You can always take a look at the final
+    code base for this chapter to add activity logs for the project comments container
+    component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Leveraging the power of SVG
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'SVG has been a part of the Open web platform standards since 1999, and was
+    first recommended in 2001, under the SVG 1.0 standard. SVG is a consolidation
+    of two independent proposals for an XML-based vector image format. **Precision
+    Graphics** **Markup Language** (**PGML**), mainly developed by Adobe and Netscape,
+    and **Vector Markup Language** (**VML**), which was mainly represented by Microsoft
+    and Macromedia, were both different XML formats that served the same purpose.
+    The W3C consortium declined both of the proposals in favor of the newly developed
+    SVG standard, which unified the best of both worlds into a single standard:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b6273a34-2e1c-4c5b-8b3c-da7f8ed8cef9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Timeline showing the development of the SVG standard
+  prefs: []
+  type: TYPE_NORMAL
+- en: All three standards had a common goal, which was to provide a format for the
+    web to display vector graphics in the browser. SVG is a declarative language that
+    specifies graphical objects using XML elements and attributes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at a simple example of how to create an SVG image with a black
+    circle, using SVG:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: This rather simple example represents an SVG image with a black circle, whose
+    center is located at `cx="10"` px and `cy="10"` px. The radius of the circle is
+    `10` px, which makes this circle `20` px in width and height.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The origin of the coordinate system in SVG sits on the top-left corner, where
+    the *y*-axis faces the south direction and the *x*-axis eastward:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/eba7f085-0746-49c7-af8f-b924daa109e1.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The coordinate system within SVG
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using not only primitive shapes, such as circles, lines, and rectangles, but
+    also complex polygons, the possibilities for creating graphical content are nearly
+    unlimited.
+  prefs: []
+  type: TYPE_NORMAL
+- en: SVG is not only used within the web, but has also become a very important intermediate
+    format for exchanging vector graphics between different applications. Almost any
+    application that supports vector graphics also supports the import and export
+    of SVG files.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The real power of SVG comes to the surface when we do not include an SVG file
+    as an HTML image element, but rather, include the SVG content directly within
+    our DOM. Since HTML5 directly supports the SVG namespace within an HTML document
+    and will render the graphics that we define within our HTML, a whole bunch of
+    new possibilities spring up. We can now style our SVG with CSS, manipulate the
+    DOM with JavaScript, and easily make our SVG interactive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Taking the previous example of our circle image to the next level, we could
+    make it interactive by changing the circle color (by clicking on it). First, let''s
+    create a minimal HTML document and include our SVG elements directly within the
+    DOM:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see, we can get rid of the version and the XML namespace declaration
+    when we use SVG directly within the DOM of our HTML document. What's interesting
+    here is that we can treat SVG very much like regular HTML. We can assign an ID,
+    and even classes, to SVG elements, and access them from JavaScript.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Within the `script` tag of our HTML document, we can directly access our `circle`
+    element using the ID we've previously assigned to it. We can add event listeners
+    to SVG elements the same way as with regular HTML elements. In this example, we
+    added a `click` event listener and changed the color of our circle to red.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the sake of simplicity, we used an inline `script` tag in this example.
+    It would, of course, be much cleaner to have a separate JavaScript file to do
+    the scripting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Styling SVG
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: I'm a purist when it comes to the separation of concerns within the web. I still
+    strongly believe in the separation of structure (HTML), appearance (CSS), and
+    behavior (JavaScript), as well as producing the most maintainable applications
+    when following this practice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, it seems weird to have SVG in your HTML, and you might think that this
+    breaks the contract of a clean separation. Why is this graphical content, consisting
+    of only appearance-relevant data, sitting in my HTML, which is supposed to contain
+    only raw information? After dealing with a lot of SVGs within a DOM, I have come
+    to the conclusion that we can establish a clean separation when using SVG by dividing
+    our appearance responsibilities into the two following subgroups:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Graphical structure**: This subgroup deals with the process of defining the
+    basic structure of your graphical content. This is about shapes and layout.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Visual appearance**: This subgroup deals with the process of defining the
+    look and feel of our graphical structures, such as colors, line widths, line styles,
+    and text alignment.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If we separate the concerns of SVG into these groups, we can actually gain great
+    maintainability. The graphical structure is defined by the SVG shapes themselves.
+    They are directly written within our HTML, but don't have a particular look and
+    feel. We only store the basic structural information within HTML.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Luckily, instead of using attributes on SVG elements, all the properties for
+    visual appearance, such as color, can also be specified with corresponding CSS
+    properties. That allows us to offload all of the look-and-feel relevant aspects
+    of the structure to CSS.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s go back to the example where we drew a black circle; we''ll tweak this
+    a bit, to fit our demands of separation of concerns, so that we can distinguish
+    graphical structure from graphical appearance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Styling our graphical structures can now be achieved by using CSS, including
+    a style sheet with the following content:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is fantastic, as we can not only reuse some graphical structures, but can
+    also apply different visual appearance parameters using CSS, similar to those
+    enlightening moments when we managed to reuse some semantic HTML by only changing
+    some CSS.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at the most important CSS properties that we can use to style SVG
+    shapes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`fill`: When working with solid SVG shapes, there''s always a shape fill and
+    stroke option available; the `fill` property specifies the color of the shape
+    fill.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`stroke`: This property specifies the color of the SVG shape''s outline.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`stroke-width`: This property specifies the width of the SVG shape''s outline
+    on solid shapes. For non-solid shapes, such as lines, this can be thought of as
+    the line width.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`stroke-dasharray`: This specifies a dash pattern for strokes. Dash patterns
+    are space-separated values that define a pattern.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`stroke-dashoffset`: This specifies an offset for the dash pattern, which is
+    specified with the `stroke-dasharray` property.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`stroke-linecap`: This property defines how line caps should be rendered. They
+    can be rendered as square, butt, or rounded caps.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`stroke-linejoin`: This property specifies how lines are joined together within
+    a path.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`shape-rendering`: Using this property, you can override the shape-rendering
+    algorithm that, as the name suggests, is used to render shapes. This is particularly
+    useful if you need crispy edges on your shapes.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For a complete reference of the available appearance-relevant SVG attributes,
+    visit the Mozilla Developer website at [https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute).
+  prefs: []
+  type: TYPE_NORMAL
+- en: I hope that this brief introduction gave you a better feeling about SVG and
+    the great power it comes with. In this chapter, we're going to use some of that
+    power to create nice, interactive graphical components. If you would like to learn
+    more about SVG, I strongly recommend that you go through the great articles by
+    Sara Soueidan.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building SVG components
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When building Angular components with SVG templates, there are a couple of things
+    that you need to be aware of. The first and most obvious one is XML namespaces.
+    Modern browsers are very intelligent when parsing HTML. Besides being probably
+    the most fault-tolerant parsers in the history of computer science, DOM parsers
+    are very smart in recognizing markup, and then deciding how to treat it. They
+    will automatically decide the correct namespaces for us, based on element names,
+    so we don't need to deal with them when writing HTML.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you''ve messed around with the DOM API a bit, you''ve probably recognized
+    that there are two methods for creating new elements. In the document object,
+    for example, there''s a `createElement` function, but there''s also `createElementNS`,
+    which accepts an additional namespace URI parameter. Also, every element created
+    has a `namespaceURI` property that tells you the namespace of the specific element.
+    That is important, since HTML5 is a standard that consists of at least three namespaces:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**HTML**: This is the standard HTML namespace, with the [http://www.w3.org/1999/xhtml](http://www.w3.org/1999/xhtml)
+    URI.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**SVG**: This embraces all SVG elements and attributes and uses the [http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)
+    URI. You can sometimes see this namespace URI in an `xmlns` attribute of the `svg`
+    elements. In fact, this is not really required, as the browser is smart enough
+    to decide on the correct namespace itself.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**MathML**: This is an XML-based format to describe mathematical formulas,
+    and it is supported in most modern browsers. It uses the [http://www.w3.org/1998/Math/MathML](http://www.w3.org/1998/Math/MathML)
+    namespace URI.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We can mix all of these elements from different standards and namespaces within
+    a single document, and our browser will figure out the correct namespace itself,
+    when it creates elements within the DOM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you want more information on namespaces, I recommend that you go through
+    the *Namespaces* *Crash Course* article on the Mozilla Developer Network at [https://developer.mozilla.org/en/docs/Web/SVG/Namespaces_Crash_Course](https://developer.mozilla.org/en/docs/Web/SVG/Namespaces_Crash_Course).
+  prefs: []
+  type: TYPE_NORMAL
+- en: As Angular will compile templates for us and render elements into the DOM using
+    the DOM API, it needs to be aware of the namespaces when doing so. Similar to
+    the browser, Angular provides some intelligence for deciding the correct namespace
+    when creating elements. However, there will be some situations where you will
+    need to help Angular recognize the correct namespace.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To illustrate some of this behavior, let''s transform the circle example that
+    we''ve been working on into an Angular component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: We've wrapped our circle SVG graphics into a simple Angular component. The `size`
+    input parameter determines the actual width and height of the circle by controlling
+    the SVG's `width` and `height` attributes and the circle's `cx`, `cy`, and `r`
+    attributes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To use our circle component, simply use the following template within another
+    component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: It's important to note that we need to use attribute bindings on SVG elements,
+    and we can't set DOM element properties directly. This is due to the nature of
+    SVG elements that have special property types (for example, `SVGAnimatedLength`)
+    that can be animated with **Synchronized Multimedia Integration** **Language**
+    (**SMIL**). Instead of interfering with these rather complex element properties,
+    we can simply use attribute bindings to set the attribute values of the DOM element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's go back to our namespace discussion. Angular will know that it needs to
+    use the SVG namespace to create the elements within this template. It will function
+    in this way simply because we're using the `svg` element as a root element within
+    our component, and it can switch the namespace within the template parser for
+    any child elements automatically.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, there are certain situations where we need to help Angular determine
+    the correct namespace for the elements we''d like to create. This strikes us if
+    we''re creating nested SVG components that don''t contain a root `svg` element:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, we're nesting SVG components, and our awesome circle component
+    does not have an `svg` root element to tell Angular to switch the namespace. That
+    is why we've created the `svg` element within our app component, and then included
+    the awesome circle component in an SVG group.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We need to explicitly tell Angular to switch to the SVG namespace within our
+    circle component, and we can do this by including the namespace name as a prefix
+    separated by a colon, as you can see in the highlighted section of the preceding
+    code excerpt.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you have multiple elements that need to be created explicitly within the
+    SVG namespace, you can rely on the fact that Angular does apply the namespace
+    for child elements, too, and groups all of your elements with an SVG group element.
+    So, you only need to prefix the group element with `<svg:g> ... </svg:g>`, but
+    none of the contained SVG elements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That is enough to know about Angular internals when dealing with SVG. Let's
+    move on and create some real components!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building an interactive activity slider component
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous topics, we covered the basics of working with SVG and dealing
+    with SVG in Angular components. Now, it's time to apply our knowledge to the task
+    management application and create some awesome components using SVG.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first component we''ll be creating in this context is an interactive slider
+    that allows the user to select the time range of activities that he or she is
+    interested in checking out. Displaying a simple HTML5 range input could be a solution,
+    but since we''ve gained some SVG superpower, we can do better! We''ll use SVG
+    to render our own slider that will show existing activities as ticks on the slider.
+    Let''s look at a mock-up of the slider component that we''re going to create:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/82660348-4ed9-4955-9650-845f2152666f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A mock-up of the activity slider component
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our slider component will actually serve two purposes. It should be a user control,
+    and should provide a way to select a time range for filtering activities. However,
+    it should also provide an overview of all of the activities, so that a user can
+    filter the range more intuitively. By drawing vertical bars that represent activities,
+    we can already give the user a feeling of the range he or she is interested in.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s create our new activity slider component using the Angular CLI tool:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Open the generated component class on the path `src/app/activities/activity-slider/activity-slider.component.ts`,
+    and add the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first thing we should mention, which differs from all of the other components
+    we've written about so far, is that we're using `ViewEncapsulation.Native` for
+    this component. As we learned from the *Creating our application component* section
+    in [Chapter 2](11f96942-6e99-46c5-b152-1af3b2579d44.xhtml), *Ready, Set, Go!*,
+    when we use `ViewEncapsulation.Native` for our component encapsulation, Angular
+    actually uses Shadow DOM to create the component. We briefly looked at this in
+    the *Shadow DOM* section in [Chapter 1](72fc993e-43db-48eb-8797-c65ea9226b87.xhtml),
+    *Component-Based User Interfaces,* as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using Shadow DOM for our component will give us this advantage: Our component
+    will be fully encapsulated, from the CSS side of things. This not only means that
+    none of the global CSS will leak into our component; it also means that we''ll
+    need to create local styles, in order to style our component.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we've used styles coming from a global style sheet, which has been prepared
+    for the book. We're using a component CSS naming convention within that file,
+    in order to avoid name clashes with CSS classes. However, when using Shadow DOM,
+    we can forego prefixes and other naming conventions to avoid name clashes, since
+    we're only applying styles locally, within the component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Chrome supports Shadow DOM natively, from Version 35\. Within Firefox, Shadow
+    DOM can be enabled by visiting the `about:config` page and turning on the `dom.webcomponents.enabled`
+    flag. IE, Edge, and Safari don't support this standard at all; however, we can
+    set things up in a way that they can deal with Shadow DOM, by including a polyfill
+    named `webcomponents.js`. You can find more information on this polyfill at [https://github.com/webcomponents/webcomponentsjs](https://github.com/webcomponents/webcomponentsjs).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s add the local CSS styles that we''re going to use within our activity
+    slider component. Open the file `src/app/activities/activity-slider/activity-slider.component.css`,
+    and add the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Usually, such short class names would probably lead to name clashes within our
+    project, but since the styles will be local to the Shadow DOM of our component,
+    we don't need to worry about name clashes anymore.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can see that we're using a special pseudo-selector, `:host`, within our
+    styles. This selector is part of the Shadow DOM specification for CSS, and it
+    allows us to style the host element of a shadow root. This becomes very handy,
+    since we can treat the host element as a part of our component internals when
+    styling.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's go back to the rest of the code inside of our activity slider component.
+    As an input parameter, we define the list of activities that will be used, not
+    only to determine the available range in the slider, but also to render activities
+    on the background of the slider.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once a selection is made by the user, our component will use the `outSelectionChange`
+    output to notify the outside world about the change.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Within the constructor, we're injecting the host element for later use. We will
+    need that to access the native DOM elements of our slider, in order to do some
+    width calculations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Projection of time
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Our slider component needs to be able to project timestamps into the coordinate
+    system of SVG. Also, when a user clicks on the timeline to select a range, we''ll
+    need to be able to project coordinates back into timestamps. For this purpose,
+    we need to create two projection functions within our component, which will use
+    a few helper functions and states to calculate the values, from coordinates to
+    time, and vice-versa:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/67be855a-4b2d-4263-a26b-549231cf0f4d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Visualization of important variables and functions for our calculations
+  prefs: []
+  type: TYPE_NORMAL
+- en: While we will use percentages to position our SVG elements on the slider component,
+    the padding on the sides will need to be specified in pixels. The `totalWidth`
+    function will return the total width of the area in pixels; this is where we'll
+    draw the activity indicators. The `timeFirst`, `timeLast`, and `timeSpan` variables
+    will also be used by the calculations, and are specified in milliseconds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s add some code to our slider to deal with the projection of our activities
+    on the slider:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Since we have put aside the reference to the host element, we can use its `clientWidth`
+    property to get the full width of the component and subtract the padding. This
+    will give us the full width of the area where we'd like to draw activity indicators,
+    in pixels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the `projectTime` function, we will first transform the timestamp into a
+    position by a simple rule of three. Because we have access to the timestamp of
+    the first activity, as well as the total time span, this will be a quite simple
+    task. Once we do this, we can convert our position value, which is of unit pixels,
+    into a percentage, by dividing it by the total component width and then multiplying
+    it by 100.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To project a pixel value back to a timestamp, we can more or less perform the
+    reverse of `projectTime`, except that we're not dealing with percentages here,
+    but assuming that the length parameter of the `projectLength` function is in a
+    pixel unit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ve used some member variables (`timeFirst`, `timeLast`, and `timeSpan`)
+    within our projection code, but how do we set these member variables? Since we
+    have an `activities` component input, which is expected to be a list of relevant
+    activities, we can observe the input for changes and set the values based on the
+    input. To observe that component input for changes, we can use the `OnChanges`
+    life cycle hook:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: First, we need to check whether the changes include changes to the `activities`
+    input and that the current value of the input is valid. After checking for the
+    input value, we can determine our member variables, namely `timeFirst`, `timeLast`,
+    and `timeSpan`. We limit the `timeSpan` variable to at least `1`, as our projection
+    calculations would be messed up otherwise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The preceding code will ensure that we will always recalculate our member variables
+    when the `activities` input changes, and that we'll be using the most recent data-rendering
+    activities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Rendering activity indicators
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We've already implemented the basics of the component and laid the groundwork
+    for drawing time information into the coordinate system of our component. It's
+    time to use our projection functions and draw our activities as indicators on
+    the slider using SVG.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s open the template of our activity slider in `src/app/activities/activity-slider/activity-slider.component.html`,
+    and add the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: Since we need to create an indicator for every activity within our activities
+    list, we can simply use the `ngFor` directive to repeat the rectangle that represents
+    our activity indicator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we know from building our activity service class in a previous topic, *Creating
+    a service for logging activities*, activities always contain a `time` field with
+    the timestamp of the activity. Within our component, we have already created a
+    projection function that converts time into a percentage, relative to our component
+    width. We can simply use the `projectTime` function within our attribute binding
+    for the `x` attribute of the `rect` element, to position our activity indicators
+    at the correct positions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By only using an SVG template and our backing function to project time, we have
+    created a nice little chart that displays activity indicators on a timeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can imagine that if we have a lot of activities, our slider will actually
+    look pretty stuffed, and it will be hard to get a feeling for when those activities
+    may have occurred. We need to have some sort of a grid that will help us associate
+    the chart with a timeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As already shown in the mock-up of our slider component, now, we're going to
+    introduce some ticks on the slider background that will divide the slider into
+    sections. We'll also label each tick with a calendar time. This will give our
+    users a rough sense of time, when looking at the activity indicators on the slider.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at the code changes within our activity slider class that will
+    enable the rendering of our ticks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: First of all, we need to create a function that computes some ticks for us,
+    which we can place onto the timeline. For this purpose, we need to create the
+    `computeTicks` method, which will divide the whole timeline into five equal segments
+    and generate timestamps that represent the positions in time for individual ticks.
+    We will store these ticks in a new `ticks` member variable. With the help of these
+    timestamps, we can easily render the ticks within our view.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We use the `Array.from` ES6 function to create a new array with the desired
+    length, and use the functional array extra function `map` to generate tick model
+    objects from this array. Using `Array.from` is a nice trick to create an initial
+    array of a given length, which can be used to establish a functional style.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at the template of our activity slider component, and how we can
+    use our array of timestamps to render ticks on our slider component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: To render our ticks, we've used an SVG group element to place our `ngFor` directive
+    that repeats the tick timestamps we've stored in the `ticks` member variable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For each tick, we need to place a label, as well as a line, that spans over
+    the slider background. We can use the SVG text element to render our label with
+    the timestamp on top of the slider. Within the attribute binding for the `x` attribute
+    of our `text` element, we've used our `projectTime` projection function to receive
+    the projected percentage value from our timestamp. The `y` coordinate of our `text`
+    element is fixed at a position where the labels will just sit on top of our slider.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'SVG lines consist of four coordinates: `x1`, `x2`, `y1`, and `y2`. Together,
+    they define two coordinate points, where a line will be drawn from one point to
+    the other.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, we are getting closer to the final slider that we specified in the mock-up
+    at the beginning of this topic. The last missing piece of the puzzle is to make
+    our slider interactive, so a user can select a range of activities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Bringing it to life
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we've covered the rendering of the slider background, as well as the
+    rendering of the activity indicators. We've also generated ticks and displayed
+    them with a grid line and a label, to display the calendar time of each tick.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Well, that does not really make a slider, does it? Of course, we also need to
+    handle user input, and make the slider interactive, so that users can select a
+    time range that they want to display the activities for.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To do this, add the following changes to the component class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: When we detect a change in the `activities` input property within the `OnChanges`
+    life cycle hook, we initialize a `ActivitySliderSelection` object for the user
+    selection in our slider component. It consists of a `start` and `end` property,
+    both containing timestamps that represent the selected range on our activity slider.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we've set our initial selection, we need to use the `outSelectionChange`
+    output property to emit an event. That way, we can let our parent component know
+    that the selection within the slider has changed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To display the selected range, we use an overlay rectangle within our template,
+    which will be placed above the slider background. If you look at the mock-up image
+    of the slider again, you''ll notice that this overlay is painted in grey:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: This rectangle will be placed just above our slider background, and will use
+    our projection function to calculate the `x` and `width` attributes. As we need
+    to wait for change detection to initialize our selection within the `OnChanges`
+    life cycle hook, we'll just check for a valid selection object by making use of
+    the `ngIf` directive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we need to start tackling user input in our activity slider component.
+    The mechanics for storing the state and rendering our selection are already in
+    place, so we can implement the required host listeners to handle user input. Since
+    we''ve applied quite a few changes progressively, let''s look at the final, full
+    version of the component class. The missing changes to add user interactions are
+    marked in bold:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code excerpt, we handled a total of four events on the slider
+    host element:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`onMouseDown`: We set our selection model''s `start` and `end` properties with
+    the same value. Since we''re using timestamps for these properties, we projected
+    the mouse position into the timespace first. The mouse position comes in pixels,
+    relative to the slider component''s origin. Since we know the slider''s width
+    and the total time duration displayed, we can easily convert this into timestamps.
+    We''re using the `projectLength` method for this purpose. By passing a second
+    argument to the `@HostListener` decorator, we specified that we''d like to pass
+    the DOM event to our `onMouseDown` method. We also set a state flag, `modifySelection`,
+    in our component, to indicate that a selection is in progress.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`onMouseMove`: If the component is in selection mode (the `modifySelection`
+    flag is `true`), you can adjust the end property of the `selection` object. Here,
+    we also made sure that we ruled out the possibility of creating a negative selection,
+    by using `Math.max` and limiting the end of the selection to not be smaller than
+    the start.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`onMouseUp`: When the user releases the mouse button, the component exits the
+    selection mode. This can be done by setting the `modifySelection` flag to `false`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`onMouseLeave`: This is the same as the `onMouseUp` event; the difference is
+    that here, the component will just exit the selection mode.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using the `@HostListener` decorator, we were able to handle all of the necessary
+    user input to complete our component with the interactive elements that were still
+    missing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Recap
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this topic, we learned how to use SVG in order to create graphical and interactive
+    components with Angular. By creating attribute bindings on our SVG elements and
+    controlling the instantiation of graphical elements using the `ngFor` and `ngIf`
+    directives, we built a custom slider component that provides a nice overview of
+    our activities. At the same time, we also learned how to handle user input using
+    the `@HostListener` decorator, in order to make our component interactive:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6441d4ab-9f66-4b56-b90f-af09ac9bc02d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A screenshot of the finished activity slider component
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To sum things up, we learned about the following concepts:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Encapsulating component views using `ViewEncapsulation.Native` and importing
+    local styles
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Covering some basic projections of timestamps onto screen coordinates, to be
+    used with SVG elements
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Handling user input and creating a custom selection mechanism using the `@HostListener`
+    decorator
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building the activity timeline
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we've built a service to log activities and a slider component to select
+    a time range and provide an overview using activity indicators. Since we needed
+    to perform a lot of drawing tasks within the slider component, SVG was a perfect
+    fit for this use case. To complete our activities component tree, we still need
+    to render the activities that were selected using the activity slider component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s continue to work on our activities component tree. We will create a
+    new component that is responsible for rendering an individual activity within
+    an activity timeline. Let''s use the Angular CLI to create our activity component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, let''s start with the component template. Open the file `src/app/activities/activity/activity.component.html`,
+    and add the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: Each activity will consist of a user image, as well as an information box that
+    will contain the activity title, message, and authoring details.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our activity will use an input to determine its alignment. This allows us to
+    align the activity from outside of the component. The `isAlignedRight` method
+    helps us set an additional CSS class, `info-align-right`, on the activity information
+    box.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s create our component class within the file `src/app/activities/activity/activity.component.ts`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Our activity component expects four inputs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`activity`: This property takes the data model of the activity that needs to
+    be rendered with the component. This is the activity that we created using the
+    activity service.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`alignment`: This input property should be set to a string containing the word
+    `left` or `right`. We used this to determine whether we needed to add an additional
+    CSS class to our template, in order to align the activity information box to the
+    right.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`startMark`: This input property acts as an input and a host binding at the
+    same time. If this input is set to `true`, the activity will get an additional
+    CSS class, `start-mark`, which will cause a small mark on top of the timeline,
+    to indicate the timeline termination.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`endMark`: In the same way as `startMark`, this input uses a host binding to
+    set an additional CSS class, `end-mark`, which will cause a small mark on the
+    bottom of the timeline, to indicate the timeline termination.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `isAlignedRight` method is used within the template, to determine whether
+    we need to add an additional CSS class to the information box, in order to align
+    it to the right.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We formatted the timestamp of the activity using the `FromNow` pipe, which we
+    created in [Chapter 4](1682edec-f2b3-4b02-afd8-ed7ef586b712.xhtml), *Thinking
+    in Projects*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We now have almost all of the components to display our activities. Still,
+    there''s something missing, which is the glue to combine the activity slider with
+    our activity components. For this, we''ll create a new component, called `activities`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After the Angular CLI has generated the component files, let''s open the component
+    class in `src/app/activities/activities/activities.component.ts`, and add the
+    following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: Since this component will just act as a compositional component for arranging
+    the slider and rendering all activities, we don't have a lot of logic in it. This
+    is a pure component, and it relies on a parent container component to determine
+    which of the activities should be displayed/selected. We're also re-emitting the
+    `outSelectionChange` event originated at the activity slider.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s also take a look at the template located in `src/app/activities/activities/activities.component.ts`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: Again, that's just simple composition. We're rendering our activity slider,
+    and we use the `ngFor` directive to render our activity timeline. With the help
+    of the local view variables `odd`, `first`, and `last`, we can set all of the
+    necessary formatting inputs required on our activity component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alright! We are almost there. We have all of our activity UI components ready.
+    However, we still need to create a container component for our activities and
+    add the necessary route configuration, so that the user can navigate to the project
+    activities tab.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s use the Angular CLI tool again, to create the files for our activities
+    container component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Open the component class file located in `src/app/container/project-activities-container/project-activities-container.component.ts`,
+    and apply the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: Although this looks like a lot of code, it should actually look very familiar.
+    Our other container components look almost the same as this. We're accessing the
+    activities observable from our activities service and combining the observable
+    with the parent route parameter to obtain the selected project ID.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What's special about this container is that we're storing a behavior subject,
+    `selection`, which is used to emit the latest selection that we receive from our
+    activity slider component. Within the `selectedActivities` observable, we're then
+    using this selection together with a mapping function, in order to filter for
+    only the activities that are within the range of our selection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As is usual with container components, the template for this one is really
+    simple. We''re just rendering our activities component and create bindings using
+    the async pipe on our container observables. Open the file `src/app/container/project-activities-container/project-activities-container.component.html`,
+    and apply the following changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Okay; that''s it for our container. Now, we only need to add our newly created
+    activities container component into the route configuration. Let''s open our router
+    configuration file, `src/app/routes.ts`, and apply the following changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'That''s it for our activities page! We''ve created three components that are
+    composed together and display an activity stream, which provides a slider to filter
+    activities for dates. Preview your changes in the browser, and you should now
+    be able to navigate to the ACTIVITIES tab on your projects. Also, try to cause
+    some activities to be logged, by adding new tasks or updating them. Click and
+    drag on the activity slider to change your selections:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/bc042898-071e-4c7b-a9e1-d03dfe7ab031.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A screenshot of the finished activities view
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we created an interactive slider component using SVG. While
+    doing this, we learned about some SVG basics and the power of SVG within the DOM.
+    Using Angular, we were able to make SVG composable, which it isn't by nature.
+    We learned about namespaces, how Angular handles them, and how we can tell Angular
+    that we'd like to use namespaces explicitly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Besides using SVG for our slider component, we also learned how to use Shadow
+    DOM to create native view encapsulation. As a result of this, we were able to
+    use local styles for our component. We don't need to worry about CSS name clashes,
+    specificity, and global CSS side effects when using local styles.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we're going to enhance what we've built so far. We will
+    create some components to enrich the user experience within our application.
+  prefs: []
+  type: TYPE_NORMAL

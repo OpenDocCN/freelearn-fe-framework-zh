@@ -1,0 +1,2231 @@
+- en: '9'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: DevOps Using Docker
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: By the end of *Chapter 8*, *Designing Authentication and Authorization*, we
+    had a fairly sophisticated app. In *Chapter 4*, *Automated Testing, CI, and Release
+    to Production*, I emphasized the need to ensure that every code push we create
+    has passing tests, adheres to the coding standards, and is an executable artifact
+    that team members can run tests against as we develop our application. By the
+    end of *Chapter 7*, *Creating a Router-First Line-of-Business App*, you should
+    have replicated the same CircleCI setup we implemented for the Local Weather app
+    for LemonMart. If not, before we start building more complicated features for
+    our **Line-of-Business** (**LOB**) app, go ahead and do this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We live in an era of moving fast and breaking things. However, the latter part
+    of that statement rarely works in an enterprise. You can choose to live on the
+    edge and adopt the YOLO lifestyle, but this doesn't make good business sense.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.1: A creative CLI option for a tool'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Continuous Integration** (**CI**) is critical to ensuring a quality deliverable
+    by building and executing tests on every code push. Setting up a CI environment
+    can be time-consuming and requires specialized knowledge of the tool being used.
+    In *Chapter 4*, *Automated Testing, CI, and Release to Production*, we implemented
+    GitHub flow with CircleCI integration. However, we manually deployed our app.
+    To move fast without breaking things, we need to implement **Continuous Deployment**
+    (**CD**) using DevOps best practices such as **Infrastructure-as-Code** (**IaC**),
+    so we can verify the correctness of our running code more often.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will go over a Docker-based approach to implement IaC that
+    can be run on most CI services and cloud providers, allowing you to achieve repeatable
+    builds and deployments from any CI environment to any cloud provider. Working
+    with flexible tools, you will avoid overspecializing in one service and keep your
+    configuration management skills relevant across different CI services.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This book leverages CircleCI as the CI server. Other notable CI servers are
+    Jenkins, Azure DevOps, and the built-in mechanisms within GitLab and GitHub.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, you will learn the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: DevOps and IaC
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Containerizing web apps using Docker
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Deploying containerized apps using Google Cloud Run
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: CD to multiple cloud providers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Advanced CI
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Code coverage reports
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The following software is required to follow along with this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Docker Desktop Community version 2+
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Docker Engine CE version 18+
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A Google Cloud Engine account
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A Coveralls account
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The most up-to-date versions of the sample code for the book are on GitHub at
+    the repository linked in the following list. The repository contains the final
+    and completed version of the code. Each section contains information boxes to
+    help direct you to the correct filename or branch on GitHub so that you can use
+    them to verify your progress.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For the *Chapter 9* examples based on **local-weather-app**, do the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Clone the repo at [https://github.com/duluca/local-weather-app](https://github.com/duluca/local-weather-app).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Execute `npm install` on the root folder to install dependencies.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use `.circleci/config.ch9.yml` to verify your `config.yml` implementation.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: To run the CircleCI Vercel Now configuration, execute
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Refer to the pull request at [https://github.com/duluca/local-weather-app/pull/50](https://github.com/duluca/local-weather-app/pull/50).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: To run the CircleCI GCloud configuration, execute
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Refer to the pull request at [https://github.com/duluca/local-weather-app/pull/51](https://github.com/duluca/local-weather-app/pull/51).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Note that both branches leverage modified code to use the `projects/ch6` code
+    from the **local-weather-app** repo.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For the *Chapter 9* examples based on **lemon-mart**, do the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Clone the repo at [https://github.com/duluca/lemon-mart](https://github.com/duluca/lemon-mart).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use `.circleci/config.ch9.yml` and `config.docker-integration.yml` to verify
+    your `config.yml` implementation.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Execute `npm install` on the root folder to install dependencies.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: To run the CircleCI Docker integration configuration, execute
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Refer to the pull request at [https://github.com/duluca/lemon-mart/pull/25](https://github.com/duluca/lemon-mart/pull/25).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Note that the `docker-integration` branch is slightly modified to use code from
+    the `projects/ch8` folder on the **lemon-mart** repo.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Beware that there may be slight differences in implementation between the code
+    in the book and what's on GitHub because the ecosystem is ever-evolving. It is
+    natural for the sample code to change over time. Also, on GitHub, expect to find
+    corrections, fixes to support newer versions of libraries, or side-by-side implementations
+    of multiple techniques for the reader to observe. The reader is only expected
+    to implement the ideal solution recommended in the book. If you find errors or
+    have questions, please create an issue or submit a pull request on GitHub for
+    the benefit of all readers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can read more about updating Angular in *Appendix C*, *Keeping Angular and
+    Tools Evergreen*. You can find this appendix online from [https://static.packt-cdn.com/downloads/9781838648800_Appendix_C_Keeping_Angular_and_Tools_Evergreen.pdf](https://static.packt-cdn.com/downloads/9781838648800_Appendix_C_Keeping_Angular_and_Tools_Evergreen.)
+    or at [https://expertlysimple.io/stay-evergreen](https://expertlysimple.io/stay-evergreen).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's start by understanding what DevOps is.
+  prefs: []
+  type: TYPE_NORMAL
+- en: DevOps
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: DevOps is the marriage of development and operations. In development, it is
+    well established that code repositories like Git track every code change. In operations,
+    there has long been a wide variety of techniques to track changes to environments,
+    including scripts and various tools that aim to automate the provisioning of operating
+    systems and servers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Still, how many times have you heard the saying, "it works on my machine"? Developers
+    often use that line as a joke. Still, it is often the case that software that
+    works perfectly well on a test server ends up running into issues on a production
+    server due to minor differences in configuration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In *Chapter 4*, *Automated Testing, CI, and Release to Production*, we discussed
+    how GitHub flow can enable us to create a value delivery stream. We always branch
+    from the master before making a change. Enforce that change to go through our
+    CI pipeline, and once we''re reasonably sure that our code works, we can merge
+    back to the master branch. See the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.2: Branching and merging'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remember, your master branch should always be deployable, and you should frequently
+    merge your work to the master branch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Docker allows us to define the software and the specific configuration parameters
+    that our code depends on in a declarative manner using a special file named a
+    `Dockerfile`. Similarly, CircleCI allows us to define the configuration of our
+    CI environment in a `config.yml` file. By storing our configuration in files,
+    we are able to check the files in alongside our code. We can track changes using
+    Git and enforce them to be verified by our CI pipeline. By storing the definition
+    of our infrastructure in code, we achieve IaC. With IaC, we also achieve repeatable
+    integration, so no matter what environment we run our infrastructure in, we should
+    be able to stand up our full-stack app with a one-line command.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You may remember that in *Chapter 1*, *Introduction to Angular and Its Concepts*,
+    we covered how TypeScript covers the JavaScript Feature Gap. Similar to TypeSript,
+    Docker covers the configuration gap, as demonstrated in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.3: Covering the configuration gap'
+  prefs: []
+  type: TYPE_NORMAL
+- en: By using Docker, we can be reasonably sure that our code, which worked on our
+    machine during testing, will work exactly the same way when we ship it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In summary, with DevOps, we bring operations closer to development, where it
+    is cheaper to make changes and resolve issues. So, DevOps is primarily a developer's
+    responsibility, but it is also a way of thinking that the operations team must
+    be willing to support. Let's dive deeper into Docker.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Containerizing web apps using Docker
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Docker, which can be found at [https://docker.io](https://docker.io), is an
+    open platform for developing, shipping, and running applications. Docker combines
+    a lightweight container virtualization platform with workflows and tooling that
+    help manage and deploy applications. The most obvious difference between **Virtual
+    Machines** (**VMs**) and Docker containers is that VMs are usually dozens of gigabytes
+    in size and require gigabytes of memory, whereas containers take up megabytes
+    in terms of disk and memory size requirements. Furthermore, the Docker platform
+    abstracts away host **operating system** (**OS**) - level configuration settings,
+    so every piece of configuration that is needed to successfully run an application
+    is encoded within a human-readable format.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Anatomy of a Dockerfile
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'A `Dockerfile` consists of four main parts:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**FROM** – where we can inherit from Docker''s minimal "scratch" image or a
+    pre-existing image'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**SETUP** – where we configure software dependencies to our requirements'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**COPY** – where we copy our built code into the operating environment'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**CMD** – where we specify the commands that will bootstrap the operating environment'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Bootstrap refers to a set of initial instructions that describe how a program
+    loads or starts up.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider the following visualization of the anatomy of a `Dockerfile`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.4: Anatomy of a Dockerfile'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A concrete representation of a `Dockerfile` is demonstrated in the following
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can map the `FROM`, `COPY`, and `CMD` parts of the script to the visualization.
+    We inherit from the `duluca/minimal-nginx-web-server` image using the `FROM` command.
+    Then, we copy the compiled result of our app from our development machine or build
+    environment into the image using the `COPY` (or, alternatively, the `ADD`) command.
+    Finally, we instruct the container to execute the nginx web server using the `CMD`
+    (or, alternatively, the `ENTRYPOINT`) command.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the preceding `Dockerfile` doesn't have a distinct `SETUP` part. `SETUP`
+    doesn't map to an actual `Dockerfile` command but represents a collection of commands
+    you can execute to set up your container. In this case, all the necessary setup
+    was done by the base image, so there are no additional commands to run.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Common `Dockerfile` commands are `FROM`, `COPY`, `ADD`, `RUN`, `CMD`, `ENTRYPOINT`,
+    `ENV`, and `EXPOSE`. For the full `Dockerfile` reference, refer to [https://docs.docker.com/engine/reference/builder/](https://docs.docker.com/engine/reference/builder/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `Dockerfile` describes a new container that inherits from a container named
+    `duluca/minimal-nginx-web-server`. This is a container that I published on Docker
+    Hub, which inherits from the `nginx:alpine` image, which itself inherits from
+    the `alpine` image. The `alpine` image is a minimal Linux operating environment
+    that is only 5 MB in size. The `alpine` image itself inherits from `scratch`,
+    which is an empty image. See the inheritance hierarchy demonstrated in the following
+    diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.5: Docker inheritance'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `Dockerfile` then copies the contents of the `dist` folder from your development
+    environment into the container''s `www` folder, as shown in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.6: Copying code into a containerized web server'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this case, the parent image is configured with an nginx server to act as
+    a web server to serve the content inside the `www` folder. At this point, our
+    source code is accessible from the internet but lives inside layers of secure
+    environments. Even if our app has a vulnerability of some kind, it would be tough
+    for an attacker to harm the systems we are operating on. The following diagram
+    demonstrates the layers of security that Docker provides:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.7: Docker security'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In summary, at the base layer we have our host OS, such as Windows or macOS,
+    that runs the Docker runtime, which will be installed in the next section. The
+    Docker runtime is capable of running self-contained Docker images, which are defined
+    by the aforementioned `Dockerfile`. `duluca/minimal-nginx-web-server` is based
+    on the lightweight Linux operating system, Alpine. Alpine is a completely pared-down
+    version of Linux that doesn't come with any GUI, drivers, or even most of the
+    sCLI tools you may expect from a Linux system. As a result, the OS is around only
+    ~5 MB in size. We then inherit from the nginx image, which installs the web server,
+    which itself is around a few megabytes in size. Finally, our custom nginx configuration
+    is layered over the default image, resulting in a tiny ~7 MB image. The nginx
+    server is configured to serve the contents of the `/var/www` folder. In the `Dockerfile`,
+    we merely copy the contents of the `/dist` folder in our development environment
+    and place it into the `/var/www` folder. We will later build and execute this
+    image, which will run our Nginx web server containing the output of our `dist`
+    folder. I have published a similar image named `duluca/minimal-node-web-server`,
+    which clocks in at ~15 MB.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`duluca/minimal-node-web-server` can be more straightforward to work with,
+    especially if you''re not familiar with Nginx. It relies on an `Express.js` server
+    to serve static content. Most cloud providers provide concrete examples using
+    Node and Express, which can help you narrow down any errors. In addition, `duluca/minimal-node-web-server`
+    has HTTPS redirection support baked into it. You can spend a lot of time trying
+    to set up a nginx proxy to do the same thing, when all you need to do is set the
+    environment variable `ENFORCE_HTTPS` in your `Dockerfile`. See the following sample
+    Dockerfile:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can read more about the options `minimal-node-web-server` provides at [https://github.com/duluca/minimal-node-web-server](https://github.com/duluca/minimal-node-web-server).
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we've now seen, the beauty of Docker is that you can navigate to [https://hub.docker.com](https://hub.docker.com),
+    search for `duluca/minimal-nginx-web-server` or `duluca/minimal-node-web-server`,
+    read its `Dockerfile`, and trace its origins all the way back to the original
+    base image that is the foundation of the web server. I encourage you to vet every
+    Docker image you use in this manner to understand what exactly it brings to the
+    table for your needs. You may find it either overkill, or that it has features
+    you never knew about that can make your life a lot easier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the parent images should pull a specific tag of `duluca/minimal-nginx-web-server`,
+    which is `1-alpine`. Similarly, `duluca/minimal-node-web-server` pulls from `lts-alpine`.
+    These are evergreen base packages that always contain the latest release of version
+    1 of Nginx and Alpine or an LTS release of Node. I have pipelines set up to automatically
+    update both images when a new base image is published. So, whenever you pull these
+    images, you will get the latest bug fixes and security patches.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having an evergreen dependency tree removes the burden on you as the developer
+    to go hunting down the latest available version of a Docker image. Alternatively,
+    if you specify a version number, your images will not be subject to any potential
+    breaking changes. However, it is better to remember to test your images after
+    a new build, than never update your image and potentially deploy compromised software.
+    After all, the web is ever-changing and will not slow down for you to keep your
+    images up to date.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Just like npm packages, Docker can bring great convenience and value, but you
+    must take care to understand the tools you are working with.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In *Chapter 13*, *Highly Available Cloud Infrastructure on AWS*, we are going
+    to leverage the lower-footprint Docker image based on Nginx, `duluca/minimal-nginx-web-server`.
+    If you're comfortable configuring nginx, this is the ideal choice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Installing Docker
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In order to be able to build and run containers, you must first install the
+    Docker execution environment on your computer. Refer back to *Chapter 2*, *Setting
+    Up Your Development Environment*, for instructions on installing Docker.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up npm scripts for Docker
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now, let''s configure some Docker scripts for your Angular apps that you can
+    use to automate the building, testing, and publishing of your container. I have
+    developed a set of scripts called **npm scripts for Docker** that work on Windows
+    10 and macOS. You can get the latest version of these scripts and automatically
+    configure them in your project by executing the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run the following commands on both the **local-weather-app** and **lemon-mart**
+    projects now!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the npm scripts for Docker task:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Apply the npm scripts for Docker configuration:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: After you execute the `mrm` scripts, we're ready to take a deep dive into the
+    configuration settings using the Local Weather app as an example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Build and publish an image to Docker Hub
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Next, let''s make sure that your project is configured correctly so we can
+    containerize it, build an executable image, and publish it to Docker Hub, thereby
+    allowing us to access it from any build environment. We will be using the Local
+    Weather app for this section that we last updated in *Chapter 6*, *Forms, Observables,
+    and Subjects*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This section uses the **local-weather-app** repo.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sign up for a Docker Hub account on [https://hub.docker.com/](https://hub.docker.com/).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a public (free) repository for your application.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Later in this chapter, we use Google Cloud's container registry as a private
+    repository. Additionally, in *Chapter 13*, *Highly Available Cloud Infrastructure
+    on AWS*, I cover how to set up a private container repository using **AWS Elastic
+    Container Service** (**AWS ECS**).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'In `package.json`, add or update the `config` property with the following configuration
+    properties:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `namespace` will be your Docker Hub username. You will define what your
+    repository will be called during creation. An example image `repository` variable
+    should look like `duluca/localcast-weather`. The image name is for easy identification
+    of your container while using Docker commands such as `docker ps`. I will just
+    call mine `localcast-weather`. The `imagePort` property will define which port
+    should be used to expose your application from inside the container. Since we
+    use port `5000` for development, pick a different one, like `8080`. The `internalContainerPort`
+    defines the port that your web server is mapped to. For Node servers, this will
+    mostly be port `3000`, and for Nginx servers, `80`. Refer to the documentation
+    of the base container you're using.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Let's review the Docker scripts that were added to `package.json` by the `mrm`
+    task from earlier. The following snippet is an annotated version of the scripts
+    that explains each function.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Note that with npm scripts, the `pre` and `post` keywords are used to execute
+    helper scripts, respectively, before or after the execution of a given script.
+    Scripts are intentionally broken into smaller pieces to make it easier to read and
+    maintain them.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The `build` script is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Note that the following `cross-conf-env` command ensures that the script executes
+    equally well in macOS, Linux, and Windows environments.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`npm run docker:build` will build your Angular application in the `pre` script,
+    then build the Docker image using the `docker image build` command, and tag the
+    image with a version number in the `post` script:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: In my project, the `pre` command builds my Angular application in prod mode
+    and also runs a test to make sure that I have an optimized build with no failing
+    tests.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'My pre command looks like:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '`"predocker:build":` `"npm run build:prod && npm test -- --watch=false"`'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The `tag` script is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`npm run docker:tag` will tag an already built Docker image using the version
+    number from the `version` property in `package.json` and the latest tag.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The `stop` script is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`npm run docker:stop` will stop the image if it''s currently running, so the
+    `run` script can execute without errors.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The `run` script is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Note that the `run-s` and `run-p` commands ship with the `npm-run-all` package
+    to synchronize or parallelize the execution of npm scripts.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`npm run docker:run` will stop if the image is already running, and then run
+    the newly built version of the image using the `docker run` command. Note that
+    the `imagePort` property is used as the external port of the Docker image, which
+    is mapped to the internal port of the image that the Node.js server listens to,
+    port `3000`.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The `publish` script is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`npm run docker:publish` will publish a built image to the configured repository,
+    in this case, Docker Hub, using the `docker image push` command.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'First, the versioned image is published, followed by one tagged with `latest`
+    in post. The `taillogs` script is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`npm run docker:taillogs` will display the internal console logs of a running
+    Docker instance using the `docker log -f` command, a very useful tool when debugging
+    your Docker instance.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The `open` script is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`npm run docker:open` will wait for 2 seconds and then launch the browser with
+    the correct URL for your application using the `imagePort` property.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The `debug` script is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`npm run docker:debug` will build your image and run an instance of it in `pre`,
+    open the browser, and then start displaying the internal logs of the container.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Customize the pre-build script to build your angular app in production mode
+    and execute unit tests before building the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Note that `ng build` is provided with the `--prod` argument, which achieves
+    two things: the size of the app is optimized to be significantly smaller with
+    **Ahead-of-Time** (**AOT**) compilation to increase runtime performance, and the
+    configuration items defined in `src/environments/environment.prod.ts` are used.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Update `src/environments/environment.prod.ts` to look like you''re using your
+    own `appId` from `OpenWeather`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We are modifying how `npm test` is executed, so the tests are run only once
+    and the tool stops executing. The `--watch=false` option is provided to achieve
+    this behavior, as opposed to the development-friendly default continuous execution
+    behavior.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Create a new file named `Dockerfile` with no file extensions in the project
+    root.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Implement or replace the contents of the `Dockerfile`, as shown here:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Be sure to inspect the contents of your `dist` folder to ensure you're copying
+    the correct folder, which contains the `index.html` file at its root.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Execute `npm run predocker:build` and make sure it runs without errors in the
+    Terminal to ensure that your application changes have been successful.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Execute `npm run docker:build` and make sure it runs without errors in the Terminal
+    to ensure that your image builds successfully.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'While you can run any of the provided scripts individually, you really only
+    need to remember two of them going forward:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '`npm run docker:debug` will test, build, tag, run, tail, and launch your containerized
+    app in a new browser window for testing.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`npm run docker:publish` will publish the image you just built and test to
+    the online Docker repository.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Execute `docker:debug` in your Terminal:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'A successful `docker:debug` run should result in a new in-focus browser window
+    with your application and the server logs being tailed in the Terminal, as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: You should always run `docker ps` to check whether your image is running, when
+    it was last updated, and whether it is clashing with any existing images claiming
+    the same port.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Execute `docker:publish` in your Terminal:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You should observe a successful run in the Terminal window like this:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Over time, your local Docker cache may grow to a significant size; for example,
+    on my laptop, it's reached roughly 40 GB over two years. You can use the `docker
+    image prune` and `docker container prune` commands to reduce the size of your
+    cache. For more detailed information, refer to the documentation at [https://docs.docker.com/config/pruning](https://docs.docker.com/config/pruning).
+  prefs: []
+  type: TYPE_NORMAL
+- en: By defining a `Dockerfile` and scripting our use of it, we created living documentation
+    in our code base. We have achieved DevOps and closed the configuration gap.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Make sure to containerize **lemon-mart** in the same way you've done with **local-weather-app**
+    and verify your work by executing `npm run docker:debug`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You may find it confusing to interact with npm scripts in general through the
+    CLI. Let's look at VS Code's npm script support next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: NPM scripts in VS Code
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'VS Code provides support for npm scripts out of the box. In order to enable
+    npm script explorer, open VS Code settings and ensure that the `"npm.enableScriptExplorer":
+    true` property is present. Once you do, you will see an expandable title named
+    **NPM SCRIPTS** in the **Explorer** pane, as highlighted with an arrow in the
+    following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.8: NPM scripts in VS Code'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can click on any script to launch the line that contains the script in `package.json`
+    or right-click and select **Run** to execute the script.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's look at an easier way to interact with Docker next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Docker extensions in VS Code
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Another way to interact with Docker images and containers is through VS Code.
+    If you have installed the `ms-azuretools.vscode-docker` Docker extension from
+    Microsoft, as suggested in *Chapter 2*, *Setting Up Your Development Environment*,
+    you can identify the extension by the Docker logo on the left-hand navigation
+    menu VS Code, as circled in white in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.9: Docker extension in VS Code'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s go through some of the functionality provided by the extension. Refer
+    to the preceding screenshot and the numbered steps in the following list for a
+    quick explanation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Images** contain a list of all the container snapshots that exist on your
+    system.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Right-clicking on a Docker image brings up a context menu to run various operations
+    on it, like **Run**, **Push**, and **Tag****.**
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Containers** list all executable Docker containers that exist on your system,
+    which you can start, stop, or attach to.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Registries** display the registries that you''re configured to connect to,
+    such as Docker Hub or **AWS Elastic Container Registry** (**AWS ECR**).'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: While the extension makes it easier to interact with Docker, the **npm scripts
+    for Docker** (which you configured using the `mrm` task) automate a lot of the
+    chores related to building, tagging, and testing an image. They are both cross-platform
+    and will work equally well in a CI environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `npm run docker:debug` script automates a lot of chores to verify that you
+    have a good image build!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now let's see how we can deploy our containers to the cloud and later achieve
+    CD.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deploying a Dockerfile to the cloud
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: One of the advantages of using Docker is that we can deploy it on any number
+    of operating environments, from personal PCs to servers and cloud providers. In
+    any case, we would expect our container to function the same way. Let's deploy
+    the LocalCast Weather app to Google Cloud Run.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Google Cloud Run
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Google Cloud Run allows you to deploy arbitrary Docker containers and execute
+    them on the Google Cloud Platform without any onerous overhead. Fully managed
+    instances offer some free time; however, there's no free-forever version here.
+    Please be mindful of any costs you may incur. Refer to [https://cloud.google.com/run/pricing?hl=en_US%20for%20pricing](https://cloud.google.com/run/pricing?hl=en_US%20for%20pricing).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Refer to *Chapter 2*, *Setting Up Your Development Environment*, for instructions
+    on how to install glcoud.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This section uses the **local-weather-app** repo.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s configure glcoud so we can deploy a `Dockerfile`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Update your `Dockerfile` to override the `ENTRYPOINT` command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `ENTRYPOINT` command in `minimal-node-web-server` runs a process called
+    `dumb-init` to force the process ID for your Node process to be randomized. However,
+    gcloud fails to execute this command, which is why we're overriding it.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Create a new gcloud project:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Remember to use your own project name!
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Navigate to [https://console.cloud.google.com/](https://console.cloud.google.com/
+    )
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Locate your new project and select the **Billing** option from the sidebar,
+    as shown in the following screenshot:![](img/B14094_09_10.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Figure 9.10: Billing options'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Follow the instructions to set up a billing account.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If you see it, the Freemium account option will also work. Otherwise, you may
+    choose to take advantage of free trial offers. However, it is a good idea to set
+    a budget alert to be notified if you get charged over a certain amount per month.
+    Find more info at [https://cloud.google.com/billing/docs/how-to/modify-project](https://cloud.google.com/billing/docs/how-to/modify-project).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Create a `.gcloudignore` file and ignore everything but your `Dockerfile` and
+    `dist` folder:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Add a new npm script to build your `Dockerfile` in the cloud:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Remember to use your own project name!
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Add another npm script to deploy your published container:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that you should provide the region closest to your geographical location
+    for the best possible experience.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Build your `Dockerfile` as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Before running this command, remember to build your application for `prod`.
+    Whatever you have in your `dist` folder will get deployed.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Note that on the initial run, you will be prompted to answer questions to configure
+    your account for initial use. Select your account and project name correctly,
+    otherwise, take the default options. The `build` command may fail during the first
+    run. Sometimes it takes multiple runs for gcloud to warm up and successfully build
+    your container.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Once your container is published, deploy it using the following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'A successful deployment will look like the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.11: A successful deployment'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Congrats, you've just deployed your container on Google Cloud. You should be
+    able to access your app using the URL in the Terminal output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As always, consider adding CLI commands as npm scripts to your project so that
+    you can maintain a living documentation of your scripts. These scripts will also
+    allow you to leverage pre and post scripts in npm, allowing you to automate the
+    building of your application, your container, and the tagging process. So, the
+    next time you need to deploy, you only need to run one command. I encourage the
+    reader to seek inspiration from the npm scripts for Docker utility we set up earlier
+    to create your own set of scripts for gcloud.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For more information and some sample projects, refer to [https://cloud.google.com/run/docs/quickstarts/prebuilt-deploy](https://cloud.google.com/run/docs/quickstarts/prebuilt-deploy)
+    and [https://cloud.google.com/run/docs/quickstarts/build-and-deploy](https://cloud.google.com/run/docs/quickstarts/build-and-deploy).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Configuring Docker with Cloud Run
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In the previous section, we submitted our `Dockerfile` and `dist` folder to
+    gcloud so that it can build our container for us. This is a convenient option
+    that avoids some of the additional configuration steps. However, you can still
+    leverage your Docker-based workflow to build and publish your container.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s configure Docker with gcloud:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Set your default region:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Configure Docker with the gcloud container registry:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Tag your already built container with a gcloud hostname:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: For detailed instructions on how to tag your image, refer to [https://cloud.google.com/container-registry/docs/pushing-and-pulling](https://cloud.google.com/container-registry/docs/pushing-and-pulling).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Publish your container to gcloud using Docker:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Execute the `deploy` command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: During initial deployment, this command may appear to be stuck. Try again in
+    15 minutes or so.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Follow the onscreen instructions to complete your deployment.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Follow the URL displayed on screen to check that your app has been successfully
+    deployed.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The preceding steps demonstrate a deployment technique that is similar to the
+    one we leveraged when deploying to AWS ECS in *Chapter 13*, *Highly Available
+    Cloud Infrastructure on AWS*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For more information, refer to [https://cloud.google.com/sdk/gcloud/reference/run/deploy](https://cloud.google.com/sdk/gcloud/reference/run/deploy).
+    For the following few sections, we will be switching back to LemonMart.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Troubleshooting Cloud Run
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In order to troubleshoot your glcoud commands, you may utilize the Google Cloud
+    Platform Console at [https://console.cloud.google.com/](https://console.cloud.google.com/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Under the Cloud Run menu, you can keep track of the containers you are running.
+    If errors occur during your deployment, you may want to check the logs to see
+    the messages created by your container. Refer to the following screenshot, which
+    shows the logs from my `localcast-weather` deployment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.12: Cloud Run logs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: To learn more about troubleshooting Cloud Run, refer to [https://cloud.google.com/run/docs/troubleshooting](https://cloud.google.com/run/docs/troubleshooting).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Congratulations! You have mastered the fundamentals of working with Docker containers
+    in your local development environment and pushing them to multiple registries
+    and runtime environments in the cloud.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Continuous deployment
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: CD is the idea that code changes that successfully pass through your pipeline
+    can be automatically deployed to a target environment. Although there are examples
+    of continuously deploying to production, most enterprises prefer to target a dev
+    environment. A gated approach is adopted to move the changes through the various
+    stages of dev, test, staging, and finally production. CircleCI can facilitate
+    gated deployment with approval workflows, which is covered later in this section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In CircleCI, to deploy your image, we need to implement a `deploy` job. In
+    this job, you can deploy to a multitude of targets such as Google Cloud Run, Docker
+    Hub, Heroku, Azure, or AWS ECS. Integration with these targets will involve multiple steps.
+    At a high level, these steps are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Configure an orb for your target environment, which provides the CLI tools required
+    to deploy your software.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Store login credentials or access keys specific to the target environment as
+    CircleCI environment variables.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Build a container in the CI pipeline, if not using a platform-specific `build`
+    command. Then use `docker push` to submit the resulting Docker image to the target
+    platform's Docker registry.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Execute a platform-specific `deploy` command to instruct the target to run the
+    Docker image that was just pushed.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'By using a Docker-based workflow, we achieve great amounts of flexibility in
+    terms of systems and target environments we can use. The following diagram illustrates
+    this point by highlighting the possible permutation of choices that are available
+    to us:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.13: n-to-n deployment'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, in a containerized world, the possibilities are limitless. I
+    will demonstrate how you can deploy to Google Cloud Run using containers and CI
+    later in this chapter. Outside of Docker-based workflows, you can use purpose-built
+    CLI tools to quickly deploy your app. Next, let's see how you can deploy your
+    app to Vercel Now using CircleCI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deploying to Vercel Now using CircleCI
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In *Chapter 4*, *Automated Testing, CI, and Release to Production*, we configured
+    the LocalCast Weather app to build using CircleCI. We can enhance our CI pipeline
+    to take the build output and optionally deploy it to Vercel Now.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that ZEIT Now has rebranded to Vercel Now in 2020.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This section uses the **local-weather-app** repo. The `config.yml` file for
+    this section is named `.circleci/config.ch9.yml`. You can also find a pull request
+    that executes the `.yml` file from this chapter on CircleCI at [https://github.com/duluca/local-weather-app/pull/50](https://github.com/duluca/local-weather-app/pull/50)
+    using the `branch deploy_Vercelnow`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that this branch has a modified configuration in `config.yml` and `Dockerfile`
+    to use the `projects/ch6` code from **local-weather-app**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s update the `config.yml` file to add a new job named `deploy`. In the
+    upcoming Workflows section, we will use this job to deploy a pipeline when approved:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Create a token from your Vercel Now account.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Add an environment variable to your CircleCI project named `NOW_TOKEN` and store
+    your Vercel Now token as the value.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'In `config.yml`, update the `build` job with the new steps and add a new job
+    named `deploy`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the `build` job, after the build is complete, we add two new steps. First,
+    we move the compiled app that's in the `dist` folder to a workspace and persist
+    that workspace so we can use it later in another job. In a new job, named `deploy`,
+    we attach the workspace and use npx to run the `now` command to deploy the `dist`
+    folder. This is a straightforward process.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Note that `$NOW_TOKEN` is the environment variable we stored on the CircleCI
+    project.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Implement a simple CircleCI workflow to continuously deploy the outcome of
+    your `build` job:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that the `deploy` job waits for the `build` job to complete before it can
+    execute.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Ensure that your CI pipeline executed successfully by inspecting the test results:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_14.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.14: Successful Vercel Now deployment of local-weather-app on the deploy_Vercelnow
+    branch'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Most CLI commands for cloud providers need to be installed in your pipeline
+    to function. Since Vercel Now has an npm package, this is easy to do. CLI tools
+    for AWS, Google Cloud, or Microsoft Azure need to be installed using tools such
+    as `brew` or `choco`. Doing this manually in a CI environment is tedious. Next,
+    we will cover orbs, which helps to solve the problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deploying to GCloud using orbs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Orbs contain a set of configuration elements to encapsulate shareable behavior
+    between CircleCI projects. CircleCI provides orbs that are developed by the maintainers
+    of CLI tools. These orbs make it easy for you to add a CLI tool to your pipeline
+    without having to set it up manually, with minimal configuration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To work with orbs, your `config.yml` version number must be set to `2.1` and,
+    in your CircleCI security settings, you must select the option to allow uncertified
+    orbs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following are some orbs that you can use in your projects:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`circleci/aws-cli` and `circleci/aws-ecr` provide you with the AWS CLI tool
+    and help you to interact with **AWS Elastic Container Service** (**AWS ECS**),
+    performing tasks such as deploying your containers to AWS ECR.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`circleci/aws-ecs` streamlines your CircleCI config to deploy your containers
+    to AWS ECS.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`circleci/gcp-cli` and `circleci/gcp-gcr` provide you with the GCloud CLI tool
+    and access to **Google Container Registry** (**GCR**).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`circleci/gcp-cloud-run` streamlines your CircleCI config to deploy your containers
+    to Cloud Run.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`circleci/azure-cli` and `circleci/azure-acr` provide you with the Azure CLI
+    tools and access to **Azure Container Registry** (**ACR**).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Check out the Orb registry for more information on how to use these orbs at
+    [https://circleci.com/orbs/registry](https://circleci.com/orbs/registry).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let's configure the `circleci/gcp-cloud-run` orb with the Local Weather
+    app so we can continuously deploy our app to GCloud, without having to manually
+    install and configure the gcloud CLI tool on our CI server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the **local-weather-app** repo, you can find a pull request that executes
+    the Cloud Run configuration from this step on CircleCI, at [https://github.com/duluca/local-weather-app/pull/51](https://github.com/duluca/local-weather-app/pull/51),
+    using the `deploy_cloudrun` branch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that this branch has a modified configuration in `config.yml` and `Dockerfile`
+    to use the `projects/ch6` code from **local-weather-app**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, configure your CircleCI and GCloud accounts so you can deploy from a
+    CI server. This is markedly different from deploying from your development machine,
+    because the gcloud CLI tools automatically set up the necessary authentication
+    configuration for you. Here, you will have to do this manually:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In your CircleCI account settings, under the security section, ensure you allow
+    execution of uncertified/unsigned orbs.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In the CircleCI project settings, add an environment variable named `GOOGLE_PROJECT_ID`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If you used the same project ID as I did, this should be `localcast-weather`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Create a GCloud service account key for your project's existing service account.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Creating a service account key will result in a JSON file. Do not check this
+    file into your code repository. Do not share the contents of it over insecure
+    communication channels such as email or SMS. Exposing the contents of this file
+    means that any third party can access your GCloud resources permitted by the key
+    permissions.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Copy the contents of the JSON file to a CircleCI environment variable named
+    `GCLOUD_SERVICE_KEY`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Add another environment variable named `GOOGLE_COMPUTE_ZONE` and set it to your
+    preferred zone.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: I used `us-east1`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Update your `config.yml` file to add an orb named `circleci/gcp-cloud-run`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, implement a new job named `deploy_cloudrun`, leveraging orb features
+    to initialize, build, deploy, and test our deployment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We first load the `dist` folder from the `build` job. We then run `cloudrun/init`,
+    so that the CLI tool can be initialized. With `cloudrun/build`, we build the `Dockerfile`
+    at the root of our project, which automatically stores the result of our build
+    in GCR. Then, `cloudrun/deploy` deploys the image we just built, taking our code
+    live. In the last command, using the `curl` tool, we retrieve the `index.html`
+    file of our website and check to see that it's properly deployed by searching
+    for the LocalCast Weather string.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Update your workflow to continuously deploy to gcloud:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that you can have multiple `deploy` jobs that simultaneously deploy to
+    multiple targets.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Ensure that your CI pipeline executed successfully by inspecting the test results:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.15: Successful gcloud deployment of local-weather-app on the deploy_cloudrun
+    branch'
+  prefs: []
+  type: TYPE_NORMAL
+- en: CD works great for development and testing environments. However, it is usually
+    desirable to have gated deployments, where a person must approve a deployment
+    before it reaches a production environment. Next, let's see how you can implement
+    this with CircleCI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Gated CI workflows
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In CircleCI, you can define a workflow to control how and when your jobs are
+    executed. Consider the following configuration, given the jobs `build` and `deploy`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'First, the `build` job gets executed. Then, we introduce a special job named
+    `hold` with type `approval`, which requires the `build` job to be successfully
+    completed. Once this happens, the pipeline is put on hold. If or when a decision-maker
+    approves the `hold`, then the `deploy` step can execute. Refer to the following
+    screenshot to see what a `hold` looks like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.16: A hold in the pipeline'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this case, the `build` and `test` jobs are executed in parallel. If we're
+    on a branch, this is where the pipeline stops. Once the branch is merged with
+    `master`, then the pipeline is put on hold and a decision-maker has the option
+    to deploy a particular build or not. This type of branch filtering ensures that
+    only code that's been merged to `master` can be deployed, which is in line with
+    GitHub flow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we dive deeper into how you can customize Docker to fit your workflow
+    and environments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Advanced continuous integration
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In *Chapter 4*, *Automated Testing, CI, and Release to Production*, we covered
+    a basic CircleCI pipeline leveraging default features. Beyond the basic automation
+    of unit test execution, one of the other goals of CI is to enable a consistent
+    and repeatable environment to build, test, and generate deployable artifacts of
+    your application with every code push. Before pushing some code, a developer should
+    have a reasonable expectation that their build will pass; therefore, creating
+    a reliable CI environment that automates commands that developers can also run
+    in their local machines is paramount. To achieve this goal, we will build a custom
+    build pipeline that can run on any OS without configuration or any variation in
+    behavior.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This section uses the **lemon-mart** repo. Ensure that your project has been
+    properly configured by executing `npm run docker:debug` as described earlier in
+    the chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Containerizing build environments
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In order to ensure a consistent build environment across various OS platforms,
+    developer machines, and CI environments, you may containerize your build environment.
+    Note that there are at least half a dozen common CI tools currently in use. Learning
+    the ins and outs of every tool is an almost impossible task to achieve.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Containerization of your build environment is an advanced concept that goes
+    above and beyond what is currently expected of CI tools. However, containerization
+    is a great way to standardize over 90% of your build infrastructure and can be
+    executed in almost any CI environment. With this approach, the skills you learn
+    and the build configuration you create become far more valuable, because both
+    your knowledge and the tools you create become transferable and reusable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are many strategies to containerize your build environment with different
+    levels of granularity and performance expectations. For the purpose of this book,
+    we will focus on reusability and ease of use. Instead of creating a complicated,
+    interdependent set of Docker images that may allow for more efficient fail-first
+    and recovery paths, we will focus on a single and straightforward workflow. Newer
+    versions of Docker have a great feature called multi-stage builds, which allow
+    you to define a multi-image process in an easy-to-read manner and maintain a singular
+    `Dockerfile`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the end of the process, you can extract an optimized container image as our
+    deliverable artifact, shedding the complexity of the images used previously in
+    the process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As a reminder, your single `Dockerfile` would look like the following sample:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: Multi-stage Dockerfiles
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Multi-stage builds work by using multiple `FROM` statements in a single `Dockerfile`,
+    where each stage can perform a task and make any resources within its instance
+    available to other stages. In a build environment, we can implement various build-related
+    tasks as their own stages, and then copy the end result, such as the `dist` folder
+    of an Angular build, to the final image, which contains a web server. In this
+    case, we will implement three stages of images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Builder**: Used to build a production version of your Angular app'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Tester**: Used to run unit and e2e tests against headless Chrome instances'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Web server**: The final result containing only the optimized production bits'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Multi-stage builds require Docker version 17.05 or higher. To read more about
+    multi-stage builds, read the documentation at [https://docs.docker.com/develop/develop-images/multistage-build](https://docs.docker.com/develop/develop-images/multistage-build).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As the following diagram shows, the builder will build the application and
+    the tester will execute the tests:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_17.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.17: Multi-stage Dockerfile'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The final image will be built using the outcome of the builder step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Start by creating a new file to implement the multi-stage configuration, named
+    `integration.Dockerfile`, at the root of your project.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Builder
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The first stage is `builder`. We need a lightweight build environment that can
+    ensure consistent builds across the board. For this purpose, I've created a sample
+    Alpine-based Node build environment complete with the npm, bash, and Git tools.
+    This minimal container is called `duluca/minimal-node-build-env`, which is based
+    on node-alpine and can be found on Docker Hub at [https://hub.docker.com/r/duluca/minimal-node-build-env](https://hub.docker.com/r/duluca/minimal-node-build-env).
+    This image is about 10 times smaller than node.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The size of Docker images has a real impact on build times, since the CI server
+    or your team members will spend extra time pulling a larger image. Choose the
+    environment that best fits your needs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s create a builder using a suitable base image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Ensure that you have the `build:prod` command in place in `package.json`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Inherit from a Node.js-based build environment, such as `node:lts-alpine` or
+    `duluca/minimal-node-build-env:lts-alpine`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Implement your environment-specific build script in a new `Dockerfile`, named
+    `integration.Dockerfile`, as shown:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: CI environments will check out your source code from GitHub and place it in
+    the current directory. So, copying the source code from the **current working
+    directory** (**CWD**) using the dot notation should work, as it does in your local
+    development environment. If you run into issues, refer to your CI provider's documentation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, let's see how you can debug your Docker build.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Debugging build environments
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Depending on your particular needs, your initial setup of the builder portion
+    of the Dockerfile may be frustrating. To test out new commands or debug errors,
+    you may need to directly interact with the build environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To interactively experiment and/or debug within the build environment, execute
+    the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can test or debug commands within this temporary environment before baking
+    them into your `Dockerfile`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Tester
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The second stage is `tester`. By default, the Angular CLI generates a testing
+    requirement that is geared toward a development environment. This will not work
+    in a CI environment; we must configure Angular to work against a headless browser
+    that can execute without the assistance of a GPU and, furthermore, a containerized
+    environment to execute the tests against.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Angular testing tools are covered in *Chapter 4*, *Automated Testing, CI, and
+    Release to Production*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Conﬁguring a headless browser for Angular
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'The protractor testing tool officially supports running against Chrome in headless
+    mode. In order to execute Angular tests in a CI environment, you will need to
+    configure your test runner, Karma, to run with a headless Chrome instance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Update `karma.conf.js` to include a new headless browser option:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `ChromiumNoSandbox` custom launcher encapsulates all the configuration elements
+    needed for a good default setup.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Update the `protractor` configuration to run in headless mode:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In order to test your application for responsive scenarios, you can use the
+    `--window-size` option, as shown earlier, to change the browser settings.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Update the `package.json` scripts to select the new browser option in the production
+    build scenarios:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that `test:prod` doesn't include `npm run e2e`. e2e tests are integration
+    tests that take longer to execute, so think twice about including them as part
+    of your critical build pipeline. e2e tests will not run on the lightweight testing
+    environment mentioned in the next section, as they require more resources and
+    time to execute.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Now, let's define the containerized testing environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Conﬁguring our testing environment
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'For a lightweight testing environment, we will be leveraging an Alpine-based
+    installation of the Chromium browser:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Inherit from `duluca/minimal-node-chromium:lts-alpine`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Append the following configuration to `integration.Dockerfile`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The preceding script will copy the production build from the `builder` stage
+    and execute your test scripts in a predictable manner.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Web server
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The third and final stage generates the container that will be your web server.
+    Once this stage is complete, the prior stages will be discarded, and the end result
+    will be an optimized sub-10 MB container:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Append the following `FROM` statement at the end of the file to build the web
+    server, but this time, `COPY` the production-ready code from `builder`, as shown
+    in the following code snippet:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Build and test your multi-stage `Dockerfile`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Depending on your operating system, you may see Terminal errors. So long as
+    the Docker image successfully builds in the end, then you can safely ignore these
+    errors. For reference purposes, when we later build this image on CircleCI, no
+    errors are logged on the CI server.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Save your script as a new npm script named `build:integration`, as shown:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Great work! You''ve defined a custom build and test environment. Let''s visualize
+    the end result of our efforts as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_18.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.18: Multi-stage build environment results'
+  prefs: []
+  type: TYPE_NORMAL
+- en: By leveraging a multi-stage `Dockerfile`, we can define a customized build environment,
+    and only ship the necessary bytes at the end of the process. In the preceding
+    example, we are avoiding shipping 250+ MB of development dependencies to our production
+    server and only delivering a 7 MB container that has a minimal memory footprint.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let's execute this containerized pipeline on CircleCI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CircleCI container-in-container
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In *Chapter 4*, *Automated Testing, CI, and Release to Production*, we created
+    a relatively simple CircleCI file. Later on, we will repeat the same configuration
+    for this project as well, but for now, we will be using a container-within-a-container
+    setup leveraging the multi-stage `Dockerfile` we just created.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the **lemon-mart** repo, the `config.yml` file for this section is named
+    `.circleci/config.docker-integration.yml`. You can also find a pull request that
+    executes the `.yml` file from this chapter on CircleCI at [https://github.com/duluca/lemon-mart/pull/25](https://github.com/duluca/lemon-mart/pull/25)
+    using the `docker-integration` branch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that this build uses a modified `integration.Dockerfile` to use the `projects/ch8`
+    code from **lemon-mart**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In your source code, create a folder named `.circleci` and add a file named
+    `config.yml`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding `config.yml` file, a workflow named `build-and-deploy` is defined,
+    which contains a job named `build`. The job uses CircleCI's pre-built `circleci/node:lts
+    image`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `build` job has five steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`checkout` checks out the source code from GitHub.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`setup_remote_docker` informs CircleCI to set up a Docker-within-Docker environment,
+    so we can run containers within our pipeline.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`run` executes the `docker build -f integration.Dockerfile .` command to initiate
+    our custom build process, caches the resulting Alpine-based image, and tags it
+    with `$CIRCLE_BRANCH.`'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`save_cache` saves the image we created in the cache, so it can be consumed
+    by the next step.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`store_artifacts` reads the created image from the cache and publishes the image
+    as a build artifact, which can be downloaded from the web interface or used by
+    another job to deploy it to a cloud environment.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'After you sync your changes to GitHub, if everything goes well, you will have
+    a passing *green* build. As shown in the following screenshot, this build was
+    successful:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_19.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.19: Green build on CircleCI using the lemon-mart docker-integration
+    branch'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the tarred and gzipped image file size is 9.2 MB, which includes our
+    web applications on top of the roughly 7 MB base image size.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the moment, the CI server is running and executing our three-step pipeline.
+    As you can see in the preceding screenshot, the build is producing a tarred and
+    gzipped file of the web server image, named `built-image.tar.gz`. You can download
+    this file from the **Artifacts** tab. However, we're not deploying the resulting
+    image to a server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You have now adequately mastered working with CircleCI. We will revisit this
+    multi-stage `Dockerfile` to perform a deployment on AWS in *Chapter 13*, *Highly
+    Available Cloud Infrastructure on AWS*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, let's see how you can get a code coverage report from your Angular app
+    and record the result in CircleCI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Code coverage reports
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A good way to understand the amount and the trends of unit test coverage for
+    your Angular project is through a code coverage report.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to generate the report for your app, execute the following command
+    from your `project` folder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The resulting report will be created as an HTML file under a folder named `coverage`;
+    execute the following command to view it in your browser:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: Install `http-server` as a development dependency in your project.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here''s the folder-level sample coverage report generated by `istanbul/nyc`
+    for LemonMart:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_20.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.20: Istanbul code coverage report for LemonMart'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can drill down on a particular folder, such as `src/app/auth`, and get
+    a file-level report, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_21.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.21: Istanbul code coverage report for src/app/auth'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can drill down further to get line-level coverage for a given file, such
+    as `cache.service.ts`, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14094_09_22.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.22: Istanbul code coverage report for cache.service.ts'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding screenshot, you can see that lines **5**, **12**, **17-18**,
+    and **21-22** are not covered by any test. The **I** icon denotes that the `if`
+    path was not taken. We can increase our code coverage by implementing unit tests
+    that exercise the functions that are contained within `CacheService`. As an exercise,
+    the reader should attempt to at least cover one of these functions with a new
+    unit test and observe the code coverage report change.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Code coverage in CI
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Ideally, your CI server configuration should generate and host the code coverage
+    report with every test run. You can then use code coverage as another code quality
+    gate to prevent pull requests being merged if the new code is bringing down the
+    overall code coverage percentage. This is a great way to reinforce the **test-driven
+    development** (**TDD**) mindset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can use a service such as Coveralls, found at [https://coveralls.io/](https://coveralls.io/),
+    to implement your code coverage checks, which can embed your code coverage levels
+    directly on a GitHub pull request.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s configure Coveralls for LemonMart:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the **lemon-mart** repo, the `config.yml` file for this section is named
+    `.circleci/config.ch9.yml`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In your CircleCI account settings, under the security section, ensure that you
+    allow execution of uncertified/unsigned orbs.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Register your GitHub project at [https://coveralls.io/](https://coveralls.io/).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Copy the repo token and store it as an environment variable in CircleCI named
+    `COVERALLS_REPO_TOKEN`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a new branch before you make any code changes.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Update `karma.conf.js` so it stores code coverage results under the `coverage`
+    folder:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Update the `.circleci/config.yml` file with the Coveralls orb as shown:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Update the `build` job to store code coverage results and upload them to Coveralls:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that the orb automatically configures Coveralls for your account, so the `coveralls`/`upload`
+    command can upload your code coverage results.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Commit your changes to the branch and publish it.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a pull request on GitHub using the branch.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: On the pull request, verify that you can see that Coveralls is reporting your project's
+    code coverage, as shown:![](img/B14094_09_23.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Figure 9.23: Coveralls reporting code coverage'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Merge the pull request to your master branch.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Congratulations! Now, you can modify your branch protection rules to require
+    that code coverage levels must be above a certain percentage before a pull request
+    can be merged to master.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The LemonMart project at [https://github.com/duluca/lemon-mart](https://github.com/duluca/lemon-mart)
+    implements a full-featured `config.yml` file. This file also implements [Cypress.io](http://Cypress.io),
+    a far more robust solution compared to Angular's e2e tool, in CircleCI as well.
+    The Cypress orb can record test results and allow you to view them from your CircleCI
+    pipeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Leveraging what you have learned in this chapter, you can incorporate the `deploy`
+    scripts from LocalCast Weather for LemonMart and implement a gated deployment
+    workflow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you learned about DevOps and Docker. You containerized your
+    web app, deployed a container to Google Cloud Run using CLI tools, and learned
+    how to implement gated CI workflows. You leveraged advanced CI techniques to build
+    a container-based CI environment leveraging a multi-stage `Dockerfile`. Also,
+    you became familiar with orbs, workflows, and code coverage tools.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We leveraged CircleCI as a cloud-based CI service and highlighted the fact that
+    you can deploy the outcome of your builds to all major cloud hosting providers.
+    You have seen how you can achieve CD. We covered example deployments to Vercel
+    Now and Google Cloud Run via CircleCI, allowing you to implement automated deployments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With a robust CI/CD pipeline, you can share every iteration of your app with
+    clients and team members and quickly deliver bug fixes or new features to your
+    end users.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Add CircleCI and Coveralls badges to the `README.md` file on your code repository.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Implement Cypress for e2e testing and run it in your CircleCI pipeline using
+    the Cypress orb.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Implement a Vercel Now deployment and a conditional workflow for the Lemon Mart
+    app. You can find the resulting `config.yml` file on the lemon-mart repo, named
+    `.circleci/config.ch9.yml`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*Dockerfile reference*, 2020, [https://docs.docker.com/engine/reference/builder/](https://docs.docker.com/engine/reference/builder/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*CircleCI orbs*, 2020, [https://circleci.com/orbs/](https://circleci.com/orbs/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Deploying container images*, 2020, [https://cloud.google.com/run/docs/depl](https://cloud.google.com/run/docs/depl)oying'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Creating and managing service account keys*, 2020, [https://cloud.google.com/iam/docs/creating-managing-service-account-keys#iam-service-account-keys-create-console](https://cloud.google.com/iam/docs/creating-managing-service-account-keys#iam-service-account-keys-cr)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Answer the following questions as best as you can to ensure that you've understood
+    the key concepts from this chapter without Googling. Do you need help answering
+    the questions? See *Appendix D*, *Self-Assessment Answers* online at [https://static.packt-cdn.com/downloads/9781838648800_Appendix_D_Self-Assessment_Answers.pdf](https://static.packt-cdn.com/downloads/9781838648800_Appendix_D_Self-Assessment_Answers.pdf)
+    or visit [https://expertlysimple.io/angular-self-assessment](https://expertlysimple.io/angular-self-assessment).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Explain the difference between a Docker image and a Docker container.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the purpose of a CD pipeline?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the benefit of CD?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How do we cover the configuration gap?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What does a CircleCI orb do?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the benefits of using a multi-stage `Dockerfile`?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does a code coverage report help maintain the quality of your app?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL

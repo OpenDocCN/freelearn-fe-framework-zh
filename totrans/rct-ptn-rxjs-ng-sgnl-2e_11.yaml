@@ -1,0 +1,475 @@
+- en: '11'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Performing Bulk Operations
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Bulk operations** are tasks performed on a large scale, such as uploading
+    many files at once, deleting or inserting many items in one shot, or applying
+    a transformation or computation to multiple elements of a list simultaneously.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: These operations are designed to handle multiple updates in a single operation,
+    often resulting in improved efficiency and performance compared to when each item
+    is processed separately. Tracking the progress of bulk operations is crucial to
+    provide feedback to users, monitor the health of the operation, and identify potential
+    issues.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will start by explaining the bulk operation requirement
+    and the type of bulk operation that we will consider. After that, we will walk
+    you through the different steps to implement the reactive pattern for implementing
+    bulk operations. Finally, we will learn the reactive pattern for tracking the
+    bulk operation’s progress.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we’re going to cover the following main topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the bulk operation requirements
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning the reactive pattern for bulk operations
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning the reactive pattern for tracking the bulk operation’s progress
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This chapter assumes that you have a basic understanding of RxJS.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The source code of this chapter is available at [https://github.com/PacktPublishing/Reactive-Patterns-with-RxJS-and-Angular-Signals-Second-Edition/tree/main/Chap11](https://github.com/PacktPublishing/Reactive-Patterns-with-RxJS-and-Angular-Signals-Second-Edition/tree/main/Chap11).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the bulk operation requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In web applications, a bulk operation is represented by one action or event;
+    however, in the background, there are two possible behaviors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Running one network request for all the tasks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Running parallel network requests for every task
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will be using the second behavior. We want to allow the
+    user to upload the recipe images at once, track the progress of the upload operation,
+    and display a progress bar to the user. We can see what this will look like here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 11.1 – Uploading the recipe’s images](img/B21180_11_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 11.1 – Uploading the recipe’s images
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the `RecipeCreation` interface, we will be changing the layout of the **ImageUrl**
+    field to the **File Upload** layout available in our library of components, PrimeNG,
+    as shown in the screenshot. The **File Upload** layout allows the user to choose
+    multiple files, clear the selection, and upload the files.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The upload will be done on the server, and we have a specific service for the
+    upload that takes both the file to be uploaded and the identifier of the associated
+    recipe as input. Since the backend upload API supports only one file at a time,
+    we will be running *N* network requests in parallel to upload *N* files (i.e.,
+    if we upload two files, two requests will be sent). This is the bulk change use
+    case that we will consider in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the UI, we will have one event that will trigger multiple requests at the
+    same time. The following diagram provides a graphical representation of the bulk
+    operation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 11.2 – A bulk operation visualization](img/B21180_11_2.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 11.2 – A bulk operation visualization
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, to sum up, we want to do the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Allow the user to upload many files after clicking only once on the **Upload**
+    button
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Display the progress of this bulk operation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Now that we have defined the requirement, let’s see how we can implement it
+    in a reactive way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning the reactive pattern for bulk operations
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As usual, we have to consider our tasks as streams. As the task that we are
+    going to perform is uploading the recipe image in the backend, let’s imagine a
+    stream called `uploadRecipeImage$` that will take the file and the recipe identifier
+    as input and perform an HTTP request. If we have *N* files to be uploaded, then
+    we will create *N* streams.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We want to subscribe to all those streams together, but we are not interested
+    in the values emitted from each stream through the process. Instead, we only care
+    about the final result (the last emission) – whether the file is uploaded successfully,
+    or something wrong happens and the upload fails.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Is there an RxJS operator that gathers a list of Observables together to get
+    a cumulative result? Thankfully, yes: we have the `forkJoin` operator.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The forkJoin operator
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The `forkJoin` operator falls under the category of combination operators.
+    If we look at the official documentation, we find this definition:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*“Accepts an Array of ObservableInput or a dictionary Object of ObservableInput
+    and returns an Observable that emits either an array of values in the exact same
+    order as the passed array, or a dictionary of values in the same shape as the*
+    *passed dictionary.”*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In other words, `forkJoin` takes a list of Observables as input, waits for the
+    Observables to complete, and then combines the last values they emitted in one
+    array and returns it. The order of the values in the resulting array is the same
+    as the order of the input Observables.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s consider the following marble diagram to better understand this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 11.3 – A forkJoin marble diagram](img/B21180_11_3.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 11.3 – A forkJoin marble diagram
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, `forkJoin` has three input Observables (represented by the three timelines
+    before the operator box).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first Observable emitted the `forkJoin` does not emit anything (look at
+    the last timeline after the operator box, which represented the returned result
+    by `forkJoin`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, the third Observable emitted `forkJoin`. Why? Because, as we said in the
+    definition, `forkJoin` will emit only once when all the Observables are complete.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, as illustrated in the marble diagram, `forkJoin` emitted only once when
+    the last Observable (the second one) completed. Let’s break this down:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The third Observable (represented by the third timeline) completed first, and
+    the last value emitted was **4**.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Then, the first Observable (represented by the first timeline) completed, and
+    the last value emitted was `forkJoin` did not emit any value because there was
+    still an Observable running.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Finally, the last Observable (represented by the second timeline) completed,
+    and the last value emitted was `forkJoin` returns an array containing the results
+    of each stream in the order of the input Observables (**e**, **j**, and **4**).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The order of completion is not considered; otherwise, we would have had `[4,e,j]`.
+    Even though the third Observable was completed before the first and second one,
+    `forkJoin` respected the order of the input Observables and returned the **e**
+    value before the **4** and **j** values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, keep in mind that `forkJoin` emits once when all the input Observables are
+    complete and preserves the order of the input Observables.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This fits our requirements well! `forkJoin` is best used when you have a list
+    of Observables and only care about the final emitted value of each. That’s what
+    we want to do. In our case, we will issue multiple upload requests, and we only
+    want to take action when a response is received from all the input streams.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s now see the bulk operation reactive pattern in action.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The bulk operation reactive pattern
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To utilize the pattern in our recipe app, first, we need to create a new service
+    called `UploadRecipesPreviewService` under `src/app/core/services`, which is responsible
+    for uploading the files. Here is the service’s code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `upload` method issues the HTTP upload request and returns the upload status
+    (whether having succeeded or failed). This method takes two parameters as input:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`recipeId`: The identifier of the recipe'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`fileToUpload`: The file to be uploaded'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Then we used `FormData` to send the file to the server. `FormData` is an object
+    in JavaScript that allows you to easily build a set of key-value pairs representing
+    form fields and their values respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now we need to implement the behavior of the `RecipeCreationComponent` template,
+    we need to specify the method that will be called when clicking on the `onUpload`
+    method in our case – and put it as a value to the callback – `uploadHandler` –
+    provided by the component library we are using to get triggered when the user
+    uploads the files. Here’s the HTML template snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: Some of the code in the template has been removed here for brevity. You can
+    find the full template code in the book’s GitHub repository, the link for which
+    can be found in the *Technical* *requirements* section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we need to implement the `onUpload` method and define our reactive streams
+    in `RecipeCreationComponent`. So, we will define the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A `BehaviorSubject` that will always emit the last value of the uploaded files,
+    called `uploadedFilesSubject$`, and initialize it with an empty array:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The `onUpload (files: File[])` method, which is called when clicking on the
+    `uploadedFilesSubject$` with the last array of uploaded files as follows:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'A stream called `uploadRecipeImages$` that is responsible for doing the bulk
+    upload as follows:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Let’s break down what’s going on in the code here, piece by piece.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Every time we click on the `uploadedFilesSubject$` will emit the files to be
+    uploaded. We need to listen to `uploadedFilesSubject$` emissions, and then use
+    `switchMap` (which we learned about in [*Chapter 6*](B21180_06.xhtml#_idTextAnchor097),
+    *Transforming Streams*) to transform every value emitted by `uploadedFilesSubject$`
+    to the Observable that will be built using `forkJoin`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: To `forkJoin`, we pass an array of the Observables responsible for uploading
+    each file. We built the array of Observables by mapping every file in the `uploadedFiles`
+    array to the stream, resulting from calling the `upload` method available in `UploadRecipesPreviewService`
+    that takes the `id` property of the recipe (which we retrieved from `recipeForm`)
+    and the file as input.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now that we’ve established our upload logic and defined the upload stream,
+    it’s time to subscribe to the `uploadRecipeImages$` stream. We need to inject
+    `UploadRecipesPreviewService` into the constructor and subscribe to `uploadRecipeImages$`
+    in the template, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, let’s suppose one of the inner streams errors out. The `forkJoin` operator
+    will no longer emit any values for us. This is another important thing to be aware
+    of when using this operator. You will lose the value of any other stream that
+    would have already been completed if you do not catch the error correctly on the
+    inner Observable. Therefore, catching the error in this case is crucial!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is how we handle it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we called `catchError` on the inner stream returned by the `upload` method.
+    Then, we wrapped the error inside another Observable and returned it. This way,
+    the `forkJoin` stream will stay alive and emit values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It makes a lot of sense to catch the errors in order to display something significant
+    to the user – for example, in our case, if one of the uploads fails because the
+    maximum image file size was reached or the extension of the image is not allowed,
+    then the system should display such an exception to the user to help them fix
+    the file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Benefits of the forkJoin operator
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To sum up, `forkJoin` has the following benefits:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is very useful when you are interested in combining results and getting a
+    value only once
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It only emits *once*, when all the Observables complete
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It preserves the order of the input Observables in the emission
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It will complete when one of the streams errors out, so make sure you handle
+    the error
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Now, at this point, our code works nicely. But what if we need to know some
+    information during the process, such as how many files were already uploaded?
+    What is the progress of the operation? How much time do we still need to wait?
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the current `forkJoin` implementation, it is not possible, but let’s see
+    how we can do it in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning the reactive pattern for tracking the bulk operation’s progress
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Tracking the progress of bulk operations is very important, as it provides feedback
+    to the user and can identify potential issues. When it comes to approaches for
+    tracking progress, there are different strategies and techniques depending on
+    the nature of the bulk operation and the technology stack you’re using. For example,
+    you can use an increment counter to show when each operation is processed, use
+    a percentage to track the progress of the operations, or even log the progress
+    to a file or database.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the case of our recipe app, in order to track the progress of the bulk upload,
+    we will use the percentage of completion strategy. To implement this strategy,
+    we will use a very useful operator called `finalize`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `finalize` operator allows you to call a function when the Observable completes
+    or errors out. The idea is to call this operator and execute a function that will
+    calculate the progress. This way, every time an Observable completes, the progress
+    will get updated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is what the code will look like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `finalize` operator calls the `calculateProgressPercentage` private function
+    that takes the following parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The number of completed requests*: We just declare a `counter` property that
+    we will increment every time the Observable completes'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*The total number of requests*: This number is retrieved from the array of
+    `uploadedFiles`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Inside the `calculateProgressPercentage` function, we perform a simple computation
+    to identify the completion percentage and store the result in an `uploadProgress`
+    property. When the user clicks on `uploadProgress` and `counter` properties should
+    be reset to `0`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, you can map the value of this property to any `ProgressBar` component
+    in the UI. In our case, we used the PrimeNG `p-progressBar` component as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we only display `p-progressBar` when the upload is in progress (`uploadProgress>0`)
+    and we pass the `uploadProgress` value as input to the progress component. This
+    way, you will be able to display the progress to the user.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is the result in our app:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 11.4 – The file upload progress bar](img/B21180_11_4.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 11.4 – The file upload progress bar
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we explained the concept of bulk operation and learned how
+    to implement a real-world example of a bulk task in a reactive way. We learned
+    the behavior and a use case of the `forkJoin` operator and went through the different
+    steps to implement a bulk upload. Finally, we went through a reactive technique
+    to implement the tracking progress functionality using the `finalize` operator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will explore the pattern of real-time updates and the
+    different techniques available in RxJS to implement them at the lowest cost.
+  prefs: []
+  type: TYPE_NORMAL

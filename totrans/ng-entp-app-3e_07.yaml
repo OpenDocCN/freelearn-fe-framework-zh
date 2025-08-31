@@ -1,0 +1,2046 @@
+- en: '7'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Working with REST and GraphQL APIs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In *Chapter 1*, *Angular’s Architecture and Concepts*, I introduced you to the
+    wider architecture in which web applications exist, and in *Chapter 3*, *Architecting
+    an Enterprise App*, we discussed various performance bottlenecks that can impact
+    the success of your app. However, your web app can only perform as well as your
+    full-stack architecture performs. If you’re working with an inadequate API design
+    or a slow database, you will spend your time implementing band-aid solutions instead
+    of addressing the root cause of the issues. The moment we move away from the minimalist
+    mindset and start patching holes, we are on our way to constructing a fragile
+    tower that is at risk of collapsing or very expensive to maintain. In short, the
+    choices made in full-stack architecture can profoundly impact the success of your
+    web application. You and your team simply cannot afford to be ignorant of how
+    APIs are designed. Often, the correct way to implement a new feature or fix a
+    performance issue is by redesigning an API endpoint. The **MEAN** stack, using
+    **MongoDB**, **Express**, **Angular**, and **Node.js**, is a popular set of technologies
+    aligned around similar technologies that should ease adoption by web developers.
+    My take on the MEAN stack is minimal MEAN, which prioritizes ease of use, well-being,
+    and effectiveness, the main ingredients for a great **DevEx**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the past two chapters, we designed and implemented a **Role-Based Access
+    Control** (**RBAC**) mechanism for our app. In *Chapter 5*, *Designing Authentication
+    and Authorization*, we dove into security considerations, covered how JWT authentication
+    works, learned how to safely handle data with TypeScript, and tapped into **Object
+    Oriented Programming** (**OOP**) design with inheritance and abstraction to build
+    an extendable auth service. In *Chapter 6*, *Implementing Role-Based Navigation*,
+    we designed a conditional navigation experience using our auth service and implemented
+    auth providers for custom APIs and Google Firebase.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, I’ll introduce you to the LemonMart server, which implements
+    JWT auth, REST, and GraphQL APIs. We will use these APIs to implement two custom
+    auth providers in Angular. This will allow you to make authenticated calls to
+    support recipes I will cover in *Chapter 8*, *Recipes – Reusability, Forms, and
+    Caching, and Caching*, and *Chapter 9*, *Recipes – Master/Detail, Data Tables,
+    and NgRx*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter covers a lot of ground. It is designed to serve as a roadmap to
+    the GitHub repository ([https://github.com/duluca/lemon-mart-server](https://github.com/duluca/lemon-mart-server)).
+    I cover the architecture, design, and major components of the implementation.
+    I highlight important pieces of code to explain how the solution comes together
+    but avoid going into implementation details. It is more important that you understand
+    why we are implementing various components rather than having a strong grasp of
+    the implementation details. For this chapter, I recommend that you read and understand
+    the server code versus trying to recreate it on your own.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We begin by covering full-stack architecture, the LemonMart server’s monorepo
+    design, and how to use Docker Compose to run a three-tier application with a web
+    app, server, and database. Then, we will review REST and GraphQL API design, implementation,
+    and documentation. For REST, we will leverage the **OpenAPI** specification with
+    **SwaggerUI**. For GraphQL, we will leverage **GraphQL schemas** with **Apollo
+    Studio**. Both APIs will be implemented using Express.js and TypeScript. Then,
+    we will cover the implementation of a MongoDB **Object Document Mapper** (**ODM**)
+    using the DocumentTS library to store users with login credentials. Finally, we
+    will implement a token-based auth function to secure our APIs and the corresponding
+    auth providers in Angular.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, you will learn about the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Full-stack architecture
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Working with monorepos
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Designing APIs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Implementing APIs with Express.js
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A MongoDB ODM with DocumentTS
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Implementing JWT auth
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A custom server auth provider
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The most up-to-date versions of the sample code for the book can be found on
+    GitHub at the following linked repository. The repository contains the final and
+    completed state of the code. This chapter requires the Docker Desktop and Postman
+    applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is critical that you get **lemon-mart-server** up and running on your development
+    environment and have **lemon-mart** communicate with it. Refer to the instructions
+    documented here or in the `README` on GitHub to get your server up and running.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For server-side implementation in *Chapter 7*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Clone the `lemon-mart-server` repository using the `--recurse-submodules` option:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the VS Code terminal, execute `cd web-app; git checkout master` to ensure
+    the submodule from [https://github.com/duluca/lemon-mart](https://github.com/duluca/lemon-mart)
+    is on the master branch.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Later, in the *Git submodules* section, you can configure the `web-app` folder
+    to pull from your `lemon-mart` server.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Execute `npm install` in the `root` folder to install dependencies.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Note that running the `npm install` command in the root folder triggers a script,
+    which also installs dependencies under the `server` and `web-app` folders.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Execute `npm run init:env` in the root folder to configure environment variables
+    in `.env` files.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This command will create two `.env` files, one in the root folder and the other
+    under the `server` folder, to contain your private configuration information.
+    The initial files are generated based on the `example.env` file. You can modify
+    these files later and set your own secure secrets.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Execute `npm run build` in the root folder, which builds the server and the
+    web app.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Note that the web app is built using a new configuration named `--configuration=lemon-mart-server`,
+    which uses `src/environments/environment.lemon-mart-server.ts`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Execute `docker compose up --build` to run containerized versions of the server,
+    web app, and a MongoDB database.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Note that the web app is containerized using a new file named `nginx.Dockerfile`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Navigate to `http://localhost:8080` to view the web app.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To log in, click the **Fill** button to populate the email and password fields
+    with the default demo credentials.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Navigate to `http://localhost:3000` to view the server landing page:![A screenshot
+    of a phone  Description automatically generated](img/B20960_07_01.png)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Figure 7.1: LemonMart Server landing page'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Navigate to `http://localhost:3000/api-docs` to view interactive API documentation.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You can use `npm run start:database` to only start the database, and `npm start`
+    on the `server` folder for debugging.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You can use `npm run start:backend` to only start the database and the server,
+    and `npm start` on the `web-app` folder for debugging.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'For client-side implementations in *Chapter 7*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Clone the repository: [https://github.com/duluca/lemon-mart](https://github.com/duluca/lemon-mart).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Execute `npm install` in the root folder to install dependencies.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The beginning state of the project is reflected at:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The end state of the project is reflected at:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Add the stage name to any `ng` command to act only on that stage:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that the `dist/stage10` folder at the root of the repository will contain
+    the compiled result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Beware that the source code provided in the book and the version on GitHub are
+    likely to be different. The ecosystem around these projects is ever-evolving.
+    Between changes in how Angular CLI generates new code, bug fixes, new versions
+    of libraries, and side-by-side implementations of multiple techniques, there are
+    a lot of variations that are impossible to account for. If you find errors or
+    have questions, please create an issue or submit a pull request on GitHub.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With your LemonMart server up and running, we are ready to explore the architecture
+    of the MEAN stack. By the end of this section, you should have your own version
+    of LemonMart communicating with the server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Full-stack architecture
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Full-stack** refers to the entire stack of software that makes an application
+    work, from databases to servers, APIs, and the web and/or mobile apps that leverage
+    them. The mythical full-stack developer is all-knowing and can comfortably operate
+    in all verticals of the profession. It is next to impossible to specialize in
+    all things *software-related* and to be considered an expert in every given topic.
+    However, to be considered an expert in a single topic, you must also be well-versed
+    in related topics. When learning about a new topic, it is very helpful to keep
+    your tooling and language consistent to absorb new information without additional
+    noise.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For these reasons, I opted to introduce you to the MEAN stack, rather than Spring
+    Boot using Java or ASP.NET using C#. By sticking to familiar tools and languages
+    such as TypeScript, VS Code, npm, GitHub, Jasmine/Jest, Docker, and CircleCI,
+    you can better understand how a full-stack implementation comes together and become
+    a better web developer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Minimal MEAN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Choosing the **ideal stack** for your project is difficult. First and foremost,
+    your technical architecture should be adequate to meet business needs. For example,
+    if you’re trying to deliver an artificial intelligence project with Node.js, you’re
+    likely using the wrong stack. Our focus will be on delivering web applications,
+    but beyond that, we have other parameters to consider, including the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Ease of use
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Happiness
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Effectiveness
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If your development team will be working on your application for an extended
+    period, it is very important to consider factors beyond compatibility. Your stack,
+    choice of tool, and coding style can have a significant impact if your codebase
+    is easy to use, keeps your developers happy, or makes them feel like effective
+    contributors to the project.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A well-configured stack is key for a great DevEx. This can be the difference
+    between a towering stack of dried-out pancakes or a delicious short stack, with
+    the right amount of butter and syrup.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By introducing too many libraries and dependencies, you can slow down your progress,
+    make your code difficult to maintain, and find yourself in a feedback loop of
+    introducing more libraries to resolve the issues of other libraries. The only
+    way to win this game is to simply not play it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you take your time to learn how to work with a few fundamental libraries,
+    you can become a far more effective developer. In essence, you can do more with
+    less. My advice would be to:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Think** before you write a single line of code and apply the 80-20 rule.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Wait** for libraries and tools to mature, skipping the betas.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Fast** by reducing your gluttony for new packages and tools, mastering the
+    fundamentals instead.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Watch my 2017 Ng conference talk entitled *Do More with Less JavaScript* on
+    YouTube at [https://www.youtube.com/watch?v=Sd1aM8181kc](https://www.youtube.com/watch?v=Sd1aM8181kc).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This minimalist mindset is the design philosophy behind minimal MEAN. You can
+    review a reference implementation on GitHub at [https://github.com/duluca/minimal-mean](https://github.com/duluca/minimal-mean).
+    Refer to the following diagram for the overall architecture:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B20960_07_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.2: Minimal MEAN software stack and tooling'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s go over the components of the architecture:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Angular**: You know this one. Angular is the presentation layer. The output
+    of an Angular build is a set of static files that can be hosted using the minimal
+    Docker container, `duluca/minimal-nginx-web-server,` or `duluca/minimal-node-web-server`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Express.js**: This is our API layer. Express is a fast, unopinionated, and
+    minimalist web framework for Node.js. Express has a vast plugin ecosystem that
+    is almost guaranteed to meet every need. NestJS is built on Express and is a good
+    alternative for well-established teams. In minimal MEAN, we leverage a few Express
+    middleware:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`cors`: configures cross-origin resource-sharing settings'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`compression`: zips packets sent across the wire to lower bandwidth use'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`morgan`: logs HTTP requests'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`express.static:` function to serve the content of the `public` folder'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`graphql:` to host GraphQL endpoint'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You can read more about Express.js at [https://expressjs.com/](https://expressjs.com/)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Node.js**: This is the server runtime; Express runs on Node so that the business
+    layer will be implemented in Node. Node is a lightweight and efficient JavaScript
+    runtime that uses an event-driven, non-blocking I/O model that suits high-performance
+    and real-time applications. You can increase the reliability of your Node applications
+    by using TypeScript to develop your application.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Node runs everywhere, from fridges to smartwatches. Refer to the blog post by
+    Frank Rosner on non-blocking I/O for a more in-depth explanation of the topic
+    at [https://blog.codecentric.de/en/2019/04/explain-non-blocking-i-o-like-im-five/](https://blog.codecentric.de/en/2019/04/explain-non-blocking-i-o-like-im-five/).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '**MongoDB**: This is the persistence layer. MongoDB is a document-oriented
+    database with dynamic JSON-like schemas. Read more about MongoDB at [https://www.mongodb.com/](https://www.mongodb.com/).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The MEAN stack is preferred because it leverages the major benefit of using
+    a JSON-based database, which means that you don’t need to transform your data
+    from one format to another, as it crosses the layers of your stack – a major pain
+    point when dealing with .NET, Java, and SQL servers. You can retrieve, display,
+    edit, and update the data using only JSON. In addition, the MongoDB native driver
+    for Node is mature, performant, and capable. I have developed a library called
+    `document-ts`, which aims to simplify interacting with MongoDB by introducing
+    rich document objects that are easy to code. DocumentTS is a very thin TypeScript-based
+    MongoDB helper with optional, rich ODM convenience features. Read more about DocumentTS
+    at [https://github.com/duluca/document-ts](https://github.com/duluca/document-ts).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Minimal MEAN leverages most of the same tooling and languages we use for Angular
+    development. This enables developers to switch between frontend and backend development
+    with minimal context switching.
+  prefs: []
+  type: TYPE_NORMAL
+- en: NestJS
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Minimal MEAN intentionally sticks to the basics, so you can learn more about
+    the underlying technologies. While I have delivered production systems using minimal
+    MEAN for larger teams with varying skill levels, this barebones development experience
+    may not be appropriate. In this case, you may consider NestJS, a popular framework
+    for implementing full-stack Node.js apps. NestJS has a rich feature set with an
+    architecture and coding style resembling Angular.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Feeling adventurous? Create a NestJS app by executing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Nest is built on Express and provides syntactic sugar and concepts to build
+    a scalable backend solution. The framework heavily borrows ideas from Angular
+    to implement dependency injection, guards, interceptors, pipes, modules, and providers.
+    The built-in resource generator can scaffold entity classes, **CRUD** (**Create**,
+    **Retrieve**, **Update**, **Delete**) controllers, **Data Transfer Objects** (**DTOs**),
+    and services.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When creating a resource, you can choose between creating a REST, GraphQL,
+    microservice, or WebSocket endpoint:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Nest supports OpenAPI for REST documentation, and GraphQL also supports schema-first
+    and code-first development for GraphQL. For a library with so many features, Nest’s
+    explicit Microservice support is welcome, where a fast boot-up time and small
+    framework size are critical for operations. All these features are supported by
+    detailed documentation at [https://docs.nestjs.com/](https://docs.nestjs.com/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Kudos to Kamil Mysliwiec and Mark Pieszak for creating a great tool and fostering
+    a vibrant community around NestJS. Should you ever need it, you can solicit consulting
+    services at [https://trilon.io/](https://trilon.io/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you visit the documentation site, you may be overwhelmed with the many options
+    on offer. This is why I recommend using a feature-rich library like this after
+    you have mastered the basics with minimal MEAN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can read more about NestJS at [https://nestjs.com/](https://nestjs.com/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, let’s learn about monorepos, their benefits, and their downsides. I will
+    share how you can combine Nx, Nest, and Angular in a monorepo, and then cover
+    how LemonMart server uses Git submodules to create a monorepo.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Working with monorepos
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A **monorepo** (**monolithic repository**) is a software development strategy
+    to host code from multiple projects in a single repository. This allows for unified
+    versioning, simplified dependency management, and easier code sharing across projects.
+    In a monorepo, developers can jump between projects within the same IDE window
+    and reference code more easily across projects, such as sharing TypeScript interfaces
+    between the frontend and the backend, ensuring that data objects line up every
+    time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can enable access to multiple projects in the same IDE window using multi-root
+    workspaces in VS Code, where you can add multiple projects to display in the *Explorer*
+    window. However, a monorepo combines projects at the source control level, allowing
+    us to build them together on our CI server. Read more about multi-root workspaces
+    at [https://code.visualstudio.com/docs/editor/multi-root-workspaces](https://code.visualstudio.com/docs/editor/multi-root-workspaces).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having access to code from multiple projects makes it possible to commit atomic
+    changes, meaning changes made across projects can be combined into a single commit.
+    This brings a distinct advantage by making it easy to push changes that may otherwise
+    require coordination across multiple repos, deployments, and systems in one place.
+    All processes around maintaining code quality and standards also become simplified.
+    There’s one **Pull Request** (**PR**) to review, one deployment to verify, and
+    one set of checks to enforce.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So why is every project not a monorepo? In large applications, having too many
+    files in the project can become a significant issue. It would require every developer
+    to have top-of-the-line hardware and CI/CD servers to run on expensive, high-performance
+    hardware. In addition, automating the deployment of such a project can become
+    a very complex task. Finally, a new team member joining the team can find it overwhelming.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While monorepos at least date back to the early 2000s, they were impractical
+    to leverage as a strategy for most, except the top tech companies worldwide. In
+    2019, when Google released the open-source Bazel build tool, itself based on a
+    2015 internal project called Blaze, the idea became feasible for smaller-scale
+    projects. In the JavaScript, TypeScript, and web app development world, Nx, developed
+    by ex-Googlers, has risen to prominence. In terms of managing, building, and publishing
+    packages, Lerna is a cousin of Nx.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Nx monorepo
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As mentioned in *Chapter 3*, *Architecting an Enterprise App*, Nx is a next-generation
+    build system with first-class monorepo support and powerful integrations. Nx offers
+    an opinionated architecture, which is welcome for large teams and enterprises.
+    Nx also has a cloud offering, where it’ll leverage a distributed cache and parallelization
+    to optimize builds without your team investing in complicated infrastructure work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can set up a new Nx workspace by executing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Alternatively, you can migrate an existing project by executing the following
+    command in the project folder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: By default, this will give you a monorepo configuration with one app. You can
+    use Nx generators to add libraries that can be shared across components and other
+    modules. By separating code into distinct libraries, multiple people working on
+    the project simultaneously are less likely to have merge conflicts. However, if
+    you follow the router-first architecture and segregate duties between feature
+    modules, you can get similar results. There’s more at [https://nx.dev/getting-started](https://nx.dev/getting-started).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The question is, is it worth it? Many experts use it as a standard tool; however,
+    in my pursuit of minimalism, I’m not a fan of bringing a tank to a knife fight.
+    There’s a cost to introducing a sophisticated piece of tech like this to a team.
+    There’s a steep learning curve to adopt such a tool.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When you layer JavaScript, TypeScript, Git, Nx, Angular, libraries, Node, npm,
+    and other server-side tech on top of each other, the cognitive load required to
+    navigate these tools goes through the roof. Furthermore, each one of these tools
+    requires expertise to correctly configure, maintain, and upgrade them over time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On modern hardware (at least ones not addled by enterprise-grade *slow-everything-down-so-we-can-make-extra-sure-you-don’t-have-a-virus*
+    software installed on it), Angular apps with several hundred components build
+    fast enough. With the adoption of esbuild and Vite, this should improve even further.
+    Nx’s distributed cache and centralized dependency management features may tip
+    the scales for you. Always assess your needs carefully before starting a new project;
+    running on autopilot, it’s easy to either under- or overestimate your needs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: I want to make one thing crystal clear. If you are working with thousands of
+    components, then Nx is a requirement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Most Angular monorepos only contain frontend code. To configure a full-stack
+    monorepo using NestJS in an existing Angular workspace, install the Nest schematic
+    and generate a new project within the Nx workspace:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can read more about this at [https://www.thisdot.co/blog/nx-workspace-with-angular-and-nest/](https://www.thisdot.co/blog/nx-workspace-with-angular-and-nest/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, let’s see how LemonMart server’s monorepo is configured.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Git submodules
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Git submodules help you share code between multiple repositories while keeping
+    the commits separate. Frontend developers may choose to only work using the frontend
+    repository, whereas full-stack developers will prefer access to all code. Git
+    submodules also provide a convenient way for existing projects to be combined.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Observe the overall structure of the `lemon-mart-server` project, where you
+    are going to have three main folders, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `bin` folder contains helper scripts or tools, the `web-app` folder represents
+    your frontend, and `server` contains the source code for the backend. In our case,
+    the `web-app` folder is the `lemon-mart` project. Instead of copying and pasting
+    the code from the existing project, we leverage Git submodules to link two repositories
+    together. The `package.json` file contains scripts that assist in the initialization,
+    updating, and cleaning up of Git submodules, like `modules:update` to fetch the
+    latest version of the web app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: I recommend that you perform the following actions on the version of `lemon-mart-server`
+    that you cloned from GitHub. Otherwise, you will need to create a new project
+    and execute `npm init -y` to get things started.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To initialize the web-app folder with your project:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Update `webAppGitUrl` with the URL to your own project.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Execute `webapp:clean` to remove the existing `web-app` folder.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Finally, execute the `webapp:init` command to initialize your project in the
+    `web-app` folder:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Going forward, execute the `modules:update` command to update the code in the
+    submodule. To pull the submodules after cloning the repo in another environment,
+    execute `npm modules:init`. If you ever need to reset the environment and restart,
+    then execute `webapp:clean` to clean Git’s cache and remove the folder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that you can have multiple submodules in your repository. The `modules:update`
+    command will update all the submodules.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Your web application code is now available in the folder named `web-app`. Additionally,
+    you should be able to see both projects under VS Code’s **SOURCE CONTROL** pane,
+    as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B20960_07_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.3: VS Code source control providers'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using VS Code’s source control, you can independently perform Git actions on
+    either repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If things get messy with your submodule, simply `cd` into the submodule directory,
+    execute `git pull`, and then `git checkout main` to restore the main branch. Using
+    this technique, you may check out any branch from your project and submit PRs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that our submodule is ready, let’s see how the server project is configured
+    so that we can configure our CI server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CircleCI config
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'One of the benefits of using Git submodules is that we can verify that our
+    frontend and backend work in the same CI pipeline. The `config.yml` file implements
+    two jobs, part of the workflow shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: The pipeline checks out the code, verifies the security of the packages we’re
+    using with `audit-ci`, installs dependencies, checks for styling and linting errors,
+    runs tests, and checks for code coverage levels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The test commands implicitly build the server code, which is stored under the
+    `dist` folder. In the final step, we move the `dist` folder into the workspace
+    so that we can use it at a later stage.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The CI pipeline will build the server and the web app in parallel, with an option
+    to run the `deploy` job if the jobs succeed on the main branch. There are more
+    details on CI/CD in *Chapter 10, Releasing to Production* *with CI/CD*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, let’s see the difference between RESTful and GraphQL APIs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Designing APIs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In *Chapter 3*, *Architecting an Enterprise App*, I cover the importance of
+    a stateless, data-driven design as part of Router-first architecture. As part
+    of this goal, I highlight identifying major data entities that your app will operate
+    around as an important activity. It’s no mistake that API design also greatly
+    benefits by designing around major data entities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In full-stack development, nailing down the API design early on is important.
+    If your frontend and backend teams can agree on major data entities and the shape
+    of those entities, then both teams can agree on a contract to go off and build
+    their own respective pieces of software. In Router-first architecture, I highlight
+    the importance of leveraging TypeScript interfaces to quickly stub out the architecture
+    of your app. Backend teams can conduct similar activities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A little bit of early design work and agreement ensures integration between
+    these components can be established very early on, and with CI/CD pipelines, we
+    can ensure it doesn’t disintegrate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CI is critical to success. One of the most infamous cases where teams didn’t
+    integrate critical systems until too late was the disastrous launch of HealthCare.gov
+    in 2013\. Even though 300 people worked on it, and $300,000,000 was spent on this
+    project, it failed. In total, 1.7 billion dollars had to be spent to rescue the
+    project and make it successful. The US federal government can afford to do this.
+    Your enterprise won’t be as accepting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are further considerations in designing your API, and if frontend and
+    backend developers collaborate closely to achieve shared design goals, the chance
+    of project success is greatly improved.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Some high-level goals are listed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Minimize data transmitted between the client and server.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Stick to well-established design patterns (e.g., pagination API design).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Design to reduce business logic implementation on the client.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Design around major data entities.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Flatten data structures when crossing boundaries.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Do not expose database keys or foreign key relationships.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Version endpoints from the get-go.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You should aim to implement all the business logic behind your API surface.
+    The frontend should only contain presentation logic. Any `if` statement implemented
+    by the frontend should also be verified in the backend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As discussed in *Chapter 1*, *Angular’s Architecture and Concepts*, it is critical
+    to aim for a stateless design in both the backend and frontend. Every request
+    should utilize non-blocking I/O methods and not rely on existing sessions. This
+    is the key to seamlessly scaling your web application code on cloud platforms.
+    Sessions are notorious for scaling out and using a lot of memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Whenever you’re implementing a project, it is important to limit, if not eliminate,
+    experimentation. This is especially true in full-stack projects. The downstream
+    effect of missteps in API design can be profound and impossible to correct once
+    your application goes live. Proofs of concept are ideal places to experiment and
+    validate ideas and new technologies. Their one great feature is how disposable
+    they are.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, let’s go over designing REST and GraphQL APIs around major data entities.
+    In this case, we’ll review the implementation of an API surrounding users, including
+    authentication. In both cases, we will rely on an API specification language.
+    For REST, we will use the OpenAPI specification, and for GraphQL, the schemas
+    specification, to document the design so that we can concretely communicate the
+    intent of the API to team members. Later, these specs become interactive tools,
+    reflecting the capability of our APIs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: REST APIs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '**REST** (**representational state transfer**) is commonly used to create stateless,
+    reliable web applications leveraging HTTP methods (verbs) like **GET**, **POST**,
+    **PUT**, and **DELETE**. REST APIs are well defined and static. Like any public
+    API, once released, it is very difficult, if not impossible, to change their interface.
+    It is always possible to extend but hard to optimize for emergent use cases, like
+    mobile or purpose-built apps that need to use the API differently. This usually
+    leads to a great expansion of the API surface as teams implement specific APIs
+    to match new needs. This can lead to maintainability challenges if there are a
+    half-dozen separate codebase to access the same piece of data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: From a frontend developer’s perspective, working with APIs they didn’t write
+    can be a perplexing experience. Most public APIs and businesses that publish APIs
+    usually resolve this by publishing high-quality documentation and examples. This
+    takes time and money. However, a fast-moving team in an enterprise environment
+    can’t afford to wait for such documentation to be manually created.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Enter OpenAPI, aka Swagger. OpenAPI specs can document API names, routes, input
+    and return parameter types, encoding, authentication, request headers, and expected
+    HTTP status codes. This level of detail leaves little room for interpretation
+    of how an API should be consumed, reducing friction and buggy code – all critical
+    ingredients to avoid late-stage integration challenges.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The OpenAPI spec can be defined in the YAML or JSON format. Using this spec
+    file, you can render an interactive UI for your API. Install the Swagger Viewer
+    VS Code extension and preview the `swagger.yaml` file under the `server` folder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: There’s also the OpenAPI (Swagger) Editor extension, which is a feature-rich
+    alternative. At the time of publishing, this extension doesn’t support OpenAPI
+    version 3.1.0.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B20960_07_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.4: Swagger.yaml preview'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the Swagger UI view, you can try out commands and execute them against
+    your server environment once it’s implemented.
+  prefs: []
+  type: TYPE_NORMAL
+- en: OpenAPI Spec
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We are using the OpenAPI spec version `openapi: 3.1.0`. The OpenAPI spec can
+    document metadata about your server, various components of your API, like security
+    schemes, responses, data schemas, and input parameters, and finally, the paths
+    that define your HTTP endpoints.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s go over the major components of the `swagger.yaml` file located under
+    the `server` folder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The YAML file starts with general information and target servers:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Under `components`, we define common `securitySchemes` and responses, which
+    define the authentication scheme we intend to implement and how the shape of our
+    error message response will appear:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note the usage of `$ref` to reuse repeating elements. You can see `ServerMessage`
+    being defined here.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Under `components`, we define shared data `schemas`, which declare the data
+    entities that we either take in as input or return to the client:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Under `components`, we define shared `parameters`, making it easy to reuse
+    common patterns such as paginated endpoints:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Under `paths`, we define REST endpoints, such as a `post` endpoint for the
+    `/login` path:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that `requestBody` defines input variables that are required with a type
+    of `string`. Under `responses`, we can define how a successful `200` response
+    and an unsuccessful `401` response to a request appear. In the former case, we
+    return an `accessToken`, while in the latter case, we return an `UnauthorizedError`,
+    as defined in *step 2*.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Under `paths`, we define the remaining paths:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The OpenAPI spec is powerful, allowing you to define intricate requirements
+    on how users should be able to interact with your API. The OpenAPI spec can be
+    found at [https://spec.openapis.org/oas/latest.html](https://spec.openapis.org/oas/latest.html).
+    It is an invaluable resource while developing your own API definition.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our overarching goal is to integrate this interactive documentation with our
+    Express.js APIs. Now, let’s see how you can implement such an API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: OpenAPI spec with Express
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Configuring Swagger with Express is a manual process. But this is a good thing.
+    Forcing yourself to manually document endpoints has a positive side effect. By
+    slowing down, you will get the opportunity to consider your implementation from
+    the perspective of the consumer of the API. This perspective will help you resolve
+    potential issues with your endpoints during development, avoiding annoying, if
+    not costly, rework.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s look at an example of how you can directly embed the OpenAPI spec alongside
+    your code in chunks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, we use the `JSDoc` documentation syntax that starts with `/**`
+    and then define the relevant part of the OpenAPI spec right after the `@openapi`
+    identifier. We can still reference components defined elsewhere, as shown with
+    the `$ref` statements to the `User` and `UnauthorizedError` objects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The major benefit of integrating the spec alongside your code is that the developer
+    knows exactly how the server should respond to a `/me GET` request. If a user
+    exists, we respond with a `User` object; if not, we throw a `401` error that adheres
+    to the shape of the `UnauthorizedError` object. Using some automated tools, we
+    can still generate the same interactive Swagger UI covered earlier, so testers
+    and developers can discover or test the API directly from a web interface.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the API implementation evolves, this setup makes it easy for developers to
+    keep the spec up to date. By making it easy, we incentivize everyone involved
+    with the desire to keep Swagger UI working because all team members benefit from
+    it. By creating a virtuous cycle, we achieve the ideal of **living documentation**.
+    Normally, initial designs become useless as they grow stale, but instead, we can
+    have an automated and interactive solution that delivers ongoing value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We are going to use two helper libraries to help us integrate the inline spec
+    into the codebase:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`swagger-jsdoc`: This allows us to implement OpenAPI specs right on top of
+    the relevant code by using the `@openapi` identifier in a `JSDoc` comment block,
+    generating a `swagger.json` file as output.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`swagger-ui-express`: This consumes the `swagger.json` file to display the
+    interactive Swagger UI web interface.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let’s explore how Swagger is configured to work with Express.js:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The dependencies and type information for TypeScript are shown here:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let’s explore the `docs-config.ts` file, which configures the base OpenAPI
+    definition:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Modify the `servers` property to include the location of your testing, staging,
+    or production environments. This allows consumers of your API to test the API
+    using the web interface without additional tooling. Note that the `apis` property
+    informs the code files that `swaggerJsdoc` should parse when constructing the
+    `swagger.json` file. This routine runs during the bootstrapping of the server,
+    which is why we reference the transpiled `.js` files instead of `.ts` files.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Bootstrap the `swagger` config in `app.ts`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Specs contain the content of the `swagger.json` file, which is then passed to
+    `swaggerUi`. Then, using the `server` middleware, we can configure `swaggerUi`
+    to host the web interface at `/api-docs`. We can also serve the JSON file from
+    an endpoint to consume it in another tool, at `/swagger`, as shown above.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Even after integrating the spec file alongside the code, developers must manually
+    ensure that the spec and the code match. This process can be automated, including
+    generating TypeScript-based API handlers to prevent coding mistakes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A community-driven list of high-quality and modern tools for OpenAPI can be
+    found at [https://openapi.tools/](https://openapi.tools/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that you understand how we can design a REST API and create living documentation
+    around it, it’s time to learn about GraphQL, which bakes these ideas into its
+    core design.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GraphQL APIs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '**GraphQL** (**Graph Query Language**), invented at Facebook, is a modern query
+    language for APIs that offers a more flexible, robust, and efficient alternative
+    to the traditional REST API. In GraphQL, instead of HTTP verbs, you write a query
+    to GET data, a mutation to POST, PUT, or DELETE data, and subscriptions to push
+    data in the style of WebSockets. Unlike REST, which exposes a fixed set of endpoints
+    for each resource, GraphQL allows clients to request exactly the data they need,
+    no more and no less. This means clients can shape the responses according to their
+    requirements, leading to fewer over-fetching and under-fetching issues. We no
+    longer need to design the perfect API surface to get optimal results.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the realm of full-stack development, as touched upon in the *Designing APIs*
+    section, the importance of designing around major data entities cannot be overstated.
+    GraphQL shines in this aspect. Its type system ensures the API shapes around these
+    major data entities, providing a clear contract between the frontend and backend
+    teams. This type system, defined in the GraphQL schema, acts as the contract,
+    specifying the data types that can be fetched and the set of operations available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For frontend developers, diving into a GraphQL API can be a refreshing experience.
+    The introspective nature of GraphQL means that the schema can be queried for details
+    about itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This self-documenting feature ensures that developers always have an up-to-date
+    reference, eliminating the need for separate, manually maintained documentation.
+    This is especially beneficial for agile teams in enterprise settings where waiting
+    for documentation isn’t always feasible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Enter the GraphQL Playground or GraphiQL interactive environments, where developers
+    can test and explore GraphQL queries in real time. Much like Swagger UI for OpenAPI,
+    these tools provide immediate feedback, allowing developers to understand the
+    structure, types, and operations of the API. This hands-on approach reduces the
+    learning curve and fosters a deeper understanding of the API’s capabilities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, let’s explore how to design GraphQL APIs around major data entities, ensuring
+    that they align with the principles laid out in our Router-first architecture
+    and other best practices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GraphQL schema
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The GraphQL schema is at the heart of any GraphQL API, acting as the contract
+    between the client and the server. It describes the structure and capabilities
+    of the API by defining types and the relationships between the types. These types
+    model the major data entities that the API operates on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s begin by exploring the `graphql.schema` file located under `server/graphql`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using the `type` keyword, we can define data objects:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This `User` type has scalar fields like the `id` and `email` fields, representing
+    primitive value types like `ID`, `String`, `Int`, `Float`, and `Boolean`. The
+    bang symbol `!` indicates these fields are required. We can also define relationships
+    between types, such as `Name` or `Phone`. The square brackets `[]` indicate that
+    `phones` is an array of `Phone` objects.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We can also define enums and use them like a scalar type:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Using the reserved type `Query`, we can define how data can be retrieved:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We can define acceptable arguments and the return type.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Using the reserved type `Mutation`, we can define how the state can be modified:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We can define a login or a `createUser` method. Note that `createUser` takes
+    an input object, which is required if we want to pass a whole object as an argument.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Input objects are declared with the `input` keyword:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that any related object must also use the input declaration. Output types
+    and input data can’t be mixed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As you may have noticed, we can also add descriptions to document our API using
+    the # symbol or, optionally, the triple quote `"""` syntax.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The schema is defined using the GraphQL **Schema Definition Language** (**SDL**).
+    You can access the SDL specification at [https://graphql.org/](https://graphql.org/).
+    It’s an essential resource for anyone crafting a well-defined GraphQL API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overall, the schema provides a strict contract between the client and the server.
+    It makes explicit the data shapes and capabilities available. Frontend and backend
+    teams can build features in parallel against this contract, and tooling like GraphQL
+    Playground makes the schema interactive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will use the Apollo GraphQL library to help construct the schema programmatically
+    in our Express server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Apollo with Express
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Apollo GraphQL is a comprehensive and widely adopted suite of tools and services
+    designed to help developers build, manage, and scale GraphQL applications with
+    ease. Developed by the Meteor Development Group, Apollo has become synonymous
+    with GraphQL development for many developers, due to its robust features and developer-friendly
+    approach. Here’s a breakdown of Apollo GraphQL:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Apollo Client**: A state-of-the-art GraphQL client that manages local and
+    remote data. It integrates seamlessly with any JavaScript frontend framework,
+    such as React, Vue, or Angular. Apollo Client provides features like caching,
+    optimistic UI updates, and real-time subscriptions, making it easier to fetch,
+    cache, and modify application data.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Apollo Server**: A community-driven, open-source GraphQL server that works
+    with any GraphQL schema. Apollo Server provides performance tracing and error
+    tracking and supports schema stitching, allowing for the merging of multiple GraphQL
+    APIs into one unified API.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Apollo Client Developer Tools**: Browser extensions offering rich in-browser
+    development experience. Developers can view their GraphQL store, inspect active
+    queries, and interact with their GraphQL server using the built-in GraphiQL IDE.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Apollo provides more advanced dev tools with Apollo Studio as part of its cloud
+    offering. Apollo Federation allows organizations to divide their monolithic GraphQL
+    API into smaller, more maintainable microservices. It provides a means to compose
+    multiple GraphQL services into a single data graph. Apollo Link allows developers
+    to create chainable “links” to handle tasks like logging, request retries, and
+    even offline caching.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In essence, Apollo GraphQL provides a holistic approach to GraphQL development,
+    offering tools and services catering to beginners and advanced users. Whether
+    you’re building a small application or scaling a large enterprise system, Apollo’s
+    tools ensure great DevEx.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The GraphQL schema and the GraphQL library are inseparable, so we don’t have
+    to take extra steps to configure the schema definition to work with the codebase,
+    as we did with OpenAPI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To generate types from a GraphQL schema, follow the guidance provided at [https://www.apollographql.com/docs/apollo-server/workflow/generate-types/](https://www.apollographql.com/docs/apollo-server/workflow/generate-types/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, let’s see how you can configure your schema and Apollo with Express.js:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install the Apollo server:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Open the `api.graphql.ts` file, which configures the Apollo server:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Using `node:fs`, we read the schema file into the `typeDefs` object and pass
+    it into a new `ApolloServer` instance along with a reference to the resolvers.
+    Finally, we call `server.start()` and export the `useGraphQL` function.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Bootstrap the Apollo server in `index.ts`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In `index.ts`, right after we create an instance of the Express server, which
+    is defined by the app variable, we call the `useGraphQL` function to start it
+    up. This configuration allows us to implement REST and GraphQL APIs side by side.
+    GraphQL APIs and the interactive Explorer tools can be accessed at `/graphql`,
+    as shown below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a computer  Description automatically generated](img/B20960_07_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.5: GraphQL Explorer'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that you understand the differences between REST and GraphQL APIs and how
+    we can configure them equivalently with Express.js, let’s take a look at the overall
+    architecture of the server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing APIs with Express.js
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let’s go over the architecture and file structure of our backend so that we
+    get an understanding of how the server is bootstrapped, how routing is configured
+    for API endpoints, how public resources are served, and how services are configured.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Review the file structure of our Express server:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we’ll review the purpose and the interaction between these files by looking
+    at a component diagram, giving us an overview of the architecture and the dependency
+    tree:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B20960_07_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.6: Express server architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`index.ts` contains a `start` function, which bootstraps the application, leveraging
+    four major helpers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`config.ts`: Manages environment variables and settings.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`app.ts`: Configures Express.js and defines all API paths, and then routers
+    implement the paths and leverage services that contain the business logic. Services
+    use models, such as `user.ts`, to access the database.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`api.graphql.ts`: Configures GraphQL, resolvers implement queries, and mutators
+    leverage the same services and then resolvers implement queries and mutators and
+    leverage the same services to access the database.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`document-ts`: Establishes a connection to the database, configures it, and
+    leverages `user.ts` to configure a seed user during startup.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You can see that the components at the top of the diagram are responsible for
+    startup and configuration chores, including configuring API paths, which represent
+    the **API** layer. The **Business** layer should contain most of the business
+    logic for the app, while data access is handled in the **Persistence** layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Refer to the following implementation of `index.ts`, which shows a simplified
+    version showing all major components in sequence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that the last line of code shown, `start()`, is the function call that
+    triggers the server’s initialization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s investigate how the Express server is set up.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Bootstrapping the server
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '`app.ts` configures Express.js, along with serving static assets, routing,
+    and versioning. Express.js leverages middleware functions to integrate with libraries
+    or your code. Middleware are functions that execute during the lifecycle of a
+    request to the Express server. Middleware functions have access to the request
+    and response objects and the following middleware function in the application’s
+    request-response cycle. This access allows them to execute any code, make changes,
+    end the request-response cycle, and call the next middleware in the stack. In
+    the code below, cors, logger, and compression are library functions, and later
+    in the chapter, we will go over the implementation of a custom authenticate middleware:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, note that configuring Express is straightforward with
+    the `use()` method. First, we configure `cors`, and then `express` parsers, `logger`,
+    and `compression`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, using the `express.static` function, we serve the `public` folder at the
+    root’s route, `/`, so that we can display some useful information about our server,
+    as shown in *Figure 7.1* at the beginning of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we configure the router, which is defined in `api.ts`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: REST routes and versioning
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '`api.ts` configures the Express router. Refer to the following implementation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this case, we have two child routes for `v1` and `v2`. It is critical to
+    always version the APIs you implement. Once an API becomes public, it can be tricky,
+    even impossible sometimes, to simply phase out an API for a newer version. Even
+    minor code changes or slight differences in the API can cause clients to break.
+    You must pay careful attention to only making backward-compatible changes to your
+    API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At some point, you will need to completely rewrite the endpoint to meet new
+    requirements, performance, and business needs, at which point, you can simply
+    implement a `v2` version of your endpoint while leaving the `v1` implementation
+    unchanged. This allows you to innovate at the pace you need to while keeping legacy
+    consumers of your app functional.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In short, you should version every API you create. By doing this, you force
+    your consumers to version their HTTP calls to your API. Over time, you can transition,
+    duplicate, and retire APIs under different versions. Consumers then have a choice
+    to call whichever version of the API works for them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Configuring a route is trivial. Let’s see the configuration for `v2`, as shown:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: The question mark at the end of `/users?` means that both `/user` and `/users`
+    will work against operations implemented in `userRouter`. This is a great way
+    to avoid typos while allowing the developer to choose the plurality that makes
+    sense for the operation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In `userRouter`, you can implement the GET, POST, PUT, and DELETE operations.
+    Refer to the following implementation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, you can observe the use of route parameters. You can
+    consume route parameters through a request object, such as `req.params.userId`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that all routes in the sample code are tagged as `async` because they will
+    all make a database call, which we are going to await. If your route is synchronous,
+    then you don’t require the `async` keyword.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, let’s investigate GraphQL resolvers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GraphQL resolvers
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: GraphQL resolvers are implemented in `resolvers.ts`. The GraphQL server performs
+    a breadth-first traversal of the query and recursively calls resolvers to generate
+    the response.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let me elaborate – when a GraphQL server gets a query, it processes the request
+    layer by layer, starting from the top-level fields and moving horizontally across
+    the structure, like a search that moves across each level of a tree before going
+    deeper, known as breadth-first traversal. For each field it encounters, the server
+    invokes a specific function called a resolver, designed to fetch the data for
+    that field. If a field is complex and contains nested subfields, the resolver
+    for that field will, in turn, call upon other resolvers for each of these subfields.
+    This process repeats itself, descending into the query’s hierarchy as needed until
+    all the data for the query is retrieved and can be assembled into the structured
+    response that matches the original query layout.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Refer to the following implementation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: For non-scalar types, arrays, or enums, we may need to provide a transformation
+    so that GraphQL can appropriately unpack the data retrieved from the database.
+    The good part is we only need to provide a resolver for specific properties of
+    objects that need such manipulation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Resolvers may seem simple, but they can fulfill very complex needs, e.g., a
+    simple request from a client may involve making multiple service and database
+    calls and collating the results into an efficient response, just so the client
+    can display it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The atomic nature of resolvers means we only need to implement them once. Next,
+    let’s explore how services are configured.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Services
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We don’t want to implement our business logic in the router files, which represent
+    our API layer. The API layer should largely consist of transforming data and making
+    calls to the business logic layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can implement services using Node.js and TypeScript features. No fancy dependency
+    injection is necessary. The sample application implements two services – `authService`
+    and `userService`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, in `userService.ts`, you can implement a function called `createNewUser`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`createNewUser` accepts `userData` in the shape of `IUser`, and when it is
+    done creating the user, it returns an instance of `User`. We can then use this
+    function in our router as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can await the result of `createNewUser` and, if successful, return the created
+    object as a response to the POST request.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that even though we cast `req.body` as `IUser`, this is only a development
+    time comfort feature. At runtime, the consumer may pass any number of properties
+    to the body. Careless handling of request parameters is one of the primary ways
+    your code can be maliciously exploited.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Congratulations! Now, you have a good understanding of how our Express server
+    works. Next, let’s look at how to connect to MongoDB.
+  prefs: []
+  type: TYPE_NORMAL
+- en: MongoDB ODM with DocumentTS
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: DocumentTS acts as an **ODM**, implementing a layer of models to enable rich
+    and customizable interaction with database objects. ODM is the document-based
+    database equivalent of an **Object Relational Mapper** (**ORM**) in relational
+    databases. Think of Hibernate or Entity Framework. If you’re not familiar with
+    these concepts, I recommend that you do further research before moving on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To get started, you can check out the following article, *MongoDB ORMs, ODMs,
+    and Libraries*, at [https://www.mongodb.com/developer/products/mongodb/mongodb-orms-odms-libraries](https://www.mongodb.com/developer/products/mongodb/mongodb-orms-odms-libraries).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At its core, DocumentTS leverages the Node.js driver for MongoDB. The makers
+    of MongoDB implement this driver. It guarantees the best performance and feature
+    parity with new MongoDB releases, whereas third-party libraries often lag in supporting
+    new features. By using the `database.getDbInstance` method, you can access the
+    native driver directly. Otherwise, you will access Mongo through the models that
+    you implement. Refer to the following diagram for an overview:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B20960_07_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.7: DocumentTS overview'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can read more about MongoDB’s Node.js driver at [https://mongodb.github.io/node-mongodb-native/](https://mongodb.github.io/node-mongodb-native/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: For more details on how DocumentTS works and the configuration details, refer
+    to the project wiki on GitHub at [https://github.com/duluca/document-ts/wiki](https://github.com/duluca/document-ts/wiki).
+    The wiki covers connecting to the database, defining models that implement `IDocument`,
+    and configuring serialization and deserialization of data. Models allow calculated
+    properties like `fullName` to be included in client responses while excluding
+    fields like passwords. Passwords are also prevented from being saved to the database
+    in clear text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The overview continues by demonstrating how to create indexes and query the
+    database with aggregation. It creates a unique index on email, so duplicate emails
+    cannot be registered. A weighted text index assists in filtering query results.
+    DocumentTS aims to provide a convenient yet optional layer on top of the native
+    MongoDB driver to help build fully async web applications. Developers are directly
+    exposed to the MongoDB driver, so they learn how to work with the database instead
+    of just the library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s see how you can fetch data using the new user model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing JWT auth
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In *Chapter 5*, *Designing Authentication and Authorization*, we discussed implementing
+    a JWT-based authentication mechanism. In LemonMart, you implemented a base auth
+    service that can be extended for custom authentication services.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’ll leverage three packages for our implementation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`jsonwebtoken`: Used to create and encode JWTs'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`bcryptjs`: Used to hash and salt a user’s password before saving it in the
+    database, so we never store a user’s password in plain text'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`uuid`: A generated universally unique identifier that is useful when resetting
+    a user’s password to a random value'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A hash function is a consistently repeatable, one-way encryption method, which
+    means you get the same output every time you provide the same input, but even
+    if you have access to the hashed value, you cannot readily figure out what information
+    it stores. We can, however, compare whether the user has entered the correct password
+    by hashing the user’s input and comparing the hash of their input to that of the
+    stored hash of their password.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The auth service hashes user passwords before storing them and compares hashed
+    passwords on login. The `createJwt` function generates a JWT access token upon
+    successful login. The authenticate middleware decodes the JWT and loads the user
+    into the response stream for authenticated endpoints.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note the vagueness of the incorrect email/password messages in the code. This
+    is done so that bad actors cannot fish the system to exploit the authentication
+    system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For password hashing, the `User` model’s `setPassword` method uses bcrypt’s
+    `genSalt` and `hash` functions. The `comparePassword` method compares the hashed
+    stored password with the hashed user input. This ensures passwords are never stored
+    in plain text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The login API endpoint finds the user by email, calls `comparePassword` to
+    validate the password, and, on success, calls `createJwt` to generate a signed
+    JWT with user details like email, role, etc. The JWT is returned to the client
+    as the `accessToken`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The authenticate middleware decodes the JWT, finds the user by the encoded
+    `id`, and injects the user into `res.locals.currentUser`. Authenticated endpoints
+    like `/me` can conveniently access the user’s info. It also handles role-based
+    access by checking options like `requiredRole`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: When retrieving a user by email, remember that emails are case-insensitive,
+    so you should always convert the input to lowercase. You can improve this implementation
+    further by validating the email and stripping any white space, script tags, or
+    even rogue Unicode characters. Consider using libraries such as `express-validator`
+    or `express-sanitizer`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Authenticating middleware
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The `authenticate` function is a middleware we can use in our API implementations
+    to ensure that only authenticated users with appropriate permissions can access
+    an endpoint. Remember that real security is achieved in your backend implementation,
+    and this `authenticate` function is your gatekeeper.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`authenticate` takes a nullable `options` object to verify the current user’s
+    role with the `requiredRole` property, so if an API is configured as shown below,
+    only a manager can access that API:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In certain cases, we want a user to be able to update their own records but
+    also allow managers to update everyone else’s records. In this case, we leverage
+    the `permitIfSelf` property, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this case, if the `_id` of the updated record matches the current user’s
+    `_id`, then the user can update their own record. Since `requiredRoleCanOverride`
+    is set to `true`, a manager can update any record. If it were set to `false`,
+    this wouldn’t be allowed. By mixing and matching these properties, you can cover
+    a vast majority of your gatekeeping needs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that `idGetter` is a function delegate so that you can specify how the
+    `_id` property should be accessed when the `authenticate` middleware executes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'See the following example implementation of a simplified `authenticate` middleware
+    and its usage:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The full implementation can be found at `server/src/services/auth.service.ts`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `authenticate` method is implemented as Express.js middleware. It can read
+    the request header for an authorization token, verify the validity of the JWT
+    provided, load the current user, and inject it into the response stream, so an
+    authenticated API endpoint can conveniently access the current user’s information.
+    This is shown by the `me` API above. If successful, the middleware calls the `next()`
+    function to yield control back to Express. If unsuccessful, then the API can’t
+    be called.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that `authenticateHelper` returns useful error messages, so users aren’t
+    confused if they try to execute an action they’re not permitted to execute.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In GraphQL, authentication and authorization are handled separately. At the
+    Express.js level, we apply the `authenticate` middleware to the `/graphql` route.
+    However, for explorer, introspection, and login functions to work, we must create
+    exceptions to the rule. See the code below, which implements this logic:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: See `server/src/graphql/resolvers.ts` to see the full implementation of the
+    auth in action.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `authOverridingOperations` property signals to `authenticate` that it should
+    permit calls for introspection and the `Login` function. All other calls to other
+    GraphQL functions will now be authenticated with the authentication context available
+    in resolvers. In the resolvers, we can use the `authorize` method (located at
+    `server/src/graphql/helpers.ts`) to check if the requestor can see the resource
+    they’re trying to access. The `contextValue` stores the session context similar
+    to how `res.local` works in Express.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, let’s implement two custom auth providers, one for REST and another for
+    GraphQL.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Custom server auth provider
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Now that you understand the auth implementation in our server, we can implement
+    a custom auth provider in LemonMart, as covered in *Chapter 6*, *Implementing
+    Role-Based Navigation*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You must implement this custom auth provider in your Angular app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The code sample for this section is in the `projects/stage10` folder in the
+    `lemon-mart-app` `app` or `web-app` folder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Start by creating a `baseUrl` variable in `environment.ts` so that we can connect
+    to your server.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In `environment.ts` and `environment.prod.ts`, implement a `baseUrl` variable.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Also, select `authMode` as `AuthMode.CustomServer`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Install a helper library to programmatically access TypeScript enum values:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Implement the RESTful custom authentication provider using `HttpClient`, as
+    shown here:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `authProvider` method calls our `/v1/auth/login` method, and `getCurrentUser`
+    calls `/v1/auth/me` to retrieve the current user.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Ensure that calls to `login` methods always happen on HTTPS. Otherwise, you
+    will send user credentials on the open internet. This is ripe for eavesdroppers
+    on public Wi-Fi networks to steal user credentials.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Implement the GraphQL custom authentication provider using Apollo Client, as
+    shown here:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note that the `LOGIN` mutation and `Me` query are implemented in `auth.graphql.queries.ts`.
+    Otherwise, they take up too much space for the service code to be readable.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Update `authFactory` to return the new provider for the `AuthMode.CustomServer`
+    option:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Start your web app to make sure that things are working.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Congratulations! You now grasp how code works across the entire software stack,
+    from the database to the front and back ends.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we covered full-stack architecture. You learned about building
+    a minimal MEAN stack. You now know how to create a monorepo for a full-stack application
+    and configure a Node.js server with TypeScript. You learned about monorepos, containerizing
+    a Node.js server, and declaratively defining infrastructure with Docker Compose.
+    Using Docker Compose with CircleCI, we saw how you can verify your infrastructure
+    in a CI environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You learned how to design a RESTful API using OpenAPI and GraphQL using Apollo,
+    set up an Express.js app, and configure it such that you can generate interactive
+    documentation for your APIs. You learned about the benefits of using DocumentTS
+    with MongoDB.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You then implemented a JWT-based authentication service with an `authenticate`
+    middleware to secure API endpoints and allow for RBAC. Finally, you implemented
+    two custom authentication providers in Angular. For REST, we used `HttpClient`,
+    and for GraphQL, Apollo Client.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next two chapters will explore Angular recipes to create forms and data
+    tables. In *Chapter 8*, *Recipes – Reusability, Forms, and Caching*, and *Chapter
+    9*, *Recipes – Master/Detail, Data Tables, and NgRx*, we will tie everything together
+    by sticking to a decoupled component architecture, smartly choosing between creating
+    user controls and components and maximizing code reuse, with various TypeScript,
+    RxJS, NgRx, and Angular coding techniques.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the rest of the book, you will want your LemonMart server and MongoDB instance
+    up and running to verify the correct functionality of your forms and tables as
+    you implement them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You secured your endpoints using the `authenticate` middleware. You configured
+    Postman to send a valid token so that you can communicate with your secured endpoints.
+    By way of an exercise, try removing the `authenticate` middleware and calling
+    the same endpoint with and without a valid token. Re-add the middleware, and then
+    try the same thing again. Observe the different responses you get from the server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*What is DX? (Developer Experience)*, Albert Cavalcante, 2019, [https://medium.com/@albertcavalcante/what-is-dx-developer-experience-401a0e44a9d9](https://medium.com/@albertcavalcante/what-is-dx-developer-experience-401a0e44a9d9
+    )'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Overview of Blocking versus Non-Blocking*, 2023, [https://nodejs.org/en/docs/guides/blocking-vs-non-blocking/](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Explain Non-Blocking I/O like I’m Five, Frank Rosner*, 2019, [https://blog.codecentric.de/en/2019/04/explain-non-blocking-i-o-like-im-five/](https://blog.codecentric.de/en/2019/04/explain-non-blocking-i-o-like-im-five/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*OpenAPI Specification*, 2023, [https://swagger.io/docs/specification](https://swagger.io/docs/specification)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Serialization*, 2023, [https://en.wikipedia.org/wiki/Serialization](https://en.wikipedia.org/wiki/Serialization)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*JSON*, 2023, [https://en.wikipedia.org/wiki/JSON](https://en.wikipedia.org/wiki/JSON)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Aggregation in MongoDB*, 2023, [https://docs.mongodb.com/manual/aggregation](https://docs.mongodb.com/manual/aggregation)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Apollo Authentication*, 2023, [https://www.apollographql.com/docs/react/networking/authentication](https://www.apollographql.com/docs/react/networking/authentication)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Setting Up Authentication and Authorization with Apollo Federation*, 2023,
+    [https://www.apollographql.com/blog/backend/auth/setting-up-authentication-and-authorization-apollo-federation/](https://www.apollographql.com/blog/backend/auth/setting-up-authentication-and-authorization-apollo-federation/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Apollo Built-in error codes*, 2023, [https://www.apollographql.com/docs/apollo-server/data/errors#built-in-error-codes](https://www.apollographql.com/docs/apollo-server/data/errors#built-in-error-codes)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Apollo Router & Gateway architecture*, 2023, [https://www.apollographql.com/docs/federation/building-supergraphs/router](https://www.apollographql.com/docs/federation/building-supergraphs/router
+    )'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Answer the following questions to ensure you’ve understood the key concepts
+    from this chapter without googling anything. Do you know if you got all the answers
+    right? Visit [https://angularforenterprise.com/self-assessment](https://angularforenterprise.com/self-assessment)
+    for more:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What are the main components that make for a great developer experience?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is a `.env` file?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the purpose of the `authenticate` middleware?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does Docker Compose differ from using the Dockerfile?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is an ODM? How does it differ from an ORM?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is middleware?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the uses of the OpenAPI spec?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How would you refactor code for the `/v2/users/{id} PUT` endpoint in `userRouter.ts`
+    so that the code is reusable?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the major differentiators between REST and GraphQL?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the similarities between OpenAPI and the GraphQL schema?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Join our community on Discord
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join our community’s Discord space for discussions with the authors and other
+    readers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://packt.link/AngularEnterpise3e](Chapter_7.xhtml)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code1116411172100421421.png)'
+  prefs: []
+  type: TYPE_IMG

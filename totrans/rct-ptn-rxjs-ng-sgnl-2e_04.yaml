@@ -1,0 +1,751 @@
+- en: '4'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Handling Errors Reactively
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Errors in programming happen all the time, and RxJS is no exception. Handling
+    those errors is a crucial part of every application. As I always say to my students
+    in every training session, implementing a process that only covers happy cases
+    determines the failure of your application. However, in RxJS, there are a lot
+    of error handling strategies that you need to learn in order to handle errors
+    efficiently.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will start by explaining the contract of the Observable in RxJS, which is
+    crucial to understanding what comes after. Then, we will learn the different error
+    handling patterns and the operators provided by RxJS for that purpose. Next, we
+    will shed light on the different error handling strategies and the use case of
+    every strategy. Finally, we will practice one of the error handling strategies
+    in our recipe app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we’re going to cover the following main topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the anatomy of an Observable contract
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exploring error handling patterns and strategies
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Handling errors in our recipe app
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This chapter assumes that you have a basic understanding of RxJS. The source
+    code of this chapter (except the samples) is available at [https://github.com/PacktPublishing/Reactive-Patterns-with-RxJS-and-Angular-Signals-Second-Edition/tree/main/Chap04](https://github.com/PacktPublishing/Reactive-Patterns-with-RxJS-and-Angular-Signals-Second-Edition/tree/main/Chap04).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Please also refer to the *Technical requirements* section in [*Chapter 3*](B21180_03.xhtml#_idTextAnchor047),
+    *Fetching Data* *as Streams*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the anatomy of an Observable contract
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Understanding the anatomy of an **Observable contract** is crucial in order
+    to learn error handling patterns. Let’s dig deep into the Observable execution
+    timeline by exploring the marble diagram explained in [*Chapter 1*](B21180_01.xhtml#_idTextAnchor016),
+    *Diving into the* *Reactive Paradigm*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.1 – The marble diagram elements](img/B21180_04_1.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.1 – The marble diagram elements
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s examine the previous diagram. If we take a look at the stream’s lifecycle,
+    we can figure out that a stream has two final statuses:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Completion status**: Where the stream has ended without errors and will not
+    emit any further values. It is a shutdown, i.e., the Observable completes.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Error status**: Where the stream has ended with an error and will not emit
+    any further values after the error is thrown. It is also a shutdown.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Only one of those two states can occur, not both, and every stream can error
+    out once. This is the Observable contract.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At this point, you may be wondering, How we can recover from an error then?
+    This is what we will be learning in the following sections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploring error handling patterns and strategies
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The first classic pattern we will learn for handling errors is based on the
+    `subscribe()` method. The `subscribe()` method takes as input the object Observer,
+    which has three callbacks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A **success callback**: This is called every time the stream emits a value
+    and receives as input the value emitted'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'An **error callback**: This is called when an error occurs and receives as
+    input the error itself'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'A **completion callback**: This is called when the stream completes'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'This is a basic example of a `subscribe` implementation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the code sample, `stream$` represents our Observable, and we passed an object
+    that has three callbacks to the `subscribe` method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A success callback that logs the received value in the console
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: An error callback that logs the received error in the console
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A complete callback that logs the stream completion
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: So, in order to handle errors, the first possibility is implementing the error
+    callback and tracing the error message, displaying an error popup to the user,
+    or doing any other custom behavior. Pretty simple!
+  prefs: []
+  type: TYPE_NORMAL
+- en: But wait! In [*Chapter 3*](B21180_03.xhtml#_idTextAnchor047), *Fetching Data
+    as Streams*, we saw that we need to avoid the explicit `subscribe()` to streams
+    and learned the reasons and limitations behind this, namely, that it is impossible
+    to recover from the error or emit an alternative fallback.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That’s right; in most cases, we will not be using `subscribe()` explicitly.
+    I just wanted to show you the classic way to do this, which is not the best way.
+    Instead, let’s see some advanced error handling patterns and learn more operators
+    that will help us in the error handling process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'I think you may be familiar with the try-catch statement available in many
+    programming languages, which consists of a `try` block followed by one or more
+    `catch` clauses. In the `try` block, you place your risky statements, and inside
+    `catch`, you handle the possible exceptions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: RxJS ships with the `catchError` operator, which provides us with something
+    similar to the try-catch statement. The `catchError` operator is defined in the
+    RxJS official documentation as an operator that “*catches errors on the Observable
+    to be handled by returning a new Observable or throwing* *an error*.”
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `catchError` operator subscribes to the source Observable that might error
+    out and emits values to the observer until an error occurs. When an error happens,
+    the `catchError` operator executes a callback function, passing in the error.
+    This callback function is responsible for handling errors and always returns an
+    Observable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If there are no errors, the output Observable returned by `catchError` works
+    exactly the same way as the source Observable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can use `catchError` multiple times in an Observable chain, like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After calling the `catchError` operator, we need to implement the callback
+    function that will handle the error. When it comes to handling errors, there are
+    three strategies:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The replace strategy
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The rethrow strategy
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The retry strategy
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let’s break down these three strategies one by one in the following sections
+    and explore some examples and use cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The replace strategy
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The **replace strategy** is named as such because the Observable returned by
+    the error handling function will replace the Observable that has just errored
+    out. This replacement Observable is then subscribed to, and its values are used
+    instead of the errored-out input Observable. The following code is an example
+    of this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let’s break down what is happening in this example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, we have an Observable, `stream$`, created from an array of string values,
+    `['5', '10', '6', 'Hello', '2']`, using the `from` creation operator. This operator
+    creates an Observable that, when subscribing to it, will emit the array’s values
+    one by one and then complete.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For more details about the `from` operator, please refer to the official documentation:
+    [https://rxjs.dev/api/index/function/from#description](https://rxjs.dev/api/index/function/from#description).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we combined two operators in the pipe method of `stream$`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `map` operator: This is used to transform the string values emitted to
+    integers using the `parseInt()` method. If the value emitted is not a number,
+    then an error is thrown with a `"This is not a` `number"` message.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The `catchError` operator: We pass the error handling function to it, which
+    will log the caught error and return `of()`. `of()` creates an Observable that
+    has no values to emit, so it will immediately complete.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Then, we subscribe to the `stream$` and log a custom message in every callback
+    to see what exactly happens at execution time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At execution time, `stream$` will emit the string values of the array one by
+    one (`'5'`, `'10'`, and `'6'`, respectively). The `map` takes those values one
+    by one as input and returns `5`, `10`, and `6`, respectively. `catchError()` takes
+    the values emitted from the map operator and forwards them as output; the error
+    handling function will not get called, as there is no error. Hence, the subscribers
+    will receive `5`, `10`, and `6`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `catchError()` operator comes into play when the `'Hello'` value is emitted.
+    The map operator will throw an error, and the error handling function in `catchError()`
+    will, consequently, get called. The error handling function, in our case, simply
+    logs an error in the console and returns an Observable (created by the `of()`
+    operator) that will immediately complete. This Observable will replace the current
+    Observable that had an error; that’s why we call it the replacement Observable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`catchError()` will subscribe under the hood to the returned Observable. The
+    `of()` Observable will complete immediately. Then, `stream$` is completed, so
+    the next value, `''2''`, will not get emitted.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you may have noticed, the error callback in the `subscribe()` method will
+    not get called because we handled it in `catchError`. I added it on purpose to
+    understand the behavior of error handling with `catchError`. Therefore, when an
+    error occurs, the current stream that had an error out will get replaced by the
+    stream returned from the `catchError()`; the values of the replaced Observable
+    will then get emitted instead of the original stream values. This is what we call
+    **fallback values**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, to summarize, the replace strategy is useful when we want to handle the
+    error inside the stream itself and don’t want the error to get propagated to the
+    subscribers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The rethrow strategy
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The `catchError`. Notifying the subscribers about the error will help them perform
+    side effects, such as displaying an error message in a popup.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To understand more about this strategy, let’s look at the following example;
+    it is the same as the one in the previous section, with the only difference being
+    the error handling function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the error handling function, we return an Observable that is created using
+    the `throwError` operator. The `throwError` operator creates an Observable that
+    never emits any value; instead, it errors out immediately using the same error
+    caught by `catchError`. In this way, the error will get pushed to the subscribers
+    and can be further handled by the rest of the Observable chain if needed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you may have noticed, the same error was logged both in the `catchError`
+    block and the subscriber error handler function, as expected, so the rethrow strategy
+    has worked.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Please note that in the previous examples, we simply log the error in the console
+    for demonstration purposes. However, in a real-world scenario, you can do much
+    more, such as showing messages to the users.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The retrying strategy
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'With the `retry` operator to give another chance to the stream. The `retry`
+    operator retries an Observable a specific number of times and is useful for retrying
+    HTTP requests or connections. We can see an example here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you may have noticed, the values of the source stream were emitted two times
+    since we called the `retry` operator with `2` as a parameter; we gave the Observable
+    two chances before throwing the error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, in this case, we are retrying immediately. However, what if we want to
+    retry in only specific cases or wait for a delay before retrying? This is where
+    the `retryWhen` operator comes into play!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To understand the `retryWhen` operator, there’s nothing better than a marble
+    diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.2 – The retryWhen operator](img/B21180_04_2.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.2 – The retryWhen operator
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s explain what’s going on here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Observable in the first line is the **notifier Observable** that is going
+    to determine when the retry should occur
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The Observable in the second line is the **source Observable** that will error
+    out after emitting **1** and **2**
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: When we subscribe to the source Observable it will emit `retryWhen` forwards
+    those values as output. Then, the source Observable errors out and completes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Nothing will happen until the notifier Observable emits the first value, `retryWhen`
+    will subscribe to the source Observable because it is already completed, so even
+    if it is completed, it can be retried.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The notifier Observable is then going to emit another **r** value, and the same
+    thing occurs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, `retryWhen` starts to emit the first **1** value, but soon after, the
+    notifier Observable completes; that’s why the **2** value will not get emitted.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you may have guessed, `retryWhen` retries the source Observable each time
+    the notifier emits a value! This means that you can use this notifier Observable
+    to emit values at the moment you want your source Observable to get retried and
+    complete it at the moment you want your retry attempts to stop.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let’s have a look at the signature of the `retryWhen` operator:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `notifier` parameter represents the callback that returns the notifier Observable
+    and gets the error Observable as the argument. The error Observable will emit
+    every time the source Observable errors out. So, `retryWhen` will subscribe to
+    the notifier Observable and behave as described previously.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is the same example given in the replace and rethrow strategies, but using
+    `retryWhen` instead:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the previous code, the first error is thrown when receiving the value `'Hello'`,
+    which is not a number. The `retryWhen` operator will catch this error and get
+    executed. Then, the notifier callback (the argument of `retryWhen`) simply takes
+    the error Observable as input and returns it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We also used the pipe to call the `tap` operator in order to log a message in
+    the console (`'Retrying the source Observable...'` ). The `tap()` operator is
+    used to perform a side effect for each emitted value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For more details about the `tap` operator, please refer to this link from the
+    official documentation: [https://rxjs.dev/api/operators/tap](https://rxjs.dev/api/operators/tap).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you execute that code, you will find out that it runs infinitely. Why? Because
+    the source will always error out, and `retryWhen` will, consequently, subscribe
+    infinitely to the source Observable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If the source always errors out, it is not correct to retry immediately. However,
+    the error will not always occur, for example, in the case of HTTP requests. Sometimes,
+    the HTTP request fails because the server is down, or there is another temporary
+    reason that may disappear, and the request might go through in the next attempts
+    without any problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In that case, you can use the immediate retry or even a delayed retry, which
+    retries after a certain delay, where we can wait, for example, for 5 seconds after
+    the error occurs before retrying. That’s what we will be learning in the next
+    section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let’s have a look at another operator that will help us implement the
+    retry strategy: the `delayWhen` operator. The `delayWhen()` operator is used to
+    delay values emitted from the source Observable by a given duration. It is similar
+    to the `delay()` operator, but the delay duration is determined by an input Observable.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For more detail, let’s take a look at a marble diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.3 – The delayWhen operator](img/B21180_04_3.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.3 – The delayWhen operator
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first Observable is the source Observable. Each of the values, **a**, **b**,
+    and **c**, has its own duration selector Observable, respectively, in the diagram:
+    the **a** duration selector Observable, the **b** duration selector Observable,
+    and the **c** duration selector Observable, which will emit one value, **x**,
+    and then complete.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Every value emitted by the source Observable will be delayed before being emitted
+    to the output Observable. In fact, when the source Observable emits the value
+    `delayWhen` operator will not immediately emit the value to the source Observable;
+    instead, it will wait for the **a** duration selector Observable to emit a value
+    at **ta+delay**, and at that exact time, the value **a** will get emitted to the
+    Output Observable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This carries on for the other values; the **b** value will show up in the Output
+    Observable at **tb+delay** when the **b** duration selector emits a value, and
+    the value **c** will get emitted at **tc+delay** when the **c** duration selector
+    Observable emits a value. Note that here, **tb** and **tc** represent the emission
+    time of the values **a** and **b** by the source Observable, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you may have noticed, the value **b** was emitted before **c** by the source
+    Observable (as **tb** precedes **tc**); however, the value **b** was shown after
+    the value **c** in the output Observable (as **tb+delay** succeeds **tc+delay**);
+    that’s because the selector of **b** (the **b** duration selector in *Figure 4**.3*)
+    is emitted after the selector of **c** (the **c** duration selector also shown
+    in *Figure 4**.3*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, as you can see, the delay is completely flexible through the `durationSelector`
+    function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Another function, the `timer` function, can be useful in the delayed retry
+    strategy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This `timer` function returns an Observable and takes two arguments:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`due`: A time period or exact date before which no values will be emitted'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`scheduler`: A periodic interval, in case we want to emit new values periodically'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: An example is `timer(5000,1000)`. The first value of the returned Observable
+    will get emitted after 5 seconds, and a new value is emitted each second. The
+    second argument is optional, which means that `timer(5000)` will emit a value
+    after 5 seconds and then complete.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, it is time to combine the `delayWhen` and `retryWhen` operators to see
+    how we can retry a failing HTTP request 5 seconds after each error:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: You will not find the preceding code in the GitHub repository, as it serves
+    merely as an illustrative example. However, you can copy and paste it into the
+    `RecipesService` class in order to test the delayed retry. Additionally, remember
+    to stop `the recipes-book-api` mocked server to simulate retry attempts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our source Observable, in this case, is the result of an HTTP `get` request.
+    Each time the request fails, the `delayWhen` operator creates a duration selector
+    Observable through the `timer` function. This duration selector Observable is
+    going to emit the `0` value after 5 seconds and then complete. Therefore, the
+    notifier Observable of `retryWhen` will emit a value, and at that moment, the
+    source Observable will get retried, after 5 seconds to be exact.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When you open the console, you will see this output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.4 – The failing HTTP request](img/B21180_04_4.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.4 – The failing HTTP request
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you may have noticed, every time the GET HTTP request fails, it is retried
+    again after 5 seconds. That’s how we achieved a delayed retry! So, to wrap up,
+    each of the error handling strategies has its own techniques and serves a different
+    purpose. In the following section, we will explore when to use each strategy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Choosing the right error handling strategy
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Choosing the most appropriate error handling strategy in RxJS depends on various
+    factors, such as the nature of the application, the type of errors encountered,
+    and the desired user experience. Here’s some guidance on when to use each strategy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The replace strategy involves replacing the error with a fallback value or
+    Observable. It’s suitable in the following scenarios:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You have a predefined fallback value or behavior to use when an error occurs,
+    such as displaying placeholder content or default settings. For example, in a
+    weather application, if fetching current weather data fails, you can replace the
+    error with a default weather forecast for the user’s location.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The error is recoverable and doesn’t require immediate intervention from the
+    user.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You want to provide a seamless user experience by gracefully handling errors
+    without disrupting the application flow.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The rethrow strategy involves rethrowing the error to propagate it to the subscriber
+    for handling. It’s suitable in the following scenarios:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You want to delegate error-handling responsibility to the subscriber or consumer
+    of the Observable. For example, in an authentication service, if login fails due
+    to invalid credentials, you can rethrow the error to allow the UI component to
+    display an error message to the user.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The error requires specific handling logic or customization based on the context
+    in which it occurs.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You want to provide flexibility for different parts of the application to handle
+    errors differently.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The retry strategy involves retrying the operation that resulted in the error
+    a certain number of times. It’s suitable in the following scenarios:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The error is transient or intermittent, such as network errors or temporary
+    service disruptions where retrying the operation may succeed after subsequent
+    attempts. For example, in a file upload service, if uploading a file fails due
+    to a network error, you can retry the upload operation multiple times before giving
+    up to ensure the file is successfully uploaded.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Retrying the operation has a reasonable chance of success and can mitigate the
+    impact of transient failures.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: You want to improve the reliability and robustness of operations that are prone
+    to occasional failures.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Additionally, consider the following factors when choosing an error handling
+    strategy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**User experience**: Consider how each strategy affects the user experience,
+    such as whether it leads to delays, retries, or fallbacks.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Application requirements**: Align the chosen strategy with the specific requirements
+    and constraints of your application, such as reliability, responsiveness, and
+    error tolerance.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Performance implications**: Retry strategies may introduce additional overhead,
+    especially if the operation involves expensive or time-consuming tasks.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Ultimately, the most appropriate error handling strategy depends on the specific
+    context and requirements of your application. It’s often beneficial to experiment
+    with different strategies and observe their effects in real-world scenarios to
+    determine the optimal approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have learned the different strategies and operators to handle errors,
+    let’s practice in our Recipes Book app in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Handling errors in our recipe app
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The first thing we are going to do is stop our mock service. Yes, you heard
+    it right; stop it. This way, the call to the `getRecipes` service will fail because
+    the server is down.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, if you refresh the front app, you will see that nothing, including our
+    list of recipes, is displayed. Why do we get this behavior? Because we did not
+    handle the errors. The error was thrown, the stream was completed, and nothing
+    happened afterward. We have a white screen where nothing is displayed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now open the console, and you will see the failed request:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B21180_04_5.jpg)![](img/B21180_04_6.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.5 – The console showing the failed request
+  prefs: []
+  type: TYPE_NORMAL
+- en: A failing HTTP request would never have broken our app if it was handled correctly.
+    That’s why you should be very careful when raising HTTP requests in your front
+    application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, how can we fix this? Which strategy that we’ve previously discussed will
+    fit the best?
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we choose the rethrow or retry strategy, then we will block the display of
+    the recipes list. The user will get a blank page and will have to wait for the
+    request to get executed successfully in order to see the list of recipes rendered
+    in the screen. This is a valid option when you handle processes in the background
+    that are not related to the UI display; however, if you raise requests in order
+    to get results and display them in your UI components, then you should provide
+    a replacement for that data to continue rendering the page. The user interface
+    should keep on working regardless of whether or not there is an error; if there
+    is an error, then we will display an empty list; if not, we will display the returned
+    list from the server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That’s why the replacement strategy fits the most in this particular case. In
+    fact, we want to get the list of recipes from the service, but if the service
+    fails for whatever reason, I don’t want my application to be frozen; I want to
+    see a collection of zero elements (no elements), an empty table, or a list, and
+    that is all. So, what we are going to do is use `catchError` and return an empty
+    Observable, which is our fallback value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our service will look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This approach ensures that your application remains functional, displaying
+    an empty list if you access the app. Moreover, you have the flexibility to customize
+    the user interface by incorporating a message such as `recipes-list.component.html`
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you may have noticed, we used the new built-in control flow mechanism explained
+    in [*Chapter 3*](B21180_03.xhtml#_idTextAnchor047), *Fetching Data as Streams*.
+    By employing the `@else` block to the first `if` condition, we’re able to display
+    the message when no value is emitted from the `recipes$` Observable. Additionally,
+    the `@empty` statement added to the `@for` statement allows us to show the same
+    message when the list of recipes is empty.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned about the Observable contract and explored some
+    of the most commonly used RxJS error handling strategies available and the different
+    operators, namely `catchError()`, `delayWhen()`, `retry()`, and `retryWhen()`.
+    We also shed light on the different strategies for error handling and when to
+    choose each strategy. Finally, we handled the error in our Recipes Book app for
+    the first implemented feature.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we know how to handle errors in RxJS, let’s move on to the next reactive
+    pattern: combining streams.'
+  prefs: []
+  type: TYPE_NORMAL

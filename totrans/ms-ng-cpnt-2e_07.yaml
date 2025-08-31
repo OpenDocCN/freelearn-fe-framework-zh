@@ -1,0 +1,1450 @@
+- en: Components for User Experience
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: User experience should be a core concern for developers building today's applications.
+    We are no longer living in a world where users are content with an application
+    that simply works. The expectations are now much higher. An application needs
+    to be highly usable, and should provide an efficient workflow; users even expect
+    it to bring them pleasure when performing tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we're going to look at building some components that will increase
+    the overall usability of our task management system. These features will enrich
+    the current functionality and provide more efficient workflows.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will develop the following two technical features and embed them into our
+    current application, wherever applicable:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Tag management**: We''ll enable the use of tags within generated content,
+    such as comments, activities, and other areas where they can be of use. Tags will
+    help users build links between content and navigation shortcuts.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Drag and drop**: We''ll build generic components that will make the using
+    drag and drop features a breeze. By enabling drag and drop features, we''ll allow
+    users to fulfill certain tasks with much higher efficiency.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We''ll cover the following topics in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a tag management system to enter and display tags
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating a stateful pipe to render tags using a service
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating a component to autocomplete tags during user input
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using the `read` property on a `ViewChild` decorator to query for directive
+    instances
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Going through the basics of the HTML5 drag and drop API
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Creating directives for draggable elements and drop targets
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using `dataTransfer` objects and a custom attribute to enable selective drop
+    targets
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Tag management
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The classic form of tagging enables you to establish a taxonomy within a system.
+    It helps you to organize your content. It allows you to have a many-to-many association
+    that can be managed quickly, and you can use it later to filter relevant information.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In our task management system, we're going to use a slightly different version
+    of tags. Our goal is to provide a way to allow semantic shortcuts within the application.
+    With the help of tags, a user should be able to cross-reference information between
+    different parts of the data, providing a summary of the referenced entity, as
+    well as a navigation shortcut.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, we can include a project tag within a user comment. A user can
+    enter the tag by simply typing in the project ID. When a comment is displayed,
+    we will see the title of the project, and when we click on the tag, we can directly
+    navigate to the project detail page where the task is located.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we'll develop the required system of components to provide
+    a way to use project tags to cross-reference other projects within comments. We'll
+    also use tag management in our activities, which we created in the previous chapter,
+    *Keeping up with Activities*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A model for our tags
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s start with a tag model to represent tags within our system. Open up
+    our model module file, located in `src/app/model.ts`, and add the following interface:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This interface represents tags; whenever we store tag information, we''ll use
+    this interface. Let''s look at the individual fields and elaborate on their use:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`hashTag`: This is the text representation of a tag. All of our tags need to
+    be identified uniquely, using this text representation. We can define the text
+    representation of tags as follows:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Hashtags always start with a hash symbol (`#`).
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Hashtags only contain word characters or the minus symbol (`-`).
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: All other details of a tag, defined by the properties `title`, `link`, and `type`,
+    can be somehow derived from the `hashTag` property. The hashtag can, therefore,
+    be considered a unique identifier.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`title`: This is a comparatively longer text representation of a tag. It should
+    contain as much detail about the subject as possible. In the case of project tags,
+    this could mean the project title, open tags count, assignee, and other important
+    information. Since this is the field that will be rendered if a tag is presented
+    to the user, it''ll be beneficial if the content stays relatively condensed.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`link`: A valid URL, which will be used when the tag is rendered. This URL
+    will make links clickable and enable shortcut navigation. In the case of the project
+    tags we''re going to create, this will be a URL that will link to the given project
+    view.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`type`: This is used to distinguish between different tags and provide us with
+    a way to organize tags at a higher granularity level.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: So far, so good. We now have a data model that we can use to transfer information
+    about tags.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a tags service
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The next step for implementing our tagging system is to write a tags service.
+    The service will be responsible for gathering all possible tags within our application.
+    The list of available tags can then be shown to the user within our editor component.
+    That way, the user can add tags to comments and other editable fields within our
+    application. The tags service should also be used to convert text that contains
+    simple hashtags into HTML. That way, tags can be rendered to links, which allow
+    us to navigate to detail views within our application. The responsibilities of
+    our tags service can be divided into two main areas. Let''s look at these responsibilities
+    in detail:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Providing a list of tags**: For the moment, we only want to enable projects
+    within our tagging system. Therefore, our tagging service needs to create one
+    project tag for every project within our project service. This system will be
+    extensible, and other sources for tags can easily be implemented.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Parsing and rendering tags**: The parsing functionality of the tags service
+    is responsible for finding hashtags within an input string. While parsing the
+    input string, the service will check for matching tags, and then use the `title`
+    and `link` fields of the tag objects to render their HTML representations.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let''s use the Angular CLI tool to create the stubs of our new service:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, let''s add the following code as a starting point for our service:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `tags` member of our tags service class is an observable,with the generic
+    type `Tag[]`. This observable will always emit the most recent list of available
+    tags within our application. Within our constructor, we're using the project list
+    observable from the project service as a base to convert all projects to project
+    tags.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the case of projects, we set the type of our tag object to `'project'`. In
+    a later stage of our project, we can also use sources other than projects to generate
+    tags, but for the moment, we're only concerned about projects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the `hashTag` property, we're using the prefix `'#project-` and appending
+    the ID of the project. That way, our hashtags can be identified as project tags,
+    and by using the appended ID, we can also identify exactly which project is referenced.
+    For the `title` field, we used a helper function, `limitWithEllipsis`, which truncates
+    project titles that are longer than 20 characters. For the `link` field of the
+    tag object, we specify the URL that will navigate to the project details view.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Rendering tags
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We now have a service that uses a reactive approach to generate tags from the
+    available projects. This already addresses the first concern of our service. Let's
+    look at its other responsibility, which is parsing text content for tags and rendering
+    HTML.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before we start writing our parse method in the tags service, we need to create
+    a small utility function for string replacement. Open the file `src/app/utilities/string-utilities.ts`,
+    where we have already created our `limitWithEllipsis` function, and add the following
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding method uses a small JavaScript trick to replace all occurrences
+    of a string with another string. Unfortunately, that's not possible with the default
+    `replace` function on strings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s move on with our tags service. Rendering tags is not a big deal, since
+    we have already abstracted the data model of tags in a clean way. Since tags have
+    URLs that point to a location, we''re going to use anchor HTML elements to represent
+    our tags. These elements also have classes that will help us style tags differently
+    than regular content. Let''s create another method within the tags service that
+    can be used to parse text, recognize tags within the text content, and render
+    them into HTML. Open up the tags service file located in `src/app/tags/tags.service.ts`,
+    and apply the following changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s quickly recap the preceding changes and look at the `parse` method step
+    by step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, we're searching the text content that was passed into the `parse` method
+    for hashtags and storing the list of discovered hashtags into a variable called
+    `hashTags`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If no hashtags have been discovered, we immediately return a new observable
+    stream with the original text content that was passed into the method. We're using
+    the RxJS `of` helper to do so.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The next step is to render all discovered hashtags with the corresponding tag
+    objects within our service. We don't store tags directly within our service, but
+    rather, we use an observable stream to convert different sources into tags. We
+    use a `map` operator to obtain the list of tags, and then render all discovered
+    hashtags into HTML.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We are using `Array.prototype.forEach` to iterate through all discovered hashtags
+    within the initial text content. We are then trying to find a matching tag object
+    within the list of available project tags. We do that by simply comparing the
+    hashtag found within the text to the `hashTag` property on our tag objects.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If a matching tag was found, we use our newly created `replaceAll` helper function
+    to replace all occurrences of a given hashtag with a rendered HTML version of
+    that tag. We're using the tag object's `type`, `link`, and `title` fields to render
+    an anchor HTML element.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: After all hashtags have been replaced with the HTML versions of those tags,
+    we're returning the rendered HTML content from the observable mapping function.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: That's it for our tags service. As a next step, we will create a pipe that will
+    use our service to render tags directly within the view of components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Integrating tags using a pipe
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: All of the concerns of our task service have now been taken care of, and it
+    is already storing tags for available projects. We can now go ahead and integrate
+    our service into the application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since our tags service turns text with simple hashtags into HTML with links,
+    a pipe would be a perfect helper to integrate the functionality within our components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s create a new pipe by using the Angular CLI tool:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Open up the generated file, located in `src/app/pipes/tags.pipe.ts`, and add
+    the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: We have already created a few pipes. However, this pipe is a bit different,
+    in that it isn't a pure pipe. Pipes are considered pure if their `transform` function
+    always returns the same output for a given input. This implies that the `transform`
+    function should not be dependent on any other external source that can influence
+    the outcome of the transform, and the only dependencies are the input values.
+    This is not true for our tags pipe, though. It depends on the tags service to
+    transform the input, and new tags can be stored in the tags service at any time.
+    Successive transformations can successfully render tags that were non-existent
+    just a moment ago.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By telling Angular that our pipe is not pure, we can disable the optimization
+    it performs on pure pipes. This also means that Angular will need to re-validate
+    the output of the pipe on every change detection. This can lead to performance
+    issues; therefore, the pure flag should be used with caution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Within our pipe, we're injecting the tags service, which helps us to convert
+    simple text into rendered HTML. However, Angular has some security mechanisms
+    preventing us from using this HTML string directly within our template. To ensure
+    Angular that we know what we're doing here, we can use the DOM sanitizer instance
+    to create trusted HTML, which we can then render within `innerHTML` bindings.
+    By calling `bypassSecurityTrustHtml` on the sanitizer, passing our generated HTML
+    string, we can tell Angular to put aside any security concerns for that instance,
+    and we can go ahead and render the HTML within our view.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alright; as far as rendering tags is concerned, we are all set. Let's integrate
+    our tags functionality into our editor component so we can make use of them within
+    the commenting system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'All that we really need to do is include the tags pipe within our editor component
+    template. Let''s open the editor template located in `src/app/ui/editor/editor.component.html`,
+    and apply the following change:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: The only change that we've made in the template is where we display the editor
+    content. We are using a property binding to the `innerHTML` property of our editor's
+    output HTML element. This allows us to render the HTML content generated by our
+    tags service. Since the tags pipe is returning an observable, we need to chain
+    in an async pipe, as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Congratulations! Your tagging system is already halfway done! We've created
+    a tags service that collects available tags within the application, and, together
+    with our newly created pipe, renders tags within our editor component. Preview
+    your changes within the browser, and try to add hashtags to some comments on the
+    comments tab of projects. Currently, we only have two projects within our application.
+    Try to add the following hashtag to a comment—`#project-2`—and save the changes
+    in the editor. You should now be able to see the rendered tag in the comment.
+    If you're editing the comment again, you'll see the hashtag text representation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's digress for a moment. We've already created a tagging system, and we just
+    integrated it into our editor component by using the tags pipe. If a user writes
+    project tags in any comment, they will now be rendered by the tags service. This
+    is fantastic! Users can now establish cross-links to other projects within comments,
+    which will be automatically rendered as links and show a truncated project title.
+    All a user needs to do is add the text representation of a project tag to a comment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following two screenshots illustrate an example of the commenting system.
+    The first screenshot is an example of an editor in edit mode, under the commenting
+    system, where a text tag is entered:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0ec45e75-11b4-4519-b27e-391838c1857a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: An example of when a text tag is entered
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The second screenshot is an example of a rendered tag enabled in the commenting
+    system through our editor integration:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/48ce0d4d-6eb6-4901-b11b-f3a9dc82813e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: An example of a rendered tag through editor integration
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, we looked at the following concepts:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We built a tags service that generates, caches, and renders tags
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We built a stateful pipe using the `pure` flag
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We used the `[innerHTML]` property binding to render HTML content into an element
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We used the DOM sanitizer to bypass security checks when using `innerHTML` bindings
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We're not done yet, when it comes to entering tags. We cannot expect our users
+    to know all of the available tags within the system and then enter them manually
+    within comments. Let's look at how we can improve this in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Supporting tag input
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Here, we're going to build a component (and its supporting structures) to make
+    the process of entering tags a smooth experience for our users. So far, they can
+    write project tags, but it requires them to know the project IDs, which makes
+    our tag management quite useless. What we'd like to do is provide the user with
+    some choices when they are about to write a tag. Ideally, we will show them the
+    available tags as soon as they start writing a tag by typing the hash (`#`) symbol.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What sounds simple at first is actually a quite tricky thing to implement.
+    Our tag input needs to deal with the following challenges:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Handling input events to monitor tag creation. Somehow, we need to know when
+    a user starts writing a tag, and we need to know when the typed tag name is updated
+    or cancelled by using an invalid tag character.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Calculating the position of the input caret of the user. Yeah, I know this sounds
+    pretty simple, but it actually isn't. Calculating the viewport offset position
+    of a user's input caret requires the use of the browser's Selection API, which
+    is quite low-level and needs some abstraction.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In order to tackle these challenges, we are going to introduce a utility directive
+    that we can use to handle those rather complicated low-level user input events.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a tag input directive
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Since recognizing hashtags within user input is not such a simple task, we're
+    going to create a directive that helps us with that. This is actually our first
+    directive that we're creating together! If you remember from [Chapter 1](72fc993e-43db-48eb-8797-c65ea9226b87.xhtml),
+    *Component-Based User Interfaces*, directives are there to create custom behaviors
+    without the need for an own view. Our tags input directive will collect and recognize
+    hashtags from user input, but it does not actually render its own view.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s add two more interfaces to our model file in `src/app/model.ts`, to
+    help us communicate hashtag user input:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For every user input that is recognized as hashtag input by our directive,
+    we will communicate using hashtag input objects. Besides the actual text content
+    of the hashtag, we''re also sending an input position that consists of the following
+    properties:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`top` and `left`: Represent the top and left screen, offset in pixels of the
+    caret position where the actual input happened.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`caretOffset`: Describes the character offset of the hashtag within the text
+    content of the editable element. This will be useful when we want to replace the
+    hashtag within the editable element and achieve a feeling of autocomplete.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'From the `top` and `left` properties of the `InputPosition` interface, you
+    can see that we want to compute the coordinates where the actual user input happened.
+    This sounds very trivial, but it actually isn''t. To help us with that computation,
+    we''re going to introduce a new helper function, which we''re creating within
+    a new file, on the path `src/app/utilities/dom-utilities.ts`. Create that new
+    file and add the following content:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let's not get into too much detail here. What this code basically does is try
+    to find the bounding box `DOMRect` object, which describes the `top`, `right`,
+    `bottom`, and `left` offsets of the caret position, relative to the viewport.
+    The problem is that the Selection API does not allow us to get the position of
+    the caret directly; it only allows us to get the position of the current selection.
+    If the caret is not placed correctly, we will need to insert a dummy element at
+    the location of the caret and return the bounding box `DOMRect` object of the
+    dummy element. Of course, we'll need to remove the dummy element again, before
+    we return the `DOMRect` object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, that''s all that we need to write our tags input directive. Let''s use
+    the Angular CLI to create our first directive. The command to create directives
+    is very similar to that to create components:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'That generated the stub for our new directive. Let''s open the file `src/app/tags/tags-input.directive.ts`,
+    and add the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: The private `hashTagInput` property is an internal state to store the current
+    hashtag input information. The `hashTagSubject` member is a behavior subject,
+    which we're using internally to publish hashtag input changes. We're using the
+    `asObservable` method on the subject to expose an observable stream that emits
+    hashtag input objects on every change. We're storing this derived observable stream
+    in the member `hashTagChange`, which has public visibility. Other components can
+    access this property and subscribe to get notified when there are hashtag input
+    events.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s now add more parts to our directive, piece by piece. Let''s first add
+    a reset method, which we can call when the hashtag input should be reset. This
+    method will be used internally, when an input is aborted, but can also be called
+    from outside, from another component, to abort tag entry:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The next method is used to update the internal hashtag input object, based
+    on user input:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, let''s add the two main methods to our tags input directive, to collect
+    user input. We''re using the `HostListener` decorator to create event bindings
+    on the host element for `keydown` and `keypress` events:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `keyDown` method will be called by the host event binding to `keydown`
+    events. We are concerned about the backspace, which should also remove the last
+    character of the tag that is currently entered. If we can detect a backspace (char
+    code `8`), we''re calling our `updateHashTag` method, and updating the current
+    hashtag by removing the last character, using the `Array.prototype.slice` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `keyPress` method is called from the host element event binding on `keypress`
+    events. This is where the main logic of this supporting directive lies. Here,
+    we handle two different cases:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If the pressed key is a hash symbol, we will start over with a new tag
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If the pressed key is not a valid word character or a hash symbol, we will reset
+    it to its initial state, which will cancel the tag entry
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Any other valid character, we'll add to the current text tag string
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Add the following code to the tags input directive:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: When a new hashtag is entered (if a user inserts the hash symbol), we will update
+    the internal hashtag input object and use our utility function, `getRangeBoundingClientRect`,
+    to set the input object's position to the current caret position.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Okay; now we have all of the support we need to handle tag input. However, we
+    still need a way to show the available tags in the tags service to the user. For
+    this purpose, we'll create a new tags select component. It will show a list of
+    available tags to the user, and will make use of the tag input changes emitted
+    by our support directive in order to filter and position the list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a tags select component
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'To support the user in finding the right tag, we''ll provide them with a drop-down
+    menu with the available tags. To do this, we need to use the hashtag input objects
+    emitted by our tags input directive. Let''s briefly look at the requirements of
+    this component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It should display the available tags gathered from our tags service in a tooltip/callout
+    box
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It should support a limitation of displayed tags
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It should receive a hashtag input object to filter the available tags and to
+    position itself using the positional data on the hashtag input object
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It should emit an event once the user clicks on a tag in the listed tags
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The component should hide if the filter is invalid, or if there are no elements
+    matching the filter:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/a8853fa4-31f0-4d42-a5a3-3a51108249f3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Finished tags select component, filtered with user input
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s start by updating our application model, located in `src/app/model.ts`,
+    to include a new interface to be used to communicate tag selection. Add the following
+    code to the file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: If a tag gets selected, we want to know which tag object was selected, but also,
+    the corresponding hashtag input object should be passed along. This data is required
+    so that we can properly react to the selected tag and correctly update the editable
+    element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s move on with our component, and create the component class. First, let''s
+    scaffold a new component using the Angular CLI:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This will generate a new component, where we''ll opening the component class
+    file, located in `src/app/tags/tags-select/tags-select.component.ts`, and add
+    the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our component has two input elements. The `tags` input is used to pass all available
+    tags into the tags select component. This is the list of tags that will be presented
+    to the user when selecting available tags. The `hashTagInput` input is the hashtag
+    input object that we obtain from the tags input directive we create previously.
+    We will extract the current user input from that object in order to filter the
+    displayed tags. We will also use the position data from that object to position
+    the component onto the screen coordinates of the caret position where the user
+    started to write the hashtag input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The output `outSelectTag` is used to emit an event when a user selects a tag
+    from the list of tags. The `filteredTags` property is used for the computed filtered
+    list of tags. We're calling the `filterTags` method when there's a change in the
+    `hashTagInput` or `tags` input objects. Here, we're filtering the list of all
+    tags with the current hashtag input data that we have. Since this is only a computed
+    state, our component is still a pure component, and we can still use the `OnPush`
+    change detection strategy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `selectTag` method is called from the view when the user selects a tag from
+    the list of filtered tags. There, we're emitting a new tag selection object that
+    consists of the selected tag, as well as the hashtag input object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s move on and add a few accessor properties to our component, which we''re
+    using to create host element style bindings. The following accessor property—`hasFilteredTags`—is
+    bound to the host element''s display style property. It will control whether the
+    component is displayed or hidden. We will only display the component if the filter
+    is valid and the filtered tags contain at least one tag:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following two accessor properties use host bindings to set the `top` and
+    `left` styles of our host element, based on the `hashTagInput` input of the component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The template for our component is rather simple. Let''s open the view template
+    that is stored in `src/app/tags/tags-select/tags-select.component.html`, and apply
+    the following changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: We used the `NgFor` directive to iterate over all of the tags within the `filteredTags`
+    member. If a tag is clicked, we will need to execute the `selectTag` method and
+    pass the tag of the current iteration. In the listing, we'll only display the
+    tag title that should help the user identify the tag that they would like to use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, we have built all of the pieces that we need to enable smooth tag entering
+    for our users. However, we still need to wire everything together. The next step
+    is to enable tag selection within our project comments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Integrating tag selection within the editor component
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As the first step, we should amend our editor component to utilize the tags
+    input directive in conjunction with the tags select component that we just created.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we start changing our editor, let's look at a new string helper function,
+    `splice`, which allows us to pass a specific location within the text, where we
+    want to replace the partial hashtag entered by the user with the final hashtag
+    from the selected tag object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `splice` method works similar to the `Array.prototype.splice` function,
+    and allows us to remove a certain part within a string and add a new part to that
+    string, at the same location. This allows us to replace certain areas in strings
+    very specifically, which is exactly what we need in this situation. Let''s implement
+    this little helper function within our string utility module, located in `src/app/utilities/string-utilities.ts`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s go back to our editor component and look at the changes to be made inside
+    of the component template, located in `src/app/ui/editor/editor.component.html`.
+    Effective changes in the template are marked in bold:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first thing that we need to add is our tags input directive, which will
+    help us to collect input data when a user enters a hashtag within our editable
+    content field.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Just below the editable content element, we're adding our new tags select component.
+    We're only rendering the tags select component if a list of tags was provided
+    to the editor component as input. We're using the extracted hashtag input object
+    from our tags input directive and passing it into the tags select `hashTagInput`
+    input. If the tags select component emits a `outSelectTag` event, we're calling
+    a new `selectTag` method, which we're going to implement on our editor component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s apply the necessary changes to our component class, located in
+    `src/app/ui/editor/editor.component.html`. The ellipsis character (`…`) indicates
+    code parts that have not changed. Effective changes are marked in bold:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: First, we're adding another view query for our editable content element, using
+    the view reference `editableContentElement`. However, this time, we're using an
+    additional configuration object within the view query decorator. The `read` property
+    in the view query option allows us to specify that we don't want to select the
+    default `ElementRef` object, but a reference to a component instance or a directive
+    instance that is present on the element. In our case, we want to get a handle
+    on the tags input directive, which we've placed onto the editable content element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Within the `saveEdit` and the `cancelEdit` methods of our editor, we can now
+    additionally call the reset method on our tags input directive. This will ensure
+    that we're not persisting any previous tag entry when a user saves or cancels
+    an edit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we''re adding a new method: `selectTag`. This method is called from
+    the editor view, as a reaction to the `outSelectTag` event from the tags select
+    component. All we''re doing here is replacing the part of the hashtag in our editable
+    content element that was entered by the user with the hashtag that is emitted
+    in the tag selection object.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Great stuff! We have completed our work on the tags select component and integrated
+    it, with our tags input directive, into the editor component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Integrating tag selection in project comments
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Since the editor component now relies on a list of available tags to be passed
+    as input, we need to apply some changes to our project comment components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s start with the project comments container component, located in `src/app/container/project-comments-container/project-comments-container.component.ts`.
+    The ellipsis character is hiding irrelevant code parts, while effective changes
+    are in bold:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, let''s look at the view template changes within the container component
+    located in `src/app/container/project-comments-container/project-comments-container.component.ts`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: That was easy! All we did was get the tags observable from our tags service,
+    subscribe in the view, and pass the resulting tags list down into our comments
+    component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s change our comments component to accept that list of tags as input.
+    Open the file `src/app/comments/comments/comments.component.ts`, and add the following
+    changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Using the same mechanism that we use within our editor, we''re also enabling
+    tag selection within the comment editable element. Let''s look at the changes
+    within the view template of our comments component, located in `src/app/comments/comments/comments.component.html`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: Besides implementing our own tag selection for the comments editable content
+    element, we're also passing the tags, which we've received from our parent container
+    component, down into each comment component as input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s continue and complete the integration of our tagging system. Open up
+    the comment component class, located in `src/app/comments/comment/comment.component.ts`,
+    and apply the following changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'All we needed to add was an additional input, to receive our tag list. Let''s
+    also reflect the necessary changes to our comment component view template, located
+    in `src/app/comments/comment/comment.component.html`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: Alright! There were quite a few changes for integration. However, they were
+    pretty simple changes, and now we're ready to use our tagging system!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finishing up our tagging system
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Congratulations! You've now successfully implemented the first of the three
+    usability components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the help of a tag input directive, we have hidden the low-level programming
+    of user input and the processing of the user caret position. Then, we created
+    a component to display the available tags to the user, and provided a way for
+    them to select a tag by clicking on it. In our editor component, we used the tags
+    input directive, together with the tags select component, to enable the smooth
+    entering of tags when editing comments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ve covered the following concepts in this section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We processed complex user input within a designated directive, to offload logic
+    from our components
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We used host bindings to set positional style attributes
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We used the `read` property on a `ViewChild` decorator, to query for directive
+    instances
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We implemented fully reactive components that rely on observables and don't
+    create side effects during change detection
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In the next section, we're going to look at how we can integrate drag and drop
+    functionality within our application. We will build Angular directives, which
+    will help us to easily integrate drag and drop capabilities into any area of our
+    task management application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Drag and drop
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We have learned to use our computer mouse and keyboard with great efficiency.
+    Using keyboard shortcuts, different click actions, and contextual mouse menus,
+    can provide us with support for performing tasks. However, there is one pattern
+    that has gained more attention in applications lately, given the current mobile
+    and touch device hype. Drag and drop actions are a very intuitive and logical
+    way to express actions, such as moving or copying items. One particular task,
+    performed on user interfaces, benefits from drag and drop: ordering items within
+    a list. If we need to order items via action menus, it gets very confusing. Moving
+    items step-by-step, using the up and down buttons, works great, but it takes a
+    lot of time. If you can drag items around and drop them in a place where you''d
+    like them to be reordered, you can sort a list of items extremely quickly.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this topic, we will build the required elements to enable drag and drop within
+    our application. We will use the drag and drop feature to enable users to reorder
+    their task lists. By developing reusable directives to provide this functionality,
+    we can later enable the feature at any spot within our application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To implement our directives, we will make use of the HTML5 drag and drop API,
+    which is supported in all of the major browsers at the time of writing this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since we would like to reuse our drag and drop behavior on multiple components,
+    we will use directives for the implementation. We are going to create two directives
+    in this section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Draggable directive**: This directive should be attached to components, which
+    should be enabled for dragging'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Draggable drop zone directive**: This directive should be attached to components
+    that will act as drop targets'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We'll also implement a feature wherein we can be selective about what can be
+    dragged where. For this, we will use a type attribute on our draggable directives,
+    as well as an accepted type attribute on our drop zones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Updating our model for ordering tasks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As a first step, we should enable our task model for ordering. By introducing
+    an `order` field on our task object, we can then use that field to sort tasks
+    accordingly. Let''s make the following changes to our model file, located in `src/app/model.ts`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: We have also added a new type alias, `DraggableType`, which we're using to identify
+    things that can be dragged within our application. We will use this type to make
+    sure that we can only drag and drop to locations that support the given type.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since we have changed the model for our tasks to include an `order` property,
+    we will need to make some changes to our existing application state management,
+    in order to work with the `order` property.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s first change our in-memory database, and open the file `src/app/database.ts`
+    to apply the following changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, all of our initial tasks contain an `order` property. Now, we need to
+    take care of two additional things:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When new tasks get created, we need to compute the next available order value
+    and use it to create a new task
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We need to change our task list to use the `order` property for sorting
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We can implement both of these changes within our task list container component.
+    Let''s open the file `src/app/container/task-list-container/task-list-container.component.ts`,
+    and apply some changes. Irrelevant code parts are hidden using the ellipsis character,
+    while the effective changes are marked in bold:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: Alright; that's it, for now. We've successfully introduced a new `order` property,
+    which is now used to sort our task list. This order becomes very important when
+    we want to use our drag and drop feature to sort the task list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing the draggable directive
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The `draggable` directive will be attached to the elements that we want to
+    enable for drag and drop. Let''s get started by creating a new directive using
+    the Angular CLI tool:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s open the directive class file, located in `src/app/draggable/draggable.directive.ts`,
+    and add the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: By setting the HTML attribute `draggable` to `true`, using a host binding, we
+    tell the browser that we're considering this element a draggable element. This
+    HTML attribute is already part of the drag and drop API of the browser.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `draggableData` input is used to specify the data that represents the element
+    that can be dragged. This data will be serialized to JSON and transferred to our
+    drop zones once a drag action is completed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By specifying a draggable type using the `draggableType` input, which we have
+    introduced to our model, we can be more selective when the element is dragged
+    over a drop zone. Within the drop zone, we can include a counterpart that controls
+    what types are acceptable to be dropped.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Additionally, we can use a host binding to set a class, called `dragging`, which
+    will apply some special styles that will make it easy to recognize that an element
+    is dragged.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we need to handle two events within our directive, to implement the behavior
+    of a draggable element. The following DOM events are triggered by the drag and
+    drop DOM API:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`dragstart`: This event is emitted on elements that are grabbed and moved across
+    the screen'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`dragend`: If the previously initiated dragging of the element is ended, because
+    of a successful drop or a release outside of a valid drop target, this DOM event
+    will be triggered'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let''s use the `HostListener` decorator to implement the logic for the `dragstart`
+    event:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, let's discuss the different actions that we can perform in the implementation
+    of our host listener.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will need to access the DOM event object in our host listener. If we were
+    to create this binding within the template, we would probably need to write something
+    similar to this: `(dragstart)="dragStart($event)"`. Within event bindings, we
+    can make use of the synthetic variable `$event`, which is a reference to the event
+    that would have triggered the event binding. If we are creating an event binding
+    on our host element using the `HostListener` decorator, we need to construct the
+    parameter list for the binding by using the second argument of the decorator.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first action in our event listener is to set the desired `effectAllowed`
+    property on the data transfer object. Currently, we only support the `move` effect,
+    as our main concern is to reorder tasks within the task list using drag and drop.
+    The drag and drop API is very system-specific, but usually, there are different
+    drag effects if a user holds a modifier key (such as *Ctrl* or *Shift*) while
+    initiating the dragging. Within our `draggable` directive, we can force the `move`
+    effect for all drag actions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next code snippet, we set the data that should be transferred by dragging.
+    It's important to understand the core purpose of the drag and drop API. It not
+    only provides a way to implement drag and drop for elements in your DOM, but it
+    also supports the dragging of files and other objects into your browser. Because
+    of this, the API undergoes some constraints, one of which is making it impossible
+    to transfer data, other than simple string values. In order for us to transfer
+    complex objects, we will serialize the data from the `draggableData` input, using
+    `JSON.stringify`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another limitation caused by some security constraints within the API is that
+    data can only be read after a successful drop. This means that we cannot inspect
+    the data if the user is just hovering over an element. However, we need to know
+    some facts about the data when hovering over drop zones. We need to know the type
+    of draggable element when entering a drop zone. This way we can control that certain
+    draggable elements can only be dropped in specific drop zones. We're using a small
+    workaround for this issue. The drag and drop API hides the data when we drag data
+    over a drop target. However, it tells us what type of data it is. Knowing this
+    fact, we can use the `setData` function to encode our draggable type. Accessing
+    the data keys only is considered secure, and can therefore be done in all drop
+    zone events.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we'll set the dragging flag to `true`, which will cause the class binding
+    to re-validate and add the `dragging` class to the element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After dealing with the `dragstart` event, we now need to handle the `dragend`
+    event, to complete our draggable directive. The only thing we do within the `dragEnd`
+    method that is bound to the `dragend` event is set the dragging member to false.
+    This will cause the `dragging` class to be removed from the host element:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: That's it for the behavior of our draggable directive. Now, we need to create
+    its counterpart directive, to provide the behavior of a drop zone.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing a drop target directive
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Drop zones will act as containers where draggable elements can be dropped.
+    For this, we''ll create a new draggable drop zone directive. Let''s use the Angular
+    CLI to create the directive:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s open the directive file, located in `src/app/draggable/draggable-drop-zone.directive.ts`,
+    and add the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using the `dropAcceptType` input, we can specify what types of draggable elements
+    we accept in this drop zone. This will help the users identify whether they are
+    able to drop off the draggable elements, when approaching the drop zone.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Upon successful drops into the drop zone, we will need to emit an event, so
+    that the components using our drag and drop functionality can react accordingly.
+    For that purpose, we will use the `dropDraggable` output property.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `over` member field will store the state if an accepted element is in the
+    process of being dragged over the drop zone. We are using a host binding to set
+    the class `over` on our host element. That way, a drop zone element can be styled
+    differently when we are about to drop an item onto it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s add a method to check whether our drop zone should accept any given
+    drag and drop event by checking against our `dropAcceptType` member. Remember
+    the security problems that we needed to work around when creating the draggable
+    directive? Now, we''re implementing the counterpart, to extract the draggable
+    type from the drag event and check whether the dragged item is supported by this
+    drop zone:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can only read the keys of the data within data transfer objects for drag
+    events, where the data itself is hidden until a successful `drop` event has occurred.
+    To bypass this security limitation, we've encoded the draggable type information
+    into a data key itself. Since we can list all of the data keys safely by using
+    the `types` field on data transfer objects, it's not too hard to extract the encoded
+    draggable type information. We search for a data type key that starts with `'draggable-type'`,
+    and then split it by the column character. The value after the column character
+    is our type information, which we can then compare against the `dropAcceptType`
+    directive input property.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will use two events to determine whether a draggable element is moved to
+    our drop zone:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`dragenter`: This event is fired by an element if another element is dragged
+    over it'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`dragleave`: This event is fired by an element if the previously entered element
+    has left again'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'There''s one problem with the preceding events, which is that they actually
+    bubble, and we will receive a `dragleave` event if the dragged element is moved
+    to a child element within our drop zone. Because of the bubbling, we will then
+    also receive `dragenter` and `dragleave` events from the child elements. This
+    is not desired, in our case, and we need to build some functionality to improve
+    this behavior. We make use of a counter member field, `dragEnterCount`, which
+    counts up on all `dragenter` events and counts down on `dragleave` events. This
+    way, we can now say that only on `dragleave` events, where the counter becomes
+    zero, the users'' mouse cursor will leave the drop zone. Let''s look at the following
+    diagram, which illustrates the problem:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f85d34b2-94fa-40ac-adc4-ad749352a14e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Visualization of important variables and functions for our calculations
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s implement this logic to build a proper behavior for `dragenter` and
+    `dragleave` events within our drop zone:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: Within both of the events, we first check whether the event is carrying a data
+    transfer object, of which we accept the type. After validating the type using
+    our `typeIsAccepted` method, we deal with the counter, and set the `over` member
+    field, if required.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We need to handle another event, which is important for drag and drop functionality.
+    The `dragover` event helps us to set the accepted `dropEffect` of the current
+    dragging action. This will tell our browser that the initiated dragging action
+    from our draggable is suitable for this drop zone. It''s also important that we
+    prevent the default browser behavior, so that there''s no default browser behavior
+    in the way of our custom drag and drop implementation. Let''s add another host
+    listener to cover those concerns:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we need to handle the most important event in the drop zone, which
+    is the `drop` event that is triggered if a user drops a draggable item into our
+    drop zone:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: After checking whether the dropped element is of an accepted type, we can go
+    ahead and read the data transfer object data from the event. This data was previously
+    set by the draggable directive, and needs to be deserialized, using `JSON.parse`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since the drop was successful, we can reset our `dragEnterCount` member and
+    set the `over` flag to `false`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we will emit the deserialized data from the draggable element using
+    our `outDropDraggable` output property.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That's all we need to build a highly reusable drag and drop behavior. We can
+    now attach the draggable and the draggable drop zone to any components within
+    our application where we feel the need to enable drag and drop.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we're going to integrate the drag and drop functionality
+    within our application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Integrating drag and drop
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We can now use the draggable and draggable drop zone directives in our task
+    list component, so that we can enable the reordering of tasks using drag and drop.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can do this by attaching both of the directives to the task elements within
+    the task list component template. Yeah, that's right! We want to make our task
+    components draggable, but also a drop zone at the same time. That way, we can
+    drop tasks onto other tasks, and that gives us the foundation for reordering.
+    What we will do is reorder the list on a drop, so that the dropped task will be
+    squeezed into the position right before the task where it was dropped.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let''s apply the drag and drop directives to the task host elements
+    in the task list component template. Open the file `src/app/tasks/task-list/task-list.component.html`,
+    and apply the following changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: Alright; using the preceding attributes, we made our tasks not only draggable,
+    but also drop zones at the same time. By specifying both `draggableType` and `dropAcceptType`
+    to the `'task'` string, we are telling our drag and drop behavior that these task
+    elements can be dropped into other task elements. Our draggable drop zone directive
+    is set to emit an `outDropDraggable` event whenever a valid draggable is dropped
+    off. On a successful drop, we will call a new method within our task list component
+    `dropTask`, to which we will pass the current task and the drop zone event object.
+    The draggable drop zone directive will emit the data that was previously set using
+    the `draggableData` input of the draggable directive. In other words, the `dropTask`
+    method is called with the target task as the first parameter and the source task
+    as the second parameter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s implement the `dropTask` method within our component class, located
+    in `src/app/tasks/task-list/task-list.component.ts`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s elaborate on the implementation within our task list component:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you check the template again, you will see that we bound to the `dropTask`
+    method with the following expression: `(outDropDraggable)="dropTask(task, $event)"`.
+    Since the drop zone emitted an event with deserialized data that was bound using
+    the draggable input property `draggableData`, we can safely assume that we will
+    receive a copy of the task that was dropped into the drop zone. As the first parameter
+    to our binding, we added the local view variable `task`, which is actually the
+    task that acts as the drop zone. Therefore, we can say that the first parameter
+    of our `dropTask` method represents the target, while the second represents the
+    source task.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: As a first check in our method, we compare the source ID with the target ID,
+    and if they match, we can assume that the task was dropped to itself, and we don't
+    need to perform any further actions.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now, all we do is emit two update task events from our task list component,
+    to reorder both the source and target task. We do that by switching the order
+    property between the source and target. This is just one way to reorder, and we
+    can also implement this differently.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How great is that? We have successfully implemented drag and drop on our task
+    list, to provide a very useful feature to reorder tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Recapitulate on drag and drop
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: With the use of the low-level drag and drop API, using events and data transfer
+    objects, we have implemented two directives that can now be used to execute smooth
+    drag and drop functionality within our application, wherever we desire.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With almost no effort, we have implemented our drag and drop behavior on the
+    task list, to provide a nice feature to reorder the tasks within the list. The
+    only thing that we needed to do, besides hooking up the directives, was implement
+    a method where we could reorder the tasks based on the information from the draggable
+    drop zone directive output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We worked with the following concepts in this section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We learned the basics of the HTML5 drag and drop API
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We used the data transfer object to securely transfer data within drag and drop
+    events
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We built reusable behavior patterns, using directives
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We enriched the standard drag and drop API by providing our own custom selection
+    mechanisms, using a custom data type that encodes draggable type information
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we built two features to enhance the usability of our application.
+    Users can now make use of tags, to easily annotate comments with navigable items
+    that provide summaries to the subject. They can also use drag and drop, to reorder
+    tasks within the task list component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Usability is a key asset in today's applications, and, by providing highly encapsulated
+    and reusable components to address usability concerns, we can make our lives a
+    lot easier when building those applications. When dealing with usability, thinking
+    in terms of components is a very good thing, not only for easing development,
+    but for establishing consistency. Consistency itself plays a major role in making
+    an application usable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we're going to create some nifty components to manage time
+    within our task management system. This will also include some new user input
+    components, to enable simple work time-entry fields.
+  prefs: []
+  type: TYPE_NORMAL

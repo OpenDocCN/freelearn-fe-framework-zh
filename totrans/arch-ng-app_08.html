@@ -1,0 +1,610 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Redux</h1>
+                </header>
+            
+            <article>
+                
+<p>Maintaining and controlling state in an app is something that quickly becomes complicated as soon as our app is larger than a Todo app, especially if we have multiple views, models, and dependencies between them. The situation is complicated by multiple types of states, such as cached data, server responses, and data that only lives locally when you work with the app. Changing the state is made more complicated because multiple actors, synchronous, and asynchronous code can change the state. The end result with a growing app is, sooner or later, a non-deterministic system. The problem with such a system is that you lose predictability, which in turn means you may have bugs that are hard to produce, and it makes the app and its data hard to reason with. We crave order and predictability, but we get neither.</p>
+<p>To try to address the problem, we covered the Flux pattern in a previous chapter. All is well and good, right? We don't need another pattern. Or do we? Well, Flux has problems. One of the problems is that your data is divided up into several stores. Why is that a problem, you wonder? Imagine you have an action that triggers in multiple stores. It's easy to forget to handle an action in all stores. So, that issue is more of a management problem. Another problem with multiple stores is that it's hard to get a good overview of what your state consists of. Updates are another problem we have with Flux. Sometimes you have a lot of updates; updating the state and the order matters. In Flux, this is handled with a construct called <kbd>waitFor</kbd>. The idea is that you should be able to specify what should happen in which order. That's all well and good, but imagine that this is spread out over many modules; it becomes hard to keep track of and is thereby error prone.</p>
+<p>Mutation and asynchronous behavior are two concepts that are hard to deal with. Mutation means we change the data. Asynchronous means something takes time to complete; when it does it may mutate a state. Imagine mixing synchronous and asynchronous operations that all update state. We realize it's not easy to keep track of the code because of this, and mixing that in with state mutation makes it all the more complicated.</p>
+<p>This leads us to what Redux can do for us, which is to make our mutations predictable, but it also gives us one store, one single source of truth. </p>
+<p class="mce-root">In this chapter, you will learn:</p>
+<ul>
+<li>The core concepts </li>
+<li>How data flows</li>
+<li>How to put your skills into practice by building your own mini implementation of Redux</li>
+<li>How to deal with AJAX in the context of Redux</li>
+<li>Some sound best practices</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Principles</h1>
+                </header>
+            
+            <article>
+                
+<p>Redux rests on three principles:</p>
+<ul>
+<li>Single source of truth: We have one place where all our data lives.</li>
+<li>State is read-only: No mutation; there is only one way to change state and that is through an action.</li>
+<li>Changes are made with pure functions: A new state is produced by taking the old state, applying the change, and producing the new state; the old state is never changed.</li>
+</ul>
+<p>Let's explore these bullet points one by one. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Single source of truth</h1>
+                </header>
+            
+            <article>
+                
+<p>The data lives in a single store in Redux and not a multiple store like in Flux. The data is represented by one object tree. This brings about a lot of benefits, such as:</p>
+<ul>
+<li>It is easier to see what your application knows at any given point, so it is easy to serialize or deserialize it.</li>
+<li>It is easier to work with in development, and easier to debug and inspect.</li>
+<li>It easier to do things such as undo/redo if all applied actions produce a new state.</li>
+</ul>
+<p>An example of a single store can look like the following:</p>
+<pre>// principles/store.js<br/><br/>class<span> Store {<br/></span>  getState() {<br/>    return<span> {<br/></span>      jedis: [<br/>        { name: <span>"Yoda"</span><span>, id: </span><span>1</span><span> },<br/></span>        { name: <span>"Palpatine"</span><span>, id: </span><span>2</span><span> },<br/></span>        { name: <span>"Darth Vader"</span><span>, id: </span><span>3</span><span> }<br/></span>      ],<br/>      selectedJedi: {<br/>        name: <span>"Yoda"</span><span>,<br/></span>        id: <span>1<br/></span>      }<br/>    };<br/>  }<br/>}<br/><br/>const<span> store </span><span>=</span><span> </span><span>new</span><span> Store();<br/></span>console.log(store.getState());<br/><br/>/*<br/>{<br/>  jedis: [<br/>    { name: 'Yoda', id: 1 },<br/>    { name: 'Palpatine', id: 2 },<br/>    { name: 'Darth Vader', id: 3 }<br/>  ],<br/>  selectedJedi: {<br/>    name: 'Yoda', id: 1<br/>  }<br/>}<br/>*/</pre>
+<p>As you can see, this is just an object.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Read-only states</h1>
+                </header>
+            
+            <article>
+                
+<p>We want to ensure we only have one way to alter state, and that is through mediators called actions. An action should describe the intent of the action as well as the data that should be applied to the current state. An action is dispatched by us using a <kbd>store.dispatch(action)</kbd>. The action itself should look like the following:</p>
+<pre>// principles/action.js<br/><br/>// the action<br/>let action = {<br/>  // expresses intent, loading jedis<br/>  type: "LOAD_JEDIS", <br/>  payload:[<br/>    { name: "Yoda", id: 1 },<br/>    { name: "Palpatine", id: 2 }, <br/>    { name: "Darth Vader", id: 3 }<br/>  ]<br/>};</pre>
+<p>At this point, let's try to implement what a store might actually look like and what it initially <span>contains</span>:</p>
+<pre>// principles/storeII.js<br/><br/>class<span> Store {<br/></span>  constructor<span>() {<br/></span>    this<span>.state </span><span>=</span><span> {<br/></span>      jedis: [],<br/>      selectedJedi: <span>null<br/></span>    }<br/>  }<br/>  <br/>  getState() {<br/>    return<span> </span><span>this</span><span>.state;<br/></span>  }<br/>}<br/><br/>const store = new Store();<br/><br/>console.log(store.getState());<br/>// state should now be<br/>/*<br/>{<br/>  jedis : [],<br/>  selectedJedi: null<br/>}<br/>*/</pre>
+<p>We can see that it is an object that consists of two properties, <kbd>jedis</kbd>, which is an array, and <kbd>selectedJedi</kbd>, which is an object holding an object that we select. At this point, we want to dispatch an action, which means we will take our old state, as shown in the preceding code, and produce a new state. The action we described earlier should change the <kbd>jedis</kbd> array and replace the empty array with the incoming array. Remember, though, we don't mutate the existing store object; we simply take it, apply our change, and produce a new object. Let's dispatch our action and see the end result:</p>
+<pre>// principles/storeII-with-dispatch.js<br/><br/>class<span> Store {<br/></span>  constructor<span>() {<br/></span>    this<span>.state </span><span>=</span><span> {<br/></span>      jedis: [],<br/>      selectedJedi: <span>null<br/></span>    }<br/>  }<br/><br/>  getState() {<br/>    return<span> </span><span>this</span><span>.state;<br/></span>  }<br/><br/>  <strong>dispatch(action) {</strong><br/><strong>    // to be implemented in later sections</strong><br/><strong>  }</strong><br/>}<br/><br/>// the action<br/>let action = {<br/>  type: 'LOAD_JEDIS',<br/>  payload:[<br/>    { name: 'Yoda', id: 1 },<br/>    { name: 'Palpatine', id: 2 }, <br/>    { name: 'Darth Vader', id: 3 }<br/>  ]<br/>}<br/><br/>// dispatching the action, producing a new state<br/><strong>store.dispatch(action);</strong><br/><br/>console.log(store.getState());<br/>// state should now be<br/>/*<br/>{<br/>  <strong>jedis : [</strong><br/><strong>    { name: 'Yoda', id: 1 },</strong><br/><strong>    { name: 'Palpatine', id: 2 }, </strong><br/><strong>    { name: 'Darth Vader', id: 3 }</strong><br/><strong>  ]</strong>,<br/>  selectedJedi: null<br/>}<br/>*/</pre>
+<p>The preceding code is pseudo code as it doesn't actually produce the intended result, yet. We will learn to implement a store in later chapters. OK, so now our state has changed and our incoming array has replaced the empty array we used to have. We again repeat that we have not mutated the existing state, but instead produced a new state given the old state and our action. Let's look at the next section on <em>pure functions</em> and further explain what we mean.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Changing states with pure functions</h1>
+                </header>
+            
+            <article>
+                
+<p>In the previous section, we introduced the concept of the action and how that was the mediator through which we were allowed to change our state. We didn't change the state, though, in the normal sense of the word, but rather took the old state, applied the action, and produced a new state. To accomplish this, we need to use a pure function. In the context of Redux those are called reducers. Let's write ourselves a <kbd>reducer</kbd>:</p>
+<pre>// principles/first-reducer.js<br/><br/>module.exports = function reducer(state = {}, action) {<br/>  switch(action.type) {<br/>    case "SELECT_JEDI":<br/>      <strong>return Object.assign({}, action.payload);</strong><br/>    default:<br/>      return state;<br/>  }<br/>}</pre>
+<p>We highlight the pure aspect of the preceding <kbd>reducer</kbd>. It takes our <kbd>selectedJedi</kbd> from the <kbd>action.payload</kbd>, it copies it using the <kbd>Object.assign()</kbd>, assigns it, and returns the new state. </p>
+<p>What we have written is a <kbd>reducer</kbd> that switches, depending on the action we try to perform, and carries out the change. Let's put this pure function into use:</p>
+<div>
+<pre><span>const</span><span> reducer </span><span>=</span><span> require(</span><span>"./first-reducer"</span><span>);<br/></span><br/>let initialState = {};<br/>let action = { type: "SELECT_JEDI", payload: { id: 1, name: "Jedi" } };<br/>let state = reducer(initialState, action);<br/>console.log(state);<br/><br/><strong>/* this produces the following:</strong><br/><strong>{ id: 1, name: 'Yoda' }</strong><br/><strong>*/</strong></pre></div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Core concepts</h1>
+                </header>
+            
+            <article>
+                
+<p>In React, we are dealing with three core concepts, which we have already introduced the state, the action, and the reducer. Now, let's dive in deeper and really get a sense of how they fit together and how they work.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Immutability patterns</h1>
+                </header>
+            
+            <article>
+                
+<p>The whole point of the state is to take an existing state, apply an action to it, and produce a new state. It can be written like this:</p>
+<pre>old state + action = new state</pre>
+<p>Imagine, if you were performing basic calculations, then you would start writing it like this:</p>
+<pre>// sum is 0<br/>let sum = 0;<br/><br/>// sum is now 3<br/>sum +=3;</pre>
+<p>The Redux way of doing things, though, is to change the preceding to:</p>
+<pre>let sum = 0;<br/>let sumWith3 = sum + 3;<br/>let sumWith6 = sumWith3 + 3; </pre>
+<p>We don't mutate anything but rather produce a new state for everything we do. Let's look at different constructs and what it means in practice to not mutate.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Changing a list</h1>
+                </header>
+            
+            <article>
+                
+<p>There are two operations we can perform on a list:</p>
+<ul>
+<li>Add item(s) to a list</li>
+<li>Remove item(s) from a list</li>
+</ul>
+<p>Let's take the first bullet point and make this change in the old way and then make the Redux way:</p>
+<pre>// core-concepts/list.js<br/><br/>// old way<br/>let<span> </span><span>list</span><span> </span><span>=</span><span> </span><span>[</span><span>1</span><span>,</span><span> </span><span>2</span><span>,</span><span> </span><span>3</span><span>];<br/></span>list.push(<span>4</span><span>);<br/><br/></span>// redux way<br/>let<span> </span><span>immutablelist</span><span> </span><span>=</span><span> </span><span>[</span><span>1</span><span>,</span><span> </span><span>2</span><span>,</span><span> </span><span>3</span><span>];<br/></span>let<span> </span><span>newList</span><span> </span><span>=</span><span> </span><span>[</span><span>...</span><span>immutablelist,</span><span> </span><span>4</span><span>];<br/><br/></span>console.log(<span>"new list"</span><span>, newList);<br/>/*<br/>  [1, 2, 3, 4]<br/>*/<br/></span><span><br/></span></pre>
+<p>The preceding code takes the old list and its items and creates a new list containing the old list plus our new member.</p>
+<p>For our next bullet, to remove an item, we do this:</p>
+<pre>// core-concepts/list-remove.js<br/><br/>// old way<br/>let<span> list </span><span>=</span><span> [</span><span>1</span><span>, </span><span>2</span><span>, </span><span>3</span><span>];<br/></span>let<span> index </span><span>=</span><span> list.indexOf(</span><span>1</span><span>);<br/></span>list.splice(index, <span>1</span><span>);<br/></span><br/>// redux way<br/>let<span> immutableList </span><span>=</span><span> [</span><span>1</span><span>, </span><span>2</span><span>, </span><span>3</span><span>];<br/></span>let<span> newList </span><span>=</span><span> immutableList.filter(item </span><span>=&gt;</span><span> item </span><span>!==</span><span> </span><span>1</span><span>);<br/></span></pre>
+<p>As you can see, we produce a list not containing our item.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Changing an object</h1>
+                </header>
+            
+            <article>
+                
+<p>Changing an object is about changing properties on it as well as adding properties to it. First off, let's look at how to change existing values:</p>
+<pre>// core-concepts/object.js<br/><br/>// the old way<br/>let<span> anakin </span><span>=</span><span> { name: </span><span>"anakin"</span><span> };<br/></span>anakin.name <span>=</span><span> </span><span>"darth"</span><span>;<br/></span>console.log(anakin);<br/><br/>// the Redux way<br/>let<span> anakinRedux </span><span>=</span><span> { name: </span><span>"anakin"</span><span> };<br/></span>let<span> darth </span><span>=</span><span> Object.assign({}, anakinRedux, { name: </span><span>"darth"</span><span> });<br/><br/></span>console.log(anakinRedux);<br/>console.log(darth);</pre>
+<p>That covers the existing case. What about adding a new property? We can do that like so:</p>
+<pre>// core-concepts/object-add.js<br/><br/>// the old way<br/>let<span> anakin </span><span>=</span><span> { name: </span><span>"anakin"</span><span> };<br/></span>console.log(<span>"anakin"</span><span>, anakin);<br/><br/></span>anakin[<span>"age"</span><span>] </span><span>=</span><span> </span><span>"17"</span><span>;<br/></span>console.log(<span>"anakin with age"</span><span>, anakin);<br/><br/></span>// the Redux way<br/>let<span> anakinImmutable </span><span>=</span><span> { name: </span><span>"anakin"</span><span> };<br/></span>let<span> anakinImmutableWithAge </span><span>=</span><span> Object.assign({}, anakinImmutable, { age: </span><span>17</span><span> });<br/><br/></span>console.log(<span>"anakin redux"</span><span>, anakinImmutable);<br/></span>console.log(<span>"anakin redux with age"</span><span>, anakinImmutableWithAge);</span></pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using reducers</h1>
+                </header>
+            
+            <article>
+                
+<p>In the previous section, we covered how to change state in the old way and how to do it in the new Redux-like way. The reducers are nothing more than pure functions; pure in the sense that they don't mutate but produce a new state. A reducer needs an action to work though. Let's deepen our knowledge on Reducers and Actions. Let's create an action meant to add things to a list and a reducer that goes with it:</p>
+<pre>// core-concepts/jedilist-reducer.js<br/><br/>let actionLuke = { type: "ADD_ITEM", payload: { name: "Luke" } };<br/>let actionVader = { type: "ADD_ITEM", payload: "Vader" }; <br/><br/>function jediListReducer(state = [], action) {<br/>  switch(action.type) {<br/>    case "ADD_ITEM": <br/>      return [... state, action.payload];<br/>    default: <br/>      return state;<br/>  }<br/>}<br/><br/>let state = jediListReducer([], actionLuke);<br/>console.log(state);<br/>/*<br/>[{ name: 'Luke '}]<br/>*/<br/><br/>state = jediListReducer(state, actionVader);<br/>console.log(state);<br/>/*<br/>[{ name: 'Luke' }, { name: 'Vader' }] <br/>*/<br/><br/>module.exports = jediListReducer;</pre>
+<p>OK, so know we know how to deal with lists; what about objects? We again need to define an action and a reducer:</p>
+<pre>// core-concepts/selectjedi-reducer.js<br/><br/>let actionPerson = { type: "SELECT_JEDI", payload: { id: 1, name: "Luke" } };<br/>let actionVader = { type: "SELECT_JEDI", payload: { id: 2, name: "Vader" } };<br/><br/>function selectJediReducer({}, action) {<br/>  switch (action.type) {<br/>    case "SELECT_JEDI":<br/>      return Object.assign({}, action.payload);<br/>    default:<br/>      return state;<br/>  }<br/>}<br/><br/>state = selectJediReducer({}, actionPerson);<br/>console.log(state);<br/>/*<br/>{ name: 'Luke' }<br/>*/<br/><br/>state = selectJediReducer(state, actionVader);<br/>console.log(state);<br/>/*<br/>{ name: 'Vader' }<br/>*/<br/><br/>module.exports = selectJediReducer;</pre>
+<p>What we see here is how one object completely replaces the content of another object by invoking <kbd>SELECT_JEDI</kbd>. We also see how we use  <kbd>Object.assign()</kbd> to ensure we only copy over the values from the incoming object.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Merging all reducers together</h1>
+                </header>
+            
+            <article>
+                
+<p>OK, so we now have a reducer for handling our list of <kbd>jedis</kbd> as well as a reducer dedicated to handling selections of a specific <kbd>jedis</kbd>. We mentioned before that, in Redux, we have a single store where all our data lives. Now it's time to create that single store. This can be easily accomplished by creating the following function <kbd>store()</kbd>:</p>
+<pre>// core-concepts/merged-reducers.js<br/><br/>function store(state = { jedis: [], selectedJedi: null }, action) {<br/>  return {<br/>    jedis: jediListReducer(state.jedis, action),<br/>    selectedJedi: selectJediReducer(state.selectedJedi, action)<br/>  };<br/>}<br/><br/>let newJediActionYoda = { type: "ADD_ITEM", payload: { name: "Yoda"} };<br/>let newJediActionVader = { type: "ADD_ITEM", payload: { name: "Vader"} };<br/>let newJediSelection = { type: "SELECT_JEDI", payload: { name: "Yoda"} };<br/><br/>let initialState = { jedis: [], selectedJedi: {} };<br/><br/>let state = store(initialState, newJediActionYoda);<br/>console.log("Merged reducers", state);<br/>/*<br/>  { <br/>    jedis: [<strong>{ name: 'Yoda' }</strong>], <br/>    selectedJedi: {} <br/>  }<br/>*/<br/><br/>state = store(state, newJediActionVader);<br/>console.log("Merged reducers", state);<br/>/*<br/> { <br/>   jedis: [{ name 'Yoda' }, <strong>{name: 'Vader'}</strong>], <br/>   selectedJedi: {} <br/> }<br/>*/<br/><br/>state = store(state, newJediSelection);<br/>console.log("Merged reducers", state);<br/><br/>console.log(state);<br/>/*<br/>{<br/>  jedis: [{ name: 'Yoda' }, { name: 'Vader'}],<br/>  <strong>selectedJedi: { name: 'Yoda' }</strong><br/>}<br/>*/</pre>
+<p>From what we can see here, our <kbd>store()</kbd> function does nothing more than return an object. The returned object is our current state. What we choose to call the properties of the state object is what we want to refer to when displaying the content of the store. If we want to change the state of our store, we need to invoke the <kbd>store()</kbd> function anew and provide it with an action that represents the intent of our change.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Data flow</h1>
+                </header>
+            
+            <article>
+                
+<p>OK, so we know about actions, reducers, and manipulating the state in a pure way. What about putting all this in practice in a real application? How would we do that? Let's try to model the data flow of our application. Imagine that we have a view that handles adding an item to a list and a view that handles showing the list. Then, our data flow could look like the following:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-252 image-border" src="assets/a7ea7fcf-2e7a-4661-b129-b18afa23b745.png" style=""/></div>
+<p>In the case of the create item view, we enter the data we need to create an item and then we dispatch an action, create-item, which ends up adding the item to the store. In our other data flow, we simply have a list view that selects the items from the store, which leads to the list view being populated. We realize that in a real application there may be the following steps:</p>
+<ol>
+<li>User interaction</li>
+<li>Creation of an action that represents our intent</li>
+<li>Dispatching an action, which leads to our state changing its state</li>
+</ol>
+<p>The preceding steps are true for our create item view. For our list view, we simply want to read from a store and display the data. Let's try to make this more tangible and turn at least the Redux part into actual code.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Creating the action</h1>
+                </header>
+            
+            <article>
+                
+<p>We will start by creating an action creator, a helper function that helps us create actions:</p>
+<pre>// dataflow/actions.js<br/><br/>export function createItem(title){<br/>  return { type: "CREATE_ITEM", payload: { title: title } };<br/>}</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Creating a controller class – create-view.js</h1>
+                </header>
+            
+            <article>
+                
+<p>Now imagine that we are inside the code of the view that handles creating items; it may look something like this:</p>
+<pre>// dataflow/create-view.js<br/><br/>import<span> { createItem } </span><span>from</span><span> </span><span>"./actions"</span><span>;<br/></span>import<span> { <strong>dispatch</strong>, select } </span><span>from</span><span> </span><span>"./redux"</span><span>;<br/><br/></span>console.log(<span>"create item view has loaded"</span><span>);<br/></span><br/>class<span> CreateItemView {<br/></span>  <strong>saveItem()</strong> {<br/>    const<span> elem </span><span>=</span><span> document.getElementById(</span><span>"input"</span><span>);<br/></span>    <strong>dispatch</strong>(createItem(elem.value));<br/>    const<span> items </span><span>=</span><span> select(</span><span>"items"</span><span>);<br/></span>    console.log(items);<br/>  }<br/>}<br/><br/>const<span> button </span><span>=</span><span> document.getElementById(</span><span>"saveButton"</span><span>);<br/></span>const<span> createItemWiew </span><span>=</span><span> </span><span>new</span><span> CreateItemView();<br/></span><br/>button.addEventListener(<span>"click"</span><span>, createItemWiew<strong>.saveItem</strong>);<br/></span><br/>export<span> </span><span>default</span><span> createItemWiew;</span></pre>
+<p>OK, so, in our <kbd>create-view.js</kbd> file we create a <kbd>CreateItemView</kbd> class that has a method <kbd>saveItem()</kbd> method on it. The <kbd>saveItem()</kbd> method is the first responder to a button click on a button with the ID <kbd>saveButton</kbd>. When the button is clicked, our <kbd>saveItem()</kbd>   method is invoked, which ends up calling our dispatch function with the <kbd>createItem()</kbd> action method, which in turn is using the input elements value as input, like so:</p>
+<pre>dispatch(createItem(elem.value));</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Creating a store implementation</h1>
+                </header>
+            
+            <article>
+                
+<p>We have yet to create the <kbd>dispatch()</kbd> method, so we will do that next:</p>
+<pre>// dataflow/redux.js<br/><br/>export function dispatch(action) {<br/>  // implement this<br/>}</pre>
+<p>What we can see from the preceding code is that we have a <kbd>dispatch()</kbd> function, which is one of the things we export from this file. Let's try to fill in the implementation:</p>
+<pre>// dataflow/redux-stepI.js<br/><br/>// 1)<br/><strong>function itemsReducer(state = [], action) {</strong><br/><strong>  switch(action.type) {</strong><br/><strong>    case "CREATE_ITEM":</strong><br/><strong>      return [...state, Object.assign(action.payload) ];</strong><br/><strong>    default: </strong><br/><strong>      return state;</strong><br/><strong>  }    </strong><br/><strong>}</strong><br/><br/>// 2)<br/><strong>let state = {</strong><br/><strong>  items: []</strong><br/><strong>};</strong><br/><br/>// 3<br/><strong>function store(state = { items: [] }, action) {</strong><br/><strong>  return {</strong><br/><strong>    items: itemsReducer(state.items, action)</strong><br/><strong>  };</strong><br/><strong>}</strong><br/><br/>// 4)<br/><strong>export function getState() {</strong><br/><strong>  return state;</strong><br/><strong>}</strong><br/><br/>// 5)<br/>export function dispatch(action) {<br/>  <strong>state = store(state, action);</strong><br/>}</pre>
+<p>Let's explain what we did there from the top. We first define a reducer 1) called <kbd>itemsReducer</kbd>,  which can produce a new state given a new item. Thereafter, we create a state variable, which is our state 2). This is followed by the <kbd>store()</kbd> function 3), which is a function to set up which property goes together with which reducer. Thereafter, we define a function called <kbd>getState()</kbd> 4), which returns our current state. Lastly, we have our <kbd>dispatch()</kbd> function 5), which just invokes the <kbd>store()</kbd> function with the action we provide it.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Testing out our store</h1>
+                </header>
+            
+            <article>
+                
+<p>Now it is time to put our code to use; first, we will create a <kbd>redux-demo.js</kbd> file to test out our Redux implementation, then we will polish it a bit, and lastly we will use it in the view we created earlier:</p>
+<pre>// dataflow/redux-demo.js<br/><br/>import<span> { dispatch, getState, select, subscribe } </span><span>from</span><span> </span><span>"./redux"</span><span>;<br/></span><br/>const<span> { addItem } </span><span>=</span><span> require(</span><span>"./actions"</span><span>);<br/></span>subscribe(() <span>=&gt;</span><span> {<br/></span>console.log(<span>"store changed"</span><span>);<br/></span>});<br/>console.log(<span>"initial state"</span><span>, getState());<br/></span>dispatch(addItem(<span>"A book"</span><span>));<br/></span>dispatch(addItem(<span>"A second book"</span><span>));<br/></span>console.log(<span>"after dispatch"</span><span>, getState());<br/></span>console.log(<span>"items"</span><span>, select(</span><span>"items"</span><span>));<br/></span><br/>/* <br/>this will print the following<br/><br/>state before: { items: [] }<br/>state after: { items: [{ title: 'a new book'}] }<br/>*/<br/><br/></pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Cleaning up the implementation</h1>
+                </header>
+            
+            <article>
+                
+<p>OK, so our Redux implementation seems to be working. It's time to clean it up a bit. We need to move the reducer out into its own file, like so:</p>
+<pre>// dataflow/reducer.js<br/><br/>function itemsReducer(state = [], action) {<br/>  switch(action.type) {<br/>    case "CREATE_ITEM":<br/>      return [...state, Object.assign(action.payload) ];<br/>    default: <br/>      return state;<br/>  }    <br/>}</pre>
+<p>It's also a good idea to add a <kbd>select()</kbd> function to the store as we sometimes don't want to move a full state back, only part of it. Our list view will benefit from the use of the <kbd>select()</kbd> function. Let's add that next:</p>
+<pre>// dataflow/redux-stepII.js<br/><strong><br/>// this now refers to the reducers.js file we broke out<br/>import { itemsReducer } from "./reducers"</strong><span><strong>;</strong><br/></span><br/>let<span> state </span><span>=</span><span> {<br/></span>  items: []<br/>};<br/><br/>function<span> store(state </span><span>=</span><span> { items: [] }, action) {<br/></span>  return<span> {<br/>   </span>items: itemsReducer(state.items, action)<br/>  };<br/>}<br/><br/>export function<span> getState() {<br/></span>  return<span> state;<br/></span>}<br/><br/>export function<span> dispatch(action) {<br/></span>  state <span>=</span><span> store(state, action);<br/></span>}<br/><br/><strong>export function select(slice) {<br/>  return state[slice];<br/>}</strong></pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Creating our second controller class – list-view.js</h1>
+                </header>
+            
+            <article>
+                
+<p>Let's now shift our focus to our <kbd>list-view.js</kbd> file that we are yet to create:</p>
+<pre>// dataflow/list-view.js<br/><br/>import<span> { createItem } </span><span>from</span><span> </span><span>"./actions"</span><span>;<br/></span>import<span> { select, subscribe } </span><span>from</span><span> </span><span>"./redux"</span><span>;<br/><br/></span>console.log(<span>"list item view has loaded"</span><span>);<br/></span><br/>class<span> ListItemsView {<br/></span>  constructor<span>() {<br/></span>    this.render();<br/>    subscribe(this.render);<br/>  }<br/><br/>  render() {<br/>    const<span> items </span><span>=</span><span> select(</span><span>"items"</span><span>);<br/></span>    const<span> elem </span><span>=</span><span> document.getElementById(</span><span>"list"</span><span>);<br/><br/></span>    elem.innerHTML <span>=</span><span> </span><span>""</span><span>;<br/></span>    items.forEach(item <span>=&gt;</span><span> {<br/></span>      const<span> li </span><span>=</span><span> document.createElement(</span><span>"li"</span><span>);<br/></span>      li.innerHTML <span>=</span><span> item.title;<br/></span>      elem.appendChild(li);<br/>    });<br/>  }<br/>}<br/><br/>const<span> </span><span>listItemsView</span><span> </span><span>=</span><span> </span><span>new</span><span> </span><span>ListItemsView();<br/></span>export<span> </span><span>default</span><span> </span><span>listItemsView;</span></pre>
+<p>OK, so we utilize the <kbd>select()</kbd> method and get a slice of state from our state from the <kbd>redux.js</kbd> file we created. Thereafter, we render the response. As long as these views are on different pages, we will always get the latest version of <kbd>items</kbd> arrays from our state. However, if these views are visible at the same time, then we have a problem.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Adding subscription capability to our store</h1>
+                </header>
+            
+            <article>
+                
+<p>Somehow, the list view needs to listen to changes in the store so that it can rerender when a change happens. A way to do that is, of course, to set up some kind of listener that triggers an event when a change happens. If we, as a view, subscribe to such changes, then we can act accordingly and rerender our view. There are different ways of accomplishing this: we can either just implement an Observable pattern or use a library, such as <kbd>EventEmitter</kbd>. Let's update our <kbd>redux.js</kbd> file to make it so:</p>
+<pre>// dataflow/redux.js<br/><br/>import<span> { itemsReducer } </span><span>from "</span><span>./reducer"</span><span>;<br/></span>import<span> EventEmitter from "</span><span>events"</span><span>;<br/></span>const<span> emitter </span><span>=</span><span> </span><span>new</span><span> EventEmitter();<br/></span><br/>let<span> state </span><span>=</span><span> {<br/></span>  items: []<br/>};<br/><br/>function<span> store(state </span><span>=</span><span> { items: [] }, action) {<br/></span>  return<span> {<br/></span>    items: itemsReducer(state.items, action)<br/>  };<br/>}<br/><br/>export function<span> getState() {<br/></span>  return<span> state;<br/></span>}<br/><br/>export function<span> dispatch(action) {<br/></span>  const<span> oldState </span><span>=</span><span> state;<br/></span>  state <span>=</span><span> store(state, action);<br/></span>  <strong>emitter.emit("changed"</strong><span><strong>);</strong><br/></span>}<br/><br/>export function<span> select(slice) {<br/></span>  return<span> state[slice];<br/></span>}<br/><br/><strong>export function subscribe(cb) {<br/>  emitter.on("changed", cb);<br/>}</strong></pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Creating a program</h1>
+                </header>
+            
+            <article>
+                
+<p>So far, we have created a bunch of files, namely, the following:</p>
+<ul>
+<li><kbd>redux.js</kbd>: Our store implementation.</li>
+<li><kbd>create-view.js</kbd>: A controller that listens to inputs and button presses. The controller will read the input on a button press and dispatch the input's value so it is saved in the store.</li>
+<li><kbd>list-view.js</kbd>: Our second controller, responsible for showing the content of the store.</li>
+<li><kbd>todo-app.js</kbd>: The starter file that creates our entire application (we have yet to create this).</li>
+<li><kbd>index.html</kbd>: The UI for our application (we are yet to create this).</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Setting up our environment</h1>
+                </header>
+            
+            <article>
+                
+<p>Maybe you have noticed that we are using import statements used for ES6 modules? There are many ways to make that work, but we choose a modern option, namely, utilizing webpack. We will need to do the following to set up webpack successfully:</p>
+<ul>
+<li>Install the npm libraries <kbd>webpack</kbd> and <kbd>webpack-cli</kbd></li>
+<li>Create a <kbd>webpack.config.js</kbd> file and specify the entry point of your application</li>
+<li>Add an entry to the <kbd>package.json</kbd> file so that we can build and run our app with a simple <kbd>npm start</kbd></li>
+<li>Add a HTTP server so that we can show the app</li>
+</ul>
+<p>We can install the needed libraries by typing:</p>
+<pre><strong>npm install webpack webpack-cli --save-dev</strong></pre>
+<p>Thereafter, we need to create our <kbd>config</kbd> file, <kbd>webpack.config.js</kbd>, like so:</p>
+<pre>// dataflow/webpack.config.js<br/><br/>module.exports <span>=</span><span> {<br/></span>  entry: <span>"./todo-app.js"</span><span>,<br/></span>  output: {<br/>    filename: <span>"bundle.js"<br/></span>  },<br/>  watch: <span>true<br/></span>};</pre>
+<p>In the preceding code, we are stating that the entry point should be <kbd>todo-app.js</kbd> and also that the output file should be called <kbd>bundle.js</kbd>. We also ensure our bundle will be rebuilt by setting <kbd>watch</kbd> to <kbd>true</kbd>. Let's add the needed entry to <kbd>package.json</kbd> by adding the following to the <kbd>script</kbd> tag:</p>
+<pre>// dataflow/package.json excerpt<br/><br/>"scripts"<span>: {</span><span><br/></span>  "start"<span> : </span><span>"webpack -d"<br/></span>}</pre>
+<p>Here, we are defining a start command that invokes webpack with the flag <kbd>-d</kbd>, which means it will generate source maps, making for a nice debug experience. </p>
+<p>For our last setup step, we need a HTTP server so that we can display our app. Webpack itself has one called, <kbd>webpack-dev-server</kbd>, or we could use <kbd>http-server</kbd>, which is an NPM package. This is a pretty simple application so either will do fine.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Creating the missing files and running our program</h1>
+                </header>
+            
+            <article>
+                
+<p>Our application needs a UI so let's create that:</p>
+<pre class="mce-root">// dataflow/dist/index.html<br/><br/>&lt;<span>html</span><span>&gt;<br/></span>  &lt;<span>body</span><span>&gt;<br/></span><span>    &lt;div&gt;<br/></span>      &lt;<span>input</span><span> </span><span>type</span><span>=</span><span>"text"</span><span> </span><span>id</span><span>=</span><span>"input"</span><span>&gt;<br/>      &lt;button id="saveButton"&gt;Save&lt;/button&gt;<br/>    &lt;/div&gt;<br/></span>    &lt;<span>div</span><span>&gt;<br/></span>      &lt;<span>ul</span><span> </span><span>id</span><span>=</span><span>"list"</span><span>&gt;&lt;/</span><span>ul</span><span>&gt;<br/></span>    &lt;/<span>div</span><span>&gt;<br/></span>    &lt;<span>button</span><span> </span><span>id</span><span>=</span><span>"saveButton"</span><span>&gt;</span><span>Save</span><span>&lt;/</span><span>button</span><span>&gt;<br/></span>    &lt;<span>script</span><span> </span><span>src</span><span>=</span><span>"bundle.js"</span><span>&gt;</span><span>&lt;</span><span>/</span><span>script</span><span>&gt;<br/></span>  &lt;/<span>body</span><span>&gt;<br/></span>&lt;/<span>html</span><span>&gt;</span><span><br/></span></pre>
+<p>So, here we have an input element and a button that we can press to save a new item. This is followed by a list, where our content will be rendered.</p>
+<p>Let's create the <kbd>todo-app.js</kbd> next. It should look like the following:</p>
+<pre>// dataflow/todo-app.js<br/><br/>// import create view<br/>import<span> createView </span><span>from</span><span> </span><span>"./create-view"</span><span>;<br/></span>// import list view<br/>import<span> listView </span><span>from</span><span> </span><span>"./list-view"</span><span>;</span></pre>
+<p>Here, we are requiring in the two controllers so we can collect input as well as displaying store content. Let's try out our application by typing <kbd>npm start</kbd>   in the Terminal window. This will create the <kbd>bundle.js</kbd> file in a dist folder. To display the app, we need to fire up another terminal window and place ourselves in the <kbd>dist</kbd> folder. Your dist folder should consist of the following files:</p>
+<ul>
+<li><kbd>index.html</kbd></li>
+<li><kbd>bundle.js</kbd></li>
+</ul>
+<p>Now we are ready to launch the app by typing <kbd>http-server -p 5000</kbd>. You will be able to find your app at <kbd>http:localhost:5000</kbd> in your browser:</p>
+<div class="CDPAlignCenter CDPAlign"><img src="assets/b4fc348d-1562-40ad-af1f-1438a75d88f7.png" style=""/></div>
+<p>We see our expected application with an input element and a button, and we see our console to the right showing us that both our controllers were loaded. Additionally, we see the content of the items property of our store object, which points to an empty array. This is expected as we haven't added any items to it yet. Let's add an item to our store by adding a value to our input element and pressing the <span class="packt_screen">Save</span> button:</p>
+<div class="CDPAlignCenter CDPAlign"><img src="assets/a880068f-935e-4247-b91b-bece6c20b24a.png" style=""/></div>
+<p>On the right, we can see that our store now contains an item but our UI is not updated. The reason for that is that we don't actually subscribe to changes. We can change that by adding the following piece of code to our list-view.js controller file:</p>
+<pre>// dataflow/list-view.js<br/><br/>import<span> { createItem } </span><span>from</span><span> </span><span>"./actions"</span><span>;<br/></span>import<span> { select, subscribe } </span><span>from</span><span> </span><span>"./redux"</span><span>;<br/><br/></span>console.log(<span>"list item view has loaded"</span><span>);<br/></span><br/>class<span> ListItemsView {<br/></span>  constructor<span>() {<br/></span>    this<span>.render();<br/></span>    <strong>subscribe(this</strong><span><strong>.render);</strong><br/></span>  }<br/><br/>  render() {<br/>    const<span> items </span><span>=</span><span> select(</span><span>"items"</span><span>);<br/></span>    const<span> elem </span><span>=</span><span> document.getElementById(</span><span>"list"</span><span>);<br/></span>    elem.innerHTML <span>=</span><span> </span><span>""</span><span>;<br/>    console.log("items", items);<br/></span>    <span><br/></span>    items.forEach(item <span>=&gt;</span><span> {<br/></span>      const<span> li </span><span>=</span><span> document.createElement(</span><span>"li"</span><span>);<br/></span>      li.innerHTML <span>=</span><span> item.title;<br/></span>      elem.appendChild(li);<br/>    });<br/>  }<br/>}<br/><br/>const<span> listItemsView </span><span>=</span><span> </span><span>new</span><span> ListItemsView();<br/></span>export<span> </span><span>default</span><span> listItemsView;</span></pre>
+<p>Now our app renders as it should and should look something like this, providing that you added a few items:</p>
+<div class="CDPAlignCenter CDPAlign"><img src="assets/5dd99207-9a3c-473f-989b-5a3b6886eb2f.png" style=""/></div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Dealing with asynchronous calls</h1>
+                </header>
+            
+            <article>
+                
+<p>Dispatching actions is always done synchronously. Data is fetched through AJAX asynchronously, so how do we get asynchronous to play well with Redux?</p>
+<p>You should define your Redux states in the following way when setting up an asynchronous call:</p>
+<ul>
+<li>Loading: Here, we have the chance to show a spinner, not render part of the UI, or convey to the user <span>in some other way </span>that the UI is waiting for something </li>
+<li>Data successfully fetched: You should set a state for the fetched data</li>
+<li>Error happened: You should record the error somehow so that you are able to tell the user that an error occurred</li>
+</ul>
+<p>You, by convention, use the word fetch to indicate that you are fetching data. Let's look at an example of what that might look like. First off, let's start by defining the steps we need to take:</p>
+<ol>
+<li>Create a reducer. This should have the ability to set different states depending on whether we are waiting for the response, got the response, or an error happened.</li>
+<li>Create actions. We need a file of actions that supports our states <span>mentioned</span> earlier; creating this is more about convenience.</li>
+</ol>
+<ol start="3">
+<li>Update our <kbd>redux.js</kbd> file to use our new reducer.</li>
+<li>Test our creation out.</li>
+</ol>
+<p>Let's say we are fetching a book from an API. We should have a reducer that looks like the following:</p>
+<pre>// async/book-reducer.js<br/><br/>let initialState = {<br/>  loading: false,<br/>  data: void 0,<br/>  error: void 0<br/>};<br/><br/>const bookReducer = (state = initialState, action) =&gt; {<br/>  switch(action.type) {<br/>    case 'FETCH_BOOK_LOADING':<br/>      return {...state, loading: true };<br/>    case 'FETCH_BOOK_SUCCESS':<br/>      return {...state, data: action.payload.map(book =&gt; ({ ... book })) };<br/>    case 'FETCH_BOOK_ERROR': <br/>      return {...state, error: { ...action.payload }, loading: false }; <br/>  }<br/>}<br/><br/>module.exports = bookReducer;</pre>
+<p>Now that we have covered the reducer bit, let's move on to the creation of actions. It will look like the following:</p>
+<pre>// async/book-actions.js<br/><br/>const<span> fetchBookLoading </span><span>=</span><span> () </span><span>=&gt;</span><span> ({ type: </span><span>'FETCH_BOOK_LOADING'</span><span> });<br/></span>const<span> fetchBookSuccess </span><span>=</span><span> (data) </span><span>=&gt;</span><span> ({ type: </span><span>'FETCH_BOOK_SUCCESS'</span><span>, payload: data });<br/></span>const<span> fetchBookError </span><span>=</span><span> (error) </span><span>=&gt;</span><span> ({ type: </span><span>'FETCH_BOOK_ERROR'</span><span>, payload: error });<br/></span><br/>module.exports <span>=</span><span> {<br/></span>  fetchBookLoading,<br/>  fetchBookSuccess,<br/>  fetchBookError<br/>};</pre>
+<p>Now we need to turn to our <kbd>store</kbd> file and update it:</p>
+<pre>// async/redux.js<br/><br/>const<span> <strong>bookReducer</strong> </span><span>=</span><span> require(</span><span>'./book-reducer'</span><span>);<br/></span>const<span> EventEmitter </span><span>=</span><span> require(</span><span>'events'</span><span>);<br/></span>const<span> emitter </span><span>=</span><span> </span><span>new</span><span> EventEmitter();<br/></span><br/>let<span> state </span><span>=</span><span> {<br/></span><span>  </span>book: {}<br/>};<br/><br/>function store(state = {}, action) {<br/>  return {<br/>    book: bookReducer(state.book, action)<br/>  };<br/>}<br/><br/>function<span> </span><span>getState() {<br/></span>  return<span> </span><span>state;<br/></span>}<br/><br/>function<span> </span><span>dispatch(action) {<br/></span>  const<span> </span><span>oldState</span><span> </span><span>=</span><span> </span><span>state;<br/></span>  state<span> </span><span>=</span><span> </span><span>store(state, action);<br/></span>  emitter.emit(<span>'changed'</span><span>);<br/></span>}<br/><br/>function<span> </span><span>select(slice) {<br/></span>  return<span> </span><span>state[slice];<br/></span>}<br/><br/>function<span> </span><span>subscribe(cb) {<br/></span>  emitter.on(<span>'changed'</span><span>, cb);<br/></span>}<br/><br/>module.exports<span> </span><span>=</span><span> </span><span>{<br/></span>  getState, dispatch, select, subscribe<br/>}</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Creating a demo with Redux and asynchronous</h1>
+                </header>
+            
+            <article>
+                
+<p>Now the time has come to test everything out. What we are interested in here is ensuring that our store state behaves the way we want it to. We want the store to reflect the fact that we are loading the data, receiving the data, and if there is an error, that should be reflected as well. Let's start out by mimicking an AJAX call:</p>
+<pre>const<span> { fetchBookLoading, fetchBookSuccess, fetchBookError } </span><span>=</span><span> require(</span><span>'./book-actions'</span><span>);<br/></span>const<span> { dispatch, getState } </span><span>=</span><span> require(</span><span>'./redux'</span><span>);<br/><br/></span>function<span> fetchBook() {<br/></span>  return<span> </span><span>new</span><span> Promise(resolve </span><span>=&gt;</span><span> {<br/>    </span>setTimeout(() <span>=&gt;</span><span> {<br/></span>      resolve({ title: <span>'A new hope  - the book'</span><span> });<br/></span>    }, <span>1000</span><span>);<br/></span>  })<br/>}</pre>
+<p>As our next order of business, let's set up some logging for the state and dispatch our first action, <kbd>fetchBookLoading</kbd>, which indicates that an AJAX request is underway. This is where, ideally, we would want to reflect this state in the UI and show a spinner or similar:</p>
+<pre>console.log(getState());<br/>// { book: {} }<br/><br/>dispatch(fetchBookLoading());<br/><br/>console.log(getState());<br/>// { book: { <strong>loading: true</strong> } }</pre>
+<p>The last step is about a call to our <kbd>fetchBook()</kbd> method and setting the store state appropriately:</p>
+<pre>async<span> </span><span>function</span><span> main() {<br/></span>try<span> {<br/></span>  const<span> book </span><span>=</span><span> </span><span>await</span><span> fetchBook();<br/></span>  dispatch(fetchBookSuccess(book));<br/>  console.log(getState());<br/>  <br/>  // { book: { data: { title: 'A new hope - the book'}, loading: false } }<br/>} <span>catch</span><span>(err) {<br/></span>  dispatch(fetchBookError(err));<br/>  console.log(getState());<br/><br/></pre>
+<pre>  // { book: { data: undefined, error: { title: 'some error message' } } }<br/>  }<br/>}<br/><br/>main();</pre>
+<p>We have so far described our demo in pieces from top to bottom. The full code should read like this:</p>
+<pre>// async/demo.js<br/><br/>const<span> { fetchBookLoading, fetchBookSuccess, fetchBookError } </span><span>=</span><span> require(</span><span>'./book-actions'</span><span>);<br/></span>const<span> { dispatch, getState } </span><span>=</span><span> require(</span><span>'./redux'</span><span>);<br/><br/></span>function<span> fetchBook() {<br/></span>  return<span> </span><span>new</span><span> Promise(resolve </span><span>=&gt;</span><span> {<br/></span>    setTimeout(() <span>=&gt;</span><span> {<br/></span>      resolve({ title: <span>'A new hope - the book'</span><span> });<br/></span>    }, <span>1000</span><span>);<br/></span>  })<br/>}<br/><br/>console.log(getState());<br/>dispatch(fetchBookLoading());<br/>console.log(getState());<br/><br/>async<span> </span><span>function</span><span> main() {<br/></span>  try<span> {<br/></span>    const<span> book </span><span>=</span><span> </span><span>await</span><span> fetchBook();<br/></span>    dispatch(fetchBookSuccess(book));<br/>    console.log(getState());<br/>  } <span>catch</span><span>(err) {<br/></span>    dispatch(fetchBookError(err));<br/>    console.log(getState());<br/>  }<br/>}<br/><br/>main();</pre>
+<p>As you can see, there is really not much to dealing with asynchronous, you just need to dispatch the suitable state once the asynchronous action has run its course. There are libraries for dealing with asynchronous though. If you are a React user it might be worth looking into Sagas and if Angular is your flavor, then NgRx and effects is your go-to. The reason for separate libraries existing for this is to say that asynchronous interactions, especially AJAX ones, are considered side-effects and as such they are outside the <em>normal</em> flow. Ultimately, it's up to you if you feel you need such a library.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Best practices</h1>
+                </header>
+            
+            <article>
+                
+<p>So far, we have gone through a lot. We have covered principles, core concepts, and even got to build our own Redux implementation. We should be mighty proud of ourselves at this point. There is something we have yet to cover, though, and that is how we use Redux in an optimal way. There are some key rules we can follow.</p>
+<p>Organize your file system optimally. You should not have a few files when building an app but rather many, and usually organized by feature. This leads to the following file setup for a feature:</p>
+<ul>
+<li><strong>Reducer</strong>: We should have one file, per reducer, for this</li>
+<li><strong>Actions</strong>: We should have a file describing all the actions we could possibly dispatch</li>
+<li><strong>View/component file</strong>: This has nothing to do with Redux but, regardless of the framework we go with, we usually have a file describing the component we are trying to build</li>
+</ul>
+<p>There is another aspect that is worth doing as well, and that is optimizing the setup process of our store. The store normally needs to be initialized with a number of reducers. We could write some code that looks like this:</p>
+<pre>const booksReducer = require("./books/reducer");<br/>const personReducer = require("./reducer");<br/><br/>function<span> combineReducers(config) {<br/></span>  const<span> states </span><span>=</span><span> Object.keys(config);<br/></span>  let<span> stateObject </span><span>=</span><span> {};<br/><br/></span>  states.forEach(state <span>=&gt;</span><span> {<br/></span>    stateObject[state] <span>=</span><span> config[state];<br/></span>  });<br/><br/>  return<span> </span><span>stateObject;<br/></span>}<br/><br/><span>const rootReducer = combineReducers({<br/>  books: booksReducer,<br/>  person: personReducer<br/>});<br/><br/>const store = createStore(rootReducer);<br/><br/>store.reduce({ type: "SOME_ACTION", payload: "some data" });</span></pre>
+<p>There is nothing wrong with the setup here, but it you have many features, and a reducer in each, you will end up with a lot of imports, and your call to <kbd>combineReducers()</kbd> will be longer and longer. An approach that will solve that is having each reducer register itself with the <kbd>rootReducer</kbd>. This way, we can switch the following call:</p>
+<pre><span>const rootReducer = combineReducers({<br/>  books: booksReducer,<br/>  person: personReducer<br/>});<br/><br/>const store = createStore(rootReducer);</span></pre>
+<p>It will be switched with this:</p>
+<pre><span>const store = createStore(getRootReducer());</span></pre>
+<p>This forces us to create a new <kbd>root-reducer.js</kbd> file, which will look like the following:</p>
+<pre>// best-practices/root-reducer.js<br/><br/>function<span> combineReducers(config) {<br/></span>  const<span> states </span><span>=</span><span> Object.keys(config);<br/></span>  let<span> stateObject </span><span>=</span><span> {};<br/></span>  <br/>  states.forEach(state <span>=&gt;</span><span> {<br/></span>    stateObject[state] <span>=</span><span> config[state];<br/></span>  });<br/><br/>  return<span> stateObject;<br/></span>}<br/><br/>let<span> rootReducer </span><span>=</span><span> {};<br/></span><br/><strong>function registerReducer(reducer) {<br/>  const entry = combineReducers(reducer);<br/>  rootReducer = { ...rootReducer, ...entry };<br/>}</strong><br/><br/>function<span> getRootReducer() {<br/></span>  return<span> rootReducer;<br/></span>}<br/><br/>module.exports <span>=</span><span> {<br/></span>  registerReducer,<br/>  getRootReducer<br/>};</pre>
+<p>We have highlighted the important part here, the <kbd>registerReducer()</kbd> method, which a reducer can now use to register itself with the <kbd>rootReducer</kbd>. At this point, it's worth going back to our reducer and updating it to use the <kbd>registerReducer()</kbd> method:</p>
+<pre>// best-practies/books/reducer.js<br/><br/>const<span> { registerReducer } </span><span>=</span><span> require(</span><span>'../root-reducer'</span><span>);<br/></span><br/>let<span> initialState </span><span>=</span><span> [];<br/></span><br/>function<span> bookReducer(state </span><span>=</span><span> initialState, action) {<br/></span>  switch<span>(action.type) {<br/></span>    case<span> </span><span>'LIST_BOOKS'</span><span>:<br/></span>      return<span> state;<br/></span>    case<span> </span><span>'ADD_BOOK'</span><span>:<br/></span>      return<span> [</span><span>...</span><span>state, {</span><span>...</span><span>action.payload}];<br/></span>  }<br/>}<br/><br/>registerReducer({ books: bookReducer });</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>This chapter has been a wild ride, going from describing principles to core concepts, to being able to understand and even build our own Redux. Time was spent looking at how to deal with AJAX calls and suitable state patterns for that. We learned that there was really nothing much to it. We finished off the chapter by looking at best practices as well. At this point, we are in a considerably better position to be able to understand and appreciate NgRx because we know its underlying patterns and reasons for existing. We can say farewell to this chapter knowing that we will take on NgRx in the last chapter of the book. The aim is to cover the principles and concepts that govern it, how to use it in practice, and also to cover some necessary tooling that will ensure we become really successful.</p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

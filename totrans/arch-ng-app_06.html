@@ -1,0 +1,745 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Manipulating Streams and Their Values</h1>
+                </header>
+            
+            <article>
+                
+<p>Let's start with a recap of the previous chapter and remind ourselves how far we have come already in understanding RxJS. We learned about concepts such as  <kbd>Observable</kbd>, <kbd>Observer</kbd>, and <kbd>Producer</kbd>, and how they interplay. Furthermore, we got insight into the subscription process so we could actually receive our coveted values. We also looked at how unsubscribing from streams works and in which cases it is necessary to define such a behavior. Lastly, we got our hands dirty by learning how to build a core implementation of RxJS and thereby got to see all those concepts in action. Armed with all that knowledge, we should feel quite confident about the foundation of RxJS, but as was mentioned in the last chapter, we need help from operators to actually do something meaningful with our streams. </p>
+<p>Let's not delay any further and start talking about this chapter. Operators are functions we can call on our streams to perform manipulation in many different ways. Operators are immutable, which makes the stream easy to reason about and will also make it quite easy to test. As you will see throughout this chapter, we will seldom deal with just one stream, but many streams, and it is understanding how to forge and control these streams that allows you to go from thinking it's <em>dark magic</em> to actually being able to apply RxJS when and where you need it.</p>
+<p class="mce-root">In this chapter, we will cover:</p>
+<ul>
+<li>How to use basic operators</li>
+<li>Debugging streams with operators as well as with existing tools</li>
+<li>Digging deeper into different operator categories</li>
+<li>Developing the mindset to solve a problem the Rx way</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Starting out</h1>
+                </header>
+            
+            <article>
+                
+<p>You almost always start out coding with RxJS by creating a stream of static values. Why static values? Well, there is no need to make it unnecessarily complex, and all you really need to start reasoning is an <kbd>Observable</kbd>. As you gradually progress in your problem solving, you might replace the static values with a more appropriate call to an AJAX call, or from another asynchronous source that your values originate from.</p>
+<p>You then start thinking about what you want to achieve. This leads you to consider which operators you might need and in which order you need to apply them. You might also think about how to divide your problem up; this usually means creating more than one stream, where each stream solves a specific problem that connects to the larger problem you are trying to solve.</p>
+<p>Let's start with stream creation and see how we can take our first steps working with streams.</p>
+<p>The following code creates a stream of static values:</p>
+<pre>const staticValuesStream$ = Rx.Observable.of(1, 2, 3, 4);<br/><br/>staticValuesStream$.subscribe(data =&gt; console.log(data)); <br/>// emits 1, 2, 3, 4</pre>
+<p>That is a very basic example of how we can create a stream. We use the <kbd>of()</kbd> creation operator, which takes any number of arguments. All the arguments are emitted, one by one, as soon as there is a subscriber. In the preceding code, we also subscribe to <kbd>staticValuesStream$</kbd> by calling the <kbd>subscribe()</kbd> <span>method </span><span>and passing a function that takes the emitted value as a parameter. </span></p>
+<p>Let's introduce an operator, <kbd>map()</kbd>, which acts like a projection and allows you to change what is being emitted. The <kbd>map()</kbd> operator gets called on each value in the stream before it is emitted. </p>
+<p>You use the <kbd>map()</kbd> operator by supplying it with a function and carrying out a projection, like so:</p>
+<pre>const staticValuesStream$ = <br/>Rx.Observable<br/>  .of(1, 2, 3, 4)<br/>  .map(data =&gt; data + 1); <br/><br/>staticValuesStream$.subscribe(data =&gt; console.log(data))<br/>// emits 2, 3, 4, 5</pre>
+<p>In the preceding code, we have appended the <kbd>map()</kbd> operator to <kbd>staticValuesStream$</kbd> and we apply it to each value before emitting it and incrementing it by one. The resulting data is therefore changed. This is how you append operators to a stream: simply create the stream, or take an existing one, and append the operators one by one. </p>
+<p>Let's add another operator, <kbd>filter()</kbd>, to ensure that we really understand how to work with operators. What does <kbd>filter()</kbd> do. Well, just like the <kbd>map()</kbd> operator, it is applied to each value, but instead of creating a projection, it decides which values will be emitted. <kbd>filter()</kbd> takes a Boolean. Any expression evaluated to <kbd>true</kbd> means the value will be emitted; if <kbd>false</kbd>, the expression will not be emitted.</p>
+<p>You use the <kbd>filter()</kbd> operator in the following way:</p>
+<pre>const staticValuesStream$ = <br/>Rx.Observable<br/>  .of(1, 2, 3, 4)<br/>  .map(data =&gt; data + 1)<br/>  <strong>.filter(data =&gt; data % 2 === 0 );</strong> <br/><br/>staticValuesStream$.subscribe(data =&gt; console.log(data));<br/>// emits 2, 4</pre>
+<p>We add the <kbd>filter()</kbd> <span>operator</span><span> </span><span>by chaining it to the existing </span><kbd>map()</kbd><span> operator. The condition we give our </span><kbd>filter()</kbd><span> operator says to only return</span> <kbd>true</kbd> <span>for values that are divisible by</span> <kbd>2</kbd><span>, that's what the modulus operator does. We know from before that the</span> <kbd>map()</kbd><span>   operator alone ensures that the values</span> <kbd>2</kbd><span>,</span> <kbd>3</kbd> <span>,</span> <kbd>4</kbd><span>, and</span> <kbd>5</kbd> <span>are emitted. These are the values that are now being evaluated by the</span> <kbd>filter()</kbd><span> operator. Out of those four values, only</span> <kbd>2</kbd> <span>and</span> <kbd>4</kbd> <span>fulfill the condition set out by the </span><kbd>filter()</kbd><span> operator.</span></p>
+<p>Of course, when working on a stream and applying operators, things might not always be as simple as the preceding code. It might not be possible to anticipate exactly what gets emitted. For those occasions, we have a few tricks we can use. One such trick is to use the <kbd>do()</kbd> operator, which will allow us to inspect each value without changing it. This gives us ample opportunity to use it for debugging purposes. Depending on where we are in the stream, the <kbd>do()</kbd> operator will output different values. Let's look at different situations where it matters where the <kbd>do()</kbd> operator is applied:</p>
+<pre>const staticValuesStream$ = <br/>Rx.Observable.of(1, 2, 3, 4)<br/>  <strong>.do(data =&gt; console.log(data)) // 1, 2, 3, 4</strong> <br/>  .map(data =&gt; data + 1)<br/>  <strong>.do(data =&gt; console.log(data)) // 2, 3, 4, 5</strong><br/>  .filter(data =&gt; data % 2 === 0 )<br/>  <strong>.do(data =&gt; console.log(data)); // 2, 4 </strong><br/><br/>// emits 2, 4<br/>staticValuesStream$.subscribe(data =&gt; console.log(data))</pre>
+<p>As you can see, just by using the <kbd>do()</kbd> operator, we have a nice way to debug our streams, which becomes necessary as our streams grow in complexity. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding operators</h1>
+                </header>
+            
+            <article>
+                
+<p>So far, we have shown how to create a stream and use some very basic operators on it to change what values get emitted. We also introduced how to inspect your stream without changing it by using the <kbd>do()</kbd> operator. Not all operators are as easy to understand as the <kbd>map()</kbd>, <kbd>filter()</kbd>, and <kbd>do()</kbd> operators. There are different tactics you can use to try to understand what each operator does so you know when to use them. Using the <kbd>do()</kbd> operator is one way, but there is a graphical approach you can take. This approach is known as a marble diagram. It consists of an arrow that represents time passing from left to right. There are circles, or marbles, <span>on this arrow </span>that represent emitted values. The marbles have a value in them, but the distance between the marbles might also describe what is happening over time. A marble diagram usually consists of at least two arrows with marbles on them, as well as an operator. The idea is to represent what happens to a stream when an operator is applied. The second arrow usually represents the resulting stream.</p>
+<p>Here's an example of a marble diagram:</p>
+<div class="CDPAlignCenter CDPAlign"><img src="assets/507d307c-1f03-4121-84f7-72db33991da2.png" style=""/></div>
+<p>Most operators in RxJS are depicted by a marble diagram on the site RxMarbles: <a href="http://rxmarbles.com/">http://rxmarbles.com/</a>. This is a truly great resource to quickly gain an understanding of what operators do. However, to truly understand RxJS you need to code; there is no getting around it. There are different ways of doing that of course. You can easily set up your own project and install RxJS from NPM, refer to it through a CDN link, or you can use a page such as JS Bin (<a href="http://www.jsbin.com">www.jsbin.com</a>), which gives you the ability to easily add RxJS as a library and allows you to start coding straight away. It looks something like this:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-242 image-border" src="assets/369e27bb-a874-4e66-976f-1231b6e63380.png" style=""/></div>
+<p>JS Bin makes it easy to start, but wouldn't it be great if we could combine marble diagrams and JS Bin, and get a graphical representation of what you code, when you code? You can get just that with RxFiddle: <a href="http://rxfiddle.net/">http://rxfiddle.net/</a>. You can enter your code, click <span class="packt_screen">Run</span>, and you are shown a marble diagram of what you just coded, which will look like this:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-243 image-border" src="assets/83235f79-246c-4f3e-be8c-d37e893bc8f8.png" style=""/></div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Stream in a stream</h1>
+                </header>
+            
+            <article>
+                
+<p>We have been looking at different operators that change the values being emitted. There is another different aspect to streams: what if you need to create a new stream from an existing stream? Another good question is: when does such a situation usually occur?  There are plenty of situations, such as:</p>
+<ul>
+<li>Based on a stream of keyUp events, do an AJAX call.</li>
+<li>Count the number of clicks and determine whether the user single, double, or triple-clicked.</li>
+</ul>
+<p>You get the idea; we are starting with one type of stream that needs to turn into another type of stream.</p>
+<p>Let's first have a look at creating a stream and see what happens when we try to create a stream as the result of using an operator:</p>
+<pre>let stream$ = Rx.Observable.of(1,2,3)<br/>  .map(data =&gt; Rx.Observable.of(data));<br/><br/>// Observable, Observable, Observable<br/>stream$.subscribe(data =&gt; console.log(data));</pre>
+<p>At this point, every value that passes through the <kbd>map()</kbd> operator produces a new <kbd>Observable</kbd>. When you subscribe to <kbd>stream$</kbd>, each value that is emitted will be a stream. Your first instinct might be to attach a <kbd>subscribe()</kbd> to each of those values, like this:</p>
+<pre>let stream$ = Rx.Observable<br/>  .of(1,2,3)<br/>  .map(data =&gt; Rx.Observable.of(data))<br/><br/><br/>stream$.subscribe(data =&gt; {<br/>  <strong>data.subscribe(val =&gt; console.log(val))</strong><br/>});<br/><br/>// 1, 2, 3</pre>
+<p>Fight this urge. This will only create code that is hard to maintain. What you want to do is merge all these streams into one so, that you just need one <kbd>subscribe()</kbd>. There is an operator just for that, called <kbd>flatMap()</kbd>. What <kbd>flatMap()</kbd> does is to take your array of streams and turn them into one stream, a metastream. </p>
+<p>It is used in the following way:</p>
+<pre>let stream$ = Rx.Observable.of(1,2,3)<br/>  <strong>.flatMap(data =&gt; Rx.Observable.of(data))</strong><br/><br/>stream$.subscribe(data =&gt; {<br/>  console.log(val);<br/>});<br/><br/>// 1, 2, 3</pre>
+<p>OK, we get it, we don't want a stream of Observables, but rather a stream of values. This operator seems really great. We still aren't quite certain when to use though. Let's make this a bit more realistic. Imagine you have a UI that consists of an input field. The user enters characters into that input field. Imagine that you want to react to one or more characters being entered and, for example, perform an AJAX request as the result of characters being entered. We focus on two things here: how to collect characters being entered and how to perform an AJAX request.</p>
+<p>Let' start with the first thing, capturing characters entered into an input field. For this, we need an HTML page and a JavaScript page. Let's start with the HTML page:</p>
+<pre>&lt;html&gt;<br/>  &lt;body&gt;<br/>    &lt;input<span> </span><span>id</span><span>=</span><span>"input"</span><span> </span><span>type</span><span>=</span><span>"text"</span><span>&gt;<br/>    </span>&lt;script<span> </span><span>src</span><span>=</span><span>"https://unpkg.com/rxjs/bundles/Rx.min.js"</span><span>&gt;</span><span>&lt;</span><span>/script&gt;<br/></span>    &lt;script<span> </span><span>src</span><span>=</span><span>"app.js"</span><span>&gt;</span><span>&lt;</span><span>/script&gt;<br/></span>  &lt;/body&gt;<br/>&lt;/html&gt;<br/><br/></pre>
+<p>This depicts our input element and a script reference to RxJS, as well as a reference to the <kbd>app.js</kbd> file. Then we have <kbd>app.js</kbd> file, where we get a reference to the input element and start listening to keystrokes as soon as they are entered:</p>
+<pre>let<span> </span><span>elem</span><span> </span><span>=</span><span> </span><span>document</span><span>.</span><span>getElementById</span><span>(</span><span>'input'</span><span>);<br/></span>let<span> </span><span>keyStream$</span><span> </span><span>=</span><span> </span><span>Rx</span><span>.</span><span>Observable<br/></span><span>  .</span><span>fromEvent</span><span>(</span><span>elem</span><span>, </span><span>'keyup'</span><span>)<br/>  </span>.<span>map</span><span>( </span><span>ev</span><span> </span><span>=&gt;</span><span> </span><span>ev</span><span>.</span><span>key</span><span>);<br/><br/></span>keyStream$<span>.</span><span>subscribe</span><span>( </span><span>key</span><span> </span><span>=&gt;</span><span> </span><span>console</span><span>.</span><span>log</span><span>(</span><span>key</span><span>));<br/><br/>// emits entered key chars</span></pre>
+<p>Worth highlighting is the fact that we start listening to <kbd>keyup</kbd> events being emitted by calling the <kbd>fromEvent()</kbd> creation operator. Thereafter, we apply the <kbd>map()</kbd> operator to dig out the character value store on <kbd>ev.key</kbd>.  Lastly, we subscribe to the stream. As expected, running this code will lead to characters being typed in the console as soon as you input values in the HTML page.</p>
+<p>Let's make this more tangible by doing an AJAX request based on what we type. For this, we will be using the <kbd>fetch()</kbd> API and an online API called swapi (swapi.com), which contains a collection of APIs containing information on the Star Wars movies. Let's first define our AJAX call and then see how it fits into our existing stream of keys.</p>
+<p>We said we would use <kbd>fetch()</kbd>. It lets us formulate a GET request as simple as this:</p>
+<pre>fetch('https://swapi.co/api/people/1')<br/>  .then(data =&gt; data.json())<br/>  .then(data =&gt; console.log('data', data));</pre>
+<p>Of course, we want to turn this request into an <kbd>Observable</kbd> so that it can play well with our <kbd>keyStream$</kbd>. Fortunately for us, this is easily accomplished through the use of the <kbd>from()</kbd> operator. Let's, however, first rewrite our <kbd>fetch()</kbd> call into a method that's easy to work with. The result of the rewrite looks like this:</p>
+<pre>function<span> </span><span>getStarwarsCharacterStream</span><span>(</span><span>id</span><span>) {<br/></span>  return<span> </span><span>fetch</span><span>(</span><span>'https://swapi.co/api/people/'</span><span> </span><span>+</span><span> </span><span>id</span><span>)<br/>    </span>.<span>then</span><span>(</span><span>data</span><span> </span><span>=&gt;</span><span> </span><span>data</span><span>.</span><span>json</span><span>());<br/></span>}<span><br/></span></pre>
+<p>This code allows us to provide an argument used to construct a URL which we use to fetch some data with AJAX. At this point, we are ready to connect our function to our existing stream. We do that by typing the following:</p>
+<pre>let<span> </span><span>keyStream$</span><span> </span><span>=</span><span> </span><span>Rx</span><span>.</span><span>Observable</span><span>.</span><span>fromEvent</span><span>(</span><span>elem</span><span>, </span><span>'keyup'</span><span>)<br/></span>  .<span>map</span><span>(</span><span>ev</span><span> </span><span>=&gt;</span><span> </span><span>ev</span><span>.</span><span>key</span><span>)<br/></span>  .<span>filter</span><span>(</span><span>key</span><span> </span><span>=&gt;</span><span> </span><span>key</span><span> </span><span>!==</span><span> </span><span>'Backspace'</span><span>)<br/></span><strong>  .flatMap( key =&gt;<br/>    Rx.Observable<br/>      .from(getStarwarsCharacterStream(key))<br/>  );</strong><span><br/></span></pre>
+<p>We highlight the usage of the <kbd>flatmap()</kbd> operator in bold<span> </span><span>using our <kbd>from()</kbd> conversion operator</span><span>. The</span><span> </span><span>operator</span><span> </span><span>mentioned</span><span> </span><span>last takes our</span> <kbd>getStarwarsCharacterStream()</kbd><span> </span><span>function </span><span>as a parameter. The </span><kbd>from()</kbd><span> operator converts said function into a stream. </span></p>
+<p>Here, we have learned how to connect two different streams, but also how to convert a <kbd>Promise</kbd> into a stream. As good as this approach seems on paper, using <kbd>flatMap()</kbd> has its limitations and it is important to understand what they are. For that reason, let's talk about the <kbd>switchMap()</kbd> operator next. The benefits of using a <kbd>switchMap()</kbd> operator will become clearer when we execute long-running tasks. For <span>argument's </span><span>sake, let's define such a task, like so:</span></p>
+<pre>function<span> </span><span>longRunningTask</span><span>(</span><span>input</span><span>) {<br/></span>  return<span> </span><span>new</span><span> </span><span>Promise</span><span>(</span><span>resolve</span><span> </span><span>=&gt;</span><span> {<br/></span>    setTimeout<span>(() </span><span>=&gt;</span><span> {<br/></span>      resolve<span>(</span><span>'response based on '</span><span> </span><span>+</span><span> </span><span>input</span><span>);<br/></span>    }, <span>5000</span><span>);<br/></span>  });<br/>}</pre>
+<p>In this code, we have a function that takes 5 seconds to execute; enough time to show the point we are trying to make.<span> N</span><span>ext,</span><span> let's show what the effect is if we keep using the </span><kbd>flatMap()</kbd><span> operator in the following code:</span></p>
+<pre>let<span> </span><span>longRunningStream$</span><span> </span><span>=</span><span> </span><span>keyStream$<br/></span>  .<span>map</span><span>(</span><span>ev</span><span> </span><span>=&gt;</span><span> </span><span>ev</span><span>.</span><span>key</span><span>)<br/></span>  .<span>filter</span><span>(</span><span>key</span><span> </span><span>=&gt;</span><span> </span><span>elem</span><span>.</span><span>value</span><span>.</span><span>length</span><span> </span><span>&gt;</span><span>3</span><span>)<br/></span>  .<span>filter</span><span>( </span><span>key</span><span> </span><span>=&gt;</span><span> </span><span>key</span><span> </span><span>!==</span><span> </span><span>'Backspace'</span><span>)<br/></span>  .<span>flatMap</span><span>( </span><span>key</span><span> </span><span>=&gt;<br/></span>    Rx<span>.</span><span>Observable<br/></span>      .<span>from</span><span>(</span><span>longRunningTask</span><span>(</span><span>elem</span><span>.</span><span>value</span><span>))<br/></span>  );<br/><br/>longRunningStream$.subscribe(data =&gt; console.log(data));</pre>
+<p>The preceding code works in the following way: every time we hit a key, it generates an event. However, we have a <kbd>.filter()</kbd> operator in place that ensures an event is only generated when at least four keys are entered,   <kbd><span>filter</span><span>(</span><span>key</span> <span>=&gt; </span><span>elem</span><span>.</span><span>value</span><span>.</span><span>length</span> <span>&gt;</span><span>3)</span></kbd><span>. Let's talk about the user's expectation at this point. If a user enters keys in an input control, they most likely expect a request to be made when they are done typing. A user defines being done as entering a few characters and also that they should be able to remove characters if they were mistyped. So, therefore, we can assume the following input sequence:</span></p>
+<pre>// enters abcde<br/>abcde<br/>// removes 'e'</pre>
+<p>At this point, they have entered characters and, within a reasonable amount of time, edited their answer. The user expects to receive an answer based on <kbd>abcd</kbd>. Using the <kbd>flatMap()</kbd> operator, however, means the user will get two answers back because, in reality, they typed <kbd>abcde</kbd> and <kbd>abcd</kbd>. Imagine we get a results list based on these two inputs; it would most likely be two lists that looked somewhat different. The response based on our code would look like this:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-244 image-border" src="assets/28c01006-1de6-4bc6-9a3a-4dde658279ac.png" style=""/></div>
+<p>Our code most likely would be able to handle the<span> </span><span>situation</span><span> </span> described<span> by rerendering the results list as soon as a new response arrives. There are two problems with this though: firstly, we do an unnecessary network request for</span> <kbd>abcde</kbd><span>, and secondly, if the backend is fast enough in responding, we will see a flickering in the UI as the result list is rendered once and then, shortly after, is rendered again, based on the second response. This is not good, and we want to have a situation where the first request will be abandoned if we keep on typing. This is where the </span><kbd>switchMap()</kbd><span> operator comes in. It does exactly that. Let's therefore alter the preceding code to the following:</span></p>
+<pre>let<span> </span><span>longRunningStream$</span><span> </span><span>=</span><span> </span><span>keyStream$<br/></span>  .<span>map</span><span>(</span><span>ev</span><span> </span><span>=&gt;</span><span> </span><span>ev</span><span>.</span><span>key</span><span>)<br/></span>  .<span>filter</span><span>(</span><span>key</span><span> </span><span>=&gt;</span><span> </span><span>elem</span><span>.</span><span>value</span><span>.</span><span>length</span><span> </span><span>&gt;</span><span>3</span><span>)<br/></span>  .<span>filter</span><span>( </span><span>key</span><span> </span><span>=&gt;</span><span> </span><span>key</span><span> </span><span>!==</span><span> </span><span>'Backspace'</span><span>)<br/></span>  <strong>.switchMap( key =&gt;<br/>    Rx.Observable<br/>    .from(longRunningTask(elem.value))<br/>  )</strong>;</pre>
+<p>In this code, we simply switched our <kbd>flatMap()</kbd> to a <kbd>switchMap()</kbd>. When we now execute the code in the exact same way, that is, the user firstly typing <kbd>12345</kbd> and shortly altering that to <kbd>1234</kbd>, the end result is:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-245 image-border" src="assets/4903a7a2-7634-4617-9a3a-a56b3c16ad4a.png" style=""/></div>
+<p>As we can see, we get one request only. The reason for this is that the previous event is aborted when a new event happens—<kbd>switchMap()</kbd> is doing its magic. The user is happy and we are happy.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">AJAX</h1>
+                </header>
+            
+            <article>
+                
+<p>We have already touched upon the topic of making AJAX requests. There are many ways to make AJAX requests; the two most common approaches are:</p>
+<ul>
+<li>Using the fetch API; the fetch API is a web standard and is thus built into most browsers</li>
+<li>Using the <kbd>ajax()</kbd> method, nowadays built into the RxJS library; it used to exist in a library called Rx.Dom</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">fetch()</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>fetch()</kbd> API is a web standard. You can find the official documentation at the following link: <a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API">https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API</a>. The <kbd>fetch()</kbd> API is <kbd>Promise</kbd>-based, which means we need to convert it to an <kbd>Observable</kbd> before use. The API exposes a <kbd>fetch()</kbd> method, which takes a mandatory URL parameter as the first argument, with the second argument being an optional object that allows you to control which body to send, if any, which HTTP verb to use, and so on. </p>
+<p>We have already mentioned how to best deal with it in the context of RxJS. It is worth repeating though. It is not as simple as just taking our fetch and sticking it into the <kbd>from()</kbd> operator though. Let's write some code and see why:</p>
+<pre>let convertedStream$ = <br/>Rx.Observable.from(fetch('some url'));<br/><br/>convertedStream$.subscribe(data =&gt; 'my data?', data);</pre>
+<p>We get our data right? Sorry, no, we get a <kbd>Response</kbd> object back. But that's easy, just call a <kbd>json()</kbd> method in the <kbd>map()</kbd> operator and surely then we have our data? Again, sorry no, the <kbd>json()</kbd> method returns a <kbd>Promise</kbd> when you type the following:</p>
+<pre>let convertedStream$ = Rx.Observable.from(fetch('some url'))<br/>  .map( r=&gt; r.json());<br/><br/>// returns PromiseObservable<br/>convertedStream$.subscribe(data =&gt; 'my data?', data);</pre>
+<p>We have already shown a possible solution to this in the previous section, and that is the following construct:</p>
+<pre>getData() {<br/>  return fetch('some url')<br/>    <strong>.then(r =&gt; r.json());</strong><br/>}<br/><br/>let convertedStream$ = Rx.Observable.from(getData());<br/>convertedStream$.subscribe(data =&gt; console.log('data', data));</pre>
+<p>What we did in this code was to simply take care of digging out our data before handing it over to the <kbd>from()</kbd> operator. It doesn't feel quite RxJS to play around with Promises. There is a more stream-based approach you can take; we were almost there before, we just needed to make a minor adjustment:</p>
+<pre>let convertedStream$ = Rx.Observable.from(fetch('some url'))<br/>  .flatMap( r =&gt; Rx.Observable.from(r.json()));<br/><br/>// returns data<br/>convertedStream$.subscribe(data =&gt; console.log('data'), data);</pre>
+<p> And there it is: our <kbd>fetch()</kbd> call is now providing us data like a stream. So what did we do? Well, we changed our <kbd>map()</kbd> call to a <kbd>flatMap()</kbd> call. The reason for that was that when we called <kbd>r.json()</kbd>, we got a <kbd>Promise</kbd>. We fixed that by wrapping it in a <kbd>from()</kbd> call, <kbd>Rx.Observable.from(r.json())</kbd>. That would make the stream emit a <kbd>PromiseObservable</kbd> unless we changed from <kbd>map()</kbd> to <kbd>flatMap()</kbd>. As we learned in the previous section, if we risk creating a stream within a stream, we need <kbd>flatMap()</kbd> to come to our rescue, which it did. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">ajax() operator</h1>
+                </header>
+            
+            <article>
+                
+<p>Unlike the <kbd>fetch()</kbd> API, which is <kbd>Promise</kbd>-based, the <kbd>ajax()</kbd> method is actually <kbd>Observable</kbd>-based, which makes our job a little easier. Using it is quite straightforward, like so:</p>
+<pre>Rx<span>.</span><span>Observable<br/></span>  .<span>ajax</span><span>(</span><span>'https://swapi.co/api/people/1'</span><span>)<br/></span>  .<span>map</span><span>(</span><span>r </span><span>=&gt;</span><span> </span><span>r</span><span>.</span><span>response</span><span>)<br/></span>  .<span>subscribe</span><span>(</span><span>data</span><span> </span><span>=&gt;</span><span> </span><span>console</span><span>.</span><span>log</span><span>(</span><span>'from ajax()'</span><span>, </span><span>data</span><span>));</span></pre>
+<p>As we can see, the preceding code calls the <kbd>ajax()</kbd> <span>operator </span><span>with a URL as an argument. The second thing worthy of mentioning is the call to the </span><kbd>map()</kbd><span> operator, which digs out our data from the </span><kbd>response</kbd><span> property. Because it is an</span> <kbd>Observable</kbd><span>, we just have to subscribe to it as usual by calling the </span><kbd>subscribe()</kbd><span> method and providing it with a listener function as an argument.</span></p>
+<p>This covers a simple case when you want to fetch data using the HTTP verb <kbd>GET</kbd>. Fortunately for us, it is quite easy to create, update, or delete by using an overloaded version of the <kbd>ajax()</kbd> operator which takes an <kbd>AjaxRequest</kbd> object instance which has the following fields:</p>
+<pre>url<span>?:</span><span> </span><span>string</span><span>;<br/></span>body<span>?:</span><span> </span><span>any</span><span>;<br/></span>user<span>?:</span><span> </span><span>string</span><span>;<br/></span>async<span>?:</span><span> </span><span>boolean</span><span>;<br/></span>method<span>?:</span><span> </span><span>string</span><span>;<br/></span>headers<span>?:</span><span> </span><span>Object</span><span>;<br/></span>timeout<span>?:</span><span> </span><span>number</span><span>;<br/></span>password<span>?:</span><span> </span><span>string</span><span>;<br/></span>hasContent<span>?:</span><span> </span><span>boolean</span><span>;<br/></span>crossDomain<span>?:</span><span> </span><span>boolean</span><span>;<br/></span>withCredentials<span>?:</span><span> </span><span>boolean</span><span>;<br/></span>createXHR<span>?:</span><span> </span><span>()</span><span> </span><span>=&gt;</span><span> </span><span>XMLHttpRequest</span><span>;<br/></span>progressSubscriber<span>?:</span><span> </span><span>Subscriber</span><span>&lt;</span><span>any</span><span>&gt;;<br/></span>responseType<span>?:</span><span> </span><span>string</span><span>;</span></pre>
+<p>As we can see from this object specification, all the fields are optional and there are also quite a few things we can configure with our request, such as <kbd>headers</kbd>, <kbd>timeout</kbd>, <kbd>user</kbd>, <kbd>crossDomain</kbd>, and so on; pretty much what we would expect from a nice AJAX wrapping functionality. Except for the overload of the <kbd>ajax()</kbd> operator, a few shorthand options also exist:</p>
+<ul>
+<li><kbd>get()</kbd>: Fetches data using the <kbd>GET</kbd> verb</li>
+<li><kbd>put()</kbd>: Updates data using the <kbd>PUT</kbd> verb</li>
+<li><kbd>post()</kbd>: Creates data using the <kbd>POST</kbd> verb</li>
+<li><kbd>patch()</kbd>: The idea with using the <kbd>PATCH</kbd> verb is to update a partial resource</li>
+<li><kbd>delete()</kbd>: Removes data using the <kbd>DELETE</kbd> verb</li>
+<li><kbd>getJSON()</kbd>: Fetches data using the <kbd>GET</kbd> verb and sets the response type to <kbd>application/json</kbd></li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Cascading calls</h1>
+                </header>
+            
+            <article>
+                
+<p>So far, we have covered the two main ways you will use AJAX to send or receive data. When it comes to receiving data, it's usually not as simple as fetching the data and rendering it. In fact, you will most likely have a dependency on when you can fetch which data. A typical example of this is needing to perform a login call before you can fetch the remaining data. In some cases, it might be that you need to first log in, then fetch the data of the logged in user, and once you have that you can fetch messages, orders, or whichever kind of data you need that might be specific to a certain user. This whole phenomenon of fetching data in this way is called cascading calls.</p>
+<p>Let's have a look at how we use cascading calls with Promises and gradually learn how to do the same with RxJS. We are taking this little detour as we assume that most of you reading this book are familiar with Promises.</p>
+<p>Let's look at the dependent case we first mentioned, where we need to perform the following steps in this order:</p>
+<ol>
+<li>The user first logs in to the system</li>
+<li> Then we fetch information about the user</li>
+<li>Then we fetch information about the user's orders</li>
+</ol>
+<p>Using promises, it would look something like this in code:</p>
+<pre>// cascading/cascading-promises.js<br/><br/>login()<br/>  .then(getUser)<br/>  .then(getOrders);<br/><br/>// we collect username and password from a form<br/>const<span> login </span><span>=</span><span> (username, password) </span><span>=&gt;</span><span> {<br/></span>  return<span> fetch(</span><span>"/login"</span><span>, {<br/></span>    method: <span>"POST"</span><span>,<br/></span>    body: { username, password }<br/>  })<br/>  .then(r <span>=&gt;</span><span> r.json())<br/></span>  .then(token <span>=&gt;</span><span> {<br/></span>    localStorage.setItem(<span>"auth"</span><span>, token);<br/></span>  });<br/>};<br/><br/>const<span> getUser </span><span>=</span><span> () </span><span>=&gt;</span><span> {<br/></span>  return<span> fetch(</span><span>"/users"</span><span>, {<br/></span>    headers: {<br/>      Authorization: <span>"Bearer "</span><span> </span><span>+</span><span> localStorage.getToken(</span><span>"auth"</span><span>)<br/></span>    }<br/>  }).then(r <span>=&gt;</span><span> r.json());<br/></span>};<br/><br/>const<span> getOrders </span><span>=</span><span> user </span><span>=&gt;</span><span> {<br/></span>  return<span> fetch(</span><span>`/orders/user/</span><span>${</span><span>user.id</span><span>}</span><span>`</span><span>, {<br/></span>    headers: {<br/>      Authorization: <span>"Bearer "</span><span> </span><span>+</span><span> localStorage.getToken(</span><span>"auth"</span><span>)<br/></span>    }<br/>  }).then(r <span>=&gt;</span><span> r.json());<br/></span>};</pre>
+<p>This code describes how we first log in to the system, using the <kbd>login()</kbd> method, and obtain a token. We use this token in any future calls to ensure we make authenticated calls. We also see how we perform the <kbd>getUser()</kbd> call and obtain a user instance. We use that same user instance to perform our last call, <kbd>getOrders()</kbd>, whereby the user ID is used as a routing parameter: <kbd>`/orders/user/${user.id}`</kbd>. </p>
+<p>We have shown how to perform cascading calls using promises; we did this to establish a common ground for the problem we are trying to solve. The RxJS approach is very similar: we have shown that the <kbd>ajax()</kbd> operator exists and makes our lives easier when dealing with AJAX calls. To achieve the cascading calls effect with RxJS, we simply need to use the <kbd>switchMap()</kbd> operator. This will lead <span>to</span><span> </span><span>our code looking like this:</span></p>
+<pre>// cascading/cascading-rxjs.js<br/><br/>let<span> user </span><span>=</span><span> </span><span>"user"</span><span>;<br/></span>let<span> password </span><span>=</span><span> </span><span>"password"</span><span>;<br/><br/></span>login(user, password)<br/>  .switchMap(getUser)<br/>  .switchMap(getOrders);<br/><br/>// we collect username and password from a form<br/>const<span> login </span><span>=</span><span> (username, password) </span><span>=&gt;</span><span> {<br/></span>  return<span> Rx.Observable.ajax(</span><span>"/login"</span><span>, {<br/></span>    method: <span>"POST"</span><span>,<br/></span>    body: { username, password }<br/>  })<br/>  .map(r <span>=&gt;</span><span> r.response)<br/></span>  .do(token <span>=&gt;</span><span> {<br/></span>    localStorage.setItem(<span>"auth"</span><span>, token);<br/></span>  });<br/>};<br/><br/>const<span> getUser </span><span>=</span><span> () </span><span>=&gt;</span><span> {<br/></span>  return<span> Rx.Observable.ajax(</span><span>"/users"</span><span>, {<br/></span>    headers: {<br/>      Authorization: <span>"Bearer "</span><span> </span><span>+</span><span> localStorage.getToken(</span><span>"auth"</span><span>)<br/></span>    }<br/>  }).map(r <span>=&gt;</span><span> r.response);<br/></span>};<br/><br/>const<span> getOrders </span><span>=</span><span> user </span><span>=&gt;</span><span> {<br/></span>  return<span> Rx.Observable.json(</span><span>`/orders/user/</span><span>${</span><span>user.id</span><span>}</span><span>`</span><span>, {<br/></span>    headers: {<br/>      Authorization: <span>"Bearer "</span><span> </span><span>+</span><span> localStorage.getToken(</span><span>"auth"</span><span>)<br/></span>    }<br/>  }).map(r <span>=&gt;</span><span> r.response);<br/></span>};</pre>
+<p>We have highlighted the parts that need changing in the preceding code. In short, the changes are:</p>
+<ul>
+<li><kbd>fetch()</kbd> is replaced by the <kbd>ajax()</kbd> operator</li>
+<li>We call <kbd>.map(r =&gt; r.response)</kbd> instead of <kbd>.then(r =&gt; r.json())</kbd></li>
+<li>We do <kbd>.switchMap()</kbd> calls for each cascading call instead of <kbd>.then(getOrders)</kbd></li>
+</ul>
+<p>There is one more interesting aspect that we need to cover, namely that of parallel calls. When we fetched the user and the order, we waited for a previous call to<span> </span><span>fully</span><span> complete before we initiated the next call. In a lot of cases, this might not be strictly necessary. Imagine that we have a similar case to the previous one, but there is a lot of interesting information surrounding the user that we want to fetch. Instead of just fetching orders, the user might have a friends collection or a collection of messages. The precondition for fetching that data is only that we fetched the user, so we know which collection of friends we should query for and which collection of messages we need. In the world of promises, we would use the </span><kbd>Promise.all()</kbd><span> construct to achieve parallelization. With that in mind, we update our</span> <kbd>Promise</kbd> <span>code to look like this:</span></p>
+<pre>// parallell/parallell-promise.js<br/><br/>// we collect username and password from a form<br/>login(username, password) {<br/>  return new Promise(resolve =&gt; {<br/>    resolve('logged in');<br/>  });<br/>}<br/><br/>getUsersData(user) {<br/>  return Promise.all([<br/>    getOrders(user),<br/>    getMessages(user),<br/>    getFriends(user) <br/>    // not implemented but you get the idea, another call in parallell<br/>  ])<br/>}<br/><br/>getUser() {<br/>  // same as before<br/>}<br/><br/>getOrders(user) {<br/>  // same as before<br/>}<br/><br/>login()<br/>  .then(getUser)<br/>  .then(getUsersData);</pre>
+<p>As we can see from the preceding code, we introduce the new <kbd>getUsersData()</kbd> <span>method, </span><span>which fetches orders, messages, and friends collections in parallel, making our app responsive sooner, as the data will arrive sooner than if we just fetched it one after another.</span></p>
+<p>We can easily achieve the same thing with RxJS by introducing the <kbd>forkJoin()</kbd> operator. It takes a list of streams and fetches everything in parallel. We therefore update our RxJS code to look like the following:</p>
+<pre>// parallell/parallell-rxjs.js<br/><br/>import Rx from 'rxjs/Rx';<br/>// imagine we collected these from a form<br/>let user = 'user';<br/>let password = 'password';<br/><br/>login(user, password)<br/>  .switchMap(getUser)<br/>  .switchMap(getUsersData)<br/><br/>// we collect username and password from a form<br/>login(username, password) {<br/>  // same as before<br/>}<br/><br/>getUsersData(user) {<br/>  return Rx.Observable.forkJoin([<br/>    getOrders(),<br/>    getMessages(),<br/>    getFriends()<br/>  ])<br/>}<br/><br/>getUser() {<br/>  // same as before<br/>}<br/><br/>getOrders(user) {<br/>  // same as before<br/>}<br/><br/>login()<br/>  .then(getUser)<br/>  .then(getUsersData);</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">A deeper look</h1>
+                </header>
+            
+            <article>
+                
+<p>So far, we have had a look at some operators that will let you create streams or change streams with the <kbd>map()</kbd> and <kbd>filter()</kbd> operators, we have learned how to manage different AJAX scenarios, and so on. The basics are there, but we haven't really approached the topic of operators in a structured way. What do we mean by that? Well, operators can be thought of as belonging to different categories. The number of operators at our disposal is a staggering 60 plus. It's going to take us time to learn all that, if we ever do. Here is the thing though: we just need to know which different types of operators exist so that we can apply them where appropriate. This reduces our cognitive load and our memory. Once we know which categories we have, we just have to drill down, and most likely we will end up knowing 10-15 operators in total and the rest we can just look up when we need them. </p>
+<p>Currently, we have the following categories:</p>
+<ul>
+<li><strong>Creation operators</strong>: These operators help us create streams in the first place. Almost anything can be converted into a stream with the help of these operators.</li>
+<li><strong>Combination operators</strong>: These operators help us combine values as well as streams.</li>
+<li><strong>Mathematical operators</strong>: These operators perform mathematical evaluations on the values being emitted.</li>
+<li><strong>Time-based operators</strong>: These operators change at which speed values are emitted.</li>
+<li><strong>Grouping operators</strong>: The idea with these operators is to operate on a group of values rather than individual ones.</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Creation operators</h1>
+                </header>
+            
+            <article>
+                
+<p>We use creation operators to create the streams themselves, because let's face it: what we need to turn into a stream isn't always going to be a stream, but by making it into a stream, it will have to play nicely with other streams and, best of all, will get to leverage the full power of using operators.</p>
+<p>So, what do these other non-streams consist of? Well, it could be anything asynchronous or synchronous. The important thing is that it is data that needs to be emitted at some point. Therefore, a range of creation operators exist. In the coming subsections, we will present a subset of all those that exist, enough for you to realize the power of turning anything into a stream.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">of() operator</h1>
+                </header>
+            
+            <article>
+                
+<p>We have already had the chance to use this operator a few times. It takes an unknown number of comma-separated arguments, which can be integers, strings, or objects. This is an operator you want to use if you just want to emit a limited set of values. To use it, simply type:</p>
+<pre>// creation-operators/of.js<br/><br/>const numberStream$ = Rx.Observable.of(1,2, 3);<br/>const objectStream$ = Rx.Observable.of({ age: 37 }, { name: "chris" });<br/><br/>// emits 1 2 3<br/>numberStream$.subscribe(data =&gt; console.log(data));<br/><br/>// emits { age: 37 }, { name: 'chris' }<br/>objectStream$.subscribe(data =&gt; console.log(data));</pre>
+<p>As can be seen from the code, it really doesn't matter what we place in our <kbd>of()</kbd> operator, it is able to emit it anyway.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">from() operator</h1>
+                </header>
+            
+            <article>
+                
+<p>This operator can take arrays or a <kbd>Promise</kbd> as input and turn them into a stream. To use it, simply call it like this:</p>
+<pre>// creation-operators/from.js<br/><br/>const promiseStream$ = Rx.Observable.from(<br/>  new Promise(resolve =&gt; setTimeout(() =&gt; resolve("data"),3000))<br/>);<br/><br/>const arrayStream$ = Rx.Observable.from([1, 2, 3, 4]);<br/><br/>promiseStream$.subscribe(data =&gt; console.log("data", data));<br/>// emits data after 3 seconds<br/><br/>arrayStream$.subscribe(data =&gt; console.log(data));<br/>// emits 1, 2, 3, 4</pre>
+<p>This saves us a lot of headache by not having to deal with different types of asynchronous calls.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">range() operator</h1>
+                </header>
+            
+            <article>
+                
+<p>This operator lets you specify a range, a number to start from and a number to end on. This is a nice shorthand that quickly lets you create a stream with a range of numbers. To use it, simply type:</p>
+<pre>// creation-operators/range.js<br/><br/>const stream$ = Rx.Observable.range(1,99);<br/><br/>stream$.subscribe(data =&gt; console.log(data));<br/>// emits 1... 99 </pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">fromEvent() operator</h1>
+                </header>
+            
+            <article>
+                
+<p>Now it gets really interesting. The <kbd>fromEvent()</kbd> operator allows us to mix a UI event such as a <kbd>click</kbd> or a <kbd>scroll</kbd> event and turn it into a stream. So far, we have operated under the assumption that asynchronous calls is something that only has to do with AJAX calls. This is far from true. The fact that we can mix UI events with any type of asynchronous calls creates a really interesting situation that allows us to compose really powerful, expressive code. We will touch on this topic further in the coming section, <em>Thinking in streams</em>.</p>
+<p>To use this operator, you need to provide it with two arguments: a DOM element and the name of an event, like so:</p>
+<pre>// creation-operators/fromEvent.js<br/><br/>// we imagine we have an element in our DOM looking like this &lt;input id="id" /&gt;<br/>const elem = document.getElementById("input");<br/>const eventStream$ = Rx.Observable<br/>  .fromEvent(elem, "click")<br/>  .map(ev =&gt; ev.key);<br/><br/>// outputs the typed key<br/>eventStream$.subscribe(data =&gt; console.log(data));</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Combination</h1>
+                </header>
+            
+            <article>
+                
+<p>Combination operators are about combining values from different streams. We have a few operators at our disposal that can help us out. This kind of operator makes sense when we, for some reason, don't have all the data in one place but need to acquire it from more than one place. Combining data structures from different sources could be tedious and error-prone work if it weren't for the powerful operators we are about to describe. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">merge() operator</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>merge()</kbd> operator takes data from different streams and combines it. Here is the thing though: these streams can be of any kind as long as they are of type <kbd>Observable</kbd>. This means we can combine data from a timing operation, a promise, static data from an <kbd>of()</kbd> operator, and so on. What merging does is to interleave the emitted data. This means that it will emit from both streams at the same time in the following example. Using the operator comes in two flavors, as a static method but also as an instance method:</p>
+<pre><span>// combination/merge.js<br/></span><br/>let<span> </span><span>promiseStream</span><span> </span><span>=</span><span> </span><span>Rx</span><span>.</span><span>Observable<br/></span>.<span>from</span><span>(</span><span>new</span><span> </span><span>Promise</span><span>(</span><span>resolve</span><span> </span><span>=&gt;</span><span> </span><span>resolve</span><span>("</span><span>data"</span><span>)))<br/><br/></span>let<span> </span><span>stream</span><span> </span><span>=</span><span> </span><span>Rx</span><span>.</span><span>Observable</span><span>.</span><span>interval</span><span>(500</span><span>).take(3);<br/></span>let<span> </span><span>stream2</span><span> </span><span>=</span><span> </span><span>Rx</span><span>.</span><span>Observable</span><span>.</span><span>interval</span><span>(500</span><span>).take(5);<br/><br/>// instance method version of merge(), emits 0,0, 1,1 2,2 3, 4<br/></span>stream<span>.</span><span>merge</span><span>(</span><span>stream2</span><span>)<br/></span>  .<span>subscribe</span><span>(</span><span>data</span><span> </span><span>=&gt;</span><span> </span><span>console</span><span>.</span><span>log</span><span>("</span><span>merged"</span><span>, </span><span>data</span><span>));<br/><br/>// static version of merge(), emits 0,0, 1,1, 2, 2, 3, 4 and 'data'<br/></span>Rx<span>.</span><span>Observable</span><span>.</span><span>merge</span><span>(<br/></span><span>  </span>stream<span>,<br/>  </span>stream2<span>,<br/>  </span>promiseStream<br/>)<br/>.<span>subscribe</span><span>(</span><span>data</span><span> </span><span>=&gt;</span><span> </span><span>console</span><span>.</span><span>log</span><span>("</span><span>merged static"</span><span>, </span><span>data</span><span>));</span></pre>
+<p>The takeaway here is that if you just need to combine one stream with another, then use the instance method version of this operator, but if you have several streams, then use the static version. Furthermore, the order in which the streams are specified <span>matters</span><span>.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">combineLatest()</h1>
+                </header>
+            
+            <article>
+                
+<p>Imagine you have a situation where you have set up connections with several endpoints that serve you with data. What you care about is the latest data that was emitted from each endpoint. You might be in a situation where one or several endpoints stop sending data after a while and you want to know what the last thing that happened was. In this situation, we want the ability to combine all the latest values from all of the involved endpoints. That's where the <kbd>combineLatest()</kbd> <span>operator </span><span>comes in. You use it in the following way:</span></p>
+<pre>// combination/combineLatest.js<br/><br/>let firstStream$ = Rx.Observable<br/>  .interval(500)<br/>  .take(3);<br/><br/>let secondStream$ = Rx.Observable<br/>  .interval(500)<br/>  .take(5);<br/><br/>let combinedStream$ = Rx.Observable.combineLatest(<br/>  firstStream$,<br/>  secondStream$<br/>)<br/><br/>// emits [0, 0] [1,1] [2,2] [2,3] [2,4] [2,5]<br/>combinedStream$.subscribe(data =&gt; console.log(data));</pre>
+<p>What we can see here is that <kbd>firstStream$</kbd> stops emitting values after a while thanks to the <kbd>take()</kbd> <span>operator, which </span><span>limits the number of items. However, the </span><kbd>combineLatest()</kbd><span> operator ensures we are still given the very last value </span><kbd>firstStream$</kbd><span> emitted. </span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">zip()</h1>
+                </header>
+            
+            <article>
+                
+<p>The point of this operator is to stitch as many values together as possible. We may be dealing with continuous streams, but also with streams that have a limit to the number of values they emit. You use this operator in the following way:</p>
+<pre>// combination/zip.js<br/><br/>let stream$ = Rx.Observable.of(1, 2, 3, 4);<br/>let secondStream$ = Rx.Observable.of(5, 6, 7, 8);<br/>let thirdStream$ = Rx.Observable.of(9, 10); <br/><br/>let zippedStream$ = Rx.Observable.zip(<br/>  stream$,<br/>  secondStream$,<br/>  thirdStream$<br/>)<br/><br/>// [1, 5, 9] [2, 6, 10]<br/>zippedStream$.subscribe(data =&gt; console.log(data))</pre>
+<p>As we can see, here, we stitch values together vertically, and by the least common denominator, <kbd>thirdStream$</kbd> is the shortest, calculating the number of emitted values. This means we will take values from left to right and zip them together. As <kbd>thirdStream$</kbd> only has two values, we end up with only two emits.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">concat()</h1>
+                </header>
+            
+            <article>
+                
+<p>At first look, the <kbd>concat()</kbd> operator looks like another <kbd>merge()</kbd> operator, but this is not entirely true. The difference is that a <kbd>concat()</kbd> waits for other streams to be completed first before emitting a stream from the next stream in order. How you arrange your stream in your call to <kbd>concat()</kbd> matters. The operator is used in the following way:</p>
+<pre>// combination/concat.js<br/><br/>let firstStream$ = Rx.Observable.of(1,2,3,4);<br/>let secondStream$ = Rx.Observable.of(5,6,7,8);<br/><br/>let concatStream$ = Rx.Observable.concat(<br/>  firstStream$,<br/>  secondStream$<br/>);<br/><br/>concatStream$.subscribe(data =&gt; console.log(data));</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Mathematical</h1>
+                </header>
+            
+            <article>
+                
+<p>Mathematical operators are simply operators that carry out mathematical operations on values, such as finding the largest or smallest value, summarizing all values, and so on.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">max</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>max()</kbd> operator finds the largest value. This comes in two flavors: we either just call the <kbd>max()</kbd> <span>operator </span><span>with no arguments, or we give it a</span> <kbd>compare</kbd> <span>function. The</span> <kbd>compare</kbd> <span>function then decides whether something is larger than, smaller than, or equal to an emitted value. Let's have a look at the two different versions:</span></p>
+<pre>// mathematical/max.js<br/><br/>let streamWithNumbers$ = Rx.Observable<br/>  .of(1,2,3,4)<br/>  .max();<br/><br/>// 4<br/>streamWithNumbers$.subscribe(data =&gt; console.log(data)); <br/><br/>function comparePeople(firstPerson, secondPerson) {<br/>  if (firstPerson.age &gt; secondPerson.age) {<br/>    return 1; <br/>  } else if (firstPerson.age &lt; secondPerson.age) {<br/>    return -1;<br/>  } <br/>  return 0;<br/>}<br/><br/>let streamOfObjects$ = Rx.Observable<br/>  .of({<br/>    name : "Yoda",<br/>    age: 999<br/>  }, {<br/>    name : "Chris",<br/>    age: 38 <br/>  })<br/>  .max(comparePeople);<br/><br/>// { name: 'Yoda', age : 999 }<br/>streamOfObjects$.subscribe(data =&gt; console.log(data));</pre>
+<p>We can see in the preceding code that we get one result back and it is the largest one.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">min</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>min()</kbd> operator is pretty much the opposite of the <kbd>max()</kbd> operator; it comes in two flavors: with parameter and without parameter. Its task is to find the smallest value. To use it, type:</p>
+<pre>// mathematical/min.js<br/><br/>let streamOfValues$ = Rx.Observable<br/>  .of(1, 2, 3, 4)<br/>  .min();<br/><br/>// emits 1<br/>streamOfValues$.subscribe(data =&gt; console.log(data));<br/><br/></pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">sum</h1>
+                </header>
+            
+            <article>
+                
+<p>There used to be an operator called <kbd>sum()</kbd>, but it hasn't existed for several versions. What there <span>is</span><span> instead is </span><kbd>.reduce()</kbd><span>. With the </span><kbd>reduce()</kbd><span> operator, we</span> can <span>easily achieve the same thing. The following is how you would write a</span> <kbd>sum()</kbd><span> operator using </span><kbd>reduce()</kbd><span>:</span></p>
+<pre>// mathematical/sum.js<br/><br/>let stream = Rx.Observable.of(1, 2, 3, 4)<br/>  .reduce((acc, curr) =&gt; acc + curr);<br/><br/>// emits 10<br/>stream.subscribe(data =&gt; console.log(data));</pre>
+<p>What this does is to loop through all the emitted values and sum up the results. So, in essence, it sums up everything. Of course, this kind of operator can not only be applied to numbers, but to objects as well. The difference lies in how you carry out the <kbd>reduce()</kbd> operation. The following example covers such a scenario:</p>
+<pre>let stream = Rx.Observable.of({ name : "chris" }, { age: 38 })<br/>  .reduce((acc, curr) =&gt; Object.assign({},acc, curr));<br/><br/>// { name: 'chris', age: 38 }<br/>stream.subscribe(data =&gt; console.log(data)); </pre>
+<p>As you can see from the preceding code, the <kbd>reduce()</kbd> operator ensures that all the object's properties get merged together into one object.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Time</h1>
+                </header>
+            
+            <article>
+                
+<p>Time is a very important concept when talking about streams. Imagine you have multiple streams that have different bandwidths, or one stream is just faster than the other, or you have a scenario where you want to retry an AJAX call within a certain time interval. In all of these situations, we need to control how fast the data is being emitted, and time plays an important role in all these scenarios. At our disposal, we have a ton of operators that, like a magician, enable us to craft and control our values as we see fit.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">interval() operator</h1>
+                </header>
+            
+            <article>
+                
+<p>In JavaScript, there is a <kbd>setInterval()</kbd> function that enables you to execute code at regular intervals, up until the point that you choose to stop it. RxJS has an operator that behaves just like that, the <kbd>interval()</kbd> operator. It takes one parameter: normally, the number of milliseconds between emitted values. You use it in the following way:</p>
+<pre>// time/interval.js<br/><br/>let stream$ = Rx.Observable.interval(1000);<br/><br/>// emits 0, 1, 2, 3 ... n with 1 second in between emits, till the end of time<br/>stream$.subscribe(data =&gt; console.log(data));</pre>
+<p>A word of caution is that this operator will continue emitting until you stop it. The best way to stop it is to combine it with a <kbd>take()</kbd> operator. A <kbd>take()</kbd> operator takes a parameter that specifies how many emitted values it wants before stopping. The updated code looks like this:</p>
+<pre>// time/interval-take.js<br/><br/>let stream$ = Rx.Observable.interval(1000)<br/>  .take(2);<br/><br/>// emits 0, 1, stops emitting thanks to take() operator<br/>stream$.subscribe(data =&gt; console.log(data));</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">timer() operator</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>timer()</kbd> operator has the job of emitting values after a certain amount of time. It comes in two flavors: you either emit just one value after a number of milliseconds, or you keep on emitting values with a certain amount of delay between them. Let's look at the two different flavors available:</p>
+<pre>// time/timer.js<br/><br/>let stream$ = Rx.Observable.timer(1000);<br/><br/>// delay with 500 milliseconds<br/>let streamWithDelay$ = Rx.Observable.timer(1000, 500) <br/><br/>// emits 0 after 1000 milliseconds, then no more<br/>stream$.subscribe(data =&gt; console.log(data));<br/><br/>streamWithDelay$.subscribe(data =&gt; console.log(data));</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">delay() operator</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>delay()</kbd> operator delays all the values being emitted and is used in the following way:</p>
+<pre>// time/delay.js<br/><br/>let stream$ = Rx.Observable<br/>.interval(100)<br/>.take(3)<br/>.delay(500);<br/><br/>// 0 after 600 ms, 1 after 1200 ms, 2 after 1800 ms<br/>stream.subscribe(data =&gt; console.log(data));</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">sampleTime() operator</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>sampleTime()</kbd> operator is used to only emit values after the sample period has passed. A good use case for this is when you want to have a <em>cooldown</em> functionality. Imagine you have users that press a <span class="packt_screen">Save</span> button way too often. It might be that saving takes a few seconds to complete. A way to approach this is to disable the <span class="packt_screen">Save</span> button while saving. Another valid approach is to simply ignore any presses of the button until the operation has had the chance to complete. The following code does just that:</p>
+<pre>// time/sampleTime.js<br/><br/>let<span> </span><span>elem</span><span> </span><span>=</span><span> </span><span>document</span><span>.</span><span>getElementById</span><span>("</span><span>btn"</span><span>);<br/></span>let<span> </span><span>stream$</span><span> </span><span>=</span><span> </span><span>Rx</span><span>.</span><span>Observable<br/></span>  .<span>fromEvent</span><span>(</span><span>elem</span><span>, "</span><span>click"</span><span>)<br/></span>  .<span>sampleTime</span><span>(</span><span>8000</span><span>);<br/></span><br/>// emits values every 8th second<br/>stream$<span>.</span><span>subscribe</span><span>(</span><span>data</span><span> </span><span>=&gt;</span><span> </span><span>console</span><span>.</span><span>log</span><span>("</span><span>mouse clicks"</span><span>,</span><span>data</span><span>));</span><span><br/></span></pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">debounceTime() operator</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>sampleTime()</kbd> operator was able to ignore the user for a certain period of time, but the <kbd>debounceTime()</kbd> operator takes a different approach. Debounce as a concept means that we wait for things to calm down before emitting a value. Imagine an input element that the user types into. The user will stop typing eventually. We want to make sure the user has actually stopped, so we wait for a while before we actually do something. This is what the <kbd>debounceTime()</kbd> operator does for us. The following example shows how we can listen to the user typing into an input element, wait for the user to stop typing, and lastly, perform an AJAX call:</p>
+<pre>// time/debounceTime.js<br/>const<span> </span><span>elem</span><span> </span><span>=</span><span> </span><span>document</span><span>.</span><span>getElementById</span><span>("</span><span>input"</span><span>);<br/></span><br/>let<span> </span><span>stream$</span><span> </span><span>=</span><span> </span><span>Rx</span><span>.</span><span>Observable</span><span>.</span><span>fromEvent</span><span>(</span><span>elem</span><span>, "</span><span>keyup"</span><span>)<br/></span><span>  </span>.<span>map</span><span>( </span><span>ev</span><span> </span><span>=&gt;</span><span> </span><span>ev</span><span>.</span><span>key</span><span>)<br/></span>  .<span>filter</span><span>(</span><span>key</span><span> </span><span>=&gt;</span><span> </span><span>key</span><span> </span><span>!==</span><span> "</span><span>Backspace"</span>)<br/>  <strong>.debounceTime(2000</strong><span><strong>)</strong><br/></span>  .<span>switchMap</span><span>( </span><span>x</span><span> </span><span>=&gt;</span><span> {<br/></span>    return<span> </span><span>new</span><span> </span><span>Rx</span><span>.</span><span>Observable</span><span>.</span><span>ajax</span><span>(</span><span>`https://swapi.co/api/people/</span><span>${</span><span>elem</span><span>.</span><span>value</span><span>}</span><span>`</span><span>);<br/></span>  })<br/>  .<span>map</span><span>(</span><span>r</span><span> </span><span>=&gt;</span><span> </span><span>r</span><span>.</span><span>response</span><span>);<br/><br/></span>stream$<span>.</span><span>subscribe</span><span>(</span><span>data</span><span> </span><span>=&gt;</span><span> </span><span>console</span><span>.</span><span>log</span><span>(</span><span>data</span><span>));</span></pre>
+<p>When the user then types a number in the text box, the keyup event will be triggered after 2 seconds of inactivity. After that, an AJAX call will be carried out using our text box input. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Grouping</h1>
+                </header>
+            
+            <article>
+                
+<p>Grouping operators allow us to operate on a group of collected events rather than one emitted event at a time.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">buffer() operator</h1>
+                </header>
+            
+            <article>
+                
+<p>The idea with the <kbd>buffer()</kbd> operator is that we can collect a bunch of events without them being emitted straight away. The operator itself takes an argument, an <kbd>Observable</kbd> that defines when we should stop collecting events. At that point in time, we can choose what to do with those events. Here is how you can use this operator:</p>
+<pre>// grouping/buffer.js<br/><br/>const<span> </span><span>elem</span><span> </span><span>=</span><span> </span><span>document</span><span>.</span><span>getElementById</span><span>("</span><span>input"</span><span>);<br/></span><br/>let<span> </span><span>keyStream$</span><span> </span><span>=</span><span> </span><span>Rx</span><span>.</span><span>Observable</span><span>.</span><span>fromEvent</span><span>(</span><span>elem</span><span>,"</span><span>keyup"</span><span>);<br/></span>let<span> </span><span>breakStream$</span><span> </span><span>=</span><span> </span><span>keyStream$</span><span>.</span><span>debounceTime</span><span>(</span><span>2000</span><span>);<br/></span>let<span> </span><span>chatStream$</span><span> </span><span>=</span><span> </span><span>keyStream$<br/></span>  .<span>map</span><span>(</span><span>ev</span><span> </span><span>=&gt;</span><span> </span><span>ev</span><span>.</span><span>key</span><span>)<br/></span>  .<span>filter</span><span>(</span><span>key</span><span> </span><span>=&gt;</span><span> </span><span>key</span><span> </span><span>!==</span><span> "</span><span>Backspace"</span><span>)<br/></span>  .<strong>buffer(breakStream$</strong><span><strong>)</strong><br/></span>  .<span>switchMap</span><span>(</span><span>newContent</span><span> </span><span>=&gt;</span><span> </span><span>Rx</span><span>.</span><span>Observable</span><span>.</span><span>of</span><span>("</span><span>send text as I type"</span><span>, </span><span>newContent</span><span>));<br/></span><br/>chatStream$<span>.</span><span>subscribe</span><span>(</span><span>data</span><span>=&gt;</span><span> </span><span>console</span><span>.</span><span>log</span><span>(</span><span>data</span><span>));</span><span><br/></span></pre>
+<p>What this does is to collect events until there has been 2 seconds of inactivity. At that point, we release all the key events we have buffered up. When we release all those events, we can, for example, send them<span> </span><span>somewhere</span><span> via AJAX. This is a typical scenario in a chat application. Using the preceding code, we can always send the latest character that has been typed.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">bufferTime() operator</h1>
+                </header>
+            
+            <article>
+                
+<p>A very similar operator to <kbd>buffer()</kbd> is <kbd>bufferTime()</kbd>. This one lets us specify how long we would like to buffer events for. It is a bit less flexible than <kbd>buffer()</kbd>, but can still be quite useful.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Thinking in streams</h1>
+                </header>
+            
+            <article>
+                
+<p>So far, we have gone through a bunch of scenarios that have shown us which operators are at our disposal and how they can be chained. We have also seen how operators such as <kbd>flatMap()</kbd> and <kbd>switchMap()</kbd> can really change things as we move from one type of observable to another. So, which approach should you take when working with Observables? Obviously, we need to express an algorithm using operators, but where do we start? The first thing we need to do is to think of the start and the end. Which types of events do we want to capture and what should the end result look like? That already gives us a hint as to the number of transformations we need to carry out to get there. If we want to transform the data only, then we can probably make do with a <kbd>map()</kbd> operator and a <kbd>filter()</kbd> operator. If we want to transform from one <kbd>Observable</kbd> to the next, then we need a <kbd>flatMap()</kbd> or a <kbd>switchMap()</kbd>. Do we have a specific behavior, such as waiting for the user to stop typing? If so, then we need to look at <kbd>debounceTime()</kbd> or similar. It's really the same as all problems: break it down, see which parts you have, divide, and conquer. Let's try to break this down into a list of steps though:</p>
+<ul>
+<li>What are the inputs? UI events or something else?</li>
+<li>What are the outputs? The end result?</li>
+<li>Given the second bullet, which transformations do I need to get there?</li>
+<li>Do I deal with more than one stream?</li>
+<li>Do I need to handle errors, and if so, how? </li>
+</ul>
+<p>This has hopefully introduced you to how to think about streams. Remember, start small and work your way toward your goal.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>We set out to learn more about basic operators. In doing so, we encountered the <kbd>map()</kbd> and <kbd>filter()</kbd> operators, which allowed us to control what was being emitted. Knowledge of the <kbd>do()</kbd> operator gave us a way to debug our streams. Furthermore, we learned about the existence of sandboxed environments, such as JS Bin and RxFiddle, and how they can help us to quickly get started with RxJS. AJAX was the next topic that we delved into, and we built an understanding of the different scenarios that might occur. Moving on deeper into RxJS, we looked at different operator categories. We barely scratched the surface on that one, but it offered us a way to approach how to learn which types of operators are in the library. Finally, we finished off this chapter by looking at how to change and develop our mindset to thinking about streams. </p>
+<p>It is with all this acquired knowledge that we are now ready to venture into more advanced Rx topics in the next chapter. We know our basics, now the time has come to master them.</p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

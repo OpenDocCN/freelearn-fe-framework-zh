@@ -1,52 +1,77 @@
 - en: '10'
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: '10'
 - en: Boosting Performance with Reactive Caching
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 通过反应式缓存提升性能
 - en: Caching data and assets is one of the most efficient ways to improve the user
     experience of our web applications. It’s a good way to speed up the load times
     of our web applications and keep the number of network requests to a minimum.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 缓存数据和资源是我们提高Web应用程序用户体验最有效的方法之一。这是一个加快我们Web应用程序加载时间并保持网络请求数量最小化的好方法。
 - en: We will start this chapter by defining the caching requirement for our application’s
     client side and looking at its motivation. Then, we will learn how to implement
     this requirement reactively using RxJS operators. After that, we will describe
     a better way to do this using the latest features of RxJS 7\. Finally, we will
     highlight another use case of caching streams, which is for side effects.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将从这个章节开始，定义我们应用程序客户端的缓存需求及其动机。然后，我们将学习如何使用RxJS操作符反应性地实现这个需求。之后，我们将描述使用RxJS
+    7的最新特性来做这件事的更好方法。最后，我们将强调缓存流的一个其他用途，即用于副作用。
 - en: 'In this chapter, we’re going to cover the following main topics:'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将涵盖以下主要主题：
 - en: Defining the caching requirement
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 定义缓存需求
 - en: Exploring the reactive pattern to cache streams
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 探索使用反应式模式缓存流
 - en: Highlighting the use of caching for side effects
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 强调缓存用于副作用的使用
 - en: Technical requirements
+  id: totrans-8
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术需求
 - en: This chapter assumes that you have a basic understanding of RxJS.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章假设你已对RxJS有基本的了解。
 - en: The source code of this chapter is available at [https://github.com/PacktPublishing/Reactive-Patterns-with-RxJS-and-Angular-Signals-Second-Edition/tree/main/Chap10](https://github.com/PacktPublishing/Reactive-Patterns-with-RxJS-and-Angular-Signals-Second-Edition/tree/main/Chap10).
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章的源代码可在[https://github.com/PacktPublishing/Reactive-Patterns-with-RxJS-and-Angular-Signals-Second-Edition/tree/main/Chap10](https://github.com/PacktPublishing/Reactive-Patterns-with-RxJS-and-Angular-Signals-Second-Edition/tree/main/Chap10)找到。
 - en: Defining the caching requirement
+  id: totrans-11
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 定义缓存需求
 - en: As you have learned throughout the previous chapters, the `HTTPClient` module
     is Observable-based, which means that methods such as `get`, `post`, `put`, and
     `delete` return an Observable. Subscribing multiple times to this Observable will
@@ -55,14 +80,18 @@
     *Demystifying Multicasting*, this means it is a cold Observable. This behavior
     will result in an overhead of HTTP requests, which may decrease the performance
     of your web applications, especially if the server takes some time to respond.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 如你在前几章中学到的，`HTTPClient`模块是基于Observable的，这意味着`get`、`post`、`put`和`delete`等方法返回一个Observable。多次订阅这个Observable会导致源Observable被反复创建，因此每次订阅都会执行一个请求——正如我们在[第9章](B21180_09.xhtml#_idTextAnchor146)，“揭秘多播”中学到的，这意味着它是一个冷Observable。这种行为会导致HTTP请求的开销，这可能会降低你的Web应用程序的性能，尤其是如果服务器响应需要一些时间的话。
 - en: Reducing HTTP requests by caching the result on the client side is one of the
     most commonly used techniques to optimize web applications. **Client-side caching**
     involves storing previously requested data so that you don’t raise repetitive
     requests to the server and harm your application’s performance.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过在客户端缓存结果来减少HTTP请求是优化Web应用程序最常用的技术之一。**客户端缓存**涉及存储之前请求的数据，这样你就不需要向服务器发送重复的请求，从而损害你的应用程序性能。
 - en: Let’s picture this with a streaming service scenario. Imagine that you’re watching
     your favorite TV show on a streaming service. When you start watching, the streaming
     service fetches the episodes from the internet and streams them to your device.
@@ -70,233 +99,339 @@
     the episodes from the internet again, the streaming service has already stored
     the episodes you’ve watched in a special memory bank. This memory bank allows
     you to rewind and rewatch scenes without having to re-fetch them from the internet.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们用一个流媒体服务场景来形象地说明。想象一下，你正在流媒体服务上观看你最喜欢的电视剧。当你开始观看时，流媒体服务从互联网上获取剧集并将它们流式传输到你的设备。现在，假设你想倒退一点，再看一遍某个场景。而不是再次从互联网上获取剧集，流媒体服务已经将你观看过的剧集存储在一个特殊的记忆库中。这个记忆库允许你倒退并重新观看场景，而无需再次从互联网上重新获取。
 - en: But when should we cache data? When data is shared (used by more than one component
     in your app) and doesn’t change frequently, it makes a lot of sense to cache it
     and share it among multiple components. For example, the user’s profile data is
     subject to caching. We generally retrieve the user’s profile information after
     they log in, and it won’t change during the user’s session.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 但我们何时应该缓存数据呢？当数据被共享（在您的应用程序中由多个组件使用）且不经常变化时，缓存数据并在多个组件之间共享它是非常有意义的。例如，用户的个人资料数据适合进行缓存。我们通常在用户登录后检索用户的个人资料信息，并且在用户会话期间它不会发生变化。
 - en: Additionally, reference data, such as lists of countries, currencies, or categories,
     are subjects for caching. Since this doesn’t change frequently, you can cache
     it and share it among multiple components.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，参考数据，如国家列表、货币或类别，也是缓存的主题。由于这些数据不经常变化，您可以将其缓存并在多个组件之间共享。
 - en: In the case of `RecipesApp`, the `/api/recipes` GET request is called every
     time the `RecipesList` component is rendered to load the list of recipes. In other
     words, whenever the user clicks on the recipe app's logo or navigates between
     `HomeComponent` and `RecipeCreationComponent`, a GET request will be issued, even
     if the list of recipes hasn’t changed.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 在`RecipesApp`的情况下，每当`RecipesList`组件被渲染以加载菜谱列表时，都会调用`/api/recipes` GET请求。换句话说，无论何时用户点击菜谱应用的标志或在不同组件`HomeComponent`和`RecipeCreationComponent`之间导航，都会发出GET请求，即使菜谱列表没有变化。
 - en: 'The following screenshot shows the raised requests in the **Network** tab:'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面的屏幕截图显示了**网络**选项卡中的引发请求：
 - en: '![Figure 10.1 – The GET HTTP requests and their overhead](img/B21180_10_1.jpg)'
+  id: totrans-19
   prefs: []
   type: TYPE_IMG
+  zh: '![图10.1 – GET HTTP请求及其开销](img/B21180_10_1.jpg)'
 - en: Figure 10.1 – The GET HTTP requests and their overhead
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 图10.1 – GET HTTP请求及其开销
 - en: As you may have noticed, all those outgoing requests result from the navigation
     between `HomeComponent` and the other components.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 如您所注意到的，所有这些发出的请求都是由于在`HomeComponent`和其他组件之间的导航而产生的。
 - en: In this chapter, we will assume that the list of recipes does not change frequently.
     In this case, it is useless to request the server on every component’s load; it
     would be better to cache the result and read the data from the cache to enhance
     the performance and the user experience.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将假设菜谱列表不经常变化。在这种情况下，在每次组件加载时请求服务器是没有用的；最好是缓存结果并从缓存中读取数据以提高性能和用户体验。
 - en: 'But what if there are new recipes? What about updates? Well, there are two
     techniques we can utilize to handle updates:'
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 但如果出现新的菜谱怎么办？更新怎么办？好吧，我们可以利用两种技术来处理更新：
 - en: We could update the cache data after each interval of time to retrieve the most
     recent version of the data – this technique is called **polling**
+  id: totrans-24
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们可以在每个时间间隔之后更新缓存数据以检索数据的最新版本 – 这种技术称为**轮询**
 - en: We could place a server push notification to get real-time updates instantly
+  id: totrans-25
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们可以放置一个服务器推送通知以立即获取实时更新
 - en: In this chapter, to understand the caching behavior in RxJS through basic examples,
     we will keep it simple and implement a client-side cache with and without a refresh
     capability.
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，为了通过基本示例了解RxJS中的缓存行为，我们将保持简单，并实现具有和没有刷新功能的客户端缓存。
 - en: Note
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: Though we will cover the polling technique in this chapter, we will cover the
     second technique in [*Chapter 11*](B21180_11.xhtml#_idTextAnchor170), *Processing*
     *Real-Time Updates*.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管我们将在本章中介绍轮询技术，但我们将介绍第11章中的第二种技术，*处理实时更新*。
 - en: So, without further ado, let’s look at how we can implement this.
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，无需多言，让我们看看我们如何实现这一点。
 - en: Exploring the reactive pattern to cache streams
+  id: totrans-30
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 探索反应式模式以缓存流
 - en: You’ll be glad to know that RxJS ships with a very useful operator to implement
     a stream caching mechanism – this is the `shareReplay` multicast operator. Let’s
     take a look.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 您会高兴地知道，RxJS附带了一个非常有用的操作符来实现流缓存机制 – 这就是`shareReplay`多播操作符。让我们看看。
 - en: The shareReplay operator
+  id: totrans-32
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: shareReplay 操作符
 - en: In RxJS, `shareReplay` works similarly to the streaming service memory bank,
     sharing an Observable’s execution with multiple subscribers. When you subscribe
     to an Observable that uses `shareReplay`, it fetches the data, just like streaming
     a show. However, `shareReplay` caches or remembers the emitted values from the
     Observable. If you subscribe again later, instead of fetching the data again,
     it replays the cached values from its memory bank.
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 在RxJS中，`shareReplay`的工作方式与流媒体服务的内存银行类似，与多个订阅者共享Observable的执行。当你订阅使用`shareReplay`的Observable时，它会获取数据，就像流式传输一个节目一样。然而，`shareReplay`会缓存或记住Observable发出的值。如果你稍后再次订阅，它不会再次获取数据，而是从其内存银行中重新播放缓存的值。
 - en: This can be useful when you have multiple subscribers to an Observable, but
     you don’t want each subscriber to trigger a new data fetch. Instead, you want
     them to share the same set of data, like multiple viewers sharing the same TV
     show episodes. This can improve performance and reduce unnecessary data fetching
     in your application.
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 当你有多个订阅者订阅Observable，但你不想每个订阅者都触发新的数据获取时，这很有用。相反，你希望他们共享相同的数据集，就像多个观众共享相同的电视剧集一样。这可以提高性能并减少应用程序中不必要的重复数据获取。
 - en: 'So, in a nutshell, the `shareReplay` operator does the following:'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，简而言之，`shareReplay`操作符执行以下操作：
 - en: Shares an Observable’s execution with multiple subscribers
+  id: totrans-36
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 与多个订阅者共享Observable的执行
 - en: Offers the possibility to replay a specified number of emissions to the subscribers
+  id: totrans-37
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 为订阅者提供重新播放指定数量的发射值的可能性
 - en: Now, let’s see how we can use the `shareReplay` operator for our requirement.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，让我们看看我们如何使用`shareReplay`操作符来满足我们的需求。
 - en: Using shareReplay in RecipesApp
+  id: totrans-39
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 在RecipesApp中使用shareReplay
 - en: 'Our goal is to cache the list of recipes in our app. This is represented by
     the `recipes$` stream defined in `RecipesService`, as shown here:'
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的目标是在我们的应用程序中缓存食谱列表。这由`RecipesService`中定义的`recipes$`流表示，如下所示：
 - en: '[PRE0]'
+  id: totrans-41
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'The `recipes$` stream is initially a cold Observable, meaning the stream’s
     data is re-emitted for every subscriber, resulting in an overhead of HTTP requests.
     This is not what we want. We want to share the last stream’s emission with all
     subscribers – in other words, we want to transform the cold stream into a hot
     stream using the `shareReplay` operator, like so:'
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: '`recipes$`流最初是一个冷Observable，这意味着对于每个订阅者，流的数据都会重新发射，这会导致HTTP请求的开销。这不是我们想要的。我们希望与所有订阅者共享最后一个流的发射值——换句话说，我们希望使用`shareReplay`操作符将冷流转换为热流，如下所示：'
 - en: '[PRE1]'
+  id: totrans-43
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: By passing `1` as an argument, `shareReplay` cached the last emission from `recipes$`.
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过传递`1`作为参数，`shareReplay`缓存了`recipes$`的最后一次发射。
 - en: 'Now, let’s explain the complete data-sharing workflow:'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，让我们解释完整的数据共享工作流程：
 - en: First, `HomeComponent` is initialized.
+  id: totrans-46
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 首先，初始化`HomeComponent`。
 - en: Then, `HomeComponent` triggers the rendering of the child component – that is,
     `RecipesListComponent`.
+  id: totrans-47
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 然后，`HomeComponent`触发子组件的渲染——即`RecipesListComponent`。
 - en: '`RecipesListComponent` loads the `recipes$` Observable that’s available in
     `RecipeService`. It will perform the GET HTTP request to retrieve the list of
     recipes since this is the first time we have asked for the data.'
+  id: totrans-48
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`RecipesListComponent`加载`RecipeService`中可用的`recipes$`Observable。它将执行GET HTTP请求以检索食谱列表，因为这是我们第一次请求数据。'
 - en: Then, the cache will be initialized by the data coming back from the server.
+  id: totrans-49
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 然后，缓存将由从服务器返回的数据初始化。
 - en: The next time the data is requested, it will be retrieved from the cache thanks
     to the `shareReplay` operator. Under the hood, the `shareReplay` operator creates
     a `ReplaySubject` instance that will replay the emissions of the source Observable
     with all future subscribers. After the first subscription, it will connect the
     subject to the source Observable and broadcast all its values.
+  id: totrans-50
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 下次请求数据时，它将利用`shareReplay`操作符从缓存中检索。在底层，`shareReplay`操作符创建一个`ReplaySubject`实例，该实例将重新播放源Observable的所有未来订阅者的发射值。在第一次订阅之后，它将连接主题到源Observable并广播所有其值。
 - en: This is the multicasting concept we explained in [*Chapter 9*](B21180_09.xhtml#_idTextAnchor146),
     *Demystifying Multicasting*. The next time we request the recipes list, our cache
     will replay the most recent value and send it to the subscriber. No additional
     HTTP call is involved. So, when the user leaves the page, it unsubscribes and
     replays the values from the cache.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 这就是我们之前在[*第9章*](B21180_09.xhtml#_idTextAnchor146)中解释的多播概念——“揭秘多播”。下次我们请求食谱列表时，我们的缓存将重新播放最新的值并发送给订阅者。不涉及任何额外的HTTP调用。因此，当用户离开页面时，它会取消订阅并从缓存中重新播放值。
 - en: 'The following diagram also illustrates the complete workflow:'
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面的图表也说明了完整的流程：
 - en: '![Figure 10.2 – ShareReplay execution](img/B21180_10_2.jpg)'
+  id: totrans-53
   prefs: []
   type: TYPE_IMG
+  zh: '![图10.2 – ShareReplay执行](img/B21180_10_2.jpg)'
 - en: Figure 10.2 – ShareReplay execution
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 图10.2 – ShareReplay执行
 - en: 'This works perfectly fine when the data doesn’t need to be refreshed at all.
     But as described in the requirement, we need to refresh `RecipesList` every interval.
     If the polling technique is used, we can update the cache like so:'
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 当数据根本不需要刷新时，这工作得非常好。但如要求所述，我们需要每隔一段时间刷新`RecipesList`。如果使用轮询技术，我们可以这样更新缓存：
 - en: '[PRE2]'
+  id: totrans-56
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: Here, we created a `timer$` Observable that will emit every 50 seconds. This
     interval is configured in the `REFRESH_INTERVAL` constant, using the `timer` function
     available in RxJS to create the `timer$` Observable. For more details about the
     `timer` function, please refer to [https://rxjs.dev/api/index/function/timer#examples](https://rxjs.dev/api/index/function/timer#examples).
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们创建了一个每50秒发出一次的`timer$`Observable。这个间隔是在`REFRESH_INTERVAL`常量中配置的，使用RxJS中的`timer`函数创建`timer$`Observable。有关`timer`函数的更多详细信息，请参阅[https://rxjs.dev/api/index/function/timer#examples](https://rxjs.dev/api/index/function/timer#examples)。
 - en: Then, for every emission, we use the `switchMap` operator to transform the value
     into the Observable that’s returned by the HTTP client. This will issue an HTTP
     GET every 50 seconds and, consequently, update the cache.
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，对于每次发出，我们使用`switchMap`操作符将值转换为HTTP客户端返回的Observable。这将每50秒发出一个HTTP GET请求，并相应地更新缓存。
 - en: This is a known RXJS pattern for executing a treatment every *x* seconds.
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是一个已知的RXJS模式，用于每*x*秒执行一次处理。
 - en: Now, let’s see how we can customize the `shareReplay` operator.
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，让我们看看我们如何自定义`shareReplay`操作符。
 - en: Customizing the shareReplay operator
+  id: totrans-61
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 自定义`shareReplay`操作符
 - en: 'With RxJS 6.4.0, a new `shareReplay` signature was provided to customize the
     operator’s behavior. The new signature takes a single `config` parameter of the
     `ShareReplayConfig` type, as follows:'
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 在RxJS 6.4.0中，提供了一个新的`shareReplay`签名来定制操作符的行为。新的签名接受一个`ShareReplayConfig`类型的单个`config`参数，如下所示：
 - en: '[PRE3]'
+  id: totrans-63
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'The `ShareReplayConfig` interface contains the following properties:'
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: '`ShareReplayConfig`接口包含以下属性：'
 - en: '[PRE4]'
+  id: totrans-65
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'Let’s discover the purpose of each property:'
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们了解每个属性的目的：
 - en: '`refCount`: If `refCount` is enabled (set to `true`), the `shareReplay` stream
     will unsubscribe from the source Observable when there are no subscribers. Therefore,
     the source will no longer emit. This means that if a new subscriber comes along
@@ -305,187 +440,273 @@
     meaning that the inner `ReplaySubject` will still be subscribed to the source
     and potentially run forever. To avoid memory issues, it is highly recommended
     to set the `refCount` property to `true`.'
+  id: totrans-67
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`refCount`: 如果启用`refCount`（设置为`true`），当没有订阅者时，`shareReplay`流将取消订阅源Observable。因此，源将不再发出。这意味着如果稍后出现新的订阅者，则将创建一个新的流来订阅源Observable。如果禁用`refCount`（设置为`false`），则不会取消订阅源，这意味着内部的`ReplaySubject`仍然会订阅源，并且可能永远运行。为了避免内存问题，强烈建议将`refCount`属性设置为`true`。'
 - en: '`bufferSize`: This refers to how many values you want to replay. For example,
     if you just want the one previous value to be replayed for each new subscriber
     to the shared stream, then you should mention `1` as a `bufferSize` value like
     so: `shareReplay({bufferSize: 1})`.'
+  id: totrans-68
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`bufferSize`: 这指的是您想要回放多少个值。例如，如果您只想为每个新的共享流订阅者回放一个前一个值，那么您应该将`1`作为`bufferSize`值提及，如下所示：`shareReplay({bufferSize:
+    1})`。'
 - en: '`windowTime`: This refers to the time limit in milliseconds for data stored
     in the buffer to be emitted to future subscribers.'
+  id: totrans-69
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`windowTime`: 这指的是存储在缓冲区中的数据在毫秒内被发出到未来订阅者的时间限制。'
 - en: '`scheduler`: This is used to control the execution and provide a way to manage
     concurrency (for more details, please refer to the official documentation: [https://rxjs.dev/api/index/interface/SchedulerLike](https://rxjs.dev/api/index/interface/SchedulerLike)).'
+  id: totrans-70
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`scheduler`: 这用于控制执行并提供一种管理并发的方式（有关更多详细信息，请参阅官方文档：[https://rxjs.dev/api/index/interface/SchedulerLike](https://rxjs.dev/api/index/interface/SchedulerLike)）。'
 - en: In our case, we need to configure `bufferSize` to `1` to store only the latest
     value and set `refCount` to `true` to prevent memory leaks.
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的案例中，我们需要将`bufferSize`配置为`1`以存储最新的值，并将`refCount`设置为`true`以防止内存泄漏。
 - en: 'So, using the `shareReplayConfig` object, the final code of `RecipesService`
     will look like this:'
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，使用`shareReplayConfig`对象，`RecipesService`的最终代码将如下所示：
 - en: '[PRE5]'
+  id: totrans-73
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: When using `shareReplay` on Observables that don’t complete on their own, always
     consider the `refCount` flag.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 当在不需要自行完成的可观察对象上使用 `shareReplay` 时，始终要考虑 `refCount` 标志。
 - en: Now that we know the behavior of `shareReplay`, I want to shed light on an improvement
     that’s become available starting from RxJS 7 that allows you to replace the `shareReplay`
     operator with the `share` operator.
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 既然我们已经了解了 `shareReplay` 的行为，我想谈谈从 RxJS 7 开始可用的改进，它允许您用 `share` 操作符替换 `shareReplay`
+    操作符。
 - en: Replacing the shareReplay operator with the share operator
+  id: totrans-76
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 用 share 操作符替换 shareReplay 操作符
 - en: The `share` operator is similar to `shareReplay` but, by default, it doesn’t
     have a buffer and it doesn’t replay that buffer on subscription.
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: '`share` 操作符与 `shareReplay` 类似，但默认情况下，它没有缓冲区，并且在订阅时不会重放该缓冲区。'
 - en: With the `share` operator, once the subscriber count reaches `0`, the source
     Observable automatically unsubscribes. On the other hand, when the `refCount`
     option of `shareReplay` is set to `true`, it behaves similarly to the `share`
     operator in terms of reference counting, but it also offers the ability to replay
     emitted values.
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用 `share` 操作符，一旦订阅者计数达到 `0`，源可观察对象将自动取消订阅。另一方面，当 `shareReplay` 的 `refCount`
+    选项设置为 `true` 时，它在引用计数方面与 `share` 操作符的行为相似，但它还提供了重放发射值的能力。
 - en: 'Here’s a table that compares the two:'
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面是一个比较两个操作符的表格：
 - en: '| **Feature** | `share` | `shareReplay` |'
+  id: totrans-80
   prefs: []
   type: TYPE_TB
+  zh: '| **特性** | `share` | `shareReplay` |'
 - en: '| **Behavior** | Creates a multicast Observable. | Creates a multicast Observable.
     |'
+  id: totrans-81
   prefs: []
   type: TYPE_TB
+  zh: '| **行为** | 创建一个多播可观察对象。 | 创建一个多播可观察对象。 |'
 - en: '| **Replaying** | Does not replay the previous emission.It uses `Subjects`
     under the hood. | Replays the latest or a specified number of previous emissions
     to new subscribers.It uses `ReplaySubject` under the hood. |'
+  id: totrans-82
   prefs: []
   type: TYPE_TB
+  zh: '| **重放** | 不重放之前的发射。它使用底层的 `Subjects`。 | 重放最新的或指定数量的之前的发射给新订阅者。它使用底层的 `ReplaySubject`。
+    |'
 - en: '| **Unsubscription logic** | Unsubscribes when the last subscriber unsubscribes.
     | Offers a `refCount` option to unsubscribe when the last subscriber unsubscribes.
     By default, `refCount` is set to `false`. However, if you keep it set to `false`,
     the source Observable will remain active even when the subscriber count reaches
     zero. This situation can be risky because if the source Observable never completes,
     it might lead to memory leaks. |'
+  id: totrans-83
   prefs: []
   type: TYPE_TB
+  zh: '| **取消订阅逻辑** | 当最后一个订阅者取消订阅时取消订阅。 | 提供一个 `refCount` 选项，当最后一个订阅者取消订阅时取消订阅。默认情况下，`refCount`
+    设置为 `false`。但是，如果您将其保持为 `false`，即使订阅者计数达到零，源可观察对象也将保持活跃。这种情况可能存在风险，因为如果源可观察对象永远不会完成，可能会导致内存泄漏。
+    |'
 - en: Figure 10.3 – share and shareReplay comparison table
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 10.3 – share 和 shareReplay 对比表
 - en: 'In RxJS 7, the `share` operator was enhanced with an optional configuration
     object as an argument, `share(config)`, which makes it more flexible and ready
     to do the job of other operators, such as `shareReplay()`. In this configuration
     object, there are four properties:'
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 RxJS 7 中，`share` 操作符通过将可选配置对象作为参数 `share(config)` 进行增强，使其更加灵活，并准备好执行其他操作符的工作，例如
+    `shareReplay()`。在这个配置对象中，有四个属性：
 - en: '`Connector`: With this option, you can control whether or not `share` will
     replay emissions. You can choose the subject type you’re connecting through (such
     as `ReplaySubject`).'
+  id: totrans-86
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`连接器`：使用此选项，您可以控制 `share` 是否重放发射。您可以选择连接的主题类型（例如 `ReplaySubject`）。'
 - en: '`resetOnRefCountZero`: With this option, you can control when your Observable
     should be reset. If this option is enabled and all the subscriptions of our Observable
     are unsubscribed, the Observable is reset. However, if this option is disabled,
     the subject will remain connected to the source.'
+  id: totrans-87
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`resetOnRefCountZero`：使用此选项，您可以控制您的可观察对象何时应该重置。如果此选项启用，并且我们可观察对象的所有订阅都取消订阅，则可观察对象将被重置。然而，如果此选项被禁用，主题将保持连接到源。'
 - en: '`resetOnComplete`: If enabled, the resulting Observable will reset on completion.'
+  id: totrans-88
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`resetOnComplete`：如果启用，结果可观察对象将在完成时重置。'
 - en: '`resetOnError`: If enabled, the resulting Observable will reset after an error.'
+  id: totrans-89
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`resetOnError`：如果启用，结果可观察对象将在错误后重置。'
 - en: So, `shareReplay` is nothing but a `share` operator that uses `ReplaySubject`
     as a connector and a specific reset strategy.
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，`shareReplay` 实际上就是一个使用 `ReplaySubject` 作为连接器和特定重置策略的 `share` 操作符。
 - en: 'The following code shows how we can achieve the behavior of the optimized `shareReplay`
     operator by using the `share` operator instead:'
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下代码展示了如何通过使用 `share` 操作符而不是 `shareReplay` 操作符来实现优化后的 `shareReplay` 操作符的行为：
 - en: '[PRE6]'
+  id: totrans-92
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: The preceding code shows the `share` operator with the same behavior as the
     `shareReplay` operator. This is because we referenced `ReplaySubject` as a connector,
     so we’re telling `share` to use replay logic.
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 上一段代码展示了与`shareReplay`操作符具有相同行为的`share`操作符。这是因为我们将`ReplaySubject`作为连接器进行引用，因此我们告诉`share`使用重放逻辑。
 - en: Then, for the reset strategy, we enabled all the reset options – `resetOnRefCountZero`,
     `resetOnComplete`, and `resetOnError` – to get optimized behavior and enhanced
     performance.
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，对于重置策略，我们启用了所有重置选项——`resetOnRefCountZero`、`resetOnComplete`和`resetOnError`——以获得优化的行为和增强的性能。
 - en: That’s it – by using the `share` operator, we can achieve the same behavior
     as the `shareReplay` operator!
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 就这样——通过使用`share`操作符，我们可以实现与`shareReplay`操作符相同的行为！
 - en: Note
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: Apart from the `shareReplay` operator, a lot of work was done in RxJS 7 to consolidate
     multicasting operators. The `multicast`, `publish`, `publishReplay`, `publishLast`,
     and `refCount` operators were deprecated and will be removed in RxJS 8, and the
     only operators that will remain are `shareReplay`, `share`, and `connectable`.
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了`shareReplay`操作符之外，在RxJS 7中做了大量工作来巩固多播操作符。`multicast`、`publish`、`publishReplay`、`publishLast`和`refCount`操作符已被弃用，并将从RxJS
+    8中移除，唯一保留的操作符是`shareReplay`、`share`和`connectable`。
 - en: As we have seen in this section, the `share` operator rules them all, meaning
     that in most cases, it is highly recommended to use the `share` operator instead
     of `connectable` and `shareReplay`. The `shareReplay` operator is too popular
     to deprecate but may be deprecated in future versions as there is an alternative
     to it, especially because `shareReplay`, when not used carefully, can cause memory
     leaks, particularly with infinite streams.
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如我们在本节中看到的，`share`操作符是万能的，这意味着在大多数情况下，强烈建议使用`share`操作符而不是`connectable`和`shareReplay`。`shareReplay`操作符非常流行，因此不建议弃用，但可能在未来的版本中弃用，特别是因为它有一个替代品，尤其是由于`shareReplay`如果不小心使用，可能会导致内存泄漏，尤其是在无限流的情况下。
 - en: So, if you’re using RxJS 7, it is highly recommended to call the `share` operator
     instead of `shareReplay`.
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，如果你正在使用RxJS 7，强烈建议调用`share`操作符而不是`shareReplay`。
 - en: Now that we’ve learned how we can optimize HTTP requests by caching our data
     using `shareReplay` and `share` operators and have put those operators in place
     in `RecipesApp` to cache the list of recipes, let’s discover another situation
     where caching streams is very useful.
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经学习了如何通过使用`shareReplay`和`share`操作符来缓存我们的数据以优化HTTP请求，并将这些操作符放置在`RecipesApp`中以缓存食谱列表，让我们发现另一个缓存流非常有用的场景。
 - en: Highlighting the use of caching for side effects
+  id: totrans-101
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 突出缓存用于副作用的使用
 - en: The use case we covered in this chapter involved optimizing HTTP requests to
     enhance our web applications’ performance. All you have to do is put the result
     in a cache, which acts as a shared place for all consumers.
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章中我们讨论的使用案例涉及优化HTTP请求以提升我们Web应用的性能。你所要做的就是将结果放入缓存，这个缓存作为所有消费者的共享位置。
 - en: There are other use cases where caching streams makes a lot of sense, namely
     when accounting for expensive side effects on the streams. In general, we call
     the actions that we perform after a value is emitted **side effects**. This could
     be logging, displaying messages, doing a mapping, and so on.
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 存在其他使用场景，其中缓存流非常有意义，特别是当考虑到流上的昂贵副作用时。一般来说，我们称在值发出后执行的操作为**副作用**。这可能是记录、显示消息、执行映射等等。
 - en: 'Here’s an example of a side effect using the `tap` operator:'
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里是一个使用`tap`操作符的副作用示例：
 - en: '[PRE7]'
+  id: totrans-105
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: In the preceding code, we are performing a transformation for every number that’s
     emitted, multiplying it by 2, and returning the multiplied value. If the value
     is not a number, an error is thrown. However, we need to log the initial value
@@ -493,40 +714,57 @@
     `map` operator – so that we can log the original value. This is a basic example
     of a side effect, but others could also occur, such as handling errors or displaying
     messages.
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上一段代码中，我们对每个发出的数字执行转换，将其乘以2，并返回乘积值。如果值不是数字，则会抛出错误。然而，我们需要在转换之前记录初始值。这就是为什么我们在`map`操作符之前调用`tap`操作符的原因——这样我们就可以记录原始值。这是一个基本的副作用示例，但其他副作用也可能发生，例如处理错误或显示消息。
 - en: Note
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: 'For further details about the `tap` operator, please refer to the official
     documentation: [https://rxjs.dev/api/operators/tap](https://rxjs.dev/api/operators/tap).'
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 关于`tap`操作符的更多详细信息，请参阅官方文档：[https://rxjs.dev/api/operators/tap](https://rxjs.dev/api/operators/tap)。
 - en: In some situations, side effects can perform other actions that are more complex
     than logging, such as displaying messaging and handling errors. This can include
     some computations that represent an expensive treatment in terms of performance.
     Unfortunately, every subscriber will execute those treatments, even though it
     is enough to run them only once. Otherwise, it will harm the performance of your
     application.
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: 在某些情况下，副作用可以执行比记录更复杂的其他操作，例如显示消息和处理错误。这可能包括一些代表性能上昂贵处理的计算。不幸的是，每个订阅者都会执行这些处理，即使只需要运行一次就足够了。否则，这会损害你应用程序的性能。
 - en: If you have this use case in your application, it is highly recommended that
     you use the `share` operator to cache the result and execute heavy treatments
     only once.
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你的应用程序中有这种用例，强烈建议你使用`share`操作符来缓存结果，并且只执行一次重处理。
 - en: Summary
+  id: totrans-111
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 摘要
 - en: In this chapter, we explained various caching concepts in web applications,
     including their benefits and use cases. We focused on a concrete example in our
     recipe app, detailed the requirement, and implemented it reactively. Through this,
     we learned about the behavior of the `shareReplay` operator, as well as the alternative
     implementation – that is, using the `share` operator in RxJS 7\. Finally, we highlighted
     how caching can help us when we have heavy side effects in our app.
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们解释了网络应用程序中的各种缓存概念，包括它们的优点和用例。我们以我们的食谱应用为例，详细说明了需求，并实现了它。通过这个过程，我们了解了`shareReplay`操作符的行为，以及替代实现——即在RxJS
+    7中使用`share`操作符。最后，我们强调了缓存如何帮助我们处理应用程序中的重副作用。
 - en: In the next chapter, we will explore the reactive pattern for bulk operations.
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一章中，我们将探讨批量操作的响应式模式。

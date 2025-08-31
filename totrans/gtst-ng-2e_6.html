@@ -1,0 +1,500 @@
+<html><head></head><body><div class="chapter" title="Chapter&#xA0;6.&#xA0;Working with the Angular Router and Forms"><div class="titlepage"><div><div><h1 class="title"><a id="ch06"/>Chapter 6. Working with the Angular Router and Forms</h1></div></div></div><p>By now, we're already familiar with the core of the framework. We know how to define components and directives in order to develop the view of our applications. We also know how to encapsulate business-related logic into services and wire everything together with the DI mechanism of Angular.</p><p>In this chapter, we'll explain a few more concepts that will help us build real-life Angular applications. They are as follows:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">The component-based router of the framework.</li><li class="listitem" style="list-style-type: disc">Using Angular's forms module.</li><li class="listitem" style="list-style-type: disc">Developing custom form validators.</li><li class="listitem" style="list-style-type: disc">Developing template-driven forms.</li></ul></div><p>Let's begin!</p><div class="section" title="Developing the &quot;Coders repository&quot; application"><div class="titlepage"><div><div><h1 class="title"><a id="ch06lvl1sec52"/>Developing the "Coders repository" application</h1></div></div></div><p>Throughout the process of explaining the listed concepts, we'll develop a sample application that contains a repository of developers. Before we start coding, let's discuss the structure of the application.</p><p>The "Coders repository" will allow its users to add developers, either by filling a form with details about them, or by providing the GitHub handle for the developer and importing their profile from GitHub.</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note30"/>Note</h3><p>For the purpose of this chapter, we will store information about the developers in memory, which means that, after the page is refreshed, we'll lose all the data stored during the session.</p></div></div><p>The application will have the following views:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">A list of all the developers.</li><li class="listitem" style="list-style-type: disc">A view for adding or importing new developers.</li><li class="listitem" style="list-style-type: disc">A view that shows the given developer's details. This view has two subviews:<div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc"><span class="strong"><strong>Basic details</strong></span>: Shows the name of the developer and their GitHub avatar if available.</li><li class="listitem" style="list-style-type: disc"><span class="strong"><strong>Advanced profile</strong></span>: Shows all the details known of the developer.</li></ul></div><p>
+</p></li></ul></div><p>The end result of the application's home page will look as follows:</p><p>
+</p><div class="mediaobject"><img alt="Developing the &quot;Coders repository&quot; application" src="graphics/1-1.jpg"/></div><p>
+</p><p>Figure 1</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note31"/>Note</h3><p>In this chapter, we will build only a few of the listed views. The rest of the application will be explained in <a class="link" href="ch07.html" title="Chapter 7. Explaining Pipes and Communicating with RESTful Services">
+Chapter 7</a>, <span class="emphasis"><em>Explaining Pipes and Communicating with RESTful Services</em></span>.</p></div></div><p>Each developer will be an instance of the following class:</p><pre class="programlisting">// ch6/ts/multi-page-template-driven/developer.ts&#13;
+ &#13;
+export class Developer { &#13;
+  public id: number; &#13;
+  public githubHandle: string; &#13;
+  public avatarUrl: string; &#13;
+  public realName: string; &#13;
+  public email: string; &#13;
+  public technology: string; &#13;
+  public popular: boolean; &#13;
+} &#13;
+</pre><p>All the developers will reside within the <code class="literal">DeveloperCollection</code> class:</p><pre class="programlisting">// ch6/ts/multi-page-template-driven/developer_collection.ts &#13;
+&#13;
+class DeveloperCollection { &#13;
+  private developers: Developer[] = [];&#13;
+ &#13;
+  getUserByGitHubHandle(username: string) { &#13;
+    return this.developers &#13;
+            .filter(u =&gt; u.githubHandle === username) &#13;
+            .pop(); &#13;
+  }&#13;
+ &#13;
+  getUserById(id: number) { &#13;
+    return this.developers &#13;
+             .filter(u =&gt; u.id === id) &#13;
+             .pop(); &#13;
+  }&#13;
+ &#13;
+  addDeveloper(dev: Developer) { &#13;
+    this.developers.push(dev); &#13;
+  }&#13;
+ &#13;
+  getAll() { &#13;
+    return this.developers; &#13;
+  } &#13;
+} &#13;
+</pre><p>The classes mentioned here encapsulate a simple business logic and don't have anything Angular-specific, so we won't get into any details.</p><p>Now, let's continue with the implementation by exploring the new router.</p></div></div>
+<div class="section" title="Exploring the Angular router"><div class="titlepage"><div><div><h1 class="title"><a id="ch06lvl1sec53"/>Exploring the Angular router</h1></div></div></div><p>As we already know, in order to bootstrap any Angular application, we need to develop a root NgModule and a bootstrap component. The "Coders repository" application is not any different; the only addition in this specific case is that we will have multiple pages that need to be connected together with the Angular router.</p><p>Let's start with the imports required for the router's configuration and define the root component right after this:</p><pre class="programlisting">// ch6/ts/step-0/app.ts&#13;
+ &#13;
+import {&#13;
+  APP_BASE_HREF,&#13;
+  LocationStrategy,&#13;
+  HashLocationStrategy&#13;
+} from '@angular/common';&#13;
+&#13;
+import {RouterModule} from '@angular/router';&#13;
+</pre><p>In the preceding snippet, we import the <code class="literal">RouterModule</code> directly from <code class="literal">@angular/router</code>; as we can see, the router is externalized outside the framework's core. This module declares all the routing-specific directives, as well as all the routing-related providers, which means that, if we import it, we'll get access to all of them.</p><p>The <code class="literal">LocationStrategy</code> class is an abstract class that defines the common logic between <code class="literal">HashLocationStrategy</code> (used for hash-based routing) and <code class="literal">PathLocationStrategy</code> (used for HTML5-based routing by taking advantage of the history API).(that is, meaningful for the router).</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note32"/>Note</h3><p>
+<code class="literal">HashLocationStrategy</code> does not support server-side rendering, because the hash of the page does not get sent to the server. Since the hash is our application's view identifier, the server will not be aware of the page that needs to be rendered. Fortunately, all modern browsers except IE9 support the HTML5 history API. You can find more about server-side rendering in the final chapter of this book.</p></div></div><p>Now, let's define a bootstrap component and configure the application's root module:</p><pre class="programlisting">// ch6/ts/step-0/app.ts&#13;
+ &#13;
+@Component({&#13;
+  selector: 'app',&#13;
+  template: `...`,&#13;
+  providers: [DeveloperCollection]&#13;
+})&#13;
+class App {}&#13;
+&#13;
+const routeModule = RouterModule.forRoot([...]);&#13;
+&#13;
+@NgModule({&#13;
+  declarations: [App],&#13;
+  bootstrap: [App],&#13;
+  imports: [BrowserModule],&#13;
+  &#13;
+  providers: [{&#13;
+    provide: LocationStrategy,&#13;
+    useClass: HashLocationStrategy&#13;
+  }]&#13;
+})&#13;
+class AppModule {}&#13;
+&#13;
+platformBrowserDynamic().bootstrapModule(AppModule);&#13;
+</pre><p>In the preceding snippet, we can notice a syntax we're already familiar with from <a class="link" href="ch04.html" title="Chapter 4. Getting Started with Angular Components and Directives">
+Chapter 4</a>, <span class="emphasis"><em>Getting Started with Angular Components and Directives</em></span> and <a class="link" href="ch05.html" title="Chapter 5. Dependency Injection in Angular">
+Chapter 5</a>, <span class="emphasis"><em>Dependency Injection in Angular</em></span>. We define a component with an <code class="literal">app</code> selector, <code class="literal">template</code>, which we will take a look at later, and sets of providers and directives.</p><p>The <code class="literal">App</code> component declares a single provider associated with the <code class="literal">DeveloperCollection</code> token. This is the class that contains all of the developers stored by the application. Later, we invoke the <code class="literal">forRoot</code> method of the <code class="literal">RouterModule</code>; this method allows us to configure the router by declaring some of the routes of the application.</p><p>Once we have imported the module, returned as a result of the invocation of <code class="literal">forRoot</code>, we already have access to a set of directives. These directives can help us link to the other routes defined as part of the router's configuration (the <code class="literal">routerLink</code> directive) and declare the place where the components associated with the different routes should be rendered (<code class="literal">router-outlet</code>). We'll explain how we can use them later in this section.</p><p>Now, let's take a look at the configuration of our <code class="literal">AppModule</code>:</p><pre class="programlisting">@NgModule({&#13;
+  declarations: [App],&#13;
+  bootstrap: [App],&#13;
+  imports: [BrowserModule, routeModule],&#13;
+  providers: [{&#13;
+    provide: LocationStrategy,&#13;
+    useClass: HashLocationStrategy&#13;
+  }]&#13;
+})&#13;
+class AppModule {}&#13;
+</pre><p>We add a single declaration-the <code class="literal">App</code> component-that we use for bootstrapping the application. Note that, here, we import not only the <code class="literal">BrowserModule</code>, but also the result returned from the invocation of the <code class="literal">forRoot</code> method of the <code class="literal">RouterModule</code>. In the <code class="literal">providers</code> array, we configure the provider for the <code class="literal">LocationStrategy</code>. The default <code class="literal">LocationStrategy</code> implementation, which Angular uses, is <code class="literal">PathLocationStrategy</code> (that is, the HTML5-based one). However, in this case, we will use the hash-based one.</p><p>When we have to choose between the two location strategies, we should bear in mind that the default location strategy (<code class="literal">PathLocationStrategy</code>) is supported by the server-rendering module of Angular, and the application's URL looks more natural to the end user (there's no <code class="literal">#</code> used). On the other hand, if we use <code class="literal">PathLocationStrategy</code>, we may need to configure our application server in order to work with the HTML5 history API, which is not necessary for <code class="literal">HashLocationStrategy</code>.</p><div class="section" title="Using PathLocationStrategy"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec90"/>Using PathLocationStrategy</h2></div></div></div><p>The <code class="literal">PathLocationStrategy</code> uses <code class="literal">APP_BASE_HREF</code>, which by default has the string <code class="literal">"/"</code> as a value. This means that, in case the base pathname of our application is different, we must set it explicitly, in order to have a properly functioning location strategy. For instance, in our case, the configuration should look as follows:</p><pre class="programlisting">import {APP_BASE_HREF} from '@angular/common'; &#13;
+&#13;
+//... &#13;
+@NgModule({&#13;
+  ...&#13;
+  providers: [{&#13;
+      provide: APP_BASE_HREF,&#13;
+      useValue: '/dist/dev/ch6/ts/multi-page-template-driven/'&#13;
+    },&#13;
+    { provide: LocationStrategy, useClass: HashLocationStrategy }&#13;
+  ]&#13;
+})&#13;
+class AppModule {}&#13;
+</pre><p>
+<code class="literal">APP_BASE_HREF</code> represents the base path of the application. For instance, in our case, the "Coders repository" will be located under the <code class="literal">/dist/dev/ch6/ts/multi-page-template-driven/</code> directory (or, if we include the schema and the host, <code class="literal">http://localhost:5555/dist/dev/ch6/ts/multi-page-template-driven/</code>).</p><p>We will need to provide the value of <code class="literal">APP_BASE_HREF</code> in order to hint to Angular which part of the path is an application route (that is, meaningful for the router). For instance, for the URL <code class="literal">http://localhost:5555/dist/dev/ch6/ts/multi-page-template-driven/<span class="strong"><strong>home</strong></span>
+</code>, by having <code class="literal">APP_BASE_HREF</code> equal to <code class="literal">/dist/dev/ch6/ts/multi-page-template-driven/</code>, Angular will know that it needs to provide the component associated with the <code class="literal">home</code> path since the rest of the URL is not relevant to the declared routes within the application.</p></div><div class="section" title="Configuring routes"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec91"/>Configuring routes</h2></div></div></div><p>As the next step, let's update the routes' declarations. Open <code class="literal">ch6/ts/step-0/app.ts</code> and update the invocation of the <code class="literal">forRoot</code> method of <code class="literal">RouteModule</code>:</p><pre class="programlisting">// ch6/ts/step-1/app.ts &#13;
+&#13;
+const routingModule = RouterModule.forRoot([&#13;
+  {&#13;
+    path: '',&#13;
+    redirectTo: 'home',&#13;
+    pathMatch: 'full'&#13;
+  },&#13;
+  {&#13;
+    path: 'home',&#13;
+    component: Home&#13;
+  },&#13;
+  {&#13;
+    path: 'dev-add',&#13;
+    component: AddDeveloper&#13;
+  },&#13;
+  {&#13;
+    path: 'add-dev',&#13;
+    redirectTo: 'dev-add'&#13;
+  }&#13;
+]);&#13;
+</pre><p>As the preceding snippet shows, the method <code class="literal">forRoot</code> accepts an array of route declarations as an argument. We define two redirects and two routes with components associated with them.</p><p>Each non-lazy-loaded route must define the following properties:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc"><code class="literal">component</code>: The component associated with the given route.</li><li class="listitem" style="list-style-type: disc"><code class="literal">path</code>: The path to be used for the route – it will be visible in the browser's location bar.</li></ul></div><p>On the other hand, the redirect's definition should contain:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc"><code class="literal">path</code>: The path to be used for the redirection.</li><li class="listitem" style="list-style-type: disc"><code class="literal">redirectTo</code>: The path the user will be redirected to.</li><li class="listitem" style="list-style-type: disc"><code class="literal">pathMatch</code>: Defines the matching strategy.</li></ul></div><p>In the previous example, we declare that when the user navigates to the path, we want <code class="literal">/add-dev</code> to be redirected to <code class="literal">/dev-add</code>. As we mentioned, <code class="literal">pathMatch</code> defines the path matching strategy. By default, it has the value <code class="literal">"prefix"</code>, which means that the router will try to match the beginning of the current route with the <code class="literal">path</code> property declared in the redirect. In contrast, when we set the <code class="literal">pathMatch</code> property to the value <code class="literal">"full"</code>, the router will redirect to the <code class="literal">redirectTo</code> path only when the entire path has been matched. It's important to explicitly set <code class="literal">pathMatch</code> to <code class="literal">"full"</code> in the first redirect, because otherwise every route will match the <code class="literal">""</code> path in case of a match by prefix.</p><p>Now, in order to make everything work, we will need to define the <code class="literal">AddDeveloper</code> and <code class="literal">Home</code> components, which are referenced in the router's configuration. First, we will provide a basic implementation that we'll incrementally extend over time, through the course of this chapter. In <code class="literal">ch6/ts/step-0</code>, create a file called <code class="literal">home.ts</code> and enter the following content:</p><pre class="programlisting">import {Component} from '@angular/core';&#13;
+ &#13;
+@Component({ &#13;
+  selector: 'home', &#13;
+  template: `Home` &#13;
+}) &#13;
+export class Home {} &#13;
+</pre><p>Now, open the file called <code class="literal">add_developer.ts</code>, and enter the following content in it:</p><pre class="programlisting">import {Component} from '@angular/core'; &#13;
+ &#13;
+@Component({ &#13;
+  selector: 'dev-add', &#13;
+  template: `Add developer` &#13;
+}) &#13;
+export class AddDeveloper {} &#13;
+</pre><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note33"/>Note</h3><p>Do not forget to import the <code class="literal">Home</code> and <code class="literal">AddDeveloper</code> components in <code class="literal">app.ts</code>.</p></div></div></div><div class="section" title="Using routerLink and router-outlet"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec92"/>Using routerLink and router-outlet</h2></div></div></div><p>We have the routes' declarations and all the components associated with them. The only thing left is to define the template of the root <code class="literal">App</code> component in order to link everything together.</p><p>Add the following content to the <code class="literal">template</code> property inside the <code class="literal">@Component</code> decorator in <code class="literal">ch6/ts/step-0/app.ts</code>:</p><pre class="programlisting">@Component({ &#13;
+  //... &#13;
+  template: ` &#13;
+    &lt;nav class="navbar navbar-default"&gt; &#13;
+      &lt;ul class="nav navbar-nav"&gt; &#13;
+        &lt;li&gt;&lt;a [routerLink]="['home']"&gt;Home&lt;/a&gt;&lt;/li&gt; &#13;
+        &lt;li&gt;&lt;a [routerLink]="['dev-add']"&gt;Add developer&lt;/a&gt;&lt;/li&gt; &#13;
+      &lt;/ul&gt; &#13;
+    &lt;/nav&gt; &#13;
+    &lt;router-outlet&gt;&lt;/router-outlet&gt; &#13;
+  `, &#13;
+  //... &#13;
+}) &#13;
+</pre><p>In the template, there are two Angular-specific directives:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc"><code class="literal">routerLink</code>: This allows us to add a link to a specific route.</li><li class="listitem" style="list-style-type: disc"><code class="literal">router-outlet</code>: This defines the container where the components associated with the currently selected route should be rendered.</li></ul></div><p>Let's take a look at the <code class="literal">routerLink</code> directive. As value, it accepts an array of route paths and parameters. In our case, we provide only a single route path. Note that the route name used by <code class="literal">routerLink</code> is declared by the <code class="literal">path</code> property of the route declaration inside <code class="literal">forRoot</code>. Later in this book, we'll see how we can link to nested routes and pass route parameters.</p><p>This directive allows us to declare links independently from the <code class="literal">LocationStrategy</code> that we configured. For instance, imagine we are using <code class="literal">HashLocationStrategy</code>; this means that we will need to prefix all the routes in our templates with <code class="literal">#</code>. In case we switch to <code class="literal">PathLocationStrategy</code>, we'll need to remove all the hash prefixes. This is only a partial benefit of the neat abstraction that <code class="literal">routerLink</code> creates on top of path references.</p><p>The next directive that is new to us from the previous template is <code class="literal">router-outlet</code>. It has a similar responsibility to the <code class="literal">ng-view</code> directive in AngularJS. Basically, they both have the same role: to point out where the target component should be rendered. This means that, according to the definition, when the user navigates to <code class="literal">/</code>, the <code class="literal">Home</code> component will be rendered at the position pointed out by <code class="literal">router-outlet</code>, the same for the <code class="literal">AddDeveloper</code> component once the user navigates to <code class="literal">dev-add</code>.</p><p>Now, we have these two routes up and running! Open <code class="literal">http://localhost:5555/dist/dev/ch6/ts/step-0/</code>, and you should see a page which looks similar to the following screenshot:</p><p>
+</p><div class="mediaobject"><img alt="Using routerLink and router-outlet" src="graphics/2-1-e1485857368986.jpg"/></div><p>
+</p><p>Figure 2</p><p>If you don't, just take a look at <code class="literal">ch6/ts/step-1</code> that contains the end result.</p></div><div class="section" title="Lazy-loading with loadChildren"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec93"/>Lazy-loading with loadChildren</h2></div></div></div><p>AngularJS modules allow us to group together logically related units in the application. However, by default, they need to be available during the initial application's bootstrap and do not allow deferred loading. This requires downloading the entire code base of the application during the initial page load that, in case of large single-page apps, can be an unacceptable performance hit.</p><p>In a perfect scenario, we would want to load only the code associated with the page the user is currently viewing or to prefetch bundled modules based on heuristics related to the user's behavior, which is out of the scope of this book. For instance, open the application from the first step of our example, <code class="literal">http://localhost:5555/dist/dev/ch6/ts/step-1/</code>. Once the user is at <code class="literal">/</code>, we only need the <code class="literal">Home</code> component to be available, and once they navigate to <code class="literal">dev-add</code>, we want to load the <code class="literal">AddDeveloper</code> component.</p><p>Let's inspect what is actually going on in Chrome DevTools:</p><p>
+</p><div class="mediaobject"><img alt="Lazy-loading with loadChildren" src="graphics/3-1.jpg"/></div><p>
+</p><p>Figure 3</p><p>We can notice that during the initial page load, Angular downloads the components associated with all the routes, even <code class="literal">AddDeveloper</code>, which is not required. This happens because, in <code class="literal">app.ts</code>, we explicitly require both the <code class="literal">Home</code> and the <code class="literal">AddDeveloper</code> components and use them in the routes' declarations.</p><p>In this specific case, loading both components may not seem like a big problem because, at this step, they are pretty simple and do not have any dependencies. However, in real-life applications, they will have imports of other directives, components, pipes, services, or even third-party libraries. Once any of the components is required, its entire dependency graph will be downloaded, even if the component is not needed at that point.</p><p>The router of Angular comes with a solution to this problem:</p><pre class="programlisting">// ch6/ts/step-1-async/app.ts &#13;
+ &#13;
+const routingModule = RouterModule.forRoot([&#13;
+  {&#13;
+    path: '',&#13;
+    redirectTo: 'home',&#13;
+    pathMatch: 'full'&#13;
+  },&#13;
+  {&#13;
+    path: 'home',&#13;
+    loadChildren: './home#HomeModule'&#13;
+  },&#13;
+  {&#13;
+    path: 'dev-add',&#13;
+    loadChildren: './add_developer#AddDeveloperModule'&#13;
+  }&#13;
+]);&#13;
+</pre><p>The declaration of the lazy-loaded routes is an object with the following properties:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc"><code class="literal">loadChildren</code>: A string that points to the path of the lazy-loaded module.</li><li class="listitem" style="list-style-type: disc"><code class="literal">path</code>: The path of the route.</li></ul></div><p>Once the user navigates to a route that matches any of the lazy-routes' definitions, a module loader (by default, SystemJS) will download the module from the location provided by <code class="literal">loadChildren</code>. When the promise returned by the loader is resolved with a value of the target module, the module will be cached and its bootstrap component will be rendered. The next time the user navigates to the same route, the cached module will be used, so the routing module won't download the same component twice.</p><p>Note the <code class="literal">#</code> symbol in the value of the <code class="literal">loadChildren</code> property. If we split the string by the <code class="literal">#</code> symbol, its first part will be the module's URL and its second part will be the name of the export that represents the Angular module the router will use for the route. If we don't provide a module name, Angular will use the default export.</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note34"/>Note</h3><p>The preceding example uses <code class="literal">loadChildren</code>, which by default loads modules with SystemJS. You can use a more advanced configuration and a custom module loader. For further information, take a look at the Angular documentation at <a class="ulink" href="http://angular.io">http://angular.io</a>.</p></div></div><div class="section" title="Prefetching of lazy-loaded routes"><div class="titlepage"><div><div><h3 class="title"><a id="ch06lvl3sec16"/>Prefetching of lazy-loaded routes</h3></div></div></div><p>As we have already mentioned, in the perfect scenario, we would want to download only the minimum set of resources that the user needs at a given time. For instance, if the user visits the home page, we'd want to download only the bundle that corresponds to the home module (i.e. <code class="literal">HomeModule</code>).</p><p>Later, when the user navigates to <code class="literal">dev-add</code>, the router will need to download the <code class="literal">AddDeveloperModule</code>. Although, this way, the user will consume network bandwidth only for the assets they use, the user experience will be far from perfect because of the slowdown that happens while navigating to as yet unvisited pages.</p><p>In order to handle this problem, we can add a route preloading strategy:</p><pre class="programlisting">import {RouterModule, PreloadAllModules, ... } from '@angular/router';&#13;
+&#13;
+...&#13;
+&#13;
+export const appRoutes = RouterModule.forRoot(routes, {&#13;
+  preloadingStrategy: PreloadAllModules&#13;
+});</pre><p>In the preceding snippet, we declare that we want to use the default <code class="literal">preloadingStrategy</code> that Angular provides. As a result, when the user opens <code class="literal">home</code> and the <code class="literal">HomeModule</code> is successfully downloaded, the router will automatically start prefetching all the other routes. So, next time, when the user navigates to a different page, it will most likely be already available in-memory. This will introduce a neat improvement to the user experience at almost no cost.</p><p>By providing a custom implementation of the abstract class <code class="literal">PreloadingStrategy</code> (located in the <code class="literal">@angular/router</code> package), we can introduce a custom mechanism for the prefetching of lazy-loaded modules.</p></div><div class="section" title="RouterModule.forRoot versus RouterModule.forChild"><div class="titlepage"><div><div><h3 class="title"><a id="ch06lvl3sec17"/>RouterModule.forRoot versus RouterModule.forChild</h3></div></div></div><p>There are two methods we can invoke using the <code class="literal">RouterModule</code> in order to register routes.</p><p>In case we declare the top-level routes of our application, we need to use <code class="literal">RouterModule.forRoot</code>. This method will register the top-level routes and return the routing module that should be imported by the application's root module.</p><p>If we want to define routes in a lazy-loaded module and import the module returned by the invocation of the <code class="literal">forRoot</code> method, we'll get a runtime error. This is because the <code class="literal">forRoot</code> method will return a module with providers, which should be imported only once, by the top-level module. In order to register nested routes in a lazy-loaded module, we will need to use the <code class="literal">forChild</code> method.</p><p>We'll take a further look at how we can define nested routes in <a class="link" href="ch07.html" title="Chapter 7. Explaining Pipes and Communicating with RESTful Services">Chapter 7</a>, <span class="emphasis"><em>Explaining Pipes and Communicating with RESTful Services.</em></span>
+</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note35"/>Note</h3><p>As a rule of thumb, we can remember that <code class="literal">RouterModule.forRoot</code> is meant for the registration of top-level routes, and <code class="literal">RouterModule.forChild</code> should be used only for the registration of nested routes in a lazy-loaded module.</p></div></div></div></div></div>
+<div class="section" title="Using Angular's forms module"><div class="titlepage"><div><div><h1 class="title"><a id="ch06lvl1sec54"/>Using Angular's forms module</h1></div></div></div><p>Now, let's continue with the implementation of the application. For the next step, we'll work on the <code class="literal">AddDeveloper</code> and <code class="literal">Home</code> components. You can continue your implementation by extending what you currently have in <code class="literal">ch6/ts/step-0</code>, or if you haven't reached step 1 yet, you can keep working on the files in <code class="literal">ch6/ts/step-1</code>.</p><p>Angular offers two ways of developing forms with validation:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc"><span class="strong"><strong>A template-driven approach</strong></span>: This provides a declarative API where we declare the validations into the template of the component.</li><li class="listitem" style="list-style-type: disc"><span class="strong"><strong>A model-driven approach (also known as reactive forms)</strong></span>: This provides an imperative, reactive API.</li></ul></div><p>Let's start with the template-driven approach for now and explore the model-driven approach in the next chapter.</p><div class="section" title="Developing template-driven forms"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec94"/>Developing template-driven forms</h2></div></div></div><p>Forms are essential for each <span class="strong"><strong>CRUD</strong></span> (<span class="strong"><strong>Create Retrieve Update and Delete</strong></span>) application. In our case, we want to build a form for entering the details of the developers we want to store.</p><p>By the end of this section, we'll have a form that allows us to enter the real name of a given developer, to add their preferred technology, enter their e-mail, and declare whether they are popular in the community or not yet. The end result will look as follows:</p><p>
+</p><div class="mediaobject"><img alt="Developing template-driven forms" src="graphics/4-1.jpg"/></div><p>
+</p><p>Figure 4</p><p>Add the following import to <code class="literal">app.ts</code>:</p><pre class="programlisting">import {FormsModule} from '@angular/forms';&#13;
+</pre><p>The next thing we need to do is import <code class="literal">FormsModule</code> in our <code class="literal">AppModule</code>. The <code class="literal">FormsModule</code> contains a set of predefined directives for managing Angular forms, such as the <code class="literal">form</code> and <code class="literal">ngModel</code> directives. The <code class="literal">FormsModule</code> also declares an array with a predefined set of form-related providers that we can use in our application.</p><p>After the import of the <code class="literal">FormsModule</code>, our <code class="literal">app.ts</code> will look like:</p><pre class="programlisting">// ch6/ts/step-2/add_developer.ts&#13;
+&#13;
+@NgModule({&#13;
+  imports: [BrowserModule, FormsModule, routingModule],&#13;
+  declarations: [App, Home, AddDeveloper, ControlErrors],&#13;
+  providers: [{&#13;
+    provide: LocationStrategy,&#13;
+    useClass: HashLocationStrategy&#13;
+  }],&#13;
+  bootstrap: [App]&#13;
+})&#13;
+class AppModule {}</pre><p>Now, update the <code class="literal">AddDeveloper</code> implementation to the following:</p><pre class="programlisting">// ch6/ts/step-2/add_developer.ts&#13;
+&#13;
+@Component({ &#13;
+  selector: 'dev-add', &#13;
+  templateUrl: './add_developer.html', &#13;
+  styles: [...]&#13;
+}) &#13;
+export class AddDeveloper { &#13;
+  developer = new Developer(); &#13;
+  errorMessage: string; &#13;
+  successMessage: string; &#13;
+  submitted = false; &#13;
+  // ...&#13;
+  constructor(private developers: DeveloperCollection) {} &#13;
+  addDeveloper() {} &#13;
+} &#13;
+</pre><p>The <code class="literal">developer</code> property contains the information associated with the current developer that we're adding with the form. The last two properties, <code class="literal">errorMessage</code> and <code class="literal">successMessage</code>, will be used respectively to display the current form's error or success messages once the developer has been successfully added to the developers collection, or when an error has occurred.</p></div><div class="section" title="Digging into the template-driven form's markup"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec95"/>Digging into the template-driven form's markup</h2></div></div></div><p>As the next step, let's create the template for the <code class="literal">AddDeveloper</code> component (<code class="literal">step-1/add_developer.html</code>). Add the following content to the file:</p><pre class="programlisting">&lt;span *ngIf="errorMessage" &#13;
+       class="alert alert-danger"&gt;{{errorMessage}}&lt;/span&gt; &#13;
+&lt;span *ngIf="successMessage" &#13;
+       class="alert alert-success"&gt;{{successMessage}}&lt;/span&gt; &#13;
+</pre><p>These two elements are intended to display the error and success messages when you add a new developer. They will be visible when <code class="literal">errorMessage</code> or <code class="literal">successMessage</code> have non-falsy values (that is, something different from the empty string, <code class="literal">false</code>, <code class="literal">undefined</code>, <code class="literal">0</code>, <code class="literal">NaN</code>, or <code class="literal">null</code>).</p><p>Now, let's develop the actual form:</p><pre class="programlisting">&lt;form #f="ngForm" class="form col-md-4" [hidden]="submitted"&#13;
+   (ngSubmit)="addDeveloper()"&gt;&#13;
+  &lt;div class="form-group"&gt;&#13;
+    &lt;label class="control-label" for="realNameInput"&gt;Real name&lt;/label&gt;&#13;
+    &lt;div&gt;&#13;
+      &lt;input id="realNameInput" class="form-control" &#13;
+          type="text" name="realName"&#13;
+          [(ngModel)]="developer.realName" required&gt;&#13;
+    &lt;/div&gt;&#13;
+  &lt;/div&gt;&#13;
+  &lt;!-- MORE CODE TO BE ADDED --&gt; &#13;
+  &lt;button class="btn btn-default" type="submit"&gt;Add&lt;/button&gt; &#13;
+&lt;/form&gt;  &#13;
+</pre><p>We declare a new form using the HTML <code class="literal">form</code> tag. Once Angular finds such tags in a template with an included form directive in the parent component, it will automatically enhance its functionality in order to be used as an Angular form. Once the form is processed by Angular, we can apply form validation and data bindings. After this, using <code class="literal">#f="ngForm"</code>, we define a local variable in template, which allows us to reference to the form using the identifier <code class="literal">f</code>. The last thing left from the form element is the submit event handler. We use a syntax that we're already familiar with, <code class="literal">(ngSubmit)="expr"</code>; in this case, the value of the expression is the call of the <code class="literal">addDeveloper</code> method defined in the component's controller.</p><p>Now, let's take a look at the <code class="literal">div</code> element with the class name <code class="literal">control-group</code>.</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note36"/>Note</h3><p>Note that this is not an Angular-specific class; it is a CSS class defined by Bootstrap that we use in order to provide a better look and feel to the form.</p></div></div><p>Inside the <code class="literal">div</code> element, we can find a <code class="literal">label</code> element that doesn't have any Angular-specific markup and an input element that allows us to set the real name of the current developer. We set the control to be of a type text and declare its identifier and name equal to <code class="literal">realNameInput</code>. The <code class="literal">required</code> attribute is defined by the HTML5 specification and is used for validation. By using it on the element, we declare that this element is required to have a value. Although the <code class="literal">required</code> attribute is not Angular-specific, Angular will extend its semantics by including an Angular-specific validation behavior. This behavior includes setting specific CSS classes on the control when its status changes and managing its state which the framework keeps internally.</p><p>The behavior of the form controls will be enhanced by running validation over them when their values change, and applying specific classes during the controls' life cycles. You may be familiar with this from AngularJS, where the form controls are decorated with the <code class="literal">ng-pristine</code>, <code class="literal">ng-invalid</code>, and <code class="literal">ng-valid</code> classes, and so on.</p><p>The following table summarizes the CSS classes that the framework adds to the form controls during their life cycle:</p><div class="informaltable"><table border="1"><colgroup><col/><col/></colgroup><tbody><tr><td>
+<p>
+<span class="strong"><strong>Classes</strong></span>
+</p>
+</td><td>
+<p>
+<span class="strong"><strong>Description</strong></span>
+</p>
+</td></tr><tr><td>
+<p>
+<code class="literal">ng-untouched</code>
+</p>
+</td><td>
+<p>The control hasn't been visited</p>
+</td></tr><tr><td>
+<p>
+<code class="literal">ng-touched</code>
+</p>
+</td><td>
+<p>The control has been visited</p>
+</td></tr><tr><td>
+<p>
+<code class="literal">ng-pristine</code>
+</p>
+</td><td>
+<p>The control's value hasn't been changed</p>
+</td></tr><tr><td>
+<p>
+<code class="literal">ng-dirty</code>
+</p>
+</td><td>
+<p>The control's value has been changed</p>
+</td></tr><tr><td>
+<p>
+<code class="literal">ng-valid</code>
+</p>
+</td><td>
+<p>All the validators attached to the control have returned <code class="literal">true</code>
+</p>
+</td></tr><tr><td>
+<p>
+<code class="literal">ng-invalid</code>
+</p>
+</td><td>
+<p>Any of the validators attached to the control has a <code class="literal">false</code> value</p>
+</td></tr></tbody></table></div><p>According to this table, we can define that we want all the input controls with an invalid value to have a red border in the following way:</p><pre class="programlisting">input.ng-dirty.ng-invalid { &#13;
+  border: 1px solid red; &#13;
+} &#13;
+</pre><p>The exact semantics behind the preceding CSS in the context of Angular is that we use a red border for all the input elements whose values were changed and are invalid according to the validators attached to them.</p><p>Now, let's explore how we can attach validation behavior to our controls.</p></div><div class="section" title="Using the built-in validators"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec96"/>Using the built-in validators</h2></div></div></div><p>We have already seen that we can alter validation behavior to any control using the <code class="literal">required</code> attribute. Angular provides two more built-in validators, as follows:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc"><code class="literal">minlength</code>: This allows us to specify the minimum length of value that a given control should have.</li><li class="listitem" style="list-style-type: disc"><code class="literal">maxlength</code>: This allows us to specify the maximum length of value that a given control should have.</li></ul></div><p>These validators are defined with Angular directives and can be used in the following way:</p><pre class="programlisting">&lt;input id="realNameInput" class="form-control" &#13;
+       type="text" minlength="2" maxlength="30"&gt; &#13;
+</pre><p>This way, we specify that we want the value of the input to be between <code class="literal">2</code> and <code class="literal">30</code> characters.</p></div><div class="section" title="Defining custom validators"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec97"/>Defining custom validators</h2></div></div></div><p>Another data property defined in the <code class="literal">Developer</code> class is <code class="literal">email</code>. Let's add an input field for it. Above the <span class="strong"><strong>Add</strong></span> button in the preceding form, add the following markup:</p><pre class="programlisting">&lt;div class="form-group"&gt; &#13;
+  &lt;label class="control-label" for="emailInput"&gt;Email&lt;/label&gt; &#13;
+  &lt;div&gt; &#13;
+    &lt;input type="text" id="emailInput" class="form-control" name="emailInput"&#13;
+           [(ngModel)]="developer.email"&gt; &#13;
+  &lt;/div&gt; &#13;
+&lt;/div&gt; &#13;
+</pre><p>We can think of the <code class="literal">[(ngModel)]</code> as an alternative to the <code class="literal">ng-model</code> directive from AngularJS. We will explain it in detail in the <span class="emphasis"><em>Two-way data binding with Angular </em></span>section.</p><p>Although Angular provides a set of predefined validators, they are not enough for all the various formats our data can live in. Sometimes, we'll need custom validation logic for our application-specific data. For instance, in this case, we want to define an e-mail validator. A typical regular expression, which works in general cases (but does not cover the entire specification that defines the format of the e-mail addresses), looks as follows: <code class="literal">/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/</code>.</p><p>In <code class="literal">ch6/ts/step-1/email_validator.ts</code>, define a function that accepts an instance of Angular control as an argument and returns <code class="literal">null</code> if the control's value is empty or matches the regular expression mentioned earlier, and <code class="literal">{ 'invalidEmail': true }</code> otherwise:</p><pre class="programlisting">function validateEmail(emailControl) { &#13;
+  if (!emailControl.value || &#13;
+    /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/.test(emailControl.value)) { &#13;
+    return null; &#13;
+  } else { &#13;
+    return { 'invalidEmail': true }; &#13;
+  } &#13;
+} &#13;
+</pre><p>Now, from the <code class="literal">@angular/common</code> and <code class="literal">@angular/core</code> modules, import <code class="literal">NG_VALIDATORS</code> and <code class="literal">Directive</code>, and wrap this validation function within the following directive:</p><pre class="programlisting">@Directive({ &#13;
+  selector: '[email-input]', &#13;
+  providers: [{&#13;
+    provide: NG_VALIDATORS,&#13;
+    multi: true,&#13;
+    useValue: validateEmail&#13;
+  }]&#13;
+}) &#13;
+class EmailValidator {} &#13;
+</pre><p>In the preceding code, we defined a multiprovider for the token <code class="literal">NG_VALIDATORS</code>. Once we inject the value associated with this token, we'll get an array with all the validators attached to the given control (for reference, take a look at the section for multiproviders in <a class="link" href="ch05.html" title="Chapter 5. Dependency Injection in Angular">
+Chapter 5</a>, <span class="emphasis"><em>Dependency Injection in Angular</em></span>).</p><p>There are only two steps left in order to make our custom validation work. First, add the <code class="literal">email-input</code> attribute to the e-mail control:</p><pre class="programlisting">&lt;input type="text" id="emailInput" class="form-control" <span class="strong"><strong>email-input</strong></span>&#13;
+       [(ngModel)]="developer.email"&gt; &#13;
+</pre><p>Next, add the directive to the declarations in the <code class="literal">AppModule</code>:</p><pre class="programlisting">// ...&#13;
+import {EmailValidator} from './email_validator';&#13;
+// ...&#13;
+&#13;
+@NgModule({&#13;
+  // ...&#13;
+  declarations: [..., <span class="strong"><strong>EmailValidator</strong></span>],&#13;
+  // ...&#13;
+})&#13;
+class AppModule {}</pre><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note37"/>Note</h3><p>We're using an external template for the <code class="literal">AddDeveloper</code> control. There's no ultimate answer to whether a given template should be externalized or inlined. Best practice states that we should inline the short templates and externalize the longer ones. However, there's no specific definition as to which templates are considered short and which are considered long. The decision of whether the template should be used inline or put into an external file depends on the developer's personal preferences or common conventions within the organization.</p></div></div></div><div class="section" title="Using select inputs with Angular"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec98"/>Using select inputs with Angular</h2></div></div></div><p>As the next step, we should allow the user of the application to enter the technology into which the input developer has the most proficiency. We can define a list of technologies and show them in the form as a select input.</p><p>In the <code class="literal">AddDeveloper</code> class, add the <code class="literal">technologies</code> property:</p><pre class="programlisting">class AddDeveloper { &#13;
+  ... &#13;
+  technologies: string[] = [ &#13;
+    'JavaScript', &#13;
+    'C', &#13;
+    'C#', &#13;
+    'Clojure' &#13;
+  ]; &#13;
+  ... &#13;
+} &#13;
+</pre><p>Now, in the template, just above the <span class="strong"><strong>Add</strong></span> button, add the following markup:</p><pre class="programlisting">&lt;div class="form-group"&gt; &#13;
+  &lt;label class="control-label" &#13;
+         for="technologyInput"&gt;Technology&lt;/label&gt; &#13;
+  &lt;div&gt; &#13;
+    &lt;select class="form-control" name="technology" required &#13;
+            [(ngModel)]="developer.technology"&gt; &#13;
+        &lt;option *ngFor="let technology of technologies" [value]="technology"&gt;&#13;
+          {{technology}}&#13;
+        &lt;/option&gt; &#13;
+    &lt;/select&gt; &#13;
+  &lt;/div&gt; &#13;
+&lt;/div&gt; &#13;
+</pre><p>Just like for the input elements we declared earlier, Angular will add the same classes depending on the state of the select input. In order to show a red border around the select element when its value is invalid, we will need to alter the CSS rules:</p><pre class="programlisting">@Component({ &#13;
+  ... &#13;
+  styles: [ &#13;
+    `input.ng-touched.ng-invalid, &#13;
+     select.ng-touched.ng-invalid { &#13;
+      border: 1px solid red; &#13;
+    }` &#13;
+  ], &#13;
+  ... &#13;
+}) &#13;
+class AddDeveloper {...} &#13;
+</pre><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note38"/>Note</h3><p>Note that inlining all the styles in our components' declaration could be a bad practice because, this way, they won't be reusable. What we can do is extract all the common styles across our components into separate files. The <code class="literal">@Component</code> decorator has a property called <code class="literal">styleUrls</code> of type <code class="literal">string[]</code> where we can add a reference to the extracted styles used by the given component. This way, we can inline only the component-specific styles, if required.</p></div></div><p>Right after this, we declare the name of the control to be equal to <code class="literal">"technology"</code> using <code class="literal">name="technology"</code>. Using the <code class="literal">required</code> attribute, we declare that the user of the application must specify the technology in which the current developer is proficient. Let's skip the <code class="literal">[(ngModel)]</code> attribute for now and see how we can define the options of the select element.</p><p>Inside the select element, we define the different options using:</p><pre class="programlisting">&lt;option *ngFor="let technology of technologies" [value]="technology"&gt;&#13;
+  {{technology}}&#13;
+&lt;/option&gt; &#13;
+</pre><p>This is a syntax we're already familiar with. We simply iterate over all the technologies defined within the <code class="literal">AddDeveloper</code> class, and for each technology we show an <code class="literal">option</code> element with a value for the technology name.</p></div><div class="section" title="Using the NgForm directive"><div class="titlepage"><div><div><h2 class="title"><a id="ch06lvl2sec99"/>Using the NgForm directive</h2></div></div></div><p>We have already mentioned that the form directive enhances the HTML5 form's behavior by adding some additional Angular-specific logic. Now, let's take a step back and take a look at the form that surrounds the input elements:</p><pre class="programlisting">&lt;form #f="ngForm" (ngSubmit)="addDeveloper()" &#13;
+      class="form col-md-4" [hidden]="submitted"&gt; &#13;
+  ... &#13;
+&lt;/form&gt; &#13;
+</pre><p>In the preceding snippet, we define a new identifier called <code class="literal">f</code>, which references to the form. We can think of the form as a composition of controls; we can access the individual controls through the form's <code class="literal">controls</code> property. On top of this, the form has the <span class="strong"><strong>touched</strong></span>, <span class="strong"><strong>untouched</strong></span>, <span class="strong"><strong>pristine</strong></span>, <span class="strong"><strong>dirty</strong></span>, <span class="strong"><strong>invalid</strong></span>, and <span class="strong"><strong>valid</strong></span> properties, which depend on the individual controls defined within the form. For example, if none of the controls within the form have been touched, then the form itself will show untouched as its status. However, if any of the controls in the form have been touched at least once, the form will show as touched. Similarly, the form will be valid only if all its controls are valid.</p><p>In order to illustrate the usage of the <code class="literal">form</code> element, let's define a component with the <code class="literal">control-errors</code> selector, which shows the current errors for a given control. We can use it in the following way:</p><pre class="programlisting">&lt;label class="control-label" for="realNameInput"&gt;Real name&lt;/label&gt; &#13;
+&lt;div&gt; &#13;
+  &lt;input id="realNameInput" class="form-control" type="text" &#13;
+         [(ngModel)]="developer.realName" &#13;
+         required maxlength="50"&gt; &#13;
+  &lt;control-errors control="realName" &#13;
+    [errors]="{ &#13;
+      'required': 'Real name is required', &#13;
+      'maxlength': 'The maximum length of the real name is 50 characters' &#13;
+    }" &#13;
+   /&gt; &#13;
+&lt;/div&gt; &#13;
+</pre><p>Note that we've also added the <code class="literal">maxlength</code> validator to the <code class="literal">realName</code> control.</p><p>The <code class="literal">control-errors</code> element has the following attributes:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc"><code class="literal">control</code>: This declares the name of the control we want to show errors for.</li><li class="listitem" style="list-style-type: disc"><code class="literal">errors</code>: This creates a mapping between control error and an error message.</li></ul></div><p>Now, create a new file called <code class="literal">control_errors.ts</code> and add the following imports in it:</p><pre class="programlisting">import {Component, Host, Input} from '@angular/core';&#13;
+import {NgForm} from '@angular/forms';&#13;
+</pre><p>In these imports, <code class="literal">NgForm</code> represents the Angular forms, and <code class="literal">Host</code> is a parameter decorator related to the DI mechanism, which we have already covered in <a class="link" href="ch05.html" title="Chapter 5. Dependency Injection in Angular">
+Chapter 5</a>, <span class="emphasis"><em>Dependency Injection in Angular</em></span>.</p><p>Here is a part of the component's definition:</p><pre class="programlisting">@Component({ &#13;
+  template: '&lt;div&gt;{{currentError}}&lt;/div&gt;', &#13;
+  selector: 'control-errors',&#13;
+}) &#13;
+class ControlErrors { &#13;
+  @Input() errors: Object; &#13;
+  @Input() control: string; &#13;
+  constructor(@Host() private formDir: NgForm) {} &#13;
+  get currentError() {...} &#13;
+} &#13;
+</pre><p>The <code class="literal">ControlErrors</code> component defines two inputs: <code class="literal">control</code>, the name of the control (the value of the <code class="literal">name</code> attribute) and <code class="literal">errors</code>, the mapping between an error identifier and an error message. They can be specified, respectively, by the <code class="literal">control</code> and the <code class="literal">errors</code> attributes of the <code class="literal">control-errors</code> element.</p><p>For instance, lets suppose we have the following input:</p><pre class="programlisting">&lt;input type="text" name="foobar" required&gt; &#13;
+</pre><p>We can declare its associated <code class="literal">control-errors</code> component using the following markup:</p><pre class="programlisting">&lt;control-errors control="foobar" &#13;
+      [errors]="{ &#13;
+       'required': 'The value of foobar is required' &#13;
+      }"&gt;&lt;/control-errors&gt; &#13;
+</pre><p>Inside the <code class="literal">currentError</code> getter, in the declaration of the <code class="literal">ControlErrors</code> class above, we need to do the following two things:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">Find a reference to the component declared with the <code class="literal">control</code> attribute.</li><li class="listitem" style="list-style-type: disc">Return the error message associated with any of the errors that make the current control invalid.</li></ul></div><p>Here is a snippet that implements this behavior:</p><pre class="programlisting">@Component(...) &#13;
+class ControlErrors { &#13;
+  ... &#13;
+  get currentError() {&#13;
+    let control = this.formDir.controls[this.control];&#13;
+    let errorMessages = [];&#13;
+    if (control &amp;&amp; control.touched) {&#13;
+      errorMessages = Object.keys(this.errors)&#13;
+        .map(k =&gt; control.hasError(k) ? this.errors[k] : null)&#13;
+        .filter(error =&gt; !!error);&#13;
+    }&#13;
+    return errorMessages.pop();&#13;
+  }&#13;
+} &#13;
+</pre><p>In the first line of the implementation of <code class="literal">currentError</code>, we get the target control using the <code class="literal">controls</code> property of the injected form. The <code class="literal">controls</code> property is of the type <code class="literal">{[key: string]: AbstractControl}</code>, where the <code class="literal">key</code> is the name of the control we've declared with the <code class="literal">name</code> attribute. Once we have a reference to the instance of the target control, we can check whether its status is touched (that is, whether it has been focused), and if it is, we can loop over all the errors within the <code class="literal">errors</code> property of the instance of <code class="literal">ControlErrors</code>. The <code class="literal">map</code> function will return an array with either an error message or a <code class="literal">null</code> value. The only thing left to do is to filter all the <code class="literal">null</code> values and get only the error messages. Once we get the error messages for each error, we will return the last one by popping it from the <code class="literal">errorMessages</code> array.</p><p>The end result should look as follows:</p><p>
+</p><div class="mediaobject"><img alt="Using the NgForm directive" src="graphics/5.jpg"/></div><p>
+</p><p>Figure 5</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="tip39"/>Tip</h3><p>If you experience any problems during the implementation of the <code class="literal">ControlErrors</code> component, you can take a look at its implementation at <code class="literal">ch6/ts/step-2/control_errors.ts</code>.</p></div></div><p>The <code class="literal">hasError</code> method of every control accepts as an argument an error message identifier, which is defined by the corresponding validator. For instance, in the preceding example, where we defined the custom e-mail validator, we return the <code class="literal">{ 'invalidEmail': true }</code> object literal when the input control has an invalid value. If we apply the <code class="literal">ControlErrors</code> component to the e-mail control, its declaration should look as follows:</p><pre class="programlisting">  &lt;control-errors control="email" &#13;
+    [errors]="{&#13;
+      'invalidEmail': 'Invalid email address'&#13;
+    }"&gt;&lt;/control-errors&gt; &#13;
+</pre></div></div>
+<div class="section" title="Two-way data binding with Angular"><div class="titlepage"><div><div><h1 class="title"><a id="ch06lvl1sec55"/>Two-way data binding with Angular</h1></div></div></div><p>One of the most famous rumors about Angular 2 was that the two-way data binding functionality was removed because of the enforced unidirectional data flow. This is not exactly true; the Angular's form module implements a directive with the selector <code class="literal">[(ngModel)]</code> (we'll also refer to this directive as <code class="literal">NgModel</code>, because of the name of its controller), which allows us to easily achieve data binding in two directions: from the view to the model and from the model to the view.</p><p>Let's take a look at the following simple component:</p><pre class="programlisting">// ch6/ts/simple-two-way-data-binding/app.ts &#13;
+ &#13;
+import {Component, NgModule} from '@angular/core';&#13;
+import {BrowserModule} from '@angular/platform-browser';&#13;
+import {FormsModule} from '@angular/forms';&#13;
+import {platformBrowserDynamic} from '@angular/platform-browser-dynamic';&#13;
+&#13;
+@Component({&#13;
+ selector: 'app',&#13;
+ template: `&#13;
+  &lt;input type="text" [(ngModel)]="name"&gt;&#13;
+  &lt;div&gt;{{name}}&lt;/div&gt;&#13;
+ `&#13;
+})&#13;
+class App {&#13;
+  name: string;&#13;
+}&#13;
+&#13;
+@NgModule({&#13;
+  imports: [BrowserModule, FormsModule],&#13;
+  declarations: [App],&#13;
+  bootstrap: [App]&#13;
+})&#13;
+class AppModule {}&#13;
+&#13;
+platformBrowserDynamic().bootstrapModule(AppModule);&#13;
+</pre><p>In the preceding example, we import the <code class="literal">FormsModule</code> from the <code class="literal">@angular/common</code> package. Later, in the template, we set the attribute <code class="literal">[(ngModel)]</code> to <code class="literal">name</code>.</p><p>At first, the <code class="literal">[(ngModel)]</code> syntax might seem a little bit unusual. From <a class="link" href="ch04.html" title="Chapter 4. Getting Started with Angular Components and Directives">
+Chapter 4</a>, <span class="emphasis"><em>Getting Started with Angular Components and Directives</em></span>, we know that the <code class="literal">(eventName)</code> syntax is used for binding to events (or outputs) triggered by a given component. On the other hand, we use the <code class="literal">[propertyName]="foobar"</code> syntax to achieve one-way data binding by setting the value of the property (or, in the terminology of the Angular components, the input) with the name <code class="literal">propertyName</code> to the result of the evaluation of the expression <code class="literal">foobar</code>. The <code class="literal">[(ngModel)]</code> syntax combines both in order to achieve data binding in two directions. That's why we can think of it more like a syntax sugar, rather than a new concept. One of the main advantages of this syntax compared to AngularJS is that we can tell which bindings are one-way and which are two-way by just looking at the template.</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note40"/>Note</h3><p>Another name of the <code class="literal">[(foo)]</code> syntax is "banana in a box" or "banana brackets" syntax. The source of this term is the paper <span class="emphasis"><em>Functional Programming with Bananas, Lenses, Envelopes and Barbed Wire</em></span> by <span class="emphasis"><em>Erik Meijer</em></span>, <span class="emphasis"><em>Maarten Fokkinga</em></span>, and <span class="emphasis"><em>Ross Paterson</em></span> (<a class="ulink" href="http://eprints.eemcs.utwente.nl/7281/01/db-utwente-40501F46.pdf">http://eprints.eemcs.utwente.nl/7281/01/db-utwente-40501F46.pdf</a>).</p><p>Just like <code class="literal">(click)</code> has its canonical syntax <code class="literal">on-click</code>, and
+<code class="literal">[propertyName]</code> has its own <code class="literal">bind-propertyName</code>, the alternative
+syntax of <code class="literal">[(ngModel)]</code> is <code class="literal">bindon-ngModel</code>.</p></div></div><p>If you open <code class="literal">http://localhost:5555/dist/dev/ch6/ts/simple-two-way-data-binding/</code>, you will see the following result:</p><p>
+</p><div class="mediaobject"><img alt="Two-way data binding with Angular" src="graphics/6-2.jpg"/></div><p>
+</p><p>Figure 6</p><p>Once the value of the input box is changed, the label below it will update automatically.</p><p>We have already used the <code class="literal">[(ngModel)]</code> directive in the previous snippets. For example, we bound to the developer's e-mail using:</p><pre class="programlisting">&lt;input id="emailInput" class="form-control" type="text" &#13;
+       [(ngModel)]="developer.email" email-input&gt; &#13;
+</pre><p>This way, the value of the e-mail property of the developer object defined in the <code class="literal">AddDeveloper</code> component's instance will be updated once we change the value of the text input.</p></div>
+<div class="section" title="Storing the form data"><div class="titlepage"><div><div><h1 class="title"><a id="ch06lvl1sec56"/>Storing the form data</h1></div></div></div><p>Let's peek at the interface of the <code class="literal">AddDeveloper</code> component's controller again:</p><pre class="programlisting">export class AddDeveloper { &#13;
+  submitted: false; &#13;
+  successMessage: string; &#13;
+  developer = new Developer(); &#13;
+  //... &#13;
+  constructor(private developers: DeveloperCollection) {} &#13;
+  addDeveloper(form) {...} &#13;
+} &#13;
+</pre><p>It has a field of the <code class="literal">Developer</code> type, and we bind the form controls to its properties using the <code class="literal">NgModel</code> directive. The class also has a method called <code class="literal">addDeveloper</code>, which is being invoked on the submission of the form. We declare this by binding to the <code class="literal">ngSubmit</code> event using:</p><pre class="programlisting">&lt;!-- ch6/ts/multi-page-template-driven/add_developer.html --&gt; &#13;
+&lt;form #f="form" (ngSubmit)="addDeveloper()" &#13;
+      class="form col-md-4" [hidden]="submitted"&gt; &#13;
+  ... &#13;
+  &lt;button class="btn btn-default" &#13;
+      type="submit" [disabled]="!f.form.valid"&gt;Add&lt;/button&gt; &#13;
+&lt;/form&gt; &#13;
+</pre><p>In the preceding snippet, we can note two more things. We got a reference to the form using <code class="literal">#f="ngForm"</code> and bound the disabled property of the button to the <code class="literal">!f.form.valid</code> expression. We have already described the <code class="literal">NgForm</code> control in the previous section; its <code class="literal">valid</code> property will have a value <code class="literal">true</code> once all the controls within the form have valid values.</p><p>Now, let's suppose we've entered valid values for all the input controls in the form. This means that its submit button will be enabled. Once we press <span class="emphasis"><em>Enter</em></span> or click on the submit button, the <code class="literal">addDeveloper</code> method will be invoked. The following is a sample implementation of this method:</p><pre class="programlisting">class AddDeveloper { &#13;
+  //... &#13;
+  addDeveloper() {&#13;
+    // We can't remove developers so setting the id this way is safe &#13;
+    this.developer.id = this.developers.getAll().length + 1; &#13;
+    this.developers.addDeveloper(this.developer); &#13;
+    this.successMessage = `Developer ${this.developer.realName} was successfully added`; &#13;
+    this.submitted = true; &#13;
+  } &#13;
+</pre><p>Initially, we set the <code class="literal">id</code> property of the current developer equal to the total number of developers in <code class="literal">DeveloperCollection</code>, plus one. Later, we add the developer to the collection and set the value of the <code class="literal">successMessage</code> property. Right after this, we set the property submitted equal to <code class="literal">true</code>, which will result in hiding the form.</p></div>
+<div class="section" title="Listing all the stored&#xA0;data"><div class="titlepage"><div><div><h1 class="title"><a id="ch06lvl1sec57"/>Listing all the stored data</h1></div></div></div><p>Now that we can add a new entry to the developers' collection, let's show a list of all the developers on the front page of the "Coders repository".</p><p>Open the file <code class="literal">ch6/ts/step-1/home.ts</code> (or step-2, depending on your progress during the past section), and enter the following content:</p><pre class="programlisting">import {Component} from '@angular/core'; &#13;
+import {DeveloperCollection} from './developer_collection'; &#13;
+ &#13;
+@Component({ &#13;
+  selector: 'home', &#13;
+  templateUrl: './home.html' &#13;
+}) &#13;
+export class Home { &#13;
+  constructor(private developers: DeveloperCollection) {}&#13;
+ &#13;
+  getDevelopers() { &#13;
+    return this.developers.getAll(); &#13;
+  } &#13;
+} &#13;
+</pre><p>There is nothing new to us here. We extend the functionality of the <code class="literal">Home</code> component by providing an external template and implementing the <code class="literal">getDevelopers</code> method, which delegates its call to the instance of <code class="literal">DeveloperCollection</code> that is injected in the constructor.</p><p>The template itself is something that we're already familiar with:</p><pre class="programlisting">&lt;table class="table" *ngIf="getDevelopers().length &gt; 0"&gt; &#13;
+  &lt;thead&gt; &#13;
+    &lt;th&gt;Email&lt;/th&gt; &#13;
+    &lt;th&gt;Real name&lt;/th&gt; &#13;
+    &lt;th&gt;Technology&lt;/th&gt; &#13;
+    &lt;th&gt;Popular&lt;/th&gt; &#13;
+  &lt;/thead&gt; &#13;
+  &lt;tr *ngFor="let dev of getDevelopers()"&gt; &#13;
+    &lt;td&gt;{{dev.email}}&lt;/td&gt; &#13;
+    &lt;td&gt;{{dev.realName}}&lt;/td&gt; &#13;
+    &lt;td&gt;{{dev.technology}}&lt;/td&gt; &#13;
+    &lt;td [ngSwitch]="dev.popular"&gt; &#13;
+      &lt;span *ngSwitchCase="true"&gt;Yes&lt;/span&gt; &#13;
+      &lt;span *ngSwitchCase="false"&gt;Not yet&lt;/span&gt; &#13;
+    &lt;/td&gt; &#13;
+  &lt;/tr&gt; &#13;
+&lt;/table&gt; &#13;
+&lt;div *ngIf="getDevelopers().length == 0"&gt; &#13;
+  There are no any developers yet &#13;
+&lt;/div&gt; &#13;
+</pre><p>We list all the developers as rows within an HTML table. For each developer, we check the status of its <code class="literal">popular</code> flag. If its value is <code class="literal">true</code>, then for the <span class="strong"><strong>Popular</strong></span> column, we show a span with the text <code class="literal">Yes</code>, otherwise we set the text to <code class="literal">No</code>.</p><p>When you enter a few developers in the <span class="strong"><strong>Add developer</strong></span> page and then navigate to the home page, you should see a result similar to the following screenshot:</p><p>
+</p><div class="mediaobject"><img alt="Listing all the stored data" src="graphics/7.jpg"/></div><p>
+</p><p>Figure 7</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note41"/>Note</h3><p>You can find the complete functionalities of the application at <code class="literal">ch6/ts/multi-page-template-driven</code>.</p></div></div></div>
+<div class="section" title="Summary"><div class="titlepage"><div><div><h1 class="title"><a id="ch06lvl1sec58"/>Summary</h1></div></div></div><p>So far, we have explained the basics of routing in Angular. We took a look at how we can define different routes and implement the components associated with them that are displayed on route change. In order to link to the different routes, we introduced <code class="literal">routerLink</code>, and we also used the <code class="literal">router-outlet</code> directives for pointing out where the components associated with the individual routes should be rendered.</p><p>Another thing we took a look at was the Angular forms functionality with built-in and custom validation. After this, we explained the <code class="literal">NgModel</code> directive, which provides us with two-way data binding.</p><p>In the next chapter, we will cover how we can develop model-driven forms, child and parameterized routes, use the <code class="literal">Http</code> module for making RESTful calls, and transform data with custom pipes.</p></div></body></html>

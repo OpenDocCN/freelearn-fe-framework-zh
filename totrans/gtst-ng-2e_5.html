@@ -1,0 +1,554 @@
+<html><head></head><body><div class="chapter" title="Chapter&#xA0;5.&#xA0;Dependency Injection in Angular"><div class="titlepage"><div><div><h1 class="title"><a id="ch05"/>Chapter 5. Dependency Injection in Angular</h1></div></div></div><p>In this chapter, we'll explain how to take advantage of the <span class="strong"><strong>dependency injection</strong></span> (<span class="strong"><strong>DI</strong></span>) mechanism of the framework, with all its various features.</p><p>We will explore the following topics:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">Configuring and creating injectors.</li><li class="listitem" style="list-style-type: disc">Instantiating objects using injectors.</li><li class="listitem" style="list-style-type: disc">Injecting dependencies into directives and components-this way, we will be able to reuse the business logic defined within the services and wire it up with the UI logic.</li><li class="listitem" style="list-style-type: disc">Annotating ES5 code in order to get the exact same result we get when we use the TypeScript syntax.</li></ul></div><div class="section" title="Why do I need DI?"><div class="titlepage"><div><div><h1 class="title"><a id="ch05lvl1sec46"/>Why do I need DI?</h1></div></div></div><p>Let's suppose that we have a <code class="literal">Car</code> class that depends on <code class="literal">Engine</code> and <code class="literal">Transmission</code> classes. How can we implement this system? Let's take a look:</p><pre class="programlisting">class Engine {...} &#13;
+&#13;
+class Transmission {...}&#13;
+ &#13;
+class Car { &#13;
+  engine; &#13;
+  transmission;&#13;
+ &#13;
+  constructor() { &#13;
+    this.engine = new Engine(); &#13;
+    this.transmission = new Transmission(); &#13;
+  } &#13;
+} &#13;
+</pre><p>In the preceding example, we create the dependencies of the <code class="literal">Car</code> class inside its constructor. Although it looks simple, it is far from being flexible. Each time we create an instance of the <code class="literal">Car</code> class, in its constructor, instances of the same <code class="literal">Engine</code> and <code class="literal">Transmission</code> classes will be created. This may be problematic because of the following reasons:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">The <code class="literal">Car</code> class gets less testable because we can't test it independently of its <code class="literal">engine</code> and <code class="literal">transmission</code> dependencies.</li><li class="listitem" style="list-style-type: disc">We couple the <code class="literal">Car</code> class with the logic used for the instantiation of its dependencies.</li></ul></div></div></div>
+<div class="section" title="DI in Angular"><div class="titlepage"><div><div><h1 class="title"><a id="ch05lvl1sec47"/>DI in Angular</h1></div></div></div><p>Another way we can approach this is by taking advantage of the DI pattern. We're already familiar with it from AngularJS; let's demonstrate how we can refactor the preceding code using DI in the context of Angular:</p><pre class="programlisting">class Engine {...} &#13;
+class Transmission {...} &#13;
+ &#13;
+@Injectable() &#13;
+class Car { &#13;
+  engine; &#13;
+  transmission;&#13;
+ &#13;
+  constructor(engine: Engine, transmission: Transmission) { &#13;
+    this.engine = engine; &#13;
+    this.transmission = transmission; &#13;
+  } &#13;
+} &#13;
+</pre><p>All we did in the preceding snippet was add the <code class="literal">@Injectable</code> class decorator on top of the definition of the <code class="literal">Car</code> class and provide type annotations for the parameters of its constructor.</p><div class="section" title="Benefits of DI"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec79"/>Benefits of DI</h2></div></div></div><p>There is one more step left, which we'll take a look at in the next section. Before that, let's take a look at what the benefits of the mentioned approach are:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">We can easily pass different versions of the dependencies of the <code class="literal">Car</code> class for a testing environment, or for instantiating different <code class="literal">Car</code> models.</li><li class="listitem" style="list-style-type: disc">We're not coupled with the logic around the dependencies' instantiation.</li></ul></div><p>The <code class="literal">Car</code> class is only responsible for implementing its own domain-specific logic instead of being coupled with additional functionalities, such as the management of its dependencies. Our code also got more declarative and easier to read.</p><p>Now, that we've realized some of the benefits of DI, let's take a look at the missing pieces in order to make this code work.</p></div></div>
+<div class="section" title="Configuring an injector"><div class="titlepage"><div><div><h1 class="title"><a id="ch05lvl1sec48"/>Configuring an injector</h1></div></div></div><p>The primitive used for the instantiation of the individual dependencies in our Angular applications via the DI mechanism of the framework is called the <span class="strong"><strong>injector</strong></span>. The injector contains a set of <span class="strong"><strong>providers</strong></span> that encapsulate the logic for the instantiation of registered dependencies associated with <span class="strong"><strong>tokens</strong></span>. We can think of tokens as identifiers of the different providers registered within the injector.</p><p>Let's take a look at the following snippet, which is located at <code class="literal">ch5/ts/injector-basics/injector.ts</code>:</p><pre class="programlisting">import 'reflect-metadata';&#13;
+import {&#13;
+  ReflectiveInjector,&#13;
+  Inject,&#13;
+  Injectable,&#13;
+  OpaqueToken&#13;
+} from '@angular/core';&#13;
+&#13;
+const BUFFER_SIZE = new OpaqueToken('buffer-size');&#13;
+&#13;
+class Buffer {&#13;
+  constructor(@Inject(BUFFER_SIZE) private size: Number) {&#13;
+    console.log(this.size);&#13;
+  }&#13;
+}&#13;
+&#13;
+@Injectable()&#13;
+class Socket {&#13;
+  constructor(private buffer: Buffer) {}&#13;
+}&#13;
+&#13;
+let injector = ReflectiveInjector.resolveAndCreate([&#13;
+  { provide: BUFFER_SIZE, useValue: 42 },&#13;
+  Buffer,&#13;
+  Socket&#13;
+]);&#13;
+&#13;
+injector.get(Socket);&#13;
+</pre><p>You can run the file using the following command:</p><pre class="programlisting">
+<span class="strong"><strong>$ cd app&#13;
+$ ts-node ch5/ts/injector-basics/injector.ts</strong></span>
+</pre><p>If you haven't installed <code class="literal">ts-node</code> yet, take a look at <a class="link" href="ch03.html" title="Chapter 3. TypeScript Crash Course">
+Chapter 3</a>, <span class="emphasis"><em>TypeScript Crash Course</em></span>, which explains how you can proceed in order to have it up and running on your computer.</p><p>We then import <code class="literal">ReflectiveInjector</code>, <code class="literal">Injectable</code>, <code class="literal">Inject</code>, <code class="literal">OpaqueToken</code>, and <code class="literal">provide</code>.</p><p>Injector represents an abstract <span class="strong"><strong>container</strong></span> used for the instantiation of the different dependencies; <code class="literal">ReflectiveInjector</code> is a concrete class, which implements this abstraction. Using rules like the one declared, with the object literal passed as first argument to <code class="literal">resolveAndCreate</code> and the metadata generated by the TypeScript compiler, <code class="literal">ReflectiveInjector</code> knows how to create the different dependencies.</p><p>In the preceding snippet, we initially define the <code class="literal">BUFFER_SIZE</code> constant and set it to the <code class="literal">new OpaqueToken('buffer-size')</code> value. We can think of the value of <code class="literal">BUFFER_SIZE</code> as a unique value that cannot be duplicated in the application (<code class="literal">OpaqueToken</code> is an alternative of the <code class="literal">Symbol</code> class from ES2015, since at the time of writing this book, it is not supported by TypeScript).</p><p>We defined two classes: <code class="literal">Buffer</code> and <code class="literal">Socket</code>. The <code class="literal">Buffer</code> class has a constructor that accepts only a single dependency called <code class="literal">size</code>, which is of the type <code class="literal">Number</code>. In order to add additional metadata for the process of dependency resolution, we use the <code class="literal">@Inject</code> parameter decorator. This decorator accepts an identifier (also known as <span class="strong"><strong>token</strong></span>) for the dependency we want to inject. Usually, it is the type of the dependency (that is, a reference of a class), but in some cases, it can be a different type of value. For example, in our case, we used the instance of the <code class="literal">OpaqueToken</code> class.</p><div class="section" title="Dependency resolution with generated metadata"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec80"/>Dependency resolution with generated metadata</h2></div></div></div><p>Now, let's take a look at the <code class="literal">Socket</code> class. We decorate it with the <code class="literal">@Injectable</code> decorator. This decorator is supposed to be used by any class that accepts dependencies that should be injected via the DI mechanism of Angular.</p><p>The <code class="literal">@Injectable</code> decorator forces the TypeScript compiler to generate additional metadata for the types of dependencies that a given class accepts. This means that, if we omit the <code class="literal">@Injectable</code> decorator, Angular's DI mechanism will not be aware of the tokens associated with the dependencies it needs to resolve.</p><p>TypeScript doesn't generate any metadata if no decorator is used on top of a class, mostly for performance concerns. Imagine, if such metadata was generated for each individual class that accepts dependencies-in this case, the output would be bloated with an additional type metadata that would be unused.</p><p>An alternative to using <code class="literal">@Injectable</code> is to explicitly declare the tokens of the dependencies using the <code class="literal">@Inject</code> decorator. Take a look at the following:</p><pre class="programlisting">class Socket {&#13;
+  constructor(@Inject(Buffer) private buffer: Buffer) {}&#13;
+}&#13;
+</pre><p>This means that the preceding code has equivalent semantics to the code that uses <code class="literal">@Injectable</code>, as mentioned earlier. The only difference is that Angular will get the type of dependency (that is, the token associated with it) explicitly (directly from the metadata added by the <code class="literal">@Inject</code> decorator) as compared to the case where <code class="literal">@Injectable</code> is used, when it will look at the metadata generated by the compiler.</p></div><div class="section" title="Instantiating an injector"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec81"/>Instantiating an injector</h2></div></div></div><p>Now, let's create an instance of an injector in order to use it for the instantiation of registered tokens:</p><pre class="programlisting">let injector = ReflectiveInjector.resolveAndCreate([ &#13;
+  { provide: BUFFER_SIZE, useValue: 42 }, &#13;
+  Buffer, &#13;
+  Socket &#13;
+]); &#13;
+</pre><p>We create an instance of the <code class="literal">ReflectiveInjector</code> using its static method called <code class="literal">resolveAndCreate</code>. This is a factory method that accepts an array of providers as argument and returns a new <code class="literal">ReflectiveInjector</code>.</p><p>
+<code class="literal">resolve</code> means that the providers will go through a resolution process, which includes some internal processing (flattening multiple nested arrays and converting individual providers into an array). Later, the injector can instantiate any of the dependencies for which we have registered providers based on the rules the providers encapsulate.</p><p>In our case, with the provider's declaration we explicitly tell the Angular's DI mechanism to use the value <code class="literal">42</code> when the <code class="literal">BUFFER_SIZE</code> token is required. The other two providers are implicit. Angular will instantiate them by invoking the provided class with the <code class="literal">new</code> operator once all of their dependencies are resolved.</p><p>We request the <code class="literal">BUFFER_SIZE</code> value in the constructor of the <code class="literal">Buffer</code> class:</p><pre class="programlisting">class Buffer { &#13;
+  constructor(@Inject(BUFFER_SIZE) private size: Number) { &#13;
+    console.log(this.size); &#13;
+  } &#13;
+} &#13;
+</pre><p>In the preceding example, we use the <code class="literal">@Inject</code> parameter decorator. It hints the DI mechanism that the first argument of the constructor of the <code class="literal">Buffer</code> class should be instantiated with the provider associated with the <code class="literal">BUFFER_SIZE</code> token passed to the injector.</p></div><div class="section" title="Introducing forward references"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec82"/>Introducing forward references</h2></div></div></div><p>Angular introduced the concept of <span class="strong"><strong>forward references</strong></span>. It is required due to the following reasons:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">ES2015 classes are not hoisted.</li><li class="listitem" style="list-style-type: disc">Allowing resolution of the dependencies that are declared after the declaration of the dependent providers.</li></ul></div><p>In this section, we will explain the problem that forward references solve and the way we can take advantage of them.</p><p>Now, let's suppose that we have defined the <code class="literal">Buffer</code> and <code class="literal">Socket</code> classes in the opposite order:</p><pre class="programlisting">// ch5/ts/injector-basics/forward-ref.ts &#13;
+ &#13;
+@Injectable() &#13;
+class Socket { &#13;
+  constructor(private buffer: Buffer) {...} &#13;
+} &#13;
+ &#13;
+// undefined &#13;
+console.log(Buffer); &#13;
+ &#13;
+class Buffer { &#13;
+  constructor(@Inject(BUFFER_SIZE) private size: Number) {...} &#13;
+} &#13;
+ &#13;
+// [Function: Buffer] &#13;
+console.log(Buffer); &#13;
+</pre><p>Here, we have the exact same dependencies as the ones in the previous example but, in this case, the <code class="literal">Socket</code> class definition precedes the definition of the <code class="literal">Buffer</code> class. Note that the value of the <code class="literal">Buffer</code> identifier will equal <code class="literal">undefined</code> until the JavaScript virtual machine evaluates the declaration of the <code class="literal">Buffer</code> class. However, the metadata for the types of dependencies that <code class="literal">Socket</code> accepts will be generated and placed right after the <code class="literal">Socket</code> class definition. This means that, during the interpretation of the generated JavaScript, the value of the <code class="literal">Buffer</code> identifier will equal <code class="literal">undefined</code>-that is, as a type of dependency (or in the context of the DI mechanism of Angular, its token), the framework will get an invalid value.</p><p>Running the preceding snippet will result in a runtime error of the following form:</p><p>
+<span class="strong"><strong>
+<span class="strong"><strong>Error: Cannot resolve all parameters for Socket(undefined). Make sure they all have valid type or annotations.</strong></span>
+</strong></span>
+</p><p>The best way to resolve this issue is by swapping the definitions with their proper order. Another way we can proceed is to take advantage of a solution that Angular provides-a forward reference:</p><pre class="programlisting">... &#13;
+import {forwardRef} from '@angular/core'; &#13;
+...&#13;
+ &#13;
+@Injectable() &#13;
+class Socket { &#13;
+  constructor(@Inject(forwardRef(() =&gt; Buffer)) &#13;
+    private buffer: Buffer) {} &#13;
+}&#13;
+ &#13;
+class Buffer {...} &#13;
+</pre><p>The preceding snippet demonstrates how we can take advantage of forward references. All we need to do is invoke the <code class="literal">@Inject</code> parameter decorator with argument the result of the invocation of the <code class="literal">forwardRef</code> function. The <code class="literal">forwardRef</code> function is a higher-order function that accepts a single argument-another function that is responsible for returning the token associated with the dependency (or more precisely associated with its provider) that needs to be injected. This way, the framework provides a way to defer the process of resolving the types (tokens) of dependencies.</p><p>The token of the dependency will be resolved the first time <code class="literal">Socket</code> needs to be instantiated, unlike the default behavior in which the token is required at the time of the declaration of the given class.</p></div><div class="section" title="Configuring providers"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec83"/>Configuring providers</h2></div></div></div><p>Now, let's take a look at an example similar to the one used earlier, but with a different configuration of the injector:</p><pre class="programlisting">let injector = ReflectiveInjector.resolveAndCreate([ &#13;
+  { provide: BUFFER_SIZE, useValue: 42 }, &#13;
+  { provide: Buffer, useClass: Buffer }, &#13;
+  { provide: Socket, useClass: Socket } &#13;
+]); &#13;
+</pre><p>In this case, inside the provider, we explicitly declared that we want the <code class="literal">Buffer</code> class to be used for the construction of the dependency with a token equal to the reference of the <code class="literal">Buffer</code> class. We do the exact same thing for the dependency associated with the <code class="literal">Socket</code> token; but, this time, we provided the <code class="literal">Socket</code> class instead. This is how Angular will proceed when we omit the explicit provider declaration and pass only a reference to a class instead.</p><p>Explicitly declaring the class used for the creation of an instance of the same class may seem quite worthless, and given the examples we have looked at so far, that'd be completely correct. In some cases, however, we might want to provide a different class for the instantiation of a dependency associated with a given class token.</p><p>For example, let's suppose we have the <code class="literal">Http</code> service that is used in a service called <code class="literal">UserService</code>:</p><pre class="programlisting">class Http {...} &#13;
+ &#13;
+@Injectable() &#13;
+class UserService { &#13;
+  constructor(private http: Http) {} &#13;
+} &#13;
+ &#13;
+let injector = ReflectiveInjector.resolveAndCreate([ &#13;
+  UserService, &#13;
+  Http &#13;
+]); &#13;
+</pre><p>The <code class="literal">UserService</code> service uses <code class="literal">Http</code> for communication with a RESTful service. We can instantiate <code class="literal">UserService</code> using <code class="literal">injector.get(UserService)</code>. This way, the constructor of <code class="literal">UserService</code> invoked by the injector's <code class="literal">get</code> method will accept an instance of the <code class="literal">Http</code> service as an argument. However, if we want to test <code class="literal">UserService</code>, we don't really need to make HTTP calls to the RESTful service. In the case of unit testing, we can provide a dummy implementation that will only fake these HTTP calls. In order to inject an instance of a different class to the <code class="literal">UserService</code> service, we can change the configuration of the injector to the following:</p><pre class="programlisting">class DummyHttp {...} &#13;
+ &#13;
+// ... &#13;
+ &#13;
+let injector = ReflectiveInjector.resolveAndCreate([ &#13;
+  UserService, &#13;
+  { provide: Http, useClass: DummyHttp } &#13;
+]); &#13;
+</pre><p>Now, when we instantiate <code class="literal">UserService</code>, its constructor will receive a reference to an instance of the <code class="literal">DummyHttp</code> service. This code is available at <code class="literal">ch5/ts/configuring-providers/dummy-http.ts</code>.</p><div class="section" title="Using existing providers"><div class="titlepage"><div><div><h3 class="title"><a id="ch05lvl3sec8"/>Using existing providers</h3></div></div></div><p>Another way to proceed is by using the <code class="literal">useExisting</code> property of the provider's configuration object:</p><pre class="programlisting">// ch5/ts/configuring-providers/existing.ts &#13;
+let injector = ReflectiveInjector.resolveAndCreate([ &#13;
+  DummyService, &#13;
+  { provide: Http, useExisting: DummyService }, &#13;
+  UserService &#13;
+]); &#13;
+</pre><p>
+</p><div class="blockquote"><blockquote class="blockquote"><p/></blockquote></div><p>In the preceding snippet, we register three tokens: <code class="literal">DummyService</code>, <code class="literal">UserService</code>, and <code class="literal">Http</code>. We declare that we want to bind the <code class="literal">Http</code> token to the existing token, <code class="literal">DummyService</code>. This means that, when the <code class="literal">Http</code> service is requested, the injector will find the provider for the token used as the value of the <code class="literal">useExisting</code> property and instantiate it or get the value associated with it. We can think of <code class="literal">useExisting</code> as creating an alias of the given token:</p><pre class="programlisting">let dummyHttp = { &#13;
+  get() {}, &#13;
+  post() {} &#13;
+}; &#13;
+let injector = ReflectiveInjector.resolveAndCreate([ &#13;
+  { provide: DummyService, useValue: dummyHttp }, &#13;
+  { provide: Http, useExisting: DummyService }, &#13;
+  UserService &#13;
+]); &#13;
+console.assert(injector.get(UserService).http === dummyHttp); &#13;
+</pre><p>The preceding snippet will create an alias of the <code class="literal">Http</code> token to the <code class="literal">DummyHttp</code> token. This means that once the <code class="literal">Http</code> token is requested, the call will be forwarded to the provider associated with the <code class="literal">DummyHttp</code> token, which will be resolved to the value of <code class="literal">dummyHttp</code>.</p></div></div></div>
+<div class="section" title="Defining factories for instantiating services"><div class="titlepage"><div><div><h1 class="title"><a id="ch05lvl1sec49"/>Defining factories for instantiating services</h1></div></div></div><p>Now, let's suppose that we want to create a complex object, for example, one that represents a <span class="strong"><strong>Transport Layer Security</strong></span> (<span class="strong"><strong>TLS</strong></span>) connection. A few of the properties of such an object are a socket, a set of crypto protocols, and a certificate. In the context of this problem, the features of the DI mechanism of Angular we have looked at so far might seem a bit limited.</p><p>For example, we might need to configure some of the properties of the <code class="literal">TLSConnection</code> class without coupling the process of its instantiation with all the configuration details (choose appropriate crypto algorithms, open the TCP socket over which we will establish the secure connection, and so on).</p><p>In this case, we can take advantage of the <code class="literal">useFactory</code> property of the provider's configuration object:</p><pre class="programlisting">let injector = ReflectiveInjector.resolveAndCreate([ &#13;
+  { &#13;
+    provide: TLSConnection, &#13;
+    useFactory: (socket: Socket, certificate: Certificate, crypto: Crypto) &#13;
+      =&gt;  { &#13;
+        let connection = new TLSConnection(); &#13;
+        connection.certificate = certificate; &#13;
+        connection.socket = socket; &#13;
+        connection.crypto = crypto; &#13;
+        socket.open(); &#13;
+        return connection; &#13;
+      }, &#13;
+      deps: [Socket, Certificate, Crypto] &#13;
+  }, &#13;
+  { BUFFER_SIZE, useValue: 42 }, &#13;
+  Buffer, &#13;
+  Socket, &#13;
+  Certificate, &#13;
+  Crypto &#13;
+]); &#13;
+</pre><p>The snippet above seems a bit complex at first, but let's take a look at it step-by-step. We can start with the parts we're already familiar with:</p><pre class="programlisting">let injector = ReflectiveInjector.resolveAndCreate([ &#13;
+  ... &#13;
+  { BUFFER_SIZE, useValue: 42 }, &#13;
+  Buffer, &#13;
+  Socket, &#13;
+  Certificate, &#13;
+  Crypto &#13;
+]); &#13;
+</pre><p>Initially, we register a number of providers: <code class="literal">Buffer</code>, <code class="literal">Socket</code>, <code class="literal">Certificate</code>, and <code class="literal">Crypto</code>. Just like in the preceding example, we also register the <code class="literal">BUFFER_SIZE</code> token and associated it with the value <code class="literal">42</code>. This means that we can already create objects of the <code class="literal">Buffer</code>, <code class="literal">Socket</code>, <code class="literal">Certificate</code>, and <code class="literal">Crypto</code> types, as follows:</p><pre class="programlisting">// buffer with size 42 &#13;
+console.log(injector.get(Buffer)); &#13;
+// socket with buffer with size 42 &#13;
+console.log(injector.get(Socket)); &#13;
+</pre><p>We can create and configure an instance of the <code class="literal">TLSConnection</code> object in the following way:</p><pre class="programlisting">let connection = new TLSConnection();&#13;
+connection.certificate = certificate;&#13;
+connection.socket = socket;&#13;
+connection.crypto = crypto;&#13;
+socket.open();&#13;
+return connection;&#13;
+</pre><p>Now, if we register a provider that has the <code class="literal">TLSConnection</code> token as a dependency, we will prevent the DI mechanism of Angular from taking care of the dependency resolution process. In order to handle this problem, we can use the <code class="literal">useFactory</code> property of the provider's configuration object. This way, we can specify a function in which we can manually create the instance of the object associated with the provider's token. We can use the <code class="literal">useFactory</code> property together with the <code class="literal">deps</code> property in order to specify the dependencies to be passed to the factory:</p><pre class="programlisting">{&#13;
+  provide: TLSConnection,&#13;
+  useFactory: (socket: Socket, certificate: Certificate, crypto: Crypto) =&gt;  { &#13;
+    // ... &#13;
+  }, &#13;
+  deps: [Socket, Certificate, Crypto] &#13;
+}&#13;
+</pre><p>In the preceding snippet, we define the factory function used for the instantiation of <code class="literal">TLSConnection</code>. As dependencies, we declare <code class="literal">Socket</code>, <code class="literal">Certificate</code>, and <code class="literal">Crypto</code>. These dependencies are resolved by the DI mechanism of Angular and injected into the factory function. You can take a look at the entire implementation and play with it at <code class="literal">ch5/ts/configuring-providers/factory.ts</code>.</p></div>
+<div class="section" title="Child injectors and visibility"><div class="titlepage"><div><div><h1 class="title"><a id="ch05lvl1sec50"/>Child injectors and visibility</h1></div></div></div><p>In this section, we will take a look at how we can build a hierarchy of injectors. This is a completely new concept in the framework introduced by Angular 2. Each injector can have either zero or one parent injectors, and each parent injector can have zero or more children. In contrast to AngularJS where all the registered providers are stored in a flat structure, in Angular 2 and later versions, they are stored in a tree. The flat structure is more limited; for instance, it doesn't support the namespacing of tokens; we cannot declare different providers for the same token, which might be required in some cases. So far, we have looked at an example of an injector that doesn't have any children or a parent. Now, let's build a hierarchy of injectors.</p><p>In order to gain a better understanding of this hierarchical structure of injectors, let's take a look at the following diagram:</p><p>
+</p><div class="mediaobject"><img alt="Child injectors and visibility" src="graphics/5081_05_01.jpg"/></div><p>
+</p><p>Figure 1</p><p>Here, we see a tree where each node is an injector, and each of these injectors keeps a reference to its parent. The injector <span class="strong"><strong>House</strong></span> has three child injectors: <span class="strong"><strong>Bathroom</strong></span>, <span class="strong"><strong>Kitchen</strong></span>, and <span class="strong"><strong>Garage</strong></span>.</p><p>
+<span class="strong"><strong>Garage</strong></span> has two child injectors: <span class="strong"><strong>Car</strong></span> and <span class="strong"><strong>Storage</strong></span>. We can think of these injectors as containers with registered providers inside of them.</p><p>Let's suppose that we want to get the value of the provider associated with the token <span class="strong"><strong>Tire</strong></span>. If we use the injector <span class="strong"><strong>Car</strong></span>, this means that Angular's DI mechanism will try to find the provider associated with this token in <span class="strong"><strong>Car</strong></span> and all of its parents, <span class="strong"><strong>Garage</strong></span> and <span class="strong"><strong>House</strong></span>, until it finds it.</p><div class="section" title="Building a hierarchy of injectors"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec84"/>Building a hierarchy of injectors</h2></div></div></div><p>In order to gain a better understanding of the paragraph, let's take a look at this simple example:</p><pre class="programlisting">// ch5/ts/parent-child/simple-example.ts&#13;
+&#13;
+class Http {} &#13;
+ &#13;
+@Injectable() &#13;
+class UserService { &#13;
+  constructor(public http: Http) {} &#13;
+} &#13;
+ &#13;
+let parentInjector = ReflectiveInjector.resolveAndCreate([ &#13;
+  Http&#13;
+]);&#13;
+&#13;
+let childInjector = parentInjector.resolveAndCreateChild([ &#13;
+  UserService&#13;
+]);&#13;
+ &#13;
+// UserService { http: Http {} }&#13;
+console.log(childInjector.get(UserService)); &#13;
+// true &#13;
+console.log(childInjector.get(Http) === parentInjector.get(Http)); &#13;
+</pre><p>The imports are omitted since they are not essential to explain the code. We have two services, <code class="literal">Http</code> and <code class="literal">UserService</code>, where <code class="literal">UserService</code> depends on the <code class="literal">Http</code> service.</p><p>Initially, we create an injector using the <code class="literal">resolveAndCreate</code> static method of the <code class="literal">ReflectiveInjector</code> class. We pass an implicit provider to this injector, which will later be resolved to a provider with an <code class="literal">Http</code> token. Using <code class="literal">resolveAndCreateChild</code>, we resolve the passed providers and instantiate an injector, which points to <code class="literal">parentInjector</code> (so, we get the same relation as the one between <span class="strong"><strong>Garage</strong></span> and <span class="strong"><strong>House</strong></span> shown in the previous diagram).</p><p>Now, using <code class="literal">childInjector.get(UserService)</code>, we are able to get the value associated with the <code class="literal">UserService</code> token. Similarly, using <code class="literal">childInjector.get(Http)</code> and <code class="literal">parentInjector.get(Http)</code>, we get the same value associated with the <code class="literal">Http</code> token. This means that <code class="literal">childInjector</code> asks its parent for the value associated with the requested token.</p><p>However, if we try to use <code class="literal">parentInjector.get(UserService)</code>, we won't be able to get the value associated with the token, since its provider is registered in <code class="literal">childInjector</code>.</p></div><div class="section" title="Configuring dependencies"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec85"/>Configuring dependencies</h2></div></div></div><p>Now that we're familiar with the injectors' hierarchy, let's see how we can get the dependencies from the appropriate injectors in it.</p><div class="section" title="Using the @Self decorator"><div class="titlepage"><div><div><h3 class="title"><a id="ch05lvl3sec9"/>Using the @Self decorator</h3></div></div></div><p>Now, let's suppose that we have the following configuration:</p><pre class="programlisting">abstract class Channel {}&#13;
+ &#13;
+class Http extends Channel {}&#13;
+ &#13;
+class WebSocket extends Channel {} &#13;
+ &#13;
+@Injectable() &#13;
+class UserService { &#13;
+  constructor(public channel: Channel) {} &#13;
+} &#13;
+ &#13;
+let parentInjector = ReflectiveInjector.resolveAndCreate([ &#13;
+  { provide: Channel, useClass: Http } &#13;
+]);&#13;
+ &#13;
+let childInjector = parentInjector.resolveAndCreateChild([ &#13;
+  { provide: Channel, useClass: WebSocket }, &#13;
+  UserService &#13;
+]); &#13;
+</pre><p>We can instantiate the <code class="literal">UserService</code> token using:</p><pre class="programlisting">childInjector.get(UserService); &#13;
+</pre><p>In <code class="literal">UserService</code>, we can declare that we want to get the <code class="literal">Channel</code> dependency from the current injector (that is, <code class="literal">childInjector</code>) using the <code class="literal">@Self</code> decorator:</p><pre class="programlisting">@Injectable() &#13;
+class UserService { &#13;
+  constructor(@Self() public channel: Channel) {} &#13;
+} &#13;
+</pre><p>Although this will be the default behavior during the instantiation of the <code class="literal">UserService</code>, using <code class="literal">@Self</code>, we can be more explicit. Let's suppose that we change the configuration of <code class="literal">childInjector</code> to the following:</p><pre class="programlisting">let parentInjector = ReflectiveInjector.resolveAndCreate([ &#13;
+  { provide: Channel, useClass: Http } &#13;
+]);&#13;
+ &#13;
+let childInjector = parentInjector.resolveAndCreateChild([ &#13;
+  UserService &#13;
+]); &#13;
+</pre><p>If we keep the <code class="literal">@Self</code> decorator in the <code class="literal">UserService</code> constructor and try to instantiate <code class="literal">UserService</code> using <code class="literal">childInjector</code>, we will get a runtime error because of the missing provider for <code class="literal">Channel</code>.</p></div><div class="section" title="Skipping the self injector"><div class="titlepage"><div><div><h3 class="title"><a id="ch05lvl3sec10"/>Skipping the self injector</h3></div></div></div><p>In some cases, we may want to use the provider registered in the parent injector instead of the one registered in the current injector. We can achieve this behavior by taking advantage of the <code class="literal">@SkipSelf</code> decorator. For instance, let's suppose that we have the following definition of the <code class="literal">Context</code> class:</p><pre class="programlisting">class Context { &#13;
+  constructor(public parentContext: Context) {} &#13;
+} &#13;
+</pre><p>Each instance of the <code class="literal">Context</code> class has a parent. Now, let's build a hierarchy of two injectors, which will allow us to create a context with a parent context:</p><pre class="programlisting">let parentInjector = ReflectiveInjector.resolveAndCreate([ &#13;
+  { provide: Context, useValue: new Context(null) } &#13;
+]);&#13;
+ &#13;
+let childInjector = parentInjector.resolveAndCreateChild([ &#13;
+  Context &#13;
+]); &#13;
+</pre><p>Since the root context doesn't have a parent, we will set the value of its provider to be <code class="literal">new Context(null)</code>.</p><p>If we want to instantiate the child context, we can use:</p><pre class="programlisting">childInjector.get(Context); &#13;
+</pre><p>For the instantiation of the child, <code class="literal">Context</code> will be used by the provider registered within the <code class="literal">childInjector</code>. However, as a dependency, it accepts an object that is an instance of the <code class="literal">Context</code> class. Such classes exist in the same injector, which means that Angular will try to instantiate it, but it has a dependency of the <code class="literal">Context</code> type. This process will lead to an infinite loop that will cause a runtime error.</p><p>In order to prevent it from happening, we can change the definition of <code class="literal">Context</code> in the following way:</p><pre class="programlisting">class Context { &#13;
+  constructor(@SkipSelf() public parentContext: Context) {} &#13;
+} &#13;
+</pre><p>The only change that we introduced is the addition of the parameter decorator <code class="literal">@SkipSelf</code>.</p></div><div class="section" title="Having optional dependencies"><div class="titlepage"><div><div><h3 class="title"><a id="ch05lvl3sec11"/>Having optional dependencies</h3></div></div></div><p>Angular 2 introduced the <code class="literal">@Optional</code> decorator, which allows us to deal with dependencies that don't have a registered provider associated with them. Let's suppose that a dependency of a provider is not available in any of the target injectors responsible for its instantiation. If we use the <code class="literal">@Optional</code> decorator, during the instantiation of the dependent provider the value of the missing dependency will be passed <code class="literal">null</code>.</p><p>Now, let's take a look at the following example:</p><pre class="programlisting">abstract class SortingAlgorithm { &#13;
+  abstract sort(collection: BaseCollection): BaseCollection; &#13;
+} &#13;
+ &#13;
+@Injectable() &#13;
+class Collection extends BaseCollection { &#13;
+  private sort: SortingAlgorithm;&#13;
+ &#13;
+  constructor(sort: SortingAlgorithm) { &#13;
+    super(); &#13;
+    this.sort = sort || this.getDefaultSort(); &#13;
+  } &#13;
+} &#13;
+ &#13;
+let injector = ReflectiveInjector.resolveAndCreate([ &#13;
+  Collection &#13;
+]); &#13;
+</pre><p>In this case, we defined an abstract class called <code class="literal">SortingAlgorithm</code> and a class called <code class="literal">Collection</code>, which accepts an instance of a concrete class as a dependency that extends <code class="literal">SortingAlgorithm</code>. Inside the <code class="literal">Collection</code> constructor, we set the <code class="literal">sort</code> instance property to the passed dependency of the <code class="literal">SortingAlgorithm</code> type or a default sorting algorithm implementation.</p><p>We didn't define any providers for the <code class="literal">SortingAlgorithm</code> token in the injector we configured. So, if we want to get an instance of the <code class="literal">Collection</code> class using <code class="literal">injector.get(Collection)</code>, we'll get a runtime error. This means that if we want to get an instance of the <code class="literal">Collection</code> class using the DI mechanism of the framework, we must register a provider for the <code class="literal">SortingAlgorithm</code> token, although we may want to fall back to a default sorting algorithm, returned by the <code class="literal">getDefaultSort</code> method.</p><p>Angular provides a solution to this problem with the <code class="literal">@Optional</code> decorator. This is how we can approach the problem using it:</p><pre class="programlisting">// ch5/ts/decorators/optional.ts&#13;
+ &#13;
+@Injectable() &#13;
+class Collection extends BaseCollection { &#13;
+  private sort: SortingAlgorithm;&#13;
+ &#13;
+  constructor(@Optional() sort: SortingAlgorithm) { &#13;
+    super(); &#13;
+    this.sort = sort || this.getDefaultSort(); &#13;
+  } &#13;
+} &#13;
+</pre><p>In the preceding snippet, we declare the <code class="literal">sort</code> dependency as optional, which means that if Angular doesn't find any provider for its token, it will pass the <code class="literal">null</code> value.</p></div><div class="section" title="Using multiproviders"><div class="titlepage"><div><div><h3 class="title"><a id="ch05lvl3sec12"/>Using multiproviders</h3></div></div></div><p>Multiproviders are another new concept introduced to the DI mechanism of Angular in version 2. They allow us to associate multiple providers with the same token. This can be quite useful if we're developing a third-party library that comes with some default implementations of different services, but you want to allow the users to extend it with custom ones. They are also exclusively used to declare multiple validations over a single control in the Angular's form module. We will explain this module in <a class="link" href="ch06.html" title="Chapter 6. Working with the Angular Router and Forms">Chapter 6</a>, <span class="emphasis"><em>Working with the Angular Router and Forms</em></span>, and <a class="link" href="ch07.html" title="Chapter 7. Explaining Pipes and Communicating with RESTful Services">Chapter 7</a>, <span class="emphasis"><em>Explaining Pipes and Communicating with RESTful Services</em></span>.</p><p>Another sample of an applicable use case of multiproviders is what Angular uses for event management in its Web Workers implementation. They create multiproviders for event management plugins. Each of the providers return a different strategy, which supports a different set of events (touch events, keyboard events, and so on). Once a given event occurs, they can choose the appropriate plugin that handles it.</p><p>Let's take a look at an example that illustrates a typical usage of multiproviders:</p><pre class="programlisting">// ch5/ts/configuring-providers/multi-providers.ts &#13;
+const VALIDATOR = new OpaqueToken('validator'); &#13;
+ &#13;
+interface EmployeeValidator { &#13;
+  (person: Employee): string; &#13;
+} &#13;
+ &#13;
+class Employee {...} &#13;
+ &#13;
+let injector = ReflectiveInjector.resolveAndCreate([ &#13;
+  {&#13;
+    provide: VALIDATOR, &#13;
+    multi: true, &#13;
+    useValue: (person: Employee) =&gt; { &#13;
+      if (!person.name) { &#13;
+        return 'The name is required'; &#13;
+      } &#13;
+    } &#13;
+  },&#13;
+  {&#13;
+    provide: VALIDATOR, &#13;
+    multi: true, &#13;
+    useValue: (person: Employee) =&gt; { &#13;
+      if (!person.name || person.name.length &lt; 1) { &#13;
+        return 'The name should be more than 1 symbol long'; &#13;
+      } &#13;
+    } &#13;
+  },&#13;
+  Employee &#13;
+]); &#13;
+</pre><p>In the preceding snippet, we declare a constant called <code class="literal">VALIDATOR</code> and as its value we set a new instance of <code class="literal">OpaqueToken</code>. We also create an injector where we register three providers-two of them provide functions that, based on different criteria, validate instances of the class <code class="literal">Employee</code>. These functions are of the type <code class="literal">EmployeeValidator</code>.</p><p>In order to declare that we want the injector to pass all the registered validators to the constructor of the <code class="literal">Employee</code> class, we need to use the following constructor definition:</p><pre class="programlisting">class Employee { &#13;
+  name: string;&#13;
+&#13;
+  constructor(@Inject(VALIDATOR) private validators: EmployeeValidator[]) {}&#13;
+ &#13;
+  validate() { &#13;
+    return this.validators &#13;
+      .map(v =&gt; v(this)) &#13;
+      .filter(value =&gt; !!value); &#13;
+  } &#13;
+} &#13;
+</pre><p>In the example, we declare a class <code class="literal">Employee</code> that accepts a single dependency: an array of <code class="literal">EmployeeValidator</code>s. In the method <code class="literal">validate</code>, we apply the individual validators over the current class instance and filter the results in order to get only the ones that have returned an error message.</p><p>Note that the constructor argument <code class="literal">validators</code> is of the <code class="literal">EmployeeValidator[]</code> type. Since we can't use the type "array of objects" as a token for a provider, because it is not a valid value in JavaScript and can't be used as a token, we will need to use the <code class="literal">@Inject</code> parameter decorator.</p></div></div><div class="section" title="Using DI with components and directives"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec86"/>Using DI with components and directives</h2></div></div></div><p>In <a class="link" href="ch04.html" title="Chapter 4. Getting Started with Angular Components and Directives">Chapter 4</a>, <span class="emphasis"><em>Getting Started with Angular Components and Directives</em></span>, when we developed our first Angular directive, we saw how we can take advantage of the DI mechanism to inject services into our UI-related components (that is, directives and components).</p><p>Let's take a quick look at what we did earlier, but from a DI perspective:</p><pre class="programlisting">// ch4/ts/tooltip/app.ts&#13;
+ &#13;
+// ... &#13;
+@Directive(...) &#13;
+export class Tooltip { &#13;
+  @Input() saTooltip: string; &#13;
+ &#13;
+  constructor(private el: ElementRef, private overlay: Overlay) { &#13;
+    this.overlay.attach(el.nativeElement); &#13;
+  } &#13;
+  // ... &#13;
+}&#13;
+ &#13;
+@Component({ &#13;
+  // ... &#13;
+  providers: [Overlay]&#13;
+}) &#13;
+class App {} &#13;
+</pre><p>Most of the code from the earlier implementation is omitted because it is not directly related to our current focus.</p><p>Note that the constructor of <code class="literal">Tooltip</code> accepts two dependencies:</p><div class="itemizedlist"><ul class="itemizedlist"><li class="listitem" style="list-style-type: disc">An instance of the <code class="literal">ElementRef</code> class.</li><li class="listitem" style="list-style-type: disc">An instance of the <code class="literal">Overlay</code> class.</li></ul></div><p>The types of dependencies are the tokens associated with their providers and the corresponding values obtained from the providers will be injected with the DI mechanism of Angular.</p><p>Although the declaration of the dependencies of the <code class="literal">Tooltip</code> class looks exactly the same as what we did in the previous sections, there's neither any explicit configuration nor any instantiation of an injector. In this case, Angular internally creates and configures the so called <span class="strong"><strong>element injector</strong></span>. We'll explain it a little bit later, but before that, lets take a look at how we can configure the DI mechanism using NgModules.</p></div><div class="section" title="Configuring DI with NgModules"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec87"/>Configuring DI with NgModules</h2></div></div></div><p>We have already talked about NgModules in <a class="link" href="ch02.html" title="Chapter 2. The Building Blocks of an Angular Application">Chapter 2</a>, <span class="emphasis"><em>The Building Blocks of an Angular Application</em></span> and <a class="link" href="ch04.html" title="Chapter 4. Getting Started with Angular Components and Directives">Chapter 4</a>, <span class="emphasis"><em>Getting Started with Angular Components and Directives</em></span>. We mentioned that they help us to divide our application into logical parts; we also discussed how to use NgModules' imports and exports. In this section, we'll look at a brief overview of how we can use them to configure the providers of our application.</p><p>Based on the providers declared in a given NgModule, Angular will instantiate an injector. This injector will manage all the providers that are listed in the <code class="literal">providers</code> property of the object literal we pass to the <code class="literal">@NgModule</code> decorator:</p><pre class="programlisting">class Markdown {...}&#13;
+&#13;
+@Component(...)&#13;
+class MarkdownPanel {...}&#13;
+&#13;
+@Component(...)&#13;
+class App {...}&#13;
+&#13;
+@NgModule({&#13;
+  declarations: [App, MarkdownPanel],&#13;
+  providers: [Markdown],&#13;
+  imports: [BrowserModule],&#13;
+  bootstrap: [App],&#13;
+})&#13;
+class AppModule {}&#13;
+&#13;
+platformBrowserDynamic().bootstrapModule(AppModule);</pre><p>In the preceding example, we declare a single provider for the <code class="literal">Markdown</code> service. It will be available in all the components and directives listed in the <code class="literal">declarations</code> array because the injectors used by the top-level components will get the one configured through the NgModule as their parent injector.</p><p>Now, let's suppose that our module imports another module that has a declaration of providers:</p><pre class="programlisting">// ch4/ts/directives-ngmodules/app.ts&#13;
+// ...&#13;
+@NgModule({&#13;
+  declarations: [Button],&#13;
+  exports: [Button],&#13;
+  providers: [Markdown],&#13;
+})&#13;
+class ButtonModule {}&#13;
+&#13;
+//...&#13;
+&#13;
+@NgModule({&#13;
+  declarations: [App, MarkdownPanel],&#13;
+  imports: [BrowserModule, ButtonModule],&#13;
+  bootstrap: [App],&#13;
+})&#13;
+class AppModule {}&#13;
+&#13;
+platformBrowserDynamic().bootstrapModule(AppModule);</pre><p>In the example, we have two modules – the <code class="literal">AppModule</code> we previously saw and <code class="literal">ButtonModule</code>. In the snippet <code class="literal">AppModule</code> imports <code class="literal">ButtonModule</code>, which means that all the exports of <code class="literal">ButtonModule</code> will be available as declarations in <code class="literal">AppModule</code>. On top of that, the providers declared in <code class="literal">ButtonModule</code> will be merged with the providers of <code class="literal">AppModule</code>. Based on all these providers, Angular will instantiate an injector and set it as a parent injector to the injector used by the bootstrap component - <code class="literal">App</code>.</p><p>Now, let's discuss the element injector that each component and directive has associated to it.</p></div><div class="section" title="Introducing the element injectors"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec88"/>Introducing the element injectors</h2></div></div></div><p>Under the hood, Angular will create injectors for all the directives and components, and add a default set of providers to them. These are the so-called <span class="strong"><strong>element injectors</strong></span> and are something the framework takes care of itself. The injectors associated with the components are called <span class="strong"><strong>host injectors</strong></span>. One of the providers in each element injector is associated with the <code class="literal">ElementRef</code> token; it will return a reference to the host element of the directive. However, where is the provider for the <code class="literal">Overlay</code> class declared? Let's take a look at the implementation of the top-level component:</p><pre class="programlisting">@Component({ &#13;
+  // ... &#13;
+  providers: [Overlay]&#13;
+})&#13;
+class App {} &#13;
+</pre><p>We configure the element injector for the <code class="literal">App</code> component by declaring the <code class="literal">providers</code> property inside the <code class="literal">@Component</code> decorator. At this point, the registered providers will be visible by the directive or the component associated with the corresponding element injector and the component's entire component subtree, unless they are overridden somewhere in the hierarchy.</p><div class="section" title="Declaring providers for the element injectors"><div class="titlepage"><div><div><h3 class="title"><a id="ch05lvl3sec13"/>Declaring providers for the element injectors</h3></div></div></div><p>Having the declaration of all the providers in the same place might be quite inconvenient. For example, imagine we're developing a large-scale application that has hundreds of components depending on thousands of services. In this case, configuring all the providers in the root component is not a practical solution. There will be name collisions when two or more providers are associated with the same token. The configuration will be huge, and it will be hard to trace where the different dependencies need to be injected.</p><p>As we mentioned, Angular's <code class="literal">@Directive</code> (and <code class="literal">@Component</code>) decorator allows us to introduce directive-specific providers using the <code class="literal">providers</code> property. Here is how we can approach this:</p><pre class="programlisting">@Directive({ &#13;
+  selector: '[saTooltip]', &#13;
+  providers: [{ provide: Overlay, useClass: OverlayMock }] &#13;
+}) &#13;
+export class Tooltip { &#13;
+ @Input() saTooltip: string; &#13;
+ &#13;
+  constructor(private el: ElementRef, private overlay: Overlay) { &#13;
+    this.overlay.attach(el.nativeElement); &#13;
+  } &#13;
+  // ... &#13;
+} &#13;
+ &#13;
+// ... &#13;
+ &#13;
+platformBrowserDynamic().bootstrapModule(AppModule);&#13;
+</pre><p>The preceding example overrides the provider for the <code class="literal">Overlay</code> token in the <code class="literal">Tooltip</code> directive's declaration. This way, Angular will inject an instance of <code class="literal">OverlayMock</code> instead of <code class="literal">Overlay</code> during the instantiation of the tooltip.</p></div><div class="section" title="Exploring DI with components"><div class="titlepage"><div><div><h3 class="title"><a id="ch05lvl3sec14"/>Exploring DI with components</h3></div></div></div><p>Since components are generally directives with views, everything we've seen so far regarding how the DI mechanism works with directives is valid for components as well. However, because of the extra features that the components provide, we're allowed to have further control over their providers.</p><p>As we said, the injector associated with each component will be marked as a <span class="strong"><strong>host</strong></span> injector. There's a parameter decorator called <code class="literal">@Host</code>, which allows us to retrieve a given dependency from any injector until it reaches the closest host injector. This means that, using the <code class="literal">@Host</code> decorator in a directive, we can declare that we want to retrieve the given dependency from the current injector or any parent injector until we reach the injector of the closest parent component.</p><p>The <code class="literal">viewProviders</code> property added to the <code class="literal">@Component</code> decorator is in charge of achieving even more control.</p></div><div class="section" title="viewProviders versus providers"><div class="titlepage"><div><div><h3 class="title"><a id="ch05lvl3sec15"/>viewProviders versus providers</h3></div></div></div><p>Let's take a look at an example of a component called <code class="literal">MarkdownPanel</code>. This component will be used in the following way:</p><pre class="programlisting">&lt;markdown-panel&gt; &#13;
+  &lt;panel-title&gt;# Title&lt;/pane-title&gt; &#13;
+  &lt;panel-content&gt; &#13;
+# Content of the panel &#13;
+* First point &#13;
+* Second point &#13;
+  &lt;/panel-content&gt; &#13;
+&lt;/markdown-panel&gt; &#13;
+</pre><p>The content of each section of the panel will be translated from markdown to HTML. We can delegate this functionality to a service called <code class="literal">Markdown</code>:</p><pre class="programlisting">import * as markdown from 'markdown';&#13;
+&#13;
+class Markdown { &#13;
+  toHTML(md) { &#13;
+    return markdown.toHTML(md); &#13;
+  } &#13;
+} &#13;
+</pre><p>The <code class="literal">Markdown</code> service wraps the <code class="literal">markdown</code> module in order to make it injectable through the DI mechanism.</p><p>Now let's implement <code class="literal">MarkdownPanel</code>.</p><p>In the following snippet, we can find all the important details from the component's implementation:</p><pre class="programlisting">// ch5/ts/directives/app.ts &#13;
+@Component({ &#13;
+  selector: 'markdown-panel', &#13;
+  viewProviders: [Markdown], &#13;
+  styles: [...], &#13;
+  template: ` &#13;
+    &lt;div class="panel"&gt; &#13;
+      &lt;div class="panel-title"&gt; &#13;
+        &lt;ng-content select="panel-title"&gt;&lt;/ng-content&gt; &#13;
+      &lt;/div&gt; &#13;
+      &lt;div class="panel-content"&gt; &#13;
+        &lt;ng-content select="panel-content"&gt;&lt;/ng-content&gt; &#13;
+      &lt;/div&gt; &#13;
+    &lt;/div&gt;` &#13;
+}) &#13;
+class MarkdownPanel { &#13;
+  constructor(private el: ElementRef, private md: Markdown) {}&#13;
+ &#13;
+  ngAfterContentInit() { &#13;
+    let el = this.el.nativeElement; &#13;
+    let title = el.querySelector('panel-title'); &#13;
+    let content = el.querySelector('panel-content'); &#13;
+    title.innerHTML = this.md.toHTML(title.innerHTML); &#13;
+    content.innerHTML = this.md.toHTML(content.innerHTML); &#13;
+  } &#13;
+} &#13;
+</pre><p>In the <code class="literal">@Component</code> decorator, we use the <code class="literal">markdown-panel</code> selector and set the <code class="literal">viewProviders</code> property. In this case, there's only a single view provider: the one for the <code class="literal">Markdown</code> service. By setting this property, we declare that all the providers declared in it will be accessible from the component itself and all of its <span class="strong"><strong>view children</strong></span>.</p><p>Now, let's suppose we have a component called <code class="literal">MarkdownButton</code> and we want to add it to our template in the following way:</p><pre class="programlisting">&lt;markdown-panel&gt; &#13;
+  &lt;panel-title&gt;### Small title&lt;/panel-title&gt; &#13;
+  &lt;panel-content&gt; &#13;
+    Some code &#13;
+  &lt;/panel-content&gt; &#13;
+  &lt;markdown-button&gt;*Click to toggle*&lt;/markdown-button&gt; &#13;
+&lt;/markdown-panel&gt; &#13;
+</pre><p>The <code class="literal">Markdown</code> service will not be accessible by the <code class="literal">MarkdownButton</code> used below the <code class="literal">panel-content</code> element; however, it'll be accessible if we use the button in the component's template:</p><pre class="programlisting">@Component({ &#13;
+  selector: 'markdown-panel', &#13;
+  viewProviders: [Markdown], &#13;
+  styles: [...], &#13;
+  template: ` &#13;
+    &lt;div class="panel"&gt; &#13;
+      &lt;markdown-button&gt;*Click to toggle*&lt;/markdown-button&gt; &#13;
+      &lt;div class="panel-title"&gt; &#13;
+        &lt;ng-content select="panel-title"&gt;&lt;/ng-content&gt; &#13;
+      &lt;/div&gt; &#13;
+      &lt;div class="panel-content"&gt; &#13;
+        &lt;ng-content select="panel-content"&gt;&lt;/ng-content&gt; &#13;
+      &lt;/div&gt; &#13;
+    &lt;/div&gt;` &#13;
+}) &#13;
+</pre><p>If we need the provider to be visible in all the content and view children, all we should do is change the name of the property <code class="literal">viewProviders</code> to <code class="literal">providers</code>.</p><p>You can find this example in the examples directory at <code class="literal">ch5/ts/directives/app.ts</code>.</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note28"/>Note</h3><p>Note that, for any component or directive, we can override an existing provider declared in a NgModule using the <code class="literal">providers</code> properties of the object literal we pass to the <code class="literal">@Component</code> or the <code class="literal">@Directive</code> decorators. If we want to override a specific provider only for the view children of a given component, we can use <code class="literal">viewProviders</code>.</p></div></div></div></div><div class="section" title="Using Angular's DI with ES5"><div class="titlepage"><div><div><h2 class="title"><a id="ch05lvl2sec89"/>Using Angular's DI with ES5</h2></div></div></div><p>We are already proficient in using the DI of Angular with TypeScript! As we know, we are not limited to TypeScript for the development of Angular applications; we can also use ES5, ES2015, and ES2016 (as well as Dart, but that is outside the scope of this book).</p><p>So far, we declared the dependencies of the different classes in their constructor using standard TypeScript type annotations. All such classes are supposed to be decorated with the <code class="literal">@Injectable</code> decorator. Unfortunately, some of the other languages supported by Angular miss a few of these features. In the following table, we can see that ES5 doesn't support type annotations, classes, and decorators:</p><div class="informaltable"><table border="1"><colgroup><col/><col/><col/><col/></colgroup><tbody><tr><td>
+</td><td>
+<p>
+<span class="strong"><strong>ES5</strong></span>
+</p>
+</td><td>
+<p>
+<span class="strong"><strong>ES2015</strong></span>
+</p>
+</td><td>
+<p>
+<span class="strong"><strong>ES2016</strong></span>
+</p>
+</td></tr><tr><td>
+<p>
+<span class="strong"><strong>Classes</strong></span>
+</p>
+</td><td>
+<p>No</p>
+</td><td>
+<p>Yes</p>
+</td><td>
+<p>Yes</p>
+</td></tr><tr><td>
+<p>
+<span class="strong"><strong>Decorators</strong></span>
+</p>
+</td><td>
+<p>No</p>
+</td><td>
+<p>No</p>
+</td><td>
+<p>Yes (no parameter decorators)</p>
+</td></tr><tr><td>
+<p>
+<span class="strong"><strong>Type annotations</strong></span>
+</p>
+</td><td>
+<p>No</p>
+</td><td>
+<p>No</p>
+</td><td>
+<p>No</p>
+</td></tr></tbody></table></div><p>How can we take advantage of the DI mechanism in these languages? Angular provides an internal JavaScript <span class="strong"><strong>domain-specific language</strong></span> (<span class="strong"><strong>DSL</strong></span>), which allows us to take advantage of the entire functionalities of the framework using ES5.</p><p>Now, let's translate the <code class="literal">MarkdownPanel</code> example we took a look at in the previous section from TypeScript to ES5. First, let's start with the <code class="literal">Markdown</code> service:</p><pre class="programlisting">// ch5/es5/simple-example/app.js&#13;
+ &#13;
+var Markdown = ng.core.Class({ &#13;
+  constructor: function () {},&#13;
+  toHTML: function (md) {&#13;
+    return markdown.toHTML(md); &#13;
+  } &#13;
+}); &#13;
+</pre><p>We defined a variable called <code class="literal">Markdown</code> and set its value to the returned result from the invocation of <code class="literal">ng.core.Class</code>. This construct allows us to emulate ES2015 classes using ES5. The argument of the <code class="literal">ng.core.Class</code> method is an object literal, which must have the definition of a <code class="literal">constructor</code> function. As a result, <code class="literal">ng.core.Class</code> will return a JavaScript constructor function with the body of <code class="literal">constructor</code> from the object literal. All the other methods defined within the boundaries of the passed parameter will be added to the function's prototype.</p><p>One problem is solved: we can now emulate classes in ES5; there are two more problems left!</p><p>Now, let's take a look at how we can define the <code class="literal">MarkdownPanel</code> component:</p><pre class="programlisting">// ch5/es5/simple-example/app.js &#13;
+ &#13;
+var MarkdownPanel = ng.core.Component({ &#13;
+  selector: 'markdown-panel', &#13;
+  viewProviders: [Markdown], &#13;
+  styles: [...], &#13;
+  template: '...' &#13;
+}) &#13;
+.Class({ &#13;
+  constructor: [Markdown, ng.core.ElementRef, function (md, el) { &#13;
+    this.md = md; &#13;
+    this.el = el; &#13;
+  }], &#13;
+  ngAfterContentInit: function () { &#13;
+    ... &#13;
+  } &#13;
+}); &#13;
+</pre><p>From <a class="link" href="ch04.html" title="Chapter 4. Getting Started with Angular Components and Directives">
+Chapter 4</a>, <span class="emphasis"><em>Getting Started with Angular Components and Directives</em></span>, we are already familiar with the ES5 syntax used to define components. Now, let's take a look at the constructor function of <code class="literal">MarkdownPanel</code>, in order to check how we can declare the dependencies of our components and classes in general.</p><p>From the preceding snippet, we should notice that the value of the constructor is not a function this time, but an array instead. This might seem familiar to you from AngularJS, where we are able to declare the dependencies of the given service by listing their names:</p><pre class="programlisting">Module.service('UserMapper', &#13;
+  ['User', '$http', function (User, $http) { &#13;
+    // ... &#13;
+  }]); &#13;
+</pre><p>Although the new syntax looks similar, it brings some improvements. For instance, we're no longer limited to using strings for the dependencies' tokens.</p><p>Now, let's suppose we want to make the <code class="literal">Markdown</code> service an optional dependency. In this case, we can approach this by passing an array of decorators:</p><pre class="programlisting">... &#13;
+.Class({ &#13;
+  constructor: [[ng.core.Optional(), Markdown], &#13;
+    ng.core.ElementRef, function (md, el) { &#13;
+      this.md = md; &#13;
+      this.el = el; &#13;
+    }], &#13;
+  ngAfterContentInit: function () { &#13;
+    ... &#13;
+  } &#13;
+}); &#13;
+... &#13;
+</pre><p>This way, by nesting arrays, we can apply a sequence of decorators: <code class="literal">[[ng.core.Optional(), ng.core.Self(), Markdown], ...]</code>. In this example, the <code class="literal">@Optional</code> and <code class="literal">@Self</code> decorators will add the associated metadata to the class in the specified order.</p><div class="note" style="" title="Note"><div class="inner"><h3 class="title"><a id="note29"/>Note</h3><p>Although using ES5 makes our build simpler and allows us to skip the intermediate step of transpilation, which can be tempting, Google's recommendation is to take advantage of static typing using TypeScript. This way, we have a much clearer syntax, which carries better semantics with less typing and provides us with great tooling, including the straightforward process of AoT compilation (we'll explore the Angular's AoT in the final chapter of the book).</p></div></div></div></div>
+<div class="section" title="Summary"><div class="titlepage"><div><div><h1 class="title"><a id="ch05lvl1sec51"/>Summary</h1></div></div></div><p>In this chapter, we covered the DI mechanism of Angular. We briefly discussed the positives of using DI in our projects by introducing it in the context of the framework. The second step in our journey was how to instantiate and configure injectors; we also explained the injectors' hierarchy and the visibility of the registered providers. In order to enforce a better separation of concerns, we mentioned how we can inject services carrying the business logic of our application in our directives and components. The last point we took a look at was how we can use the DI mechanism with the ES5 syntax.</p><p>In the next chapter, we'll introduce the new routing mechanism of the framework. We'll explain how we can configure the component-based router and add multiple views to our application. Another important topic we will cover is the new form module. By building a simple application, we will demonstrate how we can create and manage forms.</p></div></body></html>

@@ -1,0 +1,911 @@
+<html><head></head><body>
+  <div id="_idContainer177" class="Basic-Text-Frame">
+    <h1 class="chapterNumber">8</h1>
+    <h1 id="_idParaDest-134" class="chapterTitle">Building an Enterprise Portal Using Nx Monorepo Tools and NgRx</h1>
+    <p class="normal">Typical enterprise applications usually consist of a backend and a frontend system. The backend<a id="_idIndexMarker423"/> is responsible for interacting with a database for data persistence and exposes a REST API. The frontend<a id="_idIndexMarker424"/> communicates with the backend system via the REST interface to exchange data. The frontend system can sometimes consist of multiple applications, including a web interface or a mobile application. Keeping all these applications and systems in separate source control repositories scales poorly and is difficult to maintain and build. Alternatively, we can follow a <strong class="keyWord">monorepo</strong> architecture for large enterprise applications, where each application<a id="_idIndexMarker425"/> resides in a separate location inside the same repository.</p>
+    <p class="normal">A popular tool in the Angular ecosystem that embraces monorepo architecture is <strong class="keyWord">Nx</strong>. Combining an Nx <a id="_idIndexMarker426"/>monorepo application with a state management library can significantly improve your application. <strong class="keyWord">NgRx</strong>, a popular<a id="_idIndexMarker427"/> state management library for Angular applications, can help us maintain a consistent and manageable global state.</p>
+    <p class="normal">In this chapter, we will investigate both technologies by building an enterprise portal application for <a id="_idIndexMarker428"/>visiting <strong class="keyWord">points of interest (POIs)</strong>. We will cover the following topics:</p>
+    <ul>
+      <li class="bulletList">Creating a monorepo application using Nx</li>
+      <li class="bulletList">Creating user-specific portals</li>
+      <li class="bulletList">Managing application state with NgRx</li>
+      <li class="bulletList">Visualizing data with graphs</li>
+    </ul>
+    <h1 id="_idParaDest-135" class="heading-1">Essential background theory and context</h1>
+    <p class="normal">Nx<a id="_idIndexMarker429"/> is a suite of development tools and libraries for building web applications based on monorepo architecture. A typical Nx application can contain many applications and shared libraries inside a single workspace. The flexibility of monorepo architecture allows any application, backend or frontend, to use the same libraries inside the workspace.</p>
+    <div class="note">
+      <p class="normal">In this project, we will consider only frontend applications built with the Angular framework.</p>
+    </div>
+    <p class="normal">Nx provides developers with the following features:</p>
+    <ul>
+      <li class="bulletList"><strong class="keyWord">Centralized management of application dependencies</strong>: Each application has the same version of the <a id="_idIndexMarker430"/>Angular framework, making it easy to update all at once.</li>
+      <li class="bulletList"><strong class="keyWord">Fast builds</strong>: The build process of an Nx application involves only those artifacts that have been changed and does not do a complete rebuild of the entire monorepo.</li>
+      <li class="bulletList"><strong class="keyWord">Distributed caching</strong>: Each application build can be cached locally or to the cloud, using <strong class="keyWord">Nx Cloud</strong>, to <a id="_idIndexMarker431"/>improve the build process of other developers <a id="_idIndexMarker432"/>that build similar artifacts.</li>
+    </ul>
+    <p class="normal">Maintaining a consistent global state is tedious in a large Angular enterprise application. Using <code class="inlineCode">@Input</code> and <code class="inlineCode">@Output</code> decorators to communicate between Angular components is not always viable, especially when many components need to share the same state.</p>
+    <p class="normal">NgRx is a library that <a id="_idIndexMarker433"/>efficiently manages the global application state powered by the <strong class="keyWord">RxJS</strong> library. The main building blocks of NgRx are the following:</p>
+    <ul>
+      <li class="bulletList"><strong class="keyWord">Store</strong>: The central<a id="_idIndexMarker434"/> storage that keeps the global state of the <a id="_idIndexMarker435"/>application.</li>
+      <li class="bulletList"><strong class="keyWord">Reducer</strong>: A function that listens to<a id="_idIndexMarker436"/> a specific event and interacts directly with the store. Reducers <a id="_idIndexMarker437"/>derive a new application state based on the existing one from the store.</li>
+      <li class="bulletList"><strong class="keyWord">Action</strong>: A unique event <a id="_idIndexMarker438"/>dispatched from components and services that <a id="_idIndexMarker439"/>triggers a reducer. Actions can be any interaction initiated by the user or an external source, such as an HTTP call.</li>
+      <li class="bulletList"><strong class="keyWord">Effect</strong>: Handles interaction<a id="_idIndexMarker440"/> with external sources, such as making an HTTP call or exchanging data with the local storage. Effects take care of side <a id="_idIndexMarker441"/>effects in an application by hiding the business logic from components.</li>
+      <li class="bulletList"><strong class="keyWord">Selector</strong>: A function that selects<a id="_idIndexMarker442"/> the application state or a specific part of <a id="_idIndexMarker443"/>it (<em class="italic">slice</em>) from the store. Selectors support <strong class="keyWord">memoization</strong>, a technique where they can return the same state if<a id="_idIndexMarker444"/> called with the same parameters, greatly enhancing the performance of an application.</li>
+    </ul>
+    <h1 id="_idParaDest-136" class="heading-1">Project overview</h1>
+    <p class="normal">In this project, we will build an Angular enterprise application to manage POI visits on a map. The application will consist of two portals, where one will allow a visitor to select a POI from a list and view its location on a map. Another portal will enable an administrator to view the visiting traffic of each POI.</p>
+    <p class="normal">First, we will build an Angular application from scratch using Nx. We will then create the skeleton of each portal by adding the essential components of our application. After we have scaffolded our application, we will start adding the functionality of the visitor portal using NgRx. Finally, we will implement the administrator portal and learn how to use an Angular library to visualize data in a graph. The following diagram describes an architectural overview of the project:</p>
+    <figure class="mediaobject"><img src="../Images/B18465_08_01.png" alt="Εικόνα που περιέχει διάγραμμα  Περιγραφή που δημιουργήθηκε αυτόματα"/></figure>
+    <p class="packt_figref">Figure 8.1 – Project architecture</p>
+    <p class="normal">Build time: 3 hours</p>
+    <h1 id="_idParaDest-137" class="heading-1">Getting started</h1>
+    <p class="normal">The following software tools are required to complete this project:</p>
+    <ul>
+      <li class="bulletList"><strong class="keyWord">Nx Console</strong>: A VSCode<a id="_idIndexMarker445"/> extension that provides a graphical interface to work with Nx. You can learn more about installing it in <em class="chapterRef">Chapter 1</em>, <em class="italic">Creating Your First Web Application in Angular</em>.</li>
+      <li class="bulletList"><strong class="keyWord">GitHub material</strong>: The code related to this chapter can be found in the <code class="inlineCode">Chapter08</code> folder at <a href="https://github.com/PacktPublishing/Angular-Projects-Third-Edition"><span class="url">https://github.com/PacktPublishing/Angular-Projects-Third-Edition</span></a>.</li>
+    </ul>
+    <h1 id="_idParaDest-138" class="heading-1">Creating a monorepo application using Nx</h1>
+    <p class="normal">Nx <a id="_idIndexMarker446"/>provides <a id="_idIndexMarker447"/>developers with tools to work with monorepos, including the following:</p>
+    <ul>
+      <li class="bulletList"><strong class="keyWord">create-nx-workspace</strong>: An<a id="_idIndexMarker448"/> npm package that scaffolds a new Nx monorepo application.</li>
+      <li class="bulletList"><strong class="keyWord">Nx CLI</strong>: A command-line interface that runs commands against a monorepo application. The Nx CLI<a id="_idIndexMarker449"/> extends the Angular CLI to provide more commands, which is faster due to the distributed caching mechanism.</li>
+    </ul>
+    <div class="packt_tip">
+      <p class="normal">It is recommended to use the <strong class="keyWord">Quick Open</strong> feature<a id="_idIndexMarker450"/> of VSCode when working with Nx monorepos. The number of generated folders and files will significantly increase, and it will be challenging to navigate through them. You can find out more at <a href="https://code.visualstudio.com/docs/editor/editingevolved#_quick-file-navigation"><span class="url">https://code.visualstudio.com/docs/editor/editingevolved#_quick-file-navigation</span></a>.</p>
+    </div>
+    <p class="normal">To install the Nx CLI, run the following command in a terminal:</p>
+    <pre class="programlisting con"><code class="hljs-con">npm install -g nx
+</code></pre>
+    <p class="normal">The preceding command will install the <code class="inlineCode">nx</code> npm package globally on our system. We can now scaffold a new Nx monorepo workspace using the following command:</p>
+    <pre class="programlisting con"><code class="hljs-con">npx create-nx-workspace packt --appName=tour --preset=angular-monorepo --style=css --linter=eslint --nx-cloud=false --routing
+</code></pre>
+    <p class="normal">The preceding command will do the following:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Find the latest version of the <code class="inlineCode">create-nx-workspace</code> npm package and request us to install it.</li>
+      <li class="numberedList">Ask if we want to use standalone components in the application. Ensure that <code class="inlineCode">No</code> is selected and press <em class="keystroke">Enter</em> to continue.</li>
+    </ol>
+    <div class="packt_tip">
+      <p class="normal">Standalone Angular components are a simpler and modern approach to a more component-centric Angular application without using Angular modules. In this project, we will use Angular modules by default. </p>
+    </div>
+    <p class="normal">The <a id="_idIndexMarker451"/>execution of the <code class="inlineCode">create-nx-workspace</code> package involves the <a id="_idIndexMarker452"/>following options:</p>
+    <ul>
+      <li class="bulletList"><code class="inlineCode">packt</code>: The name of the Nx monorepo workspace. In large enterprise environments, we typically use the organization name.</li>
+      <li class="bulletList"><code class="inlineCode">--appName=tour</code>: The name of the application.</li>
+      <li class="bulletList"><code class="inlineCode">--preset=angular-monorepo</code>: Nx supports applications built with various JavaScript frameworks. The <code class="inlineCode">preset</code> option defines what type of application we want to build.</li>
+      <li class="bulletList"><code class="inlineCode">--style=css</code>: Indicates that our application will use the CSS style sheet format.</li>
+      <li class="bulletList"><code class="inlineCode">--linter=eslint</code>: Configures our application to use ESLint as the default linter.</li>
+      <li class="bulletList"><code class="inlineCode">--nx-cloud=false</code>: Disables Nx Cloud for our application.</li>
+      <li class="bulletList"><code class="inlineCode">--routing</code>: Enables Angular routing in the application.</li>
+    </ul>
+    <div class="note">
+      <p class="normal">Creating a new Nx workspace may take some time, as it installs all the necessary packages for an enterprise environment.</p>
+    </div>
+    <p class="normal">After the creation of the workspace has been completed, we can run it to verify that everything has been set up correctly:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Open the project in the VSCode editor and click on the <strong class="screenText">Nx Console</strong> menu in the VSCode sidebar.</li>
+      <li class="numberedList">Select the <strong class="screenText">serve</strong> command from the <strong class="screenText">PROJECTS</strong> pane and click the play button to execute it:</li>
+    </ol>
+    <figure class="mediaobject"><img src="../Images/B18465_08_02.png" alt=""/></figure>
+    <p class="packt_figref">Figure 8.2 – Serve option</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="3">Open <a id="_idIndexMarker453"/>your browser at <code class="inlineCode">http://localhost:4200</code>, and<a id="_idIndexMarker454"/> you should see the following output:</li>
+    </ol>
+    <figure class="mediaobject"><img src="../Images/B18465_08_03.png" alt="Εικόνα που περιέχει κείμενο  Περιγραφή που δημιουργήθηκε αυτόματα"/></figure>
+    <p class="packt_figref">Figure 8.3 – Minimal Nx application</p>
+    <p class="normal">Congratulations! Your<a id="_idIndexMarker455"/> new application has been configured correctly! Nx <a id="_idIndexMarker456"/>creates a minimal skeleton application, just like Angular CLI does, for our convenience so that we can build our features on top of that.</p>
+    <p class="normal">In the next section, we will dive deeper into Nx by creating the administrator and visitor portals in our workspace.</p>
+    <h1 id="_idParaDest-139" class="heading-1">Creating user-specific portals</h1>
+    <p class="normal">Our application will consist of <a id="_idIndexMarker457"/>two portals that different users will use. Visitors will be able to view a list of POIs and select them on a map. Administrators will be able to view statistics for each POI. We will learn more about how to use Nx in the following sections:</p>
+    <ul>
+      <li class="bulletList">Building the visitor portal</li>
+      <li class="bulletList">Building the administrator portal</li>
+    </ul>
+    <p class="normal">Each portal will be a separate Nx library that will be loaded according to the URL entered in the address bar of the browser. Organizing our code in libraries allows us to reuse it between different applications and build and test it individually. We will start building the visitor portal in the following section.</p>
+    <h2 id="_idParaDest-140" class="heading-2">Building the visitor portal</h2>
+    <p class="normal">The visitor portal will be a library inside the<a id="_idIndexMarker458"/> Nx workspace that will be loaded by default. Let’s see how we can build that library with Nx Console:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Run Nx Console from the VSCode sidebar and select the <strong class="screenText">generate</strong> option from the <strong class="screenText">GENERATE &amp; RUN TARGET</strong> pane:</li>
+    </ol>
+    <figure class="mediaobject"><img src="../Images/B18465_08_04.png" alt=""/></figure>
+    <p class="packt_figref">Figure 8.4 – The generate option</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="2">Select the <strong class="screenText">@nrwl/angular – library</strong> option from the dialog that appears. The <strong class="keyWord">@nx/angular</strong> namespace contains schematics we can execute in an Nx monorepo for Angular applications.</li>
+      <li class="numberedList">Enter <code class="inlineCode">visitor</code> as the name of the library and click the <strong class="screenText">Run</strong> button:</li>
+    </ol>
+    <figure class="mediaobject"><img src="../Images/B18465_08_05.png" alt="Εικόνα που περιέχει τραπέζι  Περιγραφή που δημιουργήθηκε αυτόματα"/></figure>
+    <p class="packt_figref">Figure 8.5 – Library name</p>
+    <div class="packt_tip">
+      <p class="normal">When you were typing the name of the library, you may have noticed that Nx was running the <strong class="keyWord">generate</strong> command in the terminal. Well, it did not run it. Instead, it mimicked the effect of running the command in your system, a technique<a id="_idIndexMarker459"/> called a <strong class="keyWord">dry run</strong>.</p>
+    </div>
+    <p class="normal">Nx will create <a id="_idIndexMarker460"/>the <code class="inlineCode">visitor</code> library inside the <code class="inlineCode">libs</code> folder of our workspace. The library does not contain any components yet. According to the project specifications, the visitor portal will have a list of POIs where users can select and view their location on a map. Thus, we need to create an Angular component with the following layout:</p>
+    <figure class="mediaobject"><img src="../Images/B18465_08_06.png" alt="Figure 8.6 – Visitor portal layout"/></figure>
+    <p class="packt_figref">Figure 8.6 – Visitor portal layout</p>
+    <p class="normal">In the previous <a id="_idIndexMarker461"/>diagram, the portal consists of the sidebar that displays a POI list and the main content area to display the map. Instead of creating the layout from scratch, we will use Angular Material, which contains a handful of ready-made layouts, including one with a sidebar.</p>
+    <p class="normal">Before working with Angular Material, we need to install it in our application with the following command:</p>
+    <pre class="programlisting con"><code class="hljs-con">npm install @angular/material
+</code></pre>
+    <p class="normal">After the installation completes successfully, we can configure Angular Material in our Nx workspace using the following command:</p>
+    <pre class="programlisting con"><code class="hljs-con">nx generate @angular/material:ng-add --project=tour --theme=deeppurple-amber --animations=enabled --typography  
+</code></pre>
+    <p class="normal">The preceding command will configure the <code class="inlineCode">@angular/material</code> npm package for use in our workspace, passing additional options. You can learn more about these options in <em class="chapterRef">Chapter 4</em>, <em class="italic">Building a PWA Weather Application Using Angular Service Worker</em>.</p>
+    <p class="normal">Configuring Angular Material in our project will also install the <code class="inlineCode">@angular/cdk</code> npm package, which contains specific behaviors and interactions used to build Angular Material.</p>
+    <div class="note">
+      <p class="normal">The <strong class="keyWord">Angular CDK</strong> can be<a id="_idIndexMarker462"/> used to build custom UI libraries without relying on Angular Material. We will learn how to build such libraries in <em class="chapterRef">Chapter 9</em>, <em class="italic">Building a Component UI Library Using Angular CLI and Angular CDK</em>.</p>
+    </div>
+    <p class="normal">The Angular Material library contains the following component templates that we can use:</p>
+    <ul>
+      <li class="bulletList"><strong class="keyWord">address-form</strong>: This uses Angular<a id="_idIndexMarker463"/> Material form controls to enter address information.</li>
+      <li class="bulletList"><strong class="keyWord">navigation</strong>: This contains a side navigation component along with a content placeholder<a id="_idIndexMarker464"/> and a title bar.</li>
+      <li class="bulletList"><strong class="keyWord">dashboard</strong>: This consists <a id="_idIndexMarker465"/>of multiple Angular Material card and menu components organized in a grid layout.</li>
+      <li class="bulletList"><strong class="keyWord">table</strong>: This displays an <a id="_idIndexMarker466"/>Angular Material table with sorting and filtering enabled.</li>
+      <li class="bulletList"><strong class="keyWord">tree</strong>: This represents a <a id="_idIndexMarker467"/>visual folder structure in a tree view.</li>
+    </ul>
+    <p class="normal">In our case, we will use the <strong class="keyWord">navigation</strong> component because we need a sidebar. Let’s see how we can<a id="_idIndexMarker468"/> generate that component:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Open Nx Console from the VSCode sidebar and select the <strong class="screenText">generate</strong> option.</li>
+      <li class="numberedList">Select the <strong class="screenText">@angular/material – navigation</strong> option from the dialog that appears. The <strong class="keyWord">@angular/material</strong> namespace contains schematics that we can run to create Angular Material components.</li>
+      <li class="numberedList">Enter the name of the component:</li>
+    </ol>
+    <figure class="mediaobject"><img src="../Images/B18465_08_07.png" alt="Figure 8.7 – Component name"/></figure>
+    <p class="packt_figref">Figure 8.7 – Component name</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="4">Select the <strong class="screenText">visitor</strong> library from the <strong class="screenText">project</strong> dropdown that we created earlier:
+    <figure class="mediaobject"><img src="../Images/B18465_08_08.png" alt="Figure 8.8 – Project selection"/></figure>
+    <p class="packt_figref">Figure 8.8 – Project selection</p>
+    <div class="packt_tip">
+      <p class="normal">Click the <strong class="screenText">Show more</strong> button if the option is not displayed.</p>
+    </div></li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="5">Check <a id="_idIndexMarker469"/>the <strong class="screenText">flat</strong> option so that the component will not be generated in a separate folder:
+    <figure class="mediaobject"><img src="../Images/B18465_08_09.png" alt="Figure 8.9 – The flat option"/></figure>
+    <p class="packt_figref">Figure 8.9 – The flat option</p>
+    <p class="normal">The component will be the main one of the library, so we want to have it in the same folder with its related module file.</p></li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="6">Enter the folder where the component will be created:
+    <figure class="mediaobject"><img src="../Images/B18465_08_10.png" alt="Figure 8.10 – Component folder"/></figure>
+    <p class="packt_figref">Figure 8.10 – Component folder</p>
+    <div class="packt_tip">
+      <p class="normal">There is no need to define the module where the component will be created because the Angular CLI can deduce it directly from the <strong class="screenText">path</strong> option.</p>
+    </div></li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="7">Click the <strong class="screenText">Run</strong> button to generate the component.</li>
+    </ol>
+    <p class="normal">Nx Console <a id="_idIndexMarker470"/>will create the <strong class="keyWord">visitor</strong> component in the <strong class="keyWord">visitor</strong> library of the Nx workspace. We now need to connect it with the main application of the workspace:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Open the <code class="inlineCode">app.component.html</code> file and remove the <code class="inlineCode">&lt;packt-nx-welcome&gt;</code> selector.</li>
+      <li class="numberedList">Open the <code class="inlineCode">app.routes.ts</code> file and add a route configuration that will load the visitor portal when the URL contains the <code class="inlineCode">tour</code> path:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> <span class="hljs-attr">appRoutes</span>: <span class="hljs-title">Route</span>[] = [
+  <span class="code-highlight"><strong class="hljs-slc">{</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">    </strong><strong class="hljs-attr-slc">path</strong><strong class="hljs-slc">: </strong><strong class="hljs-string-slc">'tour'</strong><strong class="hljs-slc">,</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">    </strong><strong class="hljs-attr-slc">loadChildren</strong><strong class="hljs-slc">: </strong><strong class="hljs-function-slc">() =&gt;</strong><strong class="hljs-slc"> </strong><strong class="hljs-keyword-slc">import</strong><strong class="hljs-slc">(</strong><strong class="hljs-string-slc">'@packt/visitor'</strong><strong class="hljs-slc">).</strong><strong class="hljs-title-slc">then</strong><strong class="hljs-slc">(</strong><strong class="hljs-params-slc">m</strong><strong class="hljs-function-slc"> =&gt;</strong><strong class="hljs-slc"> m.</strong><strong class="hljs-property-slc">VisitorModule</strong><strong class="hljs-slc">)</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">  },</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">  {</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">    </strong><strong class="hljs-attr-slc">path</strong><strong class="hljs-slc">: </strong><strong class="hljs-string-slc">''</strong><strong class="hljs-slc">,</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">    </strong><strong class="hljs-attr-slc">pathMatch</strong><strong class="hljs-slc">: </strong><strong class="hljs-string-slc">'full'</strong><strong class="hljs-slc">,</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">    </strong><strong class="hljs-attr-slc">redirectTo</strong><strong class="hljs-slc">: </strong><strong class="hljs-string-slc">'</strong><strong class="hljs-string-slc">tour'</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">  }</strong></span>
+];
+</code></pre>
+    <p class="normal">The route configuration contains two paths. The <strong class="keyWord">default</strong> path, denoted by the empty string, redirects to the <code class="inlineCode">tour</code> path. The <code class="inlineCode">tour</code> path lazily loads the module of the <strong class="keyWord">visitor</strong> library.</p>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="3">Open <a id="_idIndexMarker471"/>the <code class="inlineCode">visitor.module.ts</code> file and add a route configuration to load the <strong class="keyWord">visitor</strong> component that we created:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-title">NgModule</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/core'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">CommonModule</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/common'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">VisitorComponent</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'./visitor.component'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">MatToolbarModule</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/material/toolbar'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">MatButtonModule</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/material/button'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">MatSidenavModule</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/material/sidenav'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">MatIconModule</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/material/icon'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">MatListModule</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/material/list'</span>;
+<span class="code-highlight"><strong class="hljs-keyword-slc">import</strong><strong class="hljs-slc"> { </strong><strong class="hljs-title-slc">RouterModule</strong><strong class="hljs-slc"> } </strong><strong class="hljs-keyword-slc">from</strong><strong class="hljs-slc"> </strong><strong class="hljs-string-slc">'@angular/router'</strong><strong class="hljs-slc">;</strong></span>
+<span class="hljs-meta">@NgModule</span>({
+  <span class="hljs-attr">imports</span>: [<span class="hljs-title">CommonModule</span>, <span class="hljs-title">MatToolbarModule</span>, <span class="hljs-title">MatButtonModule</span>, <span class="hljs-title">MatSidenavModule</span>, <span class="hljs-title">MatIconModule</span>, <span class="hljs-title">MatListModule</span>,
+    <span class="code-highlight"><strong class="hljs-title-slc">RouterModule</strong><strong class="hljs-slc">.</strong><strong class="hljs-title-slc">forChild</strong><strong class="hljs-slc">([</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">      { </strong><strong class="hljs-attr-slc">path</strong><strong class="hljs-slc">: </strong><strong class="hljs-string-slc">''</strong><strong class="hljs-slc">, </strong><strong class="hljs-attr-slc">component</strong><strong class="hljs-slc">: </strong><strong class="hljs-title-slc">VisitorComponent</strong><strong class="hljs-slc"> }</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">    ])</strong></span>
+  ],
+  <span class="hljs-attr">declarations</span>: [
+    <span class="hljs-title">VisitorComponent</span>
+  ],
+})
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> <span class="hljs-title">VisitorModule</span> {}
+</code></pre>
+      </li>
+    </ol>
+    <p class="normal">The route configuration will activate <code class="inlineCode">VisitorComponent</code> by default as soon as <code class="inlineCode">VisitorModule</code> is loaded, using the <code class="inlineCode">tour</code> path described in described in the step 3.</p>
+    <p class="normal">If we now <a id="_idIndexMarker472"/>run the <strong class="screenText">serve</strong> command from Nx Console and navigate to <code class="inlineCode">http://localhost:4200</code>, we should see the following output:</p>
+    <figure class="mediaobject"><img src="../Images/B18465_08_11.png" alt=""/></figure>
+    <p class="packt_figref">Figure 8.11 – Visitor portal</p>
+    <p class="normal">The Angular<a id="_idIndexMarker473"/> router will redirect us to <code class="inlineCode">http://localhost:4200/tour</code> and display the visitor portal. It currently contains some demo data that Angular Material entered when we generated the navigation component. We will revisit it in the <em class="italic">Managing application state with NgRx</em> section to implement the full functionality using NgRx. For now, we will continue building the administrator portal in the next section.</p>
+    <h2 id="_idParaDest-141" class="heading-2">Building the administrator portal</h2>
+    <p class="normal">The administrator portal will<a id="_idIndexMarker474"/> be an Nx library with a single component, just like the visitor portal, except it will not be based on an Angular Material template. Let’s start scaffolding the structure of the library using Nx Console:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Run Nx Console from the VSCode sidebar and select the <strong class="screenText">generate</strong> option.</li>
+      <li class="numberedList">In the dialog that appears, select the <strong class="screenText">@nx/angular – library</strong> option.</li>
+      <li class="numberedList">Enter <code class="inlineCode">admin</code> as the library name and click the <strong class="screenText">Run</strong> button:</li>
+    </ol>
+    <figure class="mediaobject"><img src="../Images/B18465_08_12.png" alt="Figure 8.12 – Library name"/></figure>
+    <p class="packt_figref">Figure 8.12 – Library name</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="4">Click the <strong class="screenText">generate</strong> option <a id="_idIndexMarker475"/>again and select the <strong class="screenText">@schematics/angular – component</strong> option. The <strong class="keyWord">@schematics/angular</strong> namespace contains schematics that we can run in an Angular application using the Angular CLI.</li>
+      <li class="numberedList">Enter the same name for the component as in step 3:</li>
+    </ol>
+    <figure class="mediaobject"><img src="../Images/B18465_08_13.png" alt="Figure 8.13 – Component name"/></figure>
+    <p class="packt_figref">Figure 8.13 – Component name</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="6">Select the library that we created from the <strong class="screenText">project</strong> drop-down list:</li>
+    </ol>
+    <figure class="mediaobject"><img src="../Images/B18465_08_14.png" alt="Figure 8.14 – Project selection"/></figure>
+    <p class="packt_figref">Figure 8.14 – Project selection</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="7">Check the <strong class="screenText">flat</strong> option so<a id="_idIndexMarker476"/> that the component will be created in the same folder as the module file of the library:
+    <figure class="mediaobject"><img src="../Images/B18465_08_15.png" alt="Figure 8.15 – The flat option"/></figure>
+    <p class="packt_figref">Figure 8.15 – The flat option</p>
+    <div class="packt_tip">
+      <p class="normal">Click the <strong class="screenText">Show more</strong> button if the option is not displayed.</p>
+    </div></li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="8">Enter the folder where the component will be created and click the <strong class="screenText">Run</strong> button:</li>
+    </ol>
+    <figure class="mediaobject"><img src="../Images/B18465_08_16.png" alt="Figure 8.16 – Component folder"/></figure>
+    <p class="packt_figref">Figure 8.16 – Component folder</p>
+    <p class="normal">The Angular CLI will<a id="_idIndexMarker477"/> create the <strong class="keyWord">admin</strong> component inside the folder of the <strong class="keyWord">admin</strong> library. We now need to wire it up to the main application:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Open the <code class="inlineCode">app.routes.ts</code> file and add a new route configuration object for the <code class="inlineCode">admin</code> path:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> <span class="hljs-attr">appRoutes</span>: <span class="hljs-title">Route</span>[] = [
+  <span class="code-highlight"><strong class="hljs-slc">{</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">    </strong><strong class="hljs-attr-slc">path</strong><strong class="hljs-slc">: </strong><strong class="hljs-string-slc">'</strong><strong class="hljs-string-slc">admin'</strong><strong class="hljs-slc">,</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">    </strong><strong class="hljs-attr-slc">loadChildren</strong><strong class="hljs-slc">: </strong><strong class="hljs-function-slc">() =&gt;</strong><strong class="hljs-slc"> </strong><strong class="hljs-keyword-slc">import</strong><strong class="hljs-slc">(</strong><strong class="hljs-string-slc">'@packt/admin'</strong><strong class="hljs-slc">).</strong><strong class="hljs-title-slc">then</strong><strong class="hljs-slc">(</strong><strong class="hljs-params-slc">m</strong><strong class="hljs-function-slc"> =&gt;</strong><strong class="hljs-slc"> m.</strong><strong class="hljs-property-slc">AdminModule</strong><strong class="hljs-slc">)</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">  }</strong></span>,
+  {
+    <span class="hljs-attr">path</span>: <span class="hljs-string">'</span><span class="hljs-string">tour'</span>,
+    <span class="hljs-attr">loadChildren</span>: <span class="hljs-function">() =&gt;</span> <span class="hljs-keyword">import</span>(<span class="hljs-string">'@packt/visitor'</span>).<span class="hljs-title">then</span>(<span class="hljs-params">m</span><span class="hljs-function"> =&gt;</span> m.<span class="hljs-property">VisitorModule</span>)
+  },
+  {
+    <span class="hljs-attr">path</span>: <span class="hljs-string">''</span>,
+    <span class="hljs-attr">pathMatch</span>: <span class="hljs-string">'full'</span>,
+    <span class="hljs-attr">redirectTo</span>: <span class="hljs-string">'tour'</span>
+  }
+];
+</code></pre>
+      </li>
+      <li class="numberedList">Open<a id="_idIndexMarker478"/> the <code class="inlineCode">admin.module.ts</code> file and add a route configuration to activate <code class="inlineCode">AdminComponent</code> by default:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-title">NgModule</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/core'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">CommonModule</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/common'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">AdminComponent</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'./admin.component'</span>;
+<span class="code-highlight"><strong class="hljs-keyword-slc">import</strong><strong class="hljs-slc"> { </strong><strong class="hljs-title-slc">RouterModule</strong><strong class="hljs-slc"> } </strong><strong class="hljs-keyword-slc">from</strong><strong class="hljs-slc"> </strong><strong class="hljs-string-slc">'@angular/router'</strong><strong class="hljs-slc">;</strong></span>
+<span class="hljs-meta">@NgModule</span>({
+  <span class="hljs-attr">imports</span>: [
+    <span class="hljs-title">CommonModule</span>,
+    <span class="code-highlight"><strong class="hljs-title-slc">RouterModule</strong><strong class="hljs-slc">.</strong><strong class="hljs-title-slc">forChild</strong><strong class="hljs-slc">([</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">      { </strong><strong class="hljs-attr-slc">path</strong><strong class="hljs-slc">: </strong><strong class="hljs-string-slc">''</strong><strong class="hljs-slc">, </strong><strong class="hljs-attr-slc">component</strong><strong class="hljs-slc">: </strong><strong class="hljs-title-slc">AdminComponent</strong><strong class="hljs-slc"> }</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">    ])</strong></span>
+  ],
+  <span class="hljs-attr">declarations</span>: [
+    <span class="hljs-title">AdminComponent</span>
+  ],
+})
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> <span class="hljs-title">AdminModule</span> {}
+</code></pre>
+      </li>
+      <li class="numberedList">Use the <strong class="screenText">serve</strong> option of Nx Console to run the application, and navigate to <code class="inlineCode">http://localhost:4200/admin</code>:</li>
+    </ol>
+    <figure class="mediaobject"><img src="../Images/B18465_08_17.png" alt="Figure 8.17 – Administrator portal"/></figure>
+    <p class="packt_figref">Figure 8.17 – Administrator portal</p>
+    <p class="normal">The page will display the default template of the main component of the <strong class="keyWord">admin</strong> library.</p>
+    <p class="normal">We have now <a id="_idIndexMarker479"/>completed the scaffolding of our enterprise application. First, we created the Nx monorepo workspace that will host the portals of the application. Then, we used Nx Console to generate our portals and their main components. We also installed Angular Material to use its UI elements in our components.</p>
+    <p class="normal">In the next section, we will implement the functionality of the visitor portal using NgRx.</p>
+    <h1 id="_idParaDest-142" class="heading-1">Managing application state with NgRx</h1>
+    <p class="normal">The visitor portal<a id="_idIndexMarker480"/> will allow the user to see a list of available POIs and select<a id="_idIndexMarker481"/> one to view its location on a map. The list of available POIs and the selection of a POI is the global state of our application. We will integrate NgRx to manage the application state in the visitor portal by completing the following tasks:</p>
+    <ul>
+      <li class="bulletList">Configuring the state</li>
+      <li class="bulletList">Interacting with the store</li>
+    </ul>
+    <p class="normal">Let’s begin by configuring the state of our application in the following section.</p>
+    <h2 id="_idParaDest-143" class="heading-2">Configuring the state</h2>
+    <p class="normal">Our application<a id="_idIndexMarker482"/> will consist of a <code class="inlineCode">root</code> state for the whole application and a feature state for the visitor portal. We will start by executing the following command to create the <code class="inlineCode">root</code> state:</p>
+    <pre class="programlisting con"><code class="hljs-con">nx generate @nx/angular:ngrx app --root --no-interactive --parent=apps/tour/src/app/app.module.ts
+</code></pre>
+    <p class="normal">The preceding command uses the <code class="inlineCode">generate</code> command of the Nx CLI, passing the following options:</p>
+    <ul>
+      <li class="bulletList"><code class="inlineCode">@nx/angular:ngrx</code>: Indicates that we want to set up an NgRx state</li>
+      <li class="bulletList"><code class="inlineCode">app</code>: The name of the state</li>
+      <li class="bulletList"><code class="inlineCode">--root</code>: Indicates that we want to configure a root state</li>
+      <li class="bulletList"><code class="inlineCode">--no-interactive</code>: Disables interactive input prompts</li>
+      <li class="bulletList"><code class="inlineCode">--parent=apps/tour/src/app/app.module.ts</code>: Registers the state with the main Angular module of our application</li>
+    </ul>
+    <p class="normal">The previous command will add all necessary NgRx npm packages in the <code class="inlineCode">package.json</code> file and install them. It will also modify the <code class="inlineCode">app.module.ts</code> file to configure all NgRx-related artifacts, such as the store and effects.</p>
+    <p class="normal">The <strong class="keyWord">visitor</strong> library will not manage the data for the state of the visitor portal. Instead, we will create a new library in our Nx workspace to fetch and store data in the feature state. Execute the following command of the Nx CLI to create a new library:</p>
+    <pre class="programlisting con"><code class="hljs-con">nx generate @nrwl/angular:library poi
+</code></pre>
+    <p class="normal">The preceding command will generate the <code class="inlineCode">poi</code> library in our Nx monorepo. Now, we can set up the feature state using the following command:</p>
+    <pre class="programlisting con"><code class="hljs-con">nx generate @nx/angular:ngrx poi --no-interactive --parent=libs/poi/src/lib/poi.module.ts --barrels
+</code></pre>
+    <p class="normal">The preceding command uses the <code class="inlineCode">generate</code> command of the Nx CLI to register a feature state, passing additional options:</p>
+    <ul>
+      <li class="bulletList"><code class="inlineCode">@nx/angular:ngrx</code>: Indicates that we want to set up an NgRx state.</li>
+      <li class="bulletList"><code class="inlineCode">poi</code>: The name of the state.</li>
+      <li class="bulletList"><code class="inlineCode">--no-interactive</code>: Disables interactive input prompts.</li>
+      <li class="bulletList"><code class="inlineCode">--parent=libs/poi/src/lib/poi.module.ts</code>: Registers the state with the Angular module of our library.</li>
+      <li class="bulletList"><code class="inlineCode">--barrels</code>: Indicates using barrel files to re-export NgRx artifacts such as selectors and state. The name of a barrel file is usually <code class="inlineCode">index.ts</code> by convention.</li>
+    </ul>
+    <p class="normal">The <a id="_idIndexMarker483"/>preceding command will create a folder, named <code class="inlineCode">+state</code> by convention, inside our library, which contains the following files:</p>
+    <ul>
+      <li class="bulletList"><code class="inlineCode">poi.actions.ts</code>: Defines NgRx actions for the feature state</li>
+      <li class="bulletList"><code class="inlineCode">poi.effects.ts</code>: Defines NgRx effects for the feature state</li>
+      <li class="bulletList"><code class="inlineCode">poi.models.ts</code>: Defines an entity interface for POI data</li>
+      <li class="bulletList"><code class="inlineCode">poi.reducer.ts</code>: Defines NgRx reducers for the feature state</li>
+      <li class="bulletList"><code class="inlineCode">poi.selectors.ts</code>: Defines NgRx selectors for the feature state</li>
+    </ul>
+    <p class="normal">The Nx CLI has done most of the job by adding the necessary content in the previous files, eliminating the boilerplate code for us. We now need to create an Angular service in the library that will fetch the POI data:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Open the <code class="inlineCode">poi.models.ts</code> file and add the following properties to the <code class="inlineCode">PoiEntity</code> interface:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title">PoiEntity</span> {
+  <span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span> | <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Primary ID</span>
+  <span class="hljs-attr">name</span>: <span class="hljs-built_in">string</span>;
+  <span class="code-highlight"><strong class="hljs-attr-slc">lat</strong><strong class="hljs-slc">: </strong><strong class="hljs-built_in-slc">number</strong><strong class="hljs-slc">;</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">  </strong><strong class="hljs-attr-slc">lng</strong><strong class="hljs-slc">: </strong><strong class="hljs-built_in-slc">number</strong><strong class="hljs-slc">;</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">  </strong><strong class="hljs-attr-slc">description</strong><strong class="hljs-slc">: </strong><strong class="hljs-built_in-slc">string</strong><strong class="hljs-slc">;</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">  </strong><strong class="hljs-attr-slc">imgUrl</strong><strong class="hljs-slc">: </strong><strong class="hljs-built_in-slc">string</strong><strong class="hljs-slc">;</strong></span>
+}
+</code></pre>
+      </li>
+      <li class="numberedList">Execute the following command to generate the Angular service:
+        <pre class="programlisting con"><code class="hljs-con">nx generate service poi --project=poi
+</code></pre>
+    <p class="normal">The preceding command will create an Angular service called <code class="inlineCode">poi</code> in the <strong class="keyWord">poi</strong> library.</p>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="3">Open the <code class="inlineCode">poi.service.ts</code> file and add the following <code class="inlineCode">import</code> statements:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-title">HttpClient</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/common/http'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">Observable</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'rxjs'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">PoiEntity</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'..'</span>;
+</code></pre>
+      </li>
+      <li class="numberedList">Inject <code class="inlineCode">HttpClient</code> in the <code class="inlineCode">constructor</code> of the <code class="inlineCode">PoiService</code> class and create a method <a id="_idIndexMarker484"/>to get POI data from the <code class="inlineCode">assets/poi.json</code> file:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> <span class="hljs-title">PoiService</span> {
+  <span class="hljs-title">constructor</span>(<span class="code-highlight"><strong class="hljs-keyword-slc">private</strong><strong class="hljs-params-slc"> http: HttpClient</strong></span>) {}
+  <span class="code-highlight"><strong class="hljs-title-slc">getAll</strong><strong class="hljs-slc">(): </strong><strong class="hljs-title-slc">Observable</strong><strong class="hljs-slc">&lt;</strong><strong class="hljs-title-slc">PoiEntity</strong><strong class="hljs-slc">[]&gt; {</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">    </strong><strong class="hljs-keyword-slc">return</strong><strong class="hljs-slc"> </strong><strong class="hljs-variable-slc">this</strong><strong class="hljs-slc">.</strong><strong class="hljs-property-slc">http</strong><strong class="hljs-slc">.</strong><strong class="hljs-property-slc">get</strong><strong class="hljs-slc">&lt;</strong><strong class="hljs-title-slc">PoiEntity</strong><strong class="hljs-slc">[]&gt;(</strong><strong class="hljs-string-slc">'assets/poi.json'</strong><strong class="hljs-slc">);</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">  }</strong></span>
+}
+</code></pre>
+    <p class="normal">We use the built-in HTTP client of the Angular framework to get POI data by initiating a GET HTTP request.</p>
+    <div class="note">
+      <p class="normal">You can get the <code class="inlineCode">poi.json</code> file from the GitHub repository in the <em class="italic">Getting started</em> section and copy it to the <code class="inlineCode">apps\tour\src\assets</code> folder of your workspace.</p>
+    </div>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="5">Open the <code class="inlineCode">poi.effects.ts</code> file and import the <code class="inlineCode">map</code> and <code class="inlineCode">PoiService</code> artifacts:
+        <pre class="programlisting con"><code class="hljs-con">import { Injectable, inject } from '@angular/core';
+import { createEffect, Actions, ofType } from '@ngrx/effects';
+import { switchMap, catchError, of, <code style="font-weight: bold;" class="codeHighlighted">map</code> } from 'rxjs';
+import * as PoiActions from './poi.actions';
+import * as PoiFeature from './poi.reducer';
+<code style="font-weight: bold;" class="codeHighlighted">import { PoiService } from '../poi.service';</code>
+</code></pre>
+      </li>
+      <li class="numberedList">Inject <code class="inlineCode">PoiService</code> in the <code class="inlineCode">PoiEffects</code> class:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">private</span> poiService = <span class="hljs-title">inject</span>(<span class="hljs-title">PoiService</span>);
+</code></pre>
+      </li>
+      <li class="numberedList">Modify<a id="_idIndexMarker485"/> the <code class="inlineCode">init$</code> property to use the <code class="inlineCode">poiService</code> variable:
+        <pre class="programlisting code"><code class="hljs-code">init$ = <span class="hljs-title">createEffect</span>(<span class="hljs-function">() =&gt;</span>
+  <span class="hljs-variable">this</span>.<span class="hljs-property">actions$</span>.<span class="hljs-title">pipe</span>(
+    <span class="hljs-title">ofType</span>(<span class="hljs-title">PoiActions</span>.<span class="hljs-property">initPoi</span>),
+<span class="code-highlight"><strong class="hljs-slc">    </strong><strong class="hljs-title-slc">switchMap</strong><strong class="hljs-slc">(</strong><strong class="hljs-function-slc">() =&gt;</strong><strong class="hljs-slc"> </strong><strong class="hljs-variable-slc">this</strong><strong class="hljs-slc">.</strong><strong class="hljs-property-slc">poiService</strong><strong class="hljs-slc">.</strong><strong class="hljs-title-slc">getAll</strong><strong class="hljs-slc">()),</strong></span>
+    <span class="hljs-title">switchMap</span>(<span class="hljs-params">pois</span><span class="hljs-function"> =&gt;</span> <span class="hljs-title">of</span>(<span class="hljs-title">PoiActions</span>.<span class="hljs-title">loadPoiSuccess</span>({ <span class="hljs-attr">poi</span>: <span class="code-highlight"><strong class="hljs-slc">pois</strong></span> }))),
+    <span class="hljs-title">catchError</span>(<span class="hljs-function">(</span><span class="hljs-params">error</span><span class="hljs-function">) =&gt;</span> {
+      <span class="hljs-variable">console</span>.<span class="hljs-title">error</span>(<span class="hljs-string">'</span><span class="hljs-string">Error'</span>, error);
+      <span class="hljs-keyword">return</span> <span class="hljs-title">of</span>(<span class="hljs-title">PoiActions</span>.<span class="hljs-title">loadPoiFailure</span>({ error }));
+    })
+  )
+);
+</code></pre>
+    <p class="normal">An NgRx effect is responsible for listening to all actions dispatched in the store. When a <code class="inlineCode">PoiActions.initPoi</code> action is dispatched, the <code class="inlineCode">init$</code> property is triggered and calls the <code class="inlineCode">getAll</code> method of the <code class="inlineCode">poiService</code> variable. The <code class="inlineCode">init$</code> property knows which action to listen for by the parameters in the <code class="inlineCode">ofType</code> operator.</p>
+    <div class="packt_tip">
+      <p class="normal">The <code class="inlineCode">ofType</code> operator can accept more than one action.</p>
+    </div>
+    <p class="normal">If the data is fetched successfully, the effect will dispatch a new action in the store, <code class="inlineCode">PoiActions.loadPoiSuccess</code>, with POI data as the payload. If there is a failure when getting the data, it will dispatch a <code class="inlineCode">PoiActions.loadPoiFailure</code> action in the store.</p>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="8">Open the <code class="inlineCode">app.module.ts</code> file <a id="_idIndexMarker486"/>and import <code class="inlineCode">HttpClientModule</code> from the <code class="inlineCode">@angular/common/http</code> namespace. Also add the <code class="inlineCode">HttpClientModule</code> class in the <code class="inlineCode">imports</code> array of the <code class="inlineCode">@NgModule</code> decorator.</li>
+    </ol>
+    <p class="normal">The global state of our application is now configured and ready to be used. In the following section, we will create additional Angular components in the visitor library that will interact with the feature state of our application.</p>
+    <h2 id="_idParaDest-144" class="heading-2">Interacting with the store</h2>
+    <p class="normal">The visitor portal<a id="_idIndexMarker487"/> will interact with the feature state of our application through two Angular components. One component will display the list of POIs and allow the user to select one. The other component will display the selected POI inside Google Maps.</p>
+    <p class="normal">Initially, we will build the component that displays the list of POIs:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Open the <code class="inlineCode">visitor.module.ts</code> file and add the following <code class="inlineCode">import</code> statement:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-title">PoiModule</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@packt/poi'</span>;
+</code></pre>
+      </li>
+      <li class="numberedList">Add <code class="inlineCode">PoiModule</code> in the <code class="inlineCode">imports</code> array of the <code class="inlineCode">@NgModule</code> decorator:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-meta">@NgModule</span>({
+  <span class="hljs-attr">imports</span>: [<span class="hljs-title">CommonModule</span>, <span class="hljs-title">MatToolbarModule</span>, <span class="hljs-title">MatButtonModule</span>, <span class="hljs-title">MatSidenavModule</span>, <span class="hljs-title">MatIconModule</span>, <span class="hljs-title">MatListModule</span>,
+    <span class="hljs-title">RouterModule</span>.<span class="hljs-title">forChild</span>([
+      { <span class="hljs-attr">path</span>: <span class="hljs-string">''</span>, <span class="hljs-attr">component</span>: <span class="hljs-title">VisitorComponent</span> }
+    ]),
+    <span class="code-highlight"><strong class="hljs-title-slc">PoiModule</strong></span>
+  ],
+  <span class="hljs-attr">declarations</span>: [
+    <span class="hljs-title">VisitorComponent</span>
+  ],
+})
+</code></pre>
+    <p class="normal">We import <code class="inlineCode">PoiModule</code> so that the <strong class="keyWord">poi</strong> feature state is registered in the store as soon as the visitor portal is loaded.</p>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="3">Execute the following command of the Nx CLI to create the Angular component:
+        <pre class="programlisting con"><code class="hljs-con">nx generate @schematics/angular:component poi-list --project=visitor
+</code></pre>
+      </li>
+      <li class="numberedList">Open the <code class="inlineCode">poi-list.component.ts</code> file and modify the <code class="inlineCode">import</code> statements accordingly:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-title">Component</span>, <span class="code-highlight"><strong class="hljs-title-slc">OnInit</strong></span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'</span><span class="hljs-string">@angular/core'</span>;
+<span class="code-highlight"><strong class="hljs-keyword-slc">import</strong><strong class="hljs-slc"> { </strong><strong class="hljs-title-slc">Store</strong><strong class="hljs-slc"> } </strong><strong class="hljs-keyword-slc">from</strong><strong class="hljs-slc"> </strong><strong class="hljs-string-slc">'@ngrx/store'</strong><strong class="hljs-slc">;</strong></span>
+<span class="code-highlight"><strong class="hljs-keyword-slc">import</strong><strong class="hljs-slc"> { </strong><strong class="hljs-title-slc">PoiActions</strong><strong class="hljs-slc">, </strong><strong class="hljs-title-slc">PoiSelectors</strong><strong class="hljs-slc"> } </strong><strong class="hljs-keyword-slc">from</strong><strong class="hljs-slc"> </strong><strong class="hljs-string-slc">'@packt/poi'</strong><strong class="hljs-slc">;</strong></span>
+</code></pre>
+      </li>
+      <li class="numberedList">Modify the <code class="inlineCode">PoiListComponent</code> class so that it dispatches the <code class="inlineCode">PoiActions.initPoi</code> action in <a id="_idIndexMarker488"/>the store to fetch POI data when the component is initialized:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> <span class="hljs-title">PoiListComponent</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">OnInit</span> {
+  <span class="hljs-title">constructor</span>(<span class="hljs-keyword">private</span><span class="hljs-params"> store: Store</span>) {}
+  <span class="hljs-title">ngOnInit</span>(): <span class="hljs-built_in">void</span> {
+    <span class="hljs-variable">this</span>.<span class="hljs-property">store</span>.<span class="hljs-title">dispatch</span>(<span class="hljs-title">PoiActions</span>.<span class="hljs-title">initPoi</span>());
+  }
+}
+</code></pre>
+    <p class="normal">We execute the action as a method and pass its result to the <code class="inlineCode">dispatch</code> method of the <code class="inlineCode">store</code> variable.</p>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="6">Create a component property that invokes the <code class="inlineCode">PoiSelectors.selectAllPoi</code> selector to list POI data from the store:
+        <pre class="programlisting code"><code class="hljs-code">pois$ = <span class="hljs-variable">this</span>.<span class="hljs-property">store</span>.<span class="hljs-title">select</span>(<span class="hljs-title">PoiSelectors</span>.<span class="hljs-property">selectAllPoi</span>);
+</code></pre>
+    <p class="normal">We use the <code class="inlineCode">select</code> method of the <code class="inlineCode">store</code> variable to execute the selector.</p>
+    <div class="note">
+      <p class="normal">We did not create the <code class="inlineCode">PoiSelectors.selectAllPoi</code> selector. NgRx did it for us when we generated the feature state in the <strong class="keyWord">poi</strong> library.</p>
+    </div>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="7">Open the <code class="inlineCode">poi-list.component.html</code> file and replace its content with the following HTML template:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-tag">&lt;</span><span class="hljs-name">mat-action-list</span><span class="hljs-tag"> *</span><span class="hljs-attr">ngFor</span><span class="hljs-tag">=</span><span class="hljs-string">"let poi of pois$ | async"</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">button</span><span class="hljs-tag"> </span><span class="hljs-attr">mat-list-item</span><span class="hljs-tag">&gt;</span>{{poi.name}}<span class="hljs-tag">&lt;/</span><span class="hljs-name">button</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;/</span><span class="hljs-name">mat-action-list</span><span class="hljs-tag">&gt;</span>
+</code></pre>
+    <p class="normal">We use the <code class="inlineCode">&lt;mat-action-list&gt;</code> component of the Angular Material library to display each POI as a single action item. We subscribe to the <code class="inlineCode">pois$</code> property using the <code class="inlineCode">async</code> pipe and create a <code class="inlineCode">&lt;button&gt;</code> element with the <code class="inlineCode">mat-list-item</code> directive for each POI.</p>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="8">Open the <code class="inlineCode">visitor.component.html</code> file and replace the <code class="inlineCode">&lt;mat-nav-list&gt;</code> component with the <code class="inlineCode">&lt;packt-poi-list&gt;</code> component we created.</li>
+    </ol>
+    <p class="normal">Use Nx Console to start the <a id="_idIndexMarker489"/>application, and you should see the following output in the menu sidebar:</p>
+    <figure class="mediaobject"><img src="../Images/B18465_08_18.png" alt="Figure 8.18 – List of POIs"/></figure>
+    <p class="packt_figref">Figure 8.18 – List of POIs</p>
+    <p class="normal">We have already created the Angular component to display the available POIs. Let’s see now how to create the component to display a POI on the map using Google Maps.</p>
+    <p class="normal">The Angular Material library <a id="_idIndexMarker490"/>contains a component for Google Maps that we can use in our application:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Run the following command of the <code class="inlineCode">npm</code> client to install the Google Maps component:
+        <pre class="programlisting con"><code class="hljs-con">npm install @angular/google-maps
+</code></pre>
+      </li>
+      <li class="numberedList">Open the <code class="inlineCode">visitor.module.ts</code> file and add the following <code class="inlineCode">import</code> statement:
+        <pre class="programlisting gen"><code class="hljs">import { GoogleMapsModule } from '@angular/google-maps';
+</code></pre>
+      </li>
+      <li class="numberedList">Add <code class="inlineCode">GoogleMapsModule</code> to the <code class="inlineCode">imports</code> array of the <code class="inlineCode">@NgModule</code> decorator:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-meta">@NgModule</span>({
+  <span class="hljs-attr">imports</span>: [<span class="hljs-title">CommonModule</span>, <span class="hljs-title">MatToolbarModule</span>, <span class="hljs-title">MatButtonModule</span>, <span class="hljs-title">MatSidenavModule</span>, <span class="hljs-title">MatIconModule</span>, <span class="hljs-title">MatListModule</span>,
+    <span class="hljs-title">RouterModule</span>.<span class="hljs-title">forChild</span>([
+      { <span class="hljs-attr">path</span>: <span class="hljs-string">''</span>, <span class="hljs-attr">component</span>: <span class="hljs-title">VisitorComponent</span> }
+    ]),
+    <span class="hljs-title">PoiModule</span>,
+    <span class="code-highlight"><strong class="hljs-title-slc">GoogleMapsModule</strong></span>
+  ],
+  <span class="hljs-attr">declarations</span>: [
+    <span class="hljs-title">VisitorComponent</span>,
+    <span class="hljs-title">PoiListComponent</span>
+  ],
+})
+</code></pre>
+      </li>
+      <li class="numberedList">Open the <code class="inlineCode">index.html</code> file of the application and add the Google Maps JavaScript API inside the <code class="inlineCode">&lt;head&gt;</code> element:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-tag">&lt;</span><span class="hljs-name">script</span><span class="hljs-tag"> </span><span class="hljs-attr">src</span><span class="hljs-tag">=</span><span class="hljs-string">"https://maps.googleapis.com/maps/api/js"</span><span class="hljs-tag">&gt;&lt;/</span><span class="hljs-name">script</span><span class="hljs-tag">&gt;</span>
+</code></pre>
+      </li>
+    </ol>
+    <p class="normal">Now that we have installed and registered Google Maps in our application, let’s create the Angular component that will host it:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Execute the following command of the Nx CLI to create a new Angular component:
+        <pre class="programlisting con"><code class="hljs-con">nx generate @schematics/angular:component map --project=visitor
+</code></pre>
+      </li>
+      <li class="numberedList">Open the <code class="inlineCode">map.component.ts</code> file and add the following <code class="inlineCode">import</code> statements:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-title">Store</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@ngrx/store'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">PoiSelectors</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@packt/poi'</span>;
+</code></pre>
+      </li>
+      <li class="numberedList">Inject the <code class="inlineCode">Store</code> service in the <code class="inlineCode">constructor</code> of the <code class="inlineCode">MapComponent</code> class and declare a property to get the selected POI from the store:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> <span class="hljs-title">MapComponent</span> {
+<span class="code-highlight"><strong class="hljs-slc">  poi$ = </strong><strong class="hljs-variable-slc">this</strong><strong class="hljs-slc">.</strong><strong class="hljs-property-slc">store</strong><strong class="hljs-slc">.</strong><strong class="hljs-title-slc">select</strong><strong class="hljs-slc">(</strong><strong class="hljs-title-slc">PoiSelectors</strong><strong class="hljs-slc">.</strong><strong class="hljs-property-slc">selectEntity</strong><strong class="hljs-slc">);</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">  </strong><strong class="hljs-title-slc">constructor</strong><strong class="hljs-slc">(</strong><strong class="hljs-keyword-slc">private</strong><strong class="hljs-params-slc"> store: Store</strong><strong class="hljs-slc">) { }</strong></span>
+}
+</code></pre>
+      </li>
+      <li class="numberedList">Open the <code class="inlineCode">map.component.html</code> file and replace its content with the following HTML<a id="_idIndexMarker491"/> template:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-tag">&lt;</span><span class="hljs-name">google-map</span><span class="hljs-tag"> </span><span class="hljs-attr">height</span><span class="hljs-tag">=</span><span class="hljs-string">"100%"</span><span class="hljs-tag"> </span><span class="hljs-attr">width</span><span class="hljs-tag">=</span><span class="hljs-string">"auto"</span><span class="hljs-tag"> *</span><span class="hljs-attr">ngIf</span><span class="hljs-tag">=</span><span class="hljs-string">"poi$ | async as poi"</span><span class="hljs-tag"> [</span><span class="hljs-attr">center</span><span class="hljs-tag">]=</span><span class="hljs-string">"poi"</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">map-marker</span><span class="hljs-tag"> [</span><span class="hljs-attr">position</span><span class="hljs-tag">]=</span><span class="hljs-string">"poi"</span><span class="hljs-tag">&gt;&lt;/</span><span class="hljs-name">map-marker</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;/</span><span class="hljs-name">google-map</span><span class="hljs-tag">&gt;</span>
+</code></pre>
+    <p class="normal">In the preceding template, we subscribe to the <code class="inlineCode">poi$</code> property using the <code class="inlineCode">async</code> pipe. As soon as we get a selected POI from the store, we display a <code class="inlineCode">&lt;google-map&gt;</code> component and set the center of the map to the POI coordinates. Furthermore, we add a marker on the map in the specified POI coordinates.</p>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="5">Open the <code class="inlineCode">visitor.component.html</code> file and replace the <code class="inlineCode">&lt;!-- Add Content Here --&gt;</code> comment with the <code class="inlineCode">&lt;packt-map&gt;</code> selector.</li>
+    </ol>
+    <p class="normal">The Angular component we created will show the location of a POI on the map as soon as we select it from the list. If you try to choose a POI from the list, you will notice that nothing happens. Why is that?</p>
+    <p class="normal">The global state of the application does not currently know when a POI has been selected. We need to add the necessary code to set the selected POI and interact with the store:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Open the <code class="inlineCode">poi.actions.ts</code> file and add a new action to pass the ID of the selected POI:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> selectPoi = <span class="hljs-title">createAction</span>(
+  <span class="hljs-string">'[Poi/API] Select Poi'</span>,
+  props&lt;{ <span class="hljs-attr">poiId</span>: <span class="hljs-built_in">string</span> | <span class="hljs-built_in">number</span> }&gt;()
+);
+</code></pre>
+      </li>
+      <li class="numberedList">Open the <code class="inlineCode">poi.reducer.ts</code> file and add a new statement in the <code class="inlineCode">reducer</code> property that will <a id="_idIndexMarker492"/>listen to the <code class="inlineCode">selectPoi</code> action and save the selected POI in the store:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">const</span> reducer = <span class="hljs-title">createReducer</span>(
+  initialPoiState,
+  <span class="hljs-title">on</span>(<span class="hljs-title">PoiActions</span>.<span class="hljs-property">initPoi</span>, <span class="hljs-function">(</span><span class="hljs-params">state</span><span class="hljs-function">) =&gt;</span> ({ ...state, <span class="hljs-attr">loaded</span>: <span class="hljs-literal">false</span>, <span class="hljs-attr">error</span>: <span class="hljs-literal">null</span> })),
+  <span class="hljs-title">on</span>(<span class="hljs-title">PoiActions</span>.<span class="hljs-property">loadPoiSuccess</span>, <span class="hljs-function">(</span><span class="hljs-params">state, { poi }</span><span class="hljs-function">) =&gt;</span>
+    poiAdapter.<span class="hljs-title">setAll</span>(poi, { ...state, <span class="hljs-attr">loaded</span>: <span class="hljs-literal">true</span> })
+  ),
+  <span class="hljs-title">on</span>(<span class="hljs-title">PoiActions</span>.<span class="hljs-property">loadPoiFailure</span>, <span class="hljs-function">(</span><span class="hljs-params">state, { error }</span><span class="hljs-function">) =&gt;</span> ({ ...state, error })),
+<span class="code-highlight"><strong class="hljs-slc">  </strong><strong class="hljs-title-slc">on</strong><strong class="hljs-slc">(</strong><strong class="hljs-title-slc">PoiActions</strong><strong class="hljs-slc">.</strong><strong class="hljs-property-slc">selectPoi</strong><strong class="hljs-slc">, </strong><strong class="hljs-function-slc">(</strong><strong class="hljs-params-slc">state, { poiId }</strong><strong class="hljs-function-slc">) =&gt;</strong><strong class="hljs-slc"> ({ ...state, </strong><strong class="hljs-attr-slc">selectedId</strong><strong class="hljs-slc">: poiId }))</strong></span>
+);
+</code></pre>
+      </li>
+      <li class="numberedList">Open the <code class="inlineCode">poi-list.component.ts</code> file and import the <code class="inlineCode">PoiEntity</code> interface:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-title">PoiActions</span>, <span class="code-highlight"><strong class="hljs-title-slc">PoiEntity</strong></span>, <span class="hljs-title">PoiSelectors</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@packt/poi'</span>;
+</code></pre>
+      </li>
+      <li class="numberedList">Create a new method to dispatch the <code class="inlineCode">selectPoi</code> action to the store along with the selected <code class="inlineCode">PoiEntity</code>:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-title">selectPoi</span>(<span class="hljs-params">poi: PoiEntity</span>) {
+  <span class="hljs-variable">this</span>.<span class="hljs-property">store</span>.<span class="hljs-title">dispatch</span>(<span class="hljs-title">PoiActions</span>.<span class="hljs-title">selectPoi</span>({<span class="hljs-attr">poiId</span>: poi.<span class="hljs-property">id</span>}));
+}
+</code></pre>
+      </li>
+      <li class="numberedList">Open the <code class="inlineCode">poi-list.component.html</code> file and bind the <code class="inlineCode">selectPoi</code> method to the <code class="inlineCode">click</code> event of the <code class="inlineCode">&lt;button&gt;</code> element:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-tag">&lt;</span><span class="hljs-name">mat-action-list</span><span class="hljs-tag"> *</span><span class="hljs-attr">ngFor</span><span class="hljs-tag">=</span><span class="hljs-string">"let poi of pois$ | async"</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">button</span><span class="hljs-tag"> </span><span class="hljs-attr">mat-list-item</span><span class="hljs-tag"> </span><span class="code-highlight"><strong class="hljs-tag-slc">(</strong><strong class="hljs-attr-slc">click</strong><strong class="hljs-tag-slc">)=</strong><strong class="hljs-string-slc">"selectPoi(poi)"</strong></span><span class="hljs-tag">&gt;</span>{{poi.name}}<span class="hljs-tag">&lt;/</span><span class="hljs-name">button</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;/</span><span class="hljs-name">mat-action-list</span><span class="hljs-tag">&gt;</span>
+</code></pre>
+      </li>
+    </ol>
+    <p class="normal">To see the new functionality in action, run the application using the <strong class="screenText">serve</strong> option from Nx Console and select a POI from the list. The output of the application should look like the following:</p>
+    <figure class="mediaobject"><img src="../Images/B18465_08_19.png" alt="Figure 8.19 – POI selection"/></figure>
+    <p class="packt_figref">Figure 8.19 – POI selection</p>
+    <div class="note">
+      <p class="normal">In this project, we use Google Maps in development mode. For production environments, you should get an API key from <a href="https://developers.google.com/maps/get-started"><span class="url">https://developers.google.com/maps/get-started</span></a> and include it in the Google Maps JavaScript API script that you load in the <code class="inlineCode">index.html</code> file as <code class="inlineCode">&lt;script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY"&gt;&lt;/script&gt;</code>.</p>
+    </div>
+    <p class="normal">We have now <a id="_idIndexMarker493"/>completed all the required features for the portal of our visitors. Well done! Implementing the basic functionality of the visitor portal required interacting with NgRx to manage the global state of our application. </p>
+    <p class="normal">The global state was separated into the root state for the application and the feature state for the visitor portal. The <strong class="keyWord">visitor</strong> library used the latter to create Angular components to display a POI list and select one to view in Google Maps.</p>
+    <p class="normal">In the next section, we will build the administrator portal to get visit statistics for each POI.</p>
+    <h1 id="_idParaDest-145" class="heading-1">Visualizing data with graphs</h1>
+    <p class="normal">The administrator <a id="_idIndexMarker494"/>portal will display traffic visits for each POI using a chart. When<a id="_idIndexMarker495"/> visitors visit a POI by clicking its marker on the map, traffic will be generated. The application will persist visit data in the local storage of the browser. It will keep a record for each visit containing the ID of the POI and the total visits. The administrator portal will consist of the <a id="_idIndexMarker496"/>following features:</p>
+    <ul>
+      <li class="bulletList">Persisting visit data in the store</li>
+      <li class="bulletList">Displaying visit statistics</li>
+    </ul>
+    <p class="normal">In the following section, we will start building the administrator portal by implementing the mechanism to keep track of visits.</p>
+    <h2 id="_idParaDest-146" class="heading-2">Persisting visit data in the store</h2>
+    <p class="normal">Our application<a id="_idIndexMarker497"/> does not record traffic statistics for POIs yet. Let’s see how we can accomplish this task:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Open the <code class="inlineCode">map.component.html</code> file and add a <code class="inlineCode">&lt;map-info-window&gt;</code> component:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-tag">&lt;</span><span class="hljs-name">google-map</span><span class="hljs-tag"> </span><span class="hljs-attr">height</span><span class="hljs-tag">=</span><span class="hljs-string">"</span><span class="hljs-string">100%"</span><span class="hljs-tag"> </span><span class="hljs-attr">width</span><span class="hljs-tag">=</span><span class="hljs-string">"auto"</span><span class="hljs-tag"> *</span><span class="hljs-attr">ngIf</span><span class="hljs-tag">=</span><span class="hljs-string">"poi$ | async as poi"</span><span class="hljs-tag"> [</span><span class="hljs-attr">center</span><span class="hljs-tag">]=</span><span class="hljs-string">"poi"</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">map-marker</span><span class="hljs-tag"> [</span><span class="hljs-attr">position</span><span class="hljs-tag">]=</span><span class="hljs-string">"</span><span class="hljs-string">poi"</span><span class="hljs-tag">&gt;&lt;/</span><span class="hljs-name">map-marker</span><span class="hljs-tag">&gt;</span>
+  <span class="code-highlight"><strong class="hljs-tag-slc">&lt;</strong><strong class="hljs-name-slc">map-info-window</strong><strong class="hljs-tag-slc">&gt;</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">    </strong><strong class="hljs-tag-slc">&lt;</strong><strong class="hljs-name-slc">mat-card</strong><strong class="hljs-tag-slc">&gt;</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">      </strong><strong class="hljs-tag-slc">&lt;</strong><strong class="hljs-name-slc">mat-card-header</strong><strong class="hljs-tag-slc">&gt;</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">        </strong><strong class="hljs-tag-slc">&lt;</strong><strong class="hljs-name-slc">mat-card-title</strong><strong class="hljs-tag-slc">&gt;</strong><strong class="hljs-slc">{{poi.name}}</strong><strong class="hljs-tag-slc">&lt;/</strong><strong class="hljs-name-slc">mat-card-title</strong><strong class="hljs-tag-slc">&gt;</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">      </strong><strong class="hljs-tag-slc">&lt;/</strong><strong class="hljs-name-slc">mat-card-header</strong><strong class="hljs-tag-slc">&gt;</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">      </strong><strong class="hljs-tag-slc">&lt;</strong><strong class="hljs-name-slc">img</strong><strong class="hljs-tag-slc"> </strong><strong class="hljs-attr-slc">mat-card-image</strong><strong class="hljs-tag-slc"> [</strong><strong class="hljs-attr-slc">src</strong><strong class="hljs-tag-slc">]=</strong><strong class="hljs-string-slc">"poi.imgUrl"</strong><strong class="hljs-tag-slc">&gt;</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">      </strong><strong class="hljs-tag-slc">&lt;</strong><strong class="hljs-name-slc">mat-card-content</strong><strong class="hljs-tag-slc">&gt;</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">        </strong><strong class="hljs-tag-slc">&lt;</strong><strong class="hljs-name-slc">p</strong><strong class="hljs-tag-slc">&gt;</strong><strong class="hljs-slc">{{poi.description}}</strong><strong class="hljs-tag-slc">&lt;/</strong><strong class="hljs-name-slc">p</strong><strong class="hljs-tag-slc">&gt;</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">      </strong><strong class="hljs-tag-slc">&lt;/</strong><strong class="hljs-name-slc">mat-card-content</strong><strong class="hljs-tag-slc">&gt;</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">    </strong><strong class="hljs-tag-slc">&lt;/</strong><strong class="hljs-name-slc">mat-card</strong><strong class="hljs-tag-slc">&gt;</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">  </strong><strong class="hljs-tag-slc">&lt;/</strong><strong class="hljs-name-slc">map-info-window</strong><strong class="hljs-tag-slc">&gt;</strong></span>
+<span class="hljs-tag">&lt;/</span><span class="hljs-name">google-map</span><span class="hljs-tag">&gt;</span>
+</code></pre>
+    <p class="normal">The <code class="inlineCode">&lt;map-info-window&gt;</code> component is a pop-up window that displays additional information about the current map marker. It shows the title, image, and description of a POI as an Angular Material card component.</p>
+    <p class="normal">The <code class="inlineCode">&lt;mat-card&gt;</code> component contains a header denoted by the <code class="inlineCode">&lt;mat-card-header&gt;</code> component and an image denoted by the <code class="inlineCode">&lt;img&gt;</code> element with the <code class="inlineCode">mat-card-image</code> directive. The <code class="inlineCode">&lt;mat-card-content&gt;</code> component indicates the main content of the card.</p>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="2">Open the <code class="inlineCode">visitor.module.ts</code> file and add the following <code class="inlineCode">import</code> statement:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-title">MatCardModule</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/material/card'</span>;
+</code></pre>
+      </li>
+      <li class="numberedList">Add<a id="_idIndexMarker498"/> the <code class="inlineCode">MatCardModule</code> class in the <code class="inlineCode">imports</code> array of the <code class="inlineCode">@NgModule</code> decorator:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-meta">@NgModule</span>({
+  <span class="hljs-attr">imports</span>: [<span class="hljs-title">CommonModule</span>, <span class="hljs-title">MatToolbarModule</span>, <span class="hljs-title">MatButtonModule</span>, <span class="hljs-title">MatSidenavModule</span>, <span class="hljs-title">MatIconModule</span>, <span class="hljs-title">MatListModule</span>,
+    <span class="hljs-title">RouterModule</span>.<span class="hljs-title">forChild</span>([
+      { <span class="hljs-attr">path</span>: <span class="hljs-string">''</span>, <span class="hljs-attr">component</span>: <span class="hljs-title">VisitorComponent</span> }
+    ]),
+    <span class="hljs-title">PoiModule</span>,
+    <span class="hljs-title">GoogleMapsModule</span>,
+    <span class="code-highlight"><strong class="hljs-title-slc">MatCardModule</strong></span>
+  ],
+  <span class="hljs-attr">declarations</span>: [
+    <span class="hljs-title">VisitorComponent</span>,
+    <span class="hljs-title">PoiListComponent</span>,
+    <span class="hljs-title">MapComponent</span>
+  ],
+})
+</code></pre>
+    <p class="normal">The <code class="inlineCode">MatCardModule</code> class is an Angular Material module that exposes all the components we need to create a card component.</p>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="4">Open the <code class="inlineCode">map.component.ts</code> file and modify the <code class="inlineCode">import</code> statements accordingly:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-title">Component</span>, <span class="code-highlight"><strong class="hljs-title-slc">ViewChild</strong></span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/core'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">Store</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@ngrx/store'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">PoiSelectors</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@packt/poi'</span>;
+<span class="code-highlight"><strong class="hljs-keyword-slc">import</strong><strong class="hljs-slc"> { </strong><strong class="hljs-title-slc">MapInfoWindow</strong><strong class="hljs-slc">, </strong><strong class="hljs-title-slc">MapMarker</strong><strong class="hljs-slc"> } </strong><strong class="hljs-keyword-slc">from</strong><strong class="hljs-slc"> </strong><strong class="hljs-string-slc">'@angular/google-maps'</strong><strong class="hljs-slc">;</strong></span>
+</code></pre>
+      </li>
+      <li class="numberedList">Declare a component property to get a reference for the information window using the <code class="inlineCode">@ViewChild</code> decorator:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-meta">@ViewChild</span>(<span class="hljs-title">MapInfoWindow</span>) <span class="hljs-attr">info</span>: <span class="hljs-title">MapInfoWindow</span> | <span class="hljs-literal">undefined</span>;
+</code></pre>
+      </li>
+      <li class="numberedList">Create a method to open the information window:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-title">showInfo</span>(<span class="hljs-params">marker: MapMarker</span>) {
+  <span class="hljs-variable">this</span>.<span class="hljs-property">info</span>?.<span class="hljs-title">open</span>(marker);
+}
+</code></pre>
+    <p class="normal">In the preceding code, we call the <code class="inlineCode">open</code> method of the information window reference, passing the associated map <code class="inlineCode">marker</code> as a parameter.</p>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="7">Open the <code class="inlineCode">map.component.html</code> file and bind the <code class="inlineCode">showInfo</code> component method to the <code class="inlineCode">mapClick</code> event of the <code class="inlineCode">&lt;map-marker&gt;</code> component:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-tag">&lt;</span><span class="hljs-name">map-marker</span><span class="hljs-tag"> </span><span class="code-highlight"><strong class="hljs-tag-slc">#</strong><strong class="hljs-attr-slc">marker</strong><strong class="hljs-tag-slc">=</strong><strong class="hljs-string-slc">"mapMarker"</strong><strong class="hljs-tag-slc"> (</strong><strong class="hljs-attr-slc">mapClick</strong><strong class="hljs-tag-slc">)=</strong><strong class="hljs-string-slc">"showInfo(marker)"</strong></span><span class="hljs-tag"> [</span><span class="hljs-attr">position</span><span class="hljs-tag">]=</span><span class="hljs-string">"poi"</span><span class="hljs-tag">&gt;&lt;/</span><span class="hljs-name">map-marker</span><span class="hljs-tag">&gt;</span>
+</code></pre>
+    <p class="normal">We <a id="_idIndexMarker499"/>create the <code class="inlineCode">marker</code> template reference variable to get a reference to the <code class="inlineCode">mapMarker</code> object and pass it as a parameter in the <code class="inlineCode">showInfo</code> method.</p>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="8">Run the application using the <strong class="screenText">serve</strong> option of Nx Console and select a POI from the list.</li>
+      <li class="numberedList">Click on the POI marker on the map, and you should get output similar to the following:</li>
+    </ol>
+    <figure class="mediaobject"><img src="../Images/B18465_08_20.png" alt="Figure 8.20 – Map information window"/></figure>
+    <p class="packt_figref">Figure 8.20 – Map information window</p>
+    <p class="normal">We consider that a<a id="_idIndexMarker500"/> POI is visited when the visitor clicks on the map marker and the information window appears. Our application will then notify the store of that action to save it in the local storage. Let’s create the logic to interact with the store:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Open the <code class="inlineCode">poi.actions.ts</code> file and create the following actions for the feature of visiting a POI:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> visitPoi = <span class="hljs-title">createAction</span>(
+  <span class="hljs-string">'[Poi/API] Visit Poi'</span>,
+  props&lt;{ <span class="hljs-attr">poiId</span>: <span class="hljs-built_in">string</span> | <span class="hljs-built_in">number</span> }&gt;()
+)
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> visitPoiSuccess = <span class="hljs-title">createAction</span>(<span class="hljs-string">'[Poi/API] Visit Poi Success'</span>);
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> visitPoiFailure = <span class="hljs-title">createAction</span>(
+  <span class="hljs-string">'[Poi/API] Visit Poi Failure'</span>,
+  props&lt;{ <span class="hljs-attr">error</span>: <span class="hljs-built_in">any</span> }&gt;()
+);
+</code></pre>
+      </li>
+      <li class="numberedList">Open the <code class="inlineCode">poi.effects.ts</code> file, and create a new effect that listens to the <code class="inlineCode">visitPoi</code> action and increases the total visits of the specified <code class="inlineCode">poiId</code> by one:
+        <pre class="programlisting code"><code class="hljs-code">visit$ = <span class="hljs-title">createEffect</span>(<span class="hljs-function">() =&gt;</span>
+  <span class="hljs-variable">this</span>.<span class="hljs-property">actions$</span>.<span class="hljs-title">pipe</span>(
+    <span class="hljs-title">ofType</span>(<span class="hljs-title">PoiActions</span>.<span class="hljs-property">visitPoi</span>),
+    <span class="hljs-title">switchMap</span>(<span class="hljs-params">action</span><span class="hljs-function"> =&gt;</span> {
+      <span class="hljs-keyword">const</span> stat = <span class="hljs-variable">localStorage</span>.<span class="hljs-title">getItem</span>(<span class="hljs-string">'tour-'</span> + action.<span class="hljs-property">poiId</span>);
+      <span class="hljs-keyword">const</span> total = stat ? <span class="hljs-title">Number</span>(stat) + <span class="hljs-number">1</span> : <span class="hljs-number">1</span>;
+      <span class="hljs-variable">localStorage</span>.<span class="hljs-title">setItem</span>(<span class="hljs-string">'tour-'</span> + action.<span class="hljs-property">poiId</span>, total.<span class="hljs-title">toString</span>());
+      <span class="hljs-keyword">return</span> <span class="hljs-title">of</span>(<span class="hljs-title">PoiActions</span>.<span class="hljs-title">visitPoiSuccess</span>())
+    }),
+    <span class="hljs-title">catchError</span>(<span class="hljs-function">(</span><span class="hljs-params">error</span><span class="hljs-function">) =&gt;</span> {
+      <span class="hljs-variable">console</span>.<span class="hljs-title">error</span>(<span class="hljs-string">'Error'</span>, error);
+      <span class="hljs-keyword">return</span> <span class="hljs-title">of</span>(<span class="hljs-title">PoiActions</span>.<span class="hljs-title">visitPoiFailure</span>({ error }));
+    })
+  )
+);
+</code></pre>
+    <p class="normal">In the <a id="_idIndexMarker501"/>preceding code, we fetch the local storage key that begins with the word <code class="inlineCode">tour-</code>, followed by the POI ID. If this is located, we increment it by one and update the local storage. Otherwise, we initialize it to one.</p>
+    <div class="packt_tip">
+      <p class="normal">In a real case, it would be better to abstract the logic of local storage in an Angular service that would act as a wrapper over the global <code class="inlineCode">localStorage</code> object. We encourage you to create such a service while building this project.</p>
+    </div>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="3">Open the <code class="inlineCode">map.component.ts</code> file and import <code class="inlineCode">PoiActions</code> from the <code class="inlineCode">@packt/poi</code> namespace:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="code-highlight"><strong class="hljs-title-slc">PoiActions</strong></span>, <span class="hljs-title">PoiSelectors</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@packt/poi'</span>;
+</code></pre>
+      </li>
+      <li class="numberedList">Modify the <code class="inlineCode">showInfo</code> component method so that it dispatches a <code class="inlineCode">visitPoi</code> action to the store:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-title">showInfo</span>(<span class="hljs-params">marker: MapMarker, </span><span class="code-highlight"><strong class="hljs-params-slc">poiId: </strong><strong class="hljs-built_in-slc">string</strong><strong class="hljs-params-slc"> | </strong><strong class="hljs-built_in-slc">number</strong></span>) {
+<span class="code-highlight"><strong class="hljs-slc">  </strong><strong class="hljs-variable-slc">this</strong><strong class="hljs-slc">.</strong><strong class="hljs-property-slc">store</strong><strong class="hljs-slc">.</strong><strong class="hljs-title-slc">dispatch</strong><strong class="hljs-slc">(</strong><strong class="hljs-title-slc">PoiActions</strong><strong class="hljs-slc">.</strong><strong class="hljs-title-slc">visitPoi</strong><strong class="hljs-slc">({ poiId }));</strong></span>
+  <span class="hljs-variable">this</span>.<span class="hljs-property">info</span>?.<span class="hljs-title">open</span>(marker);
+}
+</code></pre>
+      </li>
+      <li class="numberedList">Finally, open<a id="_idIndexMarker502"/> the <code class="inlineCode">map.component.html</code> file and pass the selected POI ID into the <code class="inlineCode">showInfo</code> method:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-tag">&lt;</span><span class="hljs-name">map-marker</span><span class="hljs-tag"> #</span><span class="hljs-attr">marker</span><span class="hljs-tag">=</span><span class="hljs-string">"mapMarker"</span><span class="hljs-tag"> (</span><span class="hljs-attr">mapClick</span><span class="hljs-tag">)=</span><span class="hljs-string">"showInfo(marker</span><span class="code-highlight"><strong class="hljs-string-slc">, poi.id</strong></span><span class="hljs-string">)"</span><span class="hljs-tag"> [</span><span class="hljs-attr">position</span><span class="hljs-tag">]=</span><span class="hljs-string">"poi"</span><span class="hljs-tag"> &gt;&lt;/</span><span class="hljs-name">map-marker</span><span class="hljs-tag">&gt;</span>
+</code></pre>
+      </li>
+    </ol>
+    <p class="normal">Our application can now record the visits of each POI and keep them in the local storage of the browser. In the following section, we will create the main component of the administrator portal that leverages visit data.</p>
+    <h2 id="_idParaDest-147" class="heading-2">Displaying visit statistics</h2>
+    <p class="normal">The administrator <a id="_idIndexMarker503"/>portal will display visit statistics on its main component with a graph. We will use the <strong class="keyWord">ng2-charts</strong> library<a id="_idIndexMarker504"/> to visualize data on a pie chart. Let’s see how to add the required functionality in that component:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Install the <code class="inlineCode">ng2-charts</code> library using the following command:
+        <pre class="programlisting con"><code class="hljs-con">npm install ng2-charts chart.js
+</code></pre>
+    <p class="normal">The preceding command will also install the <code class="inlineCode">chart.js</code> library, which is at the core of the <code class="inlineCode">ng2-charts</code> library.</p>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="2">Open the <code class="inlineCode">admin.module.ts</code> file, and import <code class="inlineCode">PoiModule</code> from the <code class="inlineCode">@packt/poi</code> namespace and <code class="inlineCode">NgChartsModule</code> from the <code class="inlineCode">ng2-charts</code> npm package:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-title">NgModule</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/core'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">CommonModule</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/common'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">AdminComponent</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'./admin.component'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">RouterModule</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/router'</span>;
+<span class="code-highlight"><strong class="hljs-keyword-slc">import</strong><strong class="hljs-slc"> { </strong><strong class="hljs-title-slc">PoiModule</strong><strong class="hljs-slc"> } </strong><strong class="hljs-keyword-slc">from</strong><strong class="hljs-slc"> </strong><strong class="hljs-string-slc">'@packt/poi'</strong><strong class="hljs-slc">;</strong></span>
+<span class="code-highlight"><strong class="hljs-keyword-slc">import</strong><strong class="hljs-slc"> { </strong><strong class="hljs-title-slc">NgChartsModule</strong><strong class="hljs-slc"> } </strong><strong class="hljs-keyword-slc">from</strong><strong class="hljs-slc"> </strong><strong class="hljs-string-slc">'ng2-charts'</strong><strong class="hljs-slc">;</strong></span>
+<span class="hljs-meta">@NgModule</span>({
+  <span class="hljs-attr">imports</span>: [
+    <span class="hljs-title">CommonModule</span>,
+    <span class="hljs-title">RouterModule</span>.<span class="hljs-title">forChild</span>([
+      { <span class="hljs-attr">path</span>: <span class="hljs-string">''</span>, <span class="hljs-attr">component</span>: <span class="hljs-title">AdminComponent</span> }
+    ]),
+<span class="code-highlight"><strong class="hljs-slc">    </strong><strong class="hljs-title-slc">PoiModule</strong><strong class="hljs-slc">,</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">    </strong><strong class="hljs-title-slc">NgChartsModule</strong></span>
+  ],
+  <span class="hljs-attr">declarations</span>: [
+    <span class="hljs-title">AdminComponent</span>
+  ],
+})
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> <span class="hljs-title">AdminModule</span> {}
+</code></pre>
+      </li>
+      <li class="numberedList">Open <a id="_idIndexMarker505"/>the <code class="inlineCode">admin.component.ts</code> file and modify the <code class="inlineCode">import</code> statements accordingly:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-title">Component</span>, <span class="code-highlight"><strong class="hljs-title-slc">OnDestroy</strong><strong class="hljs-slc">, </strong><strong class="hljs-title-slc">OnInit</strong></span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@angular/core'</span>;
+<span class="code-highlight"><strong class="hljs-keyword-slc">import</strong><strong class="hljs-slc"> { </strong><strong class="hljs-title-slc">Store</strong><strong class="hljs-slc"> } </strong><strong class="hljs-keyword-slc">from</strong><strong class="hljs-slc"> </strong><strong class="hljs-string-slc">'@ngrx/store'</strong><strong class="hljs-slc">;</strong></span>
+<span class="code-highlight"><strong class="hljs-keyword-slc">import</strong><strong class="hljs-slc"> { </strong><strong class="hljs-title-slc">PoiActions</strong><strong class="hljs-slc">, </strong><strong class="hljs-title-slc">PoiEntity</strong><strong class="hljs-slc">, </strong><strong class="hljs-title-slc">PoiSelectors</strong><strong class="hljs-slc"> } </strong><strong class="hljs-keyword-slc">from</strong><strong class="hljs-slc"> </strong><strong class="hljs-string-slc">'@packt/poi'</strong><strong class="hljs-slc">;</strong></span>
+<span class="code-highlight"><strong class="hljs-keyword-slc">import</strong><strong class="hljs-slc"> { </strong><strong class="hljs-title-slc">Subscription</strong><strong class="hljs-slc"> } </strong><strong class="hljs-keyword-slc">from</strong><strong class="hljs-slc"> </strong><strong class="hljs-string-slc">'rxjs'</strong><strong class="hljs-slc">;</strong></span>
+</code></pre>
+      </li>
+      <li class="numberedList">Modify the <code class="inlineCode">AdminComponent</code> class so that it interacts with the application store to get POI data:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> <span class="hljs-title">AdminComponent</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">OnInit</span>, <span class="hljs-title">OnDestroy</span> {
+  <span class="hljs-keyword">private</span> <span class="hljs-attr">subscription</span>: <span class="hljs-title">Subscription</span> | <span class="hljs-literal">undefined</span>;
+  <span class="hljs-title">constructor</span>(<span class="hljs-keyword">private</span><span class="hljs-params"> store: Store</span>) { }
+  <span class="hljs-title">ngOnInit</span>(): <span class="hljs-built_in">void</span> {
+    <span class="hljs-variable">this</span>.<span class="hljs-property">subscription</span> = <span class="hljs-variable">this</span>.<span class="hljs-property">store</span>.<span class="hljs-title">select</span>(<span class="hljs-title">PoiSelectors</span>.<span class="hljs-property">selectAllPoi</span>).<span class="hljs-title">subscribe</span>();
+    <span class="hljs-variable">this</span>.<span class="hljs-property">store</span>.<span class="hljs-title">dispatch</span>(<span class="hljs-title">PoiActions</span>.<span class="hljs-title">initPoi</span>());
+  }
+  <span class="hljs-title">ngOnDestroy</span>() {
+    <span class="hljs-variable">this</span>.<span class="hljs-property">subscription</span>?.<span class="hljs-title">unsubscribe</span>();
+  }
+}
+</code></pre>
+    <p class="normal">In the preceding code, we manually subscribe to the <code class="inlineCode">selectAllPoi</code> selector using a <code class="inlineCode">subscription</code> property instead of an <code class="inlineCode">async</code> pipe. In this case, we must also unsubscribe manually in the <code class="inlineCode">ngOnDestroy</code> life cycle hook of the component using the <code class="inlineCode">unsubscribe</code> method. If we fail to do so, we may introduce a memory leak to our application.</p>
+      </li>
+    </ol>
+    <p class="normal">Now that we have set <a id="_idIndexMarker506"/>up the interaction with the store, we can get statistics from the local storage and create our pie chart:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Execute the following command of the Nx CLI to create a service in the <code class="inlineCode">admin</code> library:
+        <pre class="programlisting con"><code class="hljs-con">nx generate service admin --project=admin
+</code></pre>
+      </li>
+      <li class="numberedList">Open the <code class="inlineCode">admin.service.ts</code> file and add the following <code class="inlineCode">import</code> statement:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-title">PoiEntity</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'@packt/poi'</span>;
+</code></pre>
+      </li>
+      <li class="numberedList">Create a method to get all saved traffic statistics from the local storage of the browser:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-title">getStatistics</span>(<span class="hljs-attr">pois</span>: <span class="hljs-title">PoiEntity</span>[]): <span class="hljs-built_in">number</span>[] {
+  <span class="hljs-keyword">return</span> pois.<span class="hljs-title">map</span>(<span class="hljs-params">poi</span><span class="hljs-function"> =&gt;</span> {
+    <span class="hljs-keyword">const</span> stat = <span class="hljs-variable">localStorage</span>.<span class="hljs-title">getItem</span>(<span class="hljs-string">'tour-'</span> + poi.<span class="hljs-property">id</span>) ?? <span class="hljs-number">0</span>;
+    <span class="hljs-keyword">return</span> +stat;
+  });
+}
+</code></pre>
+    <p class="normal">In the preceding method, we get the traffic of each POI based on its <code class="inlineCode">id</code> property. We then convert the <code class="inlineCode">stat</code> property to a number by adding the <code class="inlineCode">+</code> prefix.</p>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="4">Open the <code class="inlineCode">admin.component.ts</code> file and add the following <code class="inlineCode">import</code> statements:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> { <span class="hljs-title">AdminService</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'./admin.service'</span>;
+<span class="hljs-keyword">import</span> { <span class="hljs-title">ChartDataset</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">'chart.js'</span>;
+</code></pre>
+      </li>
+      <li class="numberedList">Declare component <a id="_idIndexMarker507"/>properties for the labels and the actual data that we will display on the pie graph, and inject <code class="inlineCode">AdminService</code> into the <code class="inlineCode">constructor</code> of the <code class="inlineCode">AdminComponent</code> class:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">export</span> <span class="hljs-keyword">class</span> <span class="hljs-title">AdminComponent</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">OnInit</span>, <span class="hljs-title">OnDestroy</span> {
+  <span class="hljs-keyword">private</span> <span class="hljs-attr">subscription</span>: <span class="hljs-title">Subscription</span> | <span class="hljs-literal">undefined</span>;
+  <span class="code-highlight"><strong class="hljs-attr-slc">dataSets</strong><strong class="hljs-slc">: </strong><strong class="hljs-title-slc">ChartDataset</strong><strong class="hljs-slc">[] = [];</strong></span>
+<span class="code-highlight"><strong class="hljs-slc">  </strong><strong class="hljs-attr-slc">labels</strong><strong class="hljs-slc">: </strong><strong class="hljs-built_in-slc">string</strong><strong class="hljs-slc">[] = [];</strong></span>
+  <span class="hljs-title">constructor</span>(<span class="hljs-keyword">private</span><span class="hljs-params"> store: Store, </span><span class="code-highlight"><strong class="hljs-keyword-slc">private</strong><strong class="hljs-params-slc"> adminService: AdminService</strong></span>) { }
+  <span class="hljs-title">ngOnInit</span>(): <span class="hljs-built_in">void</span> {
+    <span class="hljs-variable">this</span>.<span class="hljs-property">subscription</span> = <span class="hljs-variable">this</span>.<span class="hljs-property">store</span>.<span class="hljs-title">select</span>(<span class="hljs-title">PoiSelectors</span>.<span class="hljs-property">selectAllPoi</span>).<span class="hljs-title">subscribe</span>();
+    <span class="hljs-variable">this</span>.<span class="hljs-property">store</span>.<span class="hljs-title">dispatch</span>(<span class="hljs-title">PoiActions</span>.<span class="hljs-title">initPoi</span>());
+  }
+  <span class="hljs-title">ngOnDestroy</span>() {
+    <span class="hljs-variable">this</span>.<span class="hljs-property">subscription</span>?.<span class="hljs-title">unsubscribe</span>();
+  }
+}
+</code></pre>
+      </li>
+      <li class="numberedList">Create a component method to set the labels and the data of the graph:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">private</span> <span class="hljs-title">buildChart</span>(<span class="hljs-params">pois: PoiEntity[]</span>) {
+  <span class="hljs-variable">this</span>.<span class="hljs-property">labels</span> = pois.<span class="hljs-title">map</span>(<span class="hljs-params">poi</span><span class="hljs-function"> =&gt;</span> poi.<span class="hljs-property">name</span>);
+  <span class="hljs-variable">this</span>.<span class="hljs-property">dataSets</span> = [{
+    <span class="hljs-attr">data</span>: <span class="hljs-variable">this</span>.<span class="hljs-property">adminService</span>.<span class="hljs-title">getStatistics</span>(pois)
+  }]
+}
+</code></pre>
+    <p class="normal">The graph labels are the titles of the POI, and the data comes from the <code class="inlineCode">getStatistics</code> method of the <code class="inlineCode">adminService</code> variable.</p>
+      </li>
+    </ol>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="7">Call the <code class="inlineCode">buildChart</code> method inside the <code class="inlineCode">subscribe</code> method of the <code class="inlineCode">selectAllPoi</code> selector:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-title">ngOnInit</span>(): <span class="hljs-built_in">void</span> {
+  <span class="hljs-variable">this</span>.<span class="hljs-property">subscription</span> = <span class="hljs-variable">this</span>.<span class="hljs-property">store</span>.<span class="hljs-title">select</span>(<span class="hljs-title">PoiSelectors</span>.<span class="hljs-property">selectAllPoi</span>).<span class="hljs-title">subscribe</span>(<span class="code-highlight"><strong class="hljs-params-slc">pois</strong><strong class="hljs-function-slc"> =&gt;</strong><strong class="hljs-slc"> </strong><strong class="hljs-variable-slc">this</strong><strong class="hljs-slc">.</strong><strong class="hljs-title-slc">buildChart</strong><strong class="hljs-slc">(pois)</strong></span>);
+  <span class="hljs-variable">this</span>.<span class="hljs-property">store</span>.<span class="hljs-title">dispatch</span>(<span class="hljs-title">PoiActions</span>.<span class="hljs-title">initPoi</span>());
+}
+</code></pre>
+      </li>
+      <li class="numberedList">Finally, open the <code class="inlineCode">admin.component.html</code> file and replace its content with the following HTML template:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-tag">&lt;</span><span class="hljs-name">div</span><span class="hljs-tag"> </span><span class="hljs-attr">class</span><span class="hljs-tag">=</span><span class="hljs-string">"chart"</span><span class="hljs-tag"> *</span><span class="hljs-attr">ngIf</span><span class="hljs-tag">=</span><span class="hljs-string">"dataSets.length"</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">canvas</span>
+<span class="hljs-tag">    </span><span class="hljs-attr">height</span><span class="hljs-tag">=</span><span class="hljs-string">"100"</span>
+<span class="hljs-tag">    </span><span class="hljs-attr">baseChart</span>
+<span class="hljs-tag">    [</span><span class="hljs-attr">datasets</span><span class="hljs-tag">]=</span><span class="hljs-string">"dataSets"</span>
+<span class="hljs-tag">    [</span><span class="hljs-attr">labels</span><span class="hljs-tag">]=</span><span class="hljs-string">"labels"</span>
+<span class="hljs-tag">    </span><span class="hljs-attr">type</span><span class="hljs-tag">=</span><span class="hljs-string">"pie"</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;/</span><span class="hljs-name">canvas</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;/</span><span class="hljs-name">div</span><span class="hljs-tag">&gt;</span>
+</code></pre>
+    <p class="normal">In the preceding <a id="_idIndexMarker508"/>template, we use the <code class="inlineCode">baseChart</code> directive to convert the <code class="inlineCode">&lt;canvas&gt;</code> element to a graph. The graph is set to <code class="inlineCode">pie</code> using the <code class="inlineCode">type</code> property.</p>
+      </li>
+    </ol>
+    <p class="normal">If we now run our application using Nx Console, visit a POI from the map, and switch to the <code class="inlineCode">http://localhost:4200/admin</code> URL, we should see the following output:</p>
+    <figure class="mediaobject"><img src="../Images/B18465_08_21.png" alt="Figure 8.21 – POI statistics"/></figure>
+    <p class="packt_figref">Figure 8.21 – POI statistics</p>
+    <p class="normal">An administrator <a id="_idIndexMarker509"/>can now have a complete overview of how each POI does from a visit perspective. Our administrator portal has now been completed. The visitor portal can interact with the store and save visit statistics for each POI in the local storage of the browser. The administrator portal can then fetch and display that data on a pie chart.</p>
+    <h1 id="_idParaDest-148" class="heading-1">Summary</h1>
+    <p class="normal">In this project, we built an enterprise portal application to visit POIs on a map and display visit statistics for each one. First, we saw how to use Nx to scaffold a new Nx monorepo application. Then, we created two different portals for our application, a visitor and an administrator. We learned how to use the NgRx library in the visitor portal to maintain and manage the state of our application. Finally, we saw how to use a chart library in the administrator portal to display statistics for each POI.</p>
+    <p class="normal">In the next chapter, we will use the Angular CLI to build a UI component library using the Angular CDK.</p>
+    <h1 id="_idParaDest-149" class="heading-1">Practice questions</h1>
+    <p class="normal">Let’s take a look at a few practice questions:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">Which npm package creates an Nx monorepo application?</li>
+      <li class="numberedList">What are the differences between the Angular CLI and Nx CLI?</li>
+      <li class="numberedList">How can we enable NgRx in the library of a monorepo?</li>
+      <li class="numberedList">How do we select data from the store?</li>
+      <li class="numberedList">How do we interact with HTTP in NgRx?</li>
+      <li class="numberedList">Where do we modify the state of an NgRx store?</li>
+      <li class="numberedList">What is the difference between a root and a feature state?</li>
+      <li class="numberedList">Which npm package can we use for Google Maps in an Angular application?</li>
+      <li class="numberedList">How can we subscribe to an NgRx selector manually?</li>
+      <li class="numberedList">Which component do we use to display additional information on Google Maps?</li>
+    </ol>
+    <h1 id="_idParaDest-150" class="heading-1">Further reading</h1>
+    <p class="normal">Here are some links to build upon what we learned in the chapter:</p>
+    <ul>
+      <li class="bulletList">Nx: <a href="https://nx.dev"><span class="url">https://nx.dev</span></a></li>
+      <li class="bulletList">NgRx: <a href="https://ngrx.io"><span class="url">https://ngrx.io</span></a></li>
+      <li class="bulletList">NgRx store guide: <a href="https://ngrx.io/guide/store"><span class="url">https://ngrx.io/guide/store</span></a></li>
+      <li class="bulletList">Angular Material card component: <a href="https://material.angular.io/components/card/overview"><span class="url">https://material.angular.io/components/card/overview</span></a></li>
+      <li class="bulletList">Angular Google Maps: <a href="https://github.com/angular/components/tree/main/src/google-maps"><span class="url">https://github.com/angular/components/tree/main/src/google-maps</span></a></li>
+      <li class="bulletList"><code class="inlineCode">ng2-charts</code>: <a href="https://valor-software.com/ng2-charts"><span class="url">https://valor-software.com/ng2-charts</span></a></li>
+      <li class="bulletList"><code class="inlineCode">create-nx-workspace</code>: <a href="https://www.npmjs.com/package/create-nx-workspace"><span class="url">https://www.npmjs.com/package/create-nx-workspace</span></a></li>
+    </ul>
+  </div>
+</body></html>

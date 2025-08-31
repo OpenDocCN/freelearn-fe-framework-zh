@@ -1,6 +1,6 @@
-# Python 卖空算法教程
+# Lottie 和 AfterEffect UI 动画
 
-> 原文：[`zh.annas-archive.org/md5/ceefdd89e585c59c20db6a7760dc11f1`](https://zh.annas-archive.org/md5/ceefdd89e585c59c20db6a7760dc11f1)
+> 原文：[`zh.annas-archive.org/md5/b7c29e086f0fbe0ffd610f855272191a`](https://zh.annas-archive.org/md5/b7c29e086f0fbe0ffd610f855272191a)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

@@ -1,6 +1,6 @@
-# Python 卖空算法教程
+# React 面试指南
 
-> 原文：[`zh.annas-archive.org/md5/ceefdd89e585c59c20db6a7760dc11f1`](https://zh.annas-archive.org/md5/ceefdd89e585c59c20db6a7760dc11f1)
+> 原文：[`zh.annas-archive.org/md5/ad14d622e1b86c2f653ec95db37a2432`](https://zh.annas-archive.org/md5/ad14d622e1b86c2f653ec95db37a2432)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

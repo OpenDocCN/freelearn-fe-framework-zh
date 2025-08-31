@@ -1,6 +1,6 @@
-# Python 卖空算法教程
+# React18 设计模式和最佳实践
 
-> 原文：[`zh.annas-archive.org/md5/ceefdd89e585c59c20db6a7760dc11f1`](https://zh.annas-archive.org/md5/ceefdd89e585c59c20db6a7760dc11f1)
+> 原文：[`zh.annas-archive.org/md5/513d5bc62ca582f3c794eb80a8a48f5b`](https://zh.annas-archive.org/md5/513d5bc62ca582f3c794eb80a8a48f5b)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

@@ -1,4 +1,4 @@
-# 第八章：*第八章*：用例场景 2 – Jotai
+# 第八章：用例场景 2 – Jotai
 
 Jotai ([`github.com/pmndrs/jotai`](https://github.com/pmndrs/jotai)) 是一个用于全局状态的轻量级库。它模仿了 `useState`/`useReducer`，并使用所谓的原子，这些通常是小的状态片段。与 Zustand 不同，它是一个组件状态，并且像 Zustand 一样，它是一个不可变更新模型。其实现基于我们在 *第五章* 中学到的上下文和订阅模式，*使用上下文和订阅共享组件状态*。
 

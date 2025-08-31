@@ -1,4 +1,4 @@
-# 第二章：*第二章*：使用 Express.js 设置 GraphQL
+# 第二章：使用 Express.js 设置 GraphQL
 
 我们的前端基本设置和原型现在已完成。现在，我们需要启动我们的 GraphQL 服务器，以便开始实现后端。我们将使用 Apollo 和 Express.js 来构建后端的基础。
 

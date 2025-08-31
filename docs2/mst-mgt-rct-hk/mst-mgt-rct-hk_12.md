@@ -1,4 +1,4 @@
-# 第九章：*第九章*：用例场景 3 – Valtio
+# 第九章：用例场景 3 – Valtio
 
 Valtio ([`github.com/pmndrs/valtio`](https://github.com/pmndrs/valtio)) 是另一个用于全局状态的库。与 Zustand 和 Jotai 不同，它基于可变更新模型。它主要用于模块状态，如 Zustand。它利用代理获取不可变快照，这是与 React 集成所需的。
 

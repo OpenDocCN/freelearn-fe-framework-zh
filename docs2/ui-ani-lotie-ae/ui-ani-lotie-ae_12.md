@@ -1,4 +1,4 @@
-# 第九章：*第九章*：让我们做一些魔法：集成您的第一个 Lottie 动画
+# 第九章：让我们做一些魔法：集成您的第一个 Lottie 动画
 
 我们的应用程序现在已准备好在其屏幕上显示 Lottie 动画。在本章中，我们将学习如何集成 Lottie 文件，无论是从[`lottiefiles.com/`](https://lottiefiles.com/)下载的还是在我们自己的 Adobe **After Effects** (**AE**)中生成的。成功执行此集成的要求如下：
 

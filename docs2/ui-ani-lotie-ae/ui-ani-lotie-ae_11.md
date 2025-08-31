@@ -1,4 +1,4 @@
-# 第八章：*第八章*：安装 lottie-react-native
+# 第八章：安装 lottie-react-native
 
 在使用`lottie-react-native`之前，我们需要将其作为 node 模块安装到我们的 React Native 项目中，这样我们就可以在应用程序的代码库中导入它。为了执行此安装，我们有两种不同的选择：
 

@@ -1,6 +1,6 @@
-# Python 卖空算法教程
+# React 挂钩学习指南第二版
 
-> 原文：[`zh.annas-archive.org/md5/ceefdd89e585c59c20db6a7760dc11f1`](https://zh.annas-archive.org/md5/ceefdd89e585c59c20db6a7760dc11f1)
+> 原文：[`zh.annas-archive.org/md5/e3f80e0bbd9c0adfcf30deda2265e9fb`](https://zh.annas-archive.org/md5/e3f80e0bbd9c0adfcf30deda2265e9fb)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

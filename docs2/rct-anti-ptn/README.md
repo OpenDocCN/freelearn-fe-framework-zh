@@ -1,6 +1,6 @@
-# Python 卖空算法教程
+# React 反模式
 
-> 原文：[`zh.annas-archive.org/md5/ceefdd89e585c59c20db6a7760dc11f1`](https://zh.annas-archive.org/md5/ceefdd89e585c59c20db6a7760dc11f1)
+> 原文：[`zh.annas-archive.org/md5/6794d9e9fd0a94e33f34d8b45365ab2b`](https://zh.annas-archive.org/md5/6794d9e9fd0a94e33f34d8b45365ab2b)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

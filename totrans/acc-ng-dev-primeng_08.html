@@ -1,0 +1,326 @@
+<html><head></head><body><div id="sbo-rt-content"><div id="_idContainer042">
+			<h1 id="_idParaDest-127"><em class="italic"><a id="_idTextAnchor129"/>Chapter 12</em>: Embracing Ahead-of-Time Compilation</h1>
+			<p>Angular Ivy is the most recent generation of the Angular framework. It features a new compiler and a new runtime, both of which maintain compatibility with most of the APIs used by the previous generation of Angular's compiler and runtime known as Angular View Engine.</p>
+			<p>In this chapter, we will learn about how Angular Ivy makes <strong class="bold">ahead-of-time</strong> the default Angular compiler across all phases of development and what impact it has on our developer workflow.</p>
+			<p>Following that, we will explore metadata errors that might occur when using the ahead-of-time Angular compiler, with accompanying techniques to fix the errors.</p>
+			<p>Finally, we will demonstrate two techniques for resolving asynchronous dependencies before bootstrapping our Angular Ivy application.</p>
+			<p>We will cover the following topics in this chapter:</p>
+			<ul>
+				<li>Using the ahead-of-time compiler for all development phases</li>
+				<li>Dealing with the ahead-of-time compiler's limitations</li>
+				<li>Initializing asynchronous dependencies</li>
+			</ul>
+			<p>After reading this chapter, you will be aware of how Angular Ivy made it feasible for the ahead-of-time Angular compiler to become the default compiler for all phases of our development workflow. You will understand how the ahead-of-time compiler affects the different phases of our development workflow.</p>
+			<p>This chapter introduces edge cases that are incompatible with the ahead-of-time Angular compiler but also teaches you how to deal with them or get around them.</p>
+			<p>You will learn two techniques for resolving asynchronous dependencies before bootstrapping your Angular application and the trade-offs they bring.</p>
+			<h1 id="_idParaDest-128"><a id="_idTextAnchor130"/>Technical requirements</h1>
+			<p>The technicalities discussed in this chapter apply to applications at or higher than the following versions:</p>
+			<ul>
+				<li>Angular Ivy version 12.2</li>
+				<li>TypeScript version 4.2</li>
+			</ul>
+			<p>More metadata errors might occur in earlier versions of Angular and TypeScript.</p>
+			<p>You can find complete code examples for the feature flags and the feature flag initializer in this book's companion GitHub repository at <a href="https://github.com/PacktPublishing/Accelerating-Angular-Development-with-Ivy/tree/main/projects/chapter12">https://github.com/PacktPublishing/Accelerating-Angular-Development-with-Ivy/tree/main/projects/chapter12</a>.</p>
+			<h1 id="_idParaDest-129"><a id="_idTextAnchor131"/>Using the ahead-of-time compiler for all development phases</h1>
+			<p>In <a id="_idIndexMarker435"/>previous generations of Angular, the <a id="_idIndexMarker436"/>ahead-of-time compiler was significantly slower than the just-in-time Angular compiler. Because of this and other factors, just-in-time was the default compiler in all or several phases of development depending on the Angular version. This in turn led to issues because errors were only discovered when doing a production build or—even worse—in the production environment at runtime.</p>
+			<p>Angular Ivy uses its <strong class="bold">ahead-of-time compiler</strong> by default in all development phases, including while running the development server, when running tests, for server-side rendering, and in the browser, instead of bundling and running the <strong class="bold">just-in-time compiler</strong> at runtime.</p>
+			<p>This section discusses how the ahead-of-time Angular compiler affects these phases of our development workflow.</p>
+			<h2 id="_idParaDest-130"><a id="_idTextAnchor132"/>Ahead-of-time compilation for builds</h2>
+			<p>Besides<a id="_idIndexMarker437"/> improved compilation speed in Angular Ivy, another<a id="_idIndexMarker438"/> key to using the ahead-of-time compiler by default is that Angular Ivy decreases our application's bundle size under certain conditions. In general, both small and large applications see a decrease in overall size when comparing View Engine to Ivy compilation, while medium-sized applications might not see a significant change. </p>
+			<p>More<a id="_idIndexMarker439"/> specifically, the bundle sizes of small and simple applications decrease when using Angular Ivy. For complex applications, the main bundle size increases while lazy-loaded chunks become smaller when<a id="_idIndexMarker440"/> compared to Angular View Engine. This is a bit of a trade-off, considering that a bigger main bundle size increases several performance timing measurements.</p>
+			<p>The secret to unlocking the opportunity for smaller bundles is the transition from View Engine's data structures interpreted at runtime to the so-called <strong class="bold">Ivy Instruction Set</strong>, which reuses runtime commands—or instructions—rather than having a unique data structure for each part of your application as was the case with View Engine.</p>
+			<p>View Engine's compiled data structures have the downside that there is an inflection point at which the compiled data structures become larger than the source code of the compiler and our application.</p>
+			<p>In comparison, the Ivy Instruction Set<a id="_idIndexMarker441"/> is tree-shakable, meaning that only the instructions used by our application are included in a production bundle. For example, internationalization instructions are removed from a production bundle if our application is not multilingual. Similarly, animation instructions are excluded from a production bundle if our application does not use animations.</p>
+			<p>The Ivy Instruction Set is used by a significantly faster runtime when compared to View Engine because the precompiled instructions are immediately executable in contrast to the View Engine data structures, which must be interpreted to instructions at runtime before being executed.</p>
+			<h2 id="_idParaDest-131"><a id="_idTextAnchor133"/>Ahead-of-time compilation for component templates</h2>
+			<p>When <a id="_idIndexMarker442"/>using Angular Ivy's ahead-of-time compiler, it is recommended to enable strict template type checking as mentioned in <a href="B16295_02_ePub_RK.xhtml#_idTextAnchor031"><em class="italic">Chapter 2</em></a>, <em class="italic">Boosting Developer Productivity Through Tooling, Configuration, and Convenience</em>.</p>
+			<p>Strict template<a id="_idIndexMarker443"/> type checking catches most type errors in Angular metadata, component models, and component templates. They will appear either when building our application or inline in our code editors when using the Angular Language Service.</p>
+			<p>Without strict template type checking, these errors might appear as frustrating bugs at runtime.</p>
+			<h2 id="_idParaDest-132"><a id="_idTextAnchor134"/>Ahead-of-time compilation for unit tests</h2>
+			<p>Angular Ivy decreases<a id="_idIndexMarker444"/> both build time and rebuild time. This is a time-saving improvement both for the development server and<a id="_idIndexMarker445"/> for unit tests. In addition to faster compilation speed, Angular Ivy introduces a compile cache so that compiled Angular modules, components, directives, pipes, and services are cached between test cases.</p>
+			<p>In Angular View Engine, ahead-of-time compilation is not supported for unit tests. Angular Ivy introduces ahead-of-time compilation support for unit tests while still allowing the dynamic creation of Angular modules, components, directives, and pipes for the purpose of testing. Dynamic creation during unit tests still uses the just-in-time Angular compiler.</p>
+			<h2 id="_idParaDest-133"><a id="_idTextAnchor135"/>Ahead-of-time compilation for the runtime</h2>
+			<p>When using<a id="_idIndexMarker446"/> the ahead-of-time Angular compiler, our Angular application is loaded faster because the just-in-time Angular compiler is not bundled with our application. Our application is bootstrapped faster because the<a id="_idIndexMarker447"/> compiler is run at build time rather than at runtime.</p>
+			<p>The Angular Ivy runtime is faster than the Angular View Engine runtime thanks to the Ivy Instruction Set. The View Engine runtime has to interpret the view compiler data structures before initializing or updating the DOM managed by an Angular component template. By comparison, Ivy instructions are executed immediately.</p>
+			<p>In this section, we discussed the impact the ahead-of-time Angular compiler has on the different phases of our development workflow. In the following section, we will shine a light on the ahead-of-time compiler's limitations and explore how we address them through simple code examples.</p>
+			<h1 id="_idParaDest-134"><a id="_idTextAnchor136"/>Dealing with the ahead-of-time compiler's limitations</h1>
+			<p>The <a id="_idIndexMarker448"/>upside of using Angular Ivy's ahead-of-time compiler is faster runtime speed and a smaller bundle because of not having to ship a compiler to the runtime bundle or compiler before rendering the application.</p>
+			<p>When using the<a id="_idIndexMarker449"/> ahead-of-time compiler, there is a trade-off to be aware of. Declarables—that is, directives, components, and pipes—cannot rely on runtime information because they must be compiled ahead of time, that is, at build time rather than at runtime.</p>
+			<p>This sets a limitation for dynamically creating declarables at runtime, for example, based on server-side configuration or a static configuration file. Unless, of course, we bundle the Angular compiler with our application and use it at runtime, but then what would be the point?</p>
+			<p>The good news is that injected dependencies—that is, class-based services, provided values, or functions—can be resolved at runtime. Keep in mind that only synchronously resolved values can be provided directly. If we need an asynchronous process to resolve a value, we must wrap it in a class-based service, a function, a promise, or an observable. This is discussed and solved in the final sections of this chapter.</p>
+			<p>In this section, we will briefly discuss metadata errors when using the ahead-of-time Angular compiler. We will not discuss metadata errors that are solved by using strict TypeScript compilation or strict template type checking, as was discussed in <a href="B16295_02_ePub_RK.xhtml#_idTextAnchor031"><em class="italic">Chapter 2</em></a>, <em class="italic">Boosting Developer Productivity Through Tooling, Configuration, and Convenience</em>.</p>
+			<h2 id="_idParaDest-135"><a id="_idTextAnchor137"/>Providing values using functions</h2>
+			<p>Passing the<a id="_idIndexMarker450"/> result of a function call to a value provider is not supported. Instead, we use factory functions and declare them as providers known as factory providers. For example, say we have the following ahead-of-time-incompatible <strong class="bold">value provider</strong>:</p>
+			<p class="source-code">{ provide: timeZoneToken, useValue: guessTimeZone() }</p>
+			<p>We can replace it with the following ahead-of-time-compatible <strong class="bold">factory provider</strong>:</p>
+			<p class="source-code">{ provide: timeZoneToken, useFactory: guessTimeZone }</p>
+			<p>This configures Angular to run the factory function at an appropriate time of our application life cycle to resolve the time zone dependency represented by <strong class="source-inline">timeZoneToken</strong> while<a id="_idIndexMarker451"/> maintaining compatibility with the ahead-of-time Angular compiler.</p>
+			<h2 id="_idParaDest-136"><a id="_idTextAnchor138"/>Declaring metadata using functions</h2>
+			<p>A <a id="_idIndexMarker452"/>known ahead-of-time compilation edge case is using functions or static methods to determine declared metadata such as the <strong class="source-inline">imports</strong> or <strong class="source-inline">declarations</strong> of an Angular module.</p>
+			<p>In the following use case, we attempt to bootstrap a fake root component in Angular development mode:</p>
+			<p class="source-code">import { NgModule, Type } from '@angular/core';</p>
+			<p class="source-code">import { BrowserModule } from '@angular/platform-browser';</p>
+			<p class="source-code">import { environment } from '../environments/environment';</p>
+			<p class="source-code">import { AppFakeComponent } from './app-fake.component';</p>
+			<p class="source-code">import { AppComponent } from './app.component';</p>
+			<p class="source-code">function determineAppComponent(isDevelopment: boolean): </p>
+			<p class="source-code">  Type&lt;any&gt;[] {</p>
+			<p class="source-code">  if (isDevelopment) {</p>
+			<p class="source-code">    return [AppFakeComponent];</p>
+			<p class="source-code">  } else {</p>
+			<p class="source-code">    return [AppComponent];</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">}</p>
+			<p class="source-code">const developmentEnvironment = environment.production === false;</p>
+			<p class="source-code">@NgModule({</p>
+			<p class="source-code">  bootstrap: determineAppComponent(developmentEnvironment),</p>
+			<p class="source-code">  declarations: determineAppComponent(</p>
+			<p class="source-code">   developmentEnvironment),</p>
+			<p class="source-code">  imports: [BrowserModule],</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class AppModule {}</p>
+			<p>When <a id="_idIndexMarker453"/>we try to compile this code ahead of time, we hit a limitation on Angular metadata. Functions used for metadata declaration must only contain a single <strong class="source-inline">return</strong> statement, nothing else.</p>
+			<p>To comply with metadata limitations, we refactor the <strong class="source-inline">determineAppComponent</strong> function to the following implementation:</p>
+			<p class="source-code">function determineAppComponent(isDevelopment: boolean):</p>
+			<p class="source-code">  Type&lt;any&gt;[] {</p>
+			<p class="source-code">  return isDevelopment ? [AppFakeComponent] : </p>
+			<p class="source-code">   [AppComponent];</p>
+			<p class="source-code">}</p>
+			<p>The function now contains only a single expression, a <strong class="source-inline">return</strong> statement that evaluates a ternary expression. This is compliant with the ahead-of-time Angular compiler.</p>
+			<h2 id="_idParaDest-137"><a id="_idTextAnchor139"/>Using tagged template literals in component templates</h2>
+			<p>Unfortunately, ahead-of-time Angular <a id="_idIndexMarker454"/>does not support tagged template literals. For example, the following component results in a compilation error:</p>
+			<p class="source-code">import { Component } from '@angular/core';</p>
+			<p class="source-code">const subject = 'World';</p>
+			<p class="source-code">const greeting = String.raw`Hello, ${subject}!`;</p>
+			<p class="source-code">@Component({</p>
+			<p class="source-code">  selector: 'app-root',</p>
+			<p class="source-code">  template: '&lt;h1&gt;' + greeting + '&lt;/h1&gt;',</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class AppComponent {}</p>
+			<p>Instead, we can use a regular function to create a compile-time dynamic part of our template, as seen in the following implementation:</p>
+			<p class="source-code">import { Component } from '@angular/core';</p>
+			<p class="source-code">const subject = 'World';</p>
+			<p class="source-code">const greeting = `Hello, ${subject}!`;</p>
+			<p class="source-code">@Component({</p>
+			<p class="source-code">  selector: 'app-root',</p>
+			<p class="source-code">  template: '&lt;h1&gt;' + greeting + '&lt;/h1&gt;',</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class AppComponent {}</p>
+			<p>We must stay clear of tagged template literals for component template metadata to comply with the ahead-of-time Angular compiler's limitations on Angular metadata. However, we can use tagged template literals in UI properties that we use in template bindings, as seen in the following refactored implementation:</p>
+			<p class="source-code">import { Component } from '@angular/core';</p>
+			<p class="source-code">const subject = 'World';</p>
+			<p class="source-code">@Component({</p>
+			<p class="source-code">  selector: 'app-root',</p>
+			<p class="source-code">  template: '&lt;h1&gt;{{ greeting }}&lt;/h1&gt;',</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class AppComponent {</p>
+			<p class="source-code">  greeting = String.raw`Hello, ${subject}!`;</p>
+			<p class="source-code">}</p>
+			<p>Choose either<a id="_idIndexMarker455"/> of these two techniques to deal with or support tagged template literals for Angular component templates, respectively.</p>
+			<h2 id="_idParaDest-138"><a id="_idTextAnchor140"/>Initializing metadata variables</h2>
+			<p>Metadata must be<a id="_idIndexMarker456"/> immediately available for the ahead-of-time compiler. The following example is invalid because of late initialization:</p>
+			<p class="source-code">import { Component } from '@angular/core';</p>
+			<p class="source-code">let greeting: string;</p>
+			<p class="source-code">setTimeout(() =&gt; {</p>
+			<p class="source-code">  greeting = '&lt;h1&gt;Hello, World!&lt;/h1&gt;';</p>
+			<p class="source-code">}, 0);</p>
+			<p class="source-code">@Component({</p>
+			<p class="source-code">  selector: 'app-hello',</p>
+			<p class="source-code">  template: greeting,</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class HelloComponent {}</p>
+			<p>The <strong class="source-inline">greeting</strong> variable <a id="_idIndexMarker457"/>has not been initialized when the component metadata is converted to annotations by the ahead-of-time Angular compiler.</p>
+			<p>More surprisingly, the following example is also invalid:</p>
+			<p class="source-code">import { Component } from '@angular/core';</p>
+			<p class="source-code">let greeting: string;</p>
+			<p class="source-code">greeting = '&lt;h1&gt;Hello, World!&lt;/h1&gt;';</p>
+			<p class="source-code">@Component({</p>
+			<p class="source-code">  selector: 'app-hello',</p>
+			<p class="source-code">  template: greeting,</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class HelloComponent {}</p>
+			<p>While not a common use case, keep this limitation in mind because it is quite surprising.</p>
+			<p>Let's first see the fixed implementation:</p>
+			<p class="source-code">import { Component } from '@angular/core';</p>
+			<p class="source-code">let greeting = '&lt;h1&gt;Hello, World!&lt;/h1&gt;';</p>
+			<p class="source-code">@Component({</p>
+			<p class="source-code">  selector: 'app-hello',</p>
+			<p class="source-code">  template: greeting,</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class HelloComponent {}</p>
+			<p>The <strong class="source-inline">greeting</strong> variable is now defined and initialized at the same time so the component template works as expected.</p>
+			<p>Let's now change <a id="_idIndexMarker458"/>the value of the <strong class="source-inline">greeting</strong> variable just after initializing it:</p>
+			<p class="source-code">import { Component } from '@angular/core';</p>
+			<p class="source-code">let greeting = '&lt;h1&gt;Hello, World!&lt;/h1&gt;';</p>
+			<p class="source-code">greeting = '&lt;h1&gt;Hello, JIT compiler!&lt;/h1&gt;';</p>
+			<p class="source-code">@Component({</p>
+			<p class="source-code">  selector: 'app-hello',</p>
+			<p class="source-code">  template: greeting,</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class HelloComponent {}</p>
+			<p>When using the ahead-of-time Angular compiler, the template is <strong class="source-inline">&lt;h1&gt;Hello, World!&lt;/h1&gt;</strong>. If we change to the just-in-time Angular compiler, the template is <strong class="source-inline">&lt;h1&gt;Hello, JIT compiler!&lt;/h1&gt;</strong>.</p>
+			<p>Variables used for <a id="_idIndexMarker459"/>declarable metadata must be defined and initialized at the same time when using the ahead-of-time Angular compiler.</p>
+			<p>In this section, we explored the edge cases of ahead-of-time compiler compatibility and learned how to address them. In the next section, we will learn how to initialize asynchronous dependencies before bootstrapping our application.</p>
+			<h1 id="_idParaDest-139"><a id="_idTextAnchor141"/>Initializing asynchronous dependencies </h1>
+			<p>Referring to asynchronous values is toxic because every value computed from the referred value must be asynchronous as well. A couple of techniques to get around this are available, but they both come at the cost of delaying application bootstrapping until the value has been resolved. These techniques are demonstrated in this section.</p>
+			<h2 id="_idParaDest-140"><a id="_idTextAnchor142"/>Providing an asynchronous dependency with a static platform provider</h2>
+			<p>To<a id="_idIndexMarker460"/> convert an asynchronous dependency resolver to a static dependency, we can delay bootstrapping our <a id="_idIndexMarker461"/>application to provide the static provider at the platform level, making it available as a static dependency in our application.</p>
+			<p>For example, say we have a JSON file containing an object with Boolean values. We create it in the <strong class="source-inline">src/app/assets/features.json</strong> file of our application project. This file contains our <strong class="bold">feature flags</strong>, which are loaded at runtime. The settings in this file can be<a id="_idIndexMarker462"/> changed after compiling our application.</p>
+			<p>In the <strong class="source-inline">src/load-feature-flags.ts</strong> file of our application project, we add the following function:</p>
+			<p class="source-code">export function loadFeatureFlags():</p>
+			<p class="source-code">  Promise&lt;{ [feature: string]: boolean }&gt; {</p>
+			<p class="source-code">  return fetch('/assets/features.json')</p>
+			<p class="source-code">    .then((response) =&gt; response.json());</p>
+			<p class="source-code">}</p>
+			<p>Before calling this function in the main file of our application, we create a dependency injection token to represent the feature flags.</p>
+			<p>The following code block shows the <strong class="source-inline">src/app/feature-flags.token.ts</strong> file of our application project:</p>
+			<p class="source-code">import { InjectionToken } from '@angular/core';</p>
+			<p class="source-code">export const featureFlagsToken =</p>
+			<p class="source-code">  new InjectionToken&lt;Record&lt;string, boolean&gt;&gt;(</p>
+			<p class="source-code">    'Feature flags'</p>
+			<p class="source-code">  );</p>
+			<p>Finally, we <a id="_idIndexMarker463"/>modify our <a id="_idIndexMarker464"/>main file so that it contains something like the following:</p>
+			<p class="source-code">import { enableProdMode } from '@angular/core';</p>
+			<p class="source-code">import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';</p>
+			<p class="source-code">import { AppModule } from './app/app.module';</p>
+			<p class="source-code">import { featureFlagsToken } from './app/feature-flags.token';</p>
+			<p class="source-code">import { environment } from './environments/environment';</p>
+			<p class="source-code">import { loadFeatureFlags } from './load-feature-flags';</p>
+			<p class="source-code">if (environment.production) {</p>
+			<p class="source-code">  enableProdMode();</p>
+			<p class="source-code">}</p>
+			<p class="source-code">loadFeatureFlags()</p>
+			<p class="source-code">  .then((featureFlags) =&gt;</p>
+			<p class="source-code">    platformBrowserDynamic([</p>
+			<p class="source-code">      { provide: featureFlagsToken, useValue: featureFlags </p>
+			<p class="source-code">       },</p>
+			<p class="source-code">    ]).bootstrapModule(AppModule)</p>
+			<p class="source-code">  )</p>
+			<p class="source-code">  .catch((err) =&gt; console.error(err));</p>
+			<p>Notice <a id="_idIndexMarker465"/>how we are loading the feature flags, then passing them as the value for the platform provider of the feature flags token before being able to bootstrap our Angular application module.</p>
+			<p>Now, we can inject <a id="_idIndexMarker466"/>the feature flags in any Angular-specific class, such as a component, as seen in the following example:</p>
+			<p class="source-code">import { Component, Inject } from '@angular/core';</p>
+			<p class="source-code">import { featureFlagsToken } from './feature-flags.token';</p>
+			<p class="source-code">@Component({</p>
+			<p class="source-code">  selector: 'app-root',</p>
+			<p class="source-code">  template: `</p>
+			<p class="source-code">    &lt;div *ngFor="let feature of features | keyvalue"&gt;</p>
+			<p class="source-code">      &lt;mat-slide-toggle [checked]="feature.value"&gt;</p>
+			<p class="source-code">        {{ feature.key }}</p>
+			<p class="source-code">      &lt;/mat-slide-toggle&gt;</p>
+			<p class="source-code">    &lt;/div&gt;</p>
+			<p class="source-code">  `,</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class AppComponent {</p>
+			<p class="source-code">  constructor(</p>
+			<p class="source-code">    @Inject(featureFlagsToken)</p>
+			<p class="source-code">    public features: { [feature: string]: boolean }</p>
+			<p class="source-code">  ) {}</p>
+			<p class="source-code">}</p>
+			<p>Feature flags are <a id="_idIndexMarker467"/>a good use case for this technique. Other configurations are also well suited for this approach. Additionally, if multiple application initializers need a shared dependency, this <a id="_idIndexMarker468"/>technique is the best approach.</p>
+			<p>In the next section, we will walk through an alternative technique and discuss the differences.</p>
+			<h2 id="_idParaDest-141"><a id="_idTextAnchor143"/>Resolving an asynchronous dependency with an application initializer</h2>
+			<p>Another <a id="_idIndexMarker469"/>technique for <a id="_idIndexMarker470"/>dealing with a dependency that is asynchronously resolved is an application initializer.</p>
+			<p>An application initializer is<a id="_idIndexMarker471"/> resolved before the root application component is bootstrapped. This is ideal for setting up the initial root-level state that is not needed for other application initializers.</p>
+			<p>We will consider an alternative approach for dealing with feature flags. This time, we are using a feature flag service that is configured using an application initializer.</p>
+			<p>The feature flag service has the following implementation:</p>
+			<p class="source-code">import { Injectable } from '@angular/core';</p>
+			<p class="source-code">@Injectable({</p>
+			<p class="source-code">  providedIn: 'root',</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class FeatureFlagService {</p>
+			<p class="source-code">  #featureFlags = new Map&lt;string, boolean&gt;();</p>
+			<p class="source-code">  configureFeatures(featureFlags: { [feature: string]: </p>
+			<p class="source-code">   boolean }): void {</p>
+			<p class="source-code">    Object.entries(featureFlags).forEach(([feature, state]) </p>
+			<p class="source-code">     =&gt;</p>
+			<p class="source-code">      this.#featureFlags.set(feature, state)</p>
+			<p class="source-code">    );</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  isEnabled(feature: string): boolean {</p>
+			<p class="source-code">    return this.#featureFlags.get(feature) ?? false;</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">}</p>
+			<p>The <a id="_idIndexMarker472"/>feature flag initializer <a id="_idIndexMarker473"/>loads the feature flags using <strong class="source-inline">HttpClient</strong> before calling <strong class="source-inline">FeatureFlagService#configureFeatures</strong>. This is seen in the following code listing:</p>
+			<p class="source-code">import { HttpClient } from '@angular/common/http';</p>
+			<p class="source-code">import { APP_INITIALIZER, FactoryProvider } from '@angular/core';</p>
+			<p class="source-code">import { Observable } from 'rxjs';</p>
+			<p class="source-code">import { mapTo, tap } from 'rxjs/operators';</p>
+			<p class="source-code">import { FeatureFlagService } from './feature-flag.service';</p>
+			<p class="source-code">function configureFeatureFlags(</p>
+			<p class="source-code">  featureFlagService: FeatureFlagService,</p>
+			<p class="source-code">  http: HttpClient</p>
+			<p class="source-code">): () =&gt; Observable&lt;void&gt; {</p>
+			<p class="source-code">  return () =&gt;</p>
+			<p class="source-code">    http.get&lt;{ [feature: string]: boolean </p>
+			<p class="source-code">     }&gt;('/assets/features.json').pipe(</p>
+			<p class="source-code">      tap((features) =&gt; </p>
+			<p class="source-code">       featureFlagService.configureFeatures(features)),</p>
+			<p class="source-code">      mapTo(undefined)</p>
+			<p class="source-code">    );</p>
+			<p class="source-code">}</p>
+			<p class="source-code">export const featureFlagInitializer: FactoryProvider = {</p>
+			<p class="source-code">  deps: [FeatureFlagService, HttpClient],</p>
+			<p class="source-code">  multi: true,</p>
+			<p class="source-code">  provide: APP_INITIALIZER,</p>
+			<p class="source-code">  useFactory: configureFeatureFlags,</p>
+			<p class="source-code">};</p>
+			<p>Finally, we register<a id="_idIndexMarker474"/> the feature flag initializer in our root module by adding it to the <strong class="source-inline">providers</strong> array, as <a id="_idIndexMarker475"/>seen in the following code snippet:</p>
+			<p class="source-code">import { HttpClientModule } from '@angular/common/http';</p>
+			<p class="source-code">import { NgModule } from '@angular/core';</p>
+			<p class="source-code">import { MatSlideToggleModule } from '@angular/material/slide-toggle';</p>
+			<p class="source-code">import { BrowserModule } from '@angular/platform-browser';</p>
+			<p class="source-code">import { AppComponent } from './app.component';</p>
+			<p class="source-code">import { featureFlagInitializer } from './feature-flag.initializer';</p>
+			<p class="source-code">@NgModule({</p>
+			<p class="source-code">  bootstrap: [AppComponent],</p>
+			<p class="source-code">  declarations: [AppComponent],</p>
+			<p class="source-code">  imports: [BrowserModule, HttpClientModule, </p>
+			<p class="source-code">   MatSlideToggleModule],</p>
+			<p class="source-code">  providers: [featureFlagInitializer],</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class AppModule {}</p>
+			<p>After setting<a id="_idIndexMarker476"/> all of this up, any <a id="_idIndexMarker477"/>Angular-specific class can inject an instance of the <strong class="source-inline">FeatureFlagService</strong> class and use its <strong class="source-inline">isEnabled</strong> method to check the state of a feature flag, as seen in the following code listing:</p>
+			<p class="source-code">import { Component } from '@angular/core';</p>
+			<p class="source-code">import { FeatureFlagService } from './feature-flag.service';</p>
+			<p class="source-code">@Component({</p>
+			<p class="source-code">  selector: 'app-root',</p>
+			<p class="source-code">  template: `</p>
+			<p class="source-code">    &lt;div&gt;</p>
+			<p class="source-code">      &lt;mat-slide-toggle</p>
+			<p class="source-code">        [checked]="featureFlagService.isEnabled(</p>
+			<p class="source-code">         'middleOutCompression')"</p>
+			<p class="source-code">      &gt;</p>
+			<p class="source-code">        Middle-out compression</p>
+			<p class="source-code">      &lt;/mat-slide-toggle&gt;</p>
+			<p class="source-code">    &lt;/div&gt;</p>
+			<p class="source-code">    &lt;div&gt;</p>
+			<p class="source-code">      &lt;mat-slide-toggle</p>
+			<p class="source-code">        [checked]="featureFlagService.isEnabled(</p>
+			<p class="source-code">         'decentralized')"</p>
+			<p class="source-code">      &gt;</p>
+			<p class="source-code">        Decentralized application</p>
+			<p class="source-code">      &lt;/mat-slide-toggle&gt;</p>
+			<p class="source-code">    &lt;/div&gt;</p>
+			<p class="source-code">  `,</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class AppComponent {</p>
+			<p class="source-code">  constructor(public featureFlagService: </p>
+			<p class="source-code">    FeatureFlagService) {}</p>
+			<p class="source-code">}</p>
+			<p>The benefit<a id="_idIndexMarker478"/> of using an<a id="_idIndexMarker479"/> application initializer is that multiple of them can be run in parallel, which speeds up the <a id="_idIndexMarker480"/>overall application bootstrap time compared to delaying the entire bootstrap process until a response has finished, as was the case in the preceding section.</p>
+			<p>The trade-off is that we must wrap the feature flags in a service-based class with methods for writing and reading the feature flag configuration, whereas with the first technique we explored, the feature flags were available as a static dependency, a dead simple object. Choose whichever technique fits your use case best.</p>
+			<h1 id="_idParaDest-142"><a id="_idTextAnchor144"/>Summary</h1>
+			<p>In this chapter, we learned how the enhanced Angular Ivy compiler and runtime make the ahead-of-time Angular compiler a good choice for all phases of development. The tree-shakable, reusable Ivy Instruction Set leaves a smaller bundle for a range of applications.</p>
+			<p>We discussed how ahead-of-time compilation affects our application builds, component templates, unit tests, and the browser at runtime.</p>
+			<p>Next, we explored solutions for metadata errors that occur when using the ahead-of-time Angular compiler. Metadata errors that are detected by strict TypeScript and Angular compilation settings were not discussed. Read about strict template type checking in <a href="B16295_02_ePub_RK.xhtml#_idTextAnchor031"><em class="italic">Chapter 2</em></a>, <em class="italic">Boosting Developer Productivity Through Tooling, Configuration, and Convenience</em>.</p>
+			<p>In the final sections, we learned how to resolve and initialize asynchronous dependencies before bootstrapping our application using two techniques:</p>
+			<ul>
+				<li>Providing an asynchronous dependency with a static platform provider</li>
+				<li>Resolving an asynchronous dependency with an application initializer</li>
+			</ul>
+			<p>These techniques are great for feature flags and other configurations, but they each have trade-offs that you are now able to recognize.</p>
+			<p>That is the end of this book. We hope that you enjoyed learning about some of the most interesting stable features introduced by Angular Ivy and its accompanying versions of TypeScript. Angular is an ever-evolving framework with several feature releases every year.</p>
+			<p>Keep learning!</p>
+		</div>
+	</div></body></html>

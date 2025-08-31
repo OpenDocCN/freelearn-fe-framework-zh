@@ -1,0 +1,288 @@
+<html><head></head><body><div id="sbo-rt-content"><div id="_idContainer032">
+			<h1 id="_idParaDest-79"><em class="italic"><a id="_idTextAnchor081"/>Chapter 6</em>: Using Angular Components </h1>
+			<p>In the previous chapter, we introduced the Angular Academy application and briefly scratched its surface by demonstrating how we can use CSS Custom Properties to control theme properties and CSS Grid layouts. In this chapter, we will dig into the details of how to implement the application using the new Angular components that we introduced in <a href="B16295_04_ePub_RK.xhtml#_idTextAnchor055"><em class="italic">Chapter 4</em></a>, <em class="italic">Exploring Angular Components Features</em>.  </p>
+			<p>Note that we will be covering a lot of ground in this chapter, so I recommend that you revisit <em class="italic">Chapter 4</em>, <em class="italic">Exploring Angular Components Features</em>, if you want to learn about Angular components or if you need a refresher. This chapter will be about using the new official Angular components and how to wire them together in our Angular Academy example application. </p>
+			<p>More specifically, we will be covering the following topics in this chapter:</p>
+			<ul>
+				<li>Understanding the Angular Academy application</li>
+				<li>Showing course videos using the Angular YouTube Player</li>
+				<li>Using the new Clipboard service</li>
+				<li>Finding your school using the Angular Google Maps components </li>
+			</ul>
+			<p>If you are like us, then you are probably eager to dive into the details on how to use the new official Angular components, but let's step back and reflect on the Angular Academy application so that we can understand what we are going to build. </p>
+			<p>By starting from the ground up in this way, we hope that you get a more concrete understanding of how to use the new components by seeing how to wire them together using services and navigation.</p>
+			<h1 id="_idParaDest-80"><a id="_idTextAnchor082"/>Understanding the Angular Academy application</h1>
+			<p>The first thing you should think about when using components is <strong class="bold">what</strong> you want the user to be able <a id="_idIndexMarker264"/>to accomplish by using the component, as well as what data that use case requires, before digging into the details about the component you are going to use.</p>
+			<p>Our primary use case for the Angular Academy application. is to allow tailor-made lists of video courses, which will provide the user with a custom list of videos and location information for the video's content. To accomplish this, we will use the Angular YouTube Player to display videos and select schools via Angular Google Maps (for the <strong class="bold">how</strong>). It will be the school that creates the course, and the course will contain one or more videos that the user will watch.  </p>
+			<p>With the use case in place, we can now give some thought to <strong class="bold">what</strong> data we will be using, before describing <strong class="bold">how</strong> we are going to display or use the data. This will make it easier to separate data retrieval and storage from the actual usage of the different components.  So, let's establish a data model before we use the new Angular components.</p>
+			<p>Establishing a data model</p>
+			<p>We have many ways to describe data models, but for the sake of brevity, we will limit ourselves to <a id="_idIndexMarker265"/>simple TypeScript interfaces to describe the models and use Angular services to communicate with the backend.   </p>
+			<p>The models that we will be using to support our use case are as follows:</p>
+			<ul>
+				<li>School</li>
+				<li>Course</li>
+				<li>Video</li>
+			</ul>
+			<p>The list of videos you saw in the previous chapter is related to a Course that has been produced by a School. We’ll start by giving a Course a title, an optional description, and a list of videos for the user to watch: </p>
+			<p class="source-code">export interface ICourse {</p>
+			<p class="source-code">  id: string;</p>
+			<p class="source-code">  title: string;</p>
+			<p class="source-code">  description?: string;</p>
+			<p class="source-code">  videos: IVideo[];</p>
+			<p class="source-code">}</p>
+			<p>The basic <a id="_idIndexMarker266"/>information we need for each video is where to access it on YouTube, the date it was uploaded, the author who produced it, and an optional description of what it is about:</p>
+			<p class="source-code">export interface IVideo {</p>
+			<p class="source-code">  externalId: string;  // YouTube ID</p>
+			<p class="source-code">  title: string;</p>
+			<p class="source-code">  date: Date;</p>
+			<p class="source-code">  author?: string;</p>
+			<p class="source-code">  description?: string;</p>
+			<p class="source-code">}</p>
+			<p>We will attach a name and the latitude and longitude for each school so that we can find them on a map:</p>
+			<p class="source-code">export interface ISchool {</p>
+			<p class="source-code">  id: string;</p>
+			<p class="source-code">  name: string;</p>
+			<p class="source-code">  longitude: number;</p>
+			<p class="source-code">  latitude: number;</p>
+			<p class="source-code">  courses: ICourse[];</p>
+			<p class="source-code">}</p>
+			<p>Additionally, we will describe the courses being offered by the school in the <strong class="source-inline">courses</strong> array.  Note that <a id="_idIndexMarker267"/>the description in the <strong class="source-inline">courses</strong> array will be using the Course model as part of the School model. The shared use of the Course interface will allow logic to be reused between the Schools and Course components.</p>
+			<h2 id="_idParaDest-81"><a id="_idTextAnchor083"/>Dividing the application into components</h2>
+			<p>Now, we will divide <a id="_idIndexMarker268"/>the app into the following three main modules. These will be displayed separately on the screen: </p>
+			<ul>
+				<li>Course </li>
+				<li>Theme</li>
+				<li>Schools </li>
+			</ul>
+			<p>The Course component will use the layout grid that we introduced in <a href="B16295_05_ePub_RK.xhtml#_idTextAnchor075"><em class="italic">Chapter 5</em></a>, <em class="italic">Using CSS Custom Properties,</em> as well as a Video component that will display YouTube videos via the Angular YouTube Player module. </p>
+			<p>The theme component should also seem familiar to you from <a href="B16295_05_ePub_RK.xhtml#_idTextAnchor075"><em class="italic">Chapter 5</em></a>, <em class="italic">Using CSS Custom Properties,</em> where we used it to control the theme settings using CSS properties. The theme settings should influence the graphical display of the Schools and Course components.</p>
+			<p>The Schools component will let you find your school via the Angular Google Maps component and let you select a course to follow from the chosen school (and redirect you to the Course component).</p>
+			<p>Each of the components will be mapped for navigation in <strong class="source-inline">app.module.ts</strong>, like this:</p>
+			<p class="source-code">const routes: Routes = [</p>
+			<p class="source-code">  { path: '', redirectTo: 'course/1', pathMatch: 'full' },</p>
+			<p class="source-code">  { path: 'course/:id', component: CourseComponent },</p>
+			<p class="source-code">  { path: 'schools', component: SchoolsComponent },</p>
+			<p class="source-code">  { path: 'theme', component: ThemeComponent },</p>
+			<p class="source-code">];</p>
+			<p>Note that the Course component will require a parameter for which course to display.  For simplicity, we will just assume that the user is already logged in, has chosen to follow the <a id="_idIndexMarker269"/>course with an ID of <strong class="source-inline">1</strong>, and then display this as the default route. A later implementation could add a login page and a user model, which could redirect the user to the chosen course upon startup (the chosen course could, for example, be stored on the user model). We will revisit this in <a href="B16295_08_ePub_RK.xhtml#_idTextAnchor094"><em class="italic">Chapter 8</em></a>, <em class="italic">Additional Provider Scopes</em>.  </p>
+			<p>Now that we have divided the application into components, it is time to start thinking about how to include dependencies for these modules.  </p>
+			<h2 id="_idParaDest-82"><a id="_idTextAnchor084"/>Including dependencies using modules </h2>
+			<p>We will start <a id="_idIndexMarker270"/>by specifying the application as a module that imports the Course, Schools, and Theme modules:</p>
+			<p class="source-code">@NgModule({</p>
+			<p class="source-code">  bootstrap: [AppComponent],</p>
+			<p class="source-code">  declarations: [AppComponent, NavigationComponent],</p>
+			<p class="source-code">  imports: [</p>
+			<p class="source-code">    CommonModule,</p>
+			<p class="source-code">    BrowserAnimationsModule,</p>
+			<p class="source-code">    RouterModule.forRoot(routes, { initialNavigation: </p>
+			<p class="source-code">     'enabledNonBlocking' }),</p>
+			<p class="source-code">    LayoutModule,</p>
+			<p class="source-code">    CourseModule,</p>
+			<p class="source-code">    SchoolsModule,</p>
+			<p class="source-code">    ThemeModule,</p>
+			<p class="source-code">    MaterialModule,</p>
+			<p class="source-code">  ],</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class AppModule {}</p>
+			<p>The <a id="_idIndexMarker271"/>Course module will include the Video module:</p>
+			<p class="source-code">@NgModule({</p>
+			<p class="source-code">  declarations: [CourseComponent],</p>
+			<p class="source-code">  imports: [CommonModule, ThemeModule, VideoModule, </p>
+			<p class="source-code">   MaterialModule],</p>
+			<p class="source-code">  exports: [VideoModule],</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class CourseModule {}</p>
+			<p>The Video module will include the <strong class="source-inline">YouTubePlayerModule</strong> and <strong class="source-inline">ClipboardModule</strong> dependencies:</p>
+			<p class="source-code">@NgModule({</p>
+			<p class="source-code">  declarations: [VideoComponent],</p>
+			<p class="source-code">  imports: [</p>
+			<p class="source-code">    CommonModule</p>
+			<p class="source-code">    YouTubePlayerModule,</p>
+			<p class="source-code">    ClipboardModule,</p>
+			<p class="source-code">  ],</p>
+			<p class="source-code">  exports: [VideoComponent],</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class VideoModule {}</p>
+			<p>Finally, the <a id="_idIndexMarker272"/>Schools module will include <strong class="source-inline">GoogleMapsModule</strong>:</p>
+			<p class="source-code">@NgModule({</p>
+			<p class="source-code">  declarations: [SchoolsComponent],</p>
+			<p class="source-code">  imports: [CommonModule, MaterialModule, </p>
+			<p class="source-code">   GoogleMapsModule],</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class SchoolsModule {}</p>
+			<p>Did you notice that we only included the specific dependencies where they are needed? This way of structuring applications can help you have a clearer overview of the dependencies in the application.  </p>
+			<h2 id="_idParaDest-83"><a id="_idTextAnchor085"/>Retrieving data using services</h2>
+			<p>Now that <a id="_idIndexMarker273"/>we have specified the example data model and divided the application into modules, it is time to specify how we will access data from the components. We will use the following Angular services for this:</p>
+			<ul>
+				<li><strong class="source-inline">CourseService</strong></li>
+				<li><strong class="source-inline">SchoolsService</strong></li>
+			</ul>
+			<p>Each of the services will be set up to fetch data asynchronously. The main difference here will <a id="_idIndexMarker274"/>be that <strong class="source-inline">CourseService</strong> will retrieve one Course at a time, while <strong class="source-inline">SchoolsService</strong> will retrieve several Schools at a time.</p>
+			<p>The <strong class="source-inline">CourseService</strong> will have a <strong class="source-inline">getCourse</strong> call available to retrieve a single course:</p>
+			<p class="source-code">@Injectable({</p>
+			<p class="source-code">  providedIn: 'root'</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class CourseService {</p>
+			<p class="source-code">  constructor() { }</p>
+			<p class="source-code">  getCourse(courseId: string): Observable&lt;ICourse&gt; {</p>
+			<p class="source-code">    return of(mockCourse);</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">}</p>
+			<p>The Course model will contain the list of videos for the course to display. </p>
+			<p class="callout-heading">Important Note </p>
+			<p class="callout">We are using mock data here, but this approach should illustrate how you can implement asynchronous data retrieval from the server via the <strong class="source-inline">Course</strong> component.  </p>
+			<p>Similarly, we will introduce <strong class="source-inline">SchoolsService</strong>, which will retrieve the list of schools providing courses:</p>
+			<p class="source-code">@Injectable({</p>
+			<p class="source-code">  providedIn: 'root'</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class SchoolsService {</p>
+			<p class="source-code">  constructor() { }</p>
+			<p class="source-code">  getSchools():  Observable&lt;ISchool[]&gt; {</p>
+			<p class="source-code">      return of(mockSchools);</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">}</p>
+			<p>Here, we will <a id="_idIndexMarker275"/>return several schools via the <strong class="source-inline">getSchools</strong> call. The idea is that each of the returned schools should provide links to one or several courses that can be retrieved via <strong class="source-inline">CourseService</strong>. We will illustrate this by providing a link to the courses that the school is offering in the Schools component.</p>
+			<h2 id="_idParaDest-84"><a id="_idTextAnchor086"/>Wiring up navigation</h2>
+			<p>For simplicity, we will assume that the user has signed up for a school so that we can direct the <a id="_idIndexMarker276"/>user to a course in the chosen school. Here, the default link will display videos from the course in the chosen school via the default route on startup.</p>
+			<p>We will start by setting up the links for the Material Side Navigation container in the Navigation component on the left side of the screen, as follows:</p>
+			<p class="source-code">   &lt;mat-nav-list&gt;</p>
+			<p class="source-code">      &lt;a mat-list-item href="/#"&gt;Watch course&lt;/a&gt;</p>
+			<p class="source-code">      &lt;a mat-list-item href="/schools"&gt;Find school&lt;/a&gt;</p>
+			<p class="source-code">      &lt;a mat-list-item href="/theme"&gt;Edit theme&lt;/a&gt;</p>
+			<p class="source-code">  &lt;/mat-nav-list&gt;</p>
+			<p class="source-code">   </p>
+			<p>Here, you can see that the default route, <strong class="source-inline">/</strong>, will have a title of <strong class="bold">Watch courses</strong> This will be mapped to the Courses component in the route description.</p>
+			<p>Having established <a id="_idIndexMarker277"/>the navigation and the data model and having split the app into modules, we can start describing how to use the Angular components in the Angular Academy app. We will start by describing how to use the Angular YouTube Player to show the course videos.</p>
+			<h1 id="_idParaDest-85"><a id="_idTextAnchor087"/>Showing course videos using the Angular YouTube Player</h1>
+			<p>In this <a id="_idIndexMarker278"/>section, we'll create a <a id="_idIndexMarker279"/>separate video component to display videos that are attached to a course. For simplicity, we'll accept the information as <strong class="source-inline">@Input</strong> inside the Video component, like so:</p>
+			<p class="source-code"> @Component({</p>
+			<p class="source-code">  selector: 'workspace-video',</p>
+			<p class="source-code">  templateUrl: './video.component.html',</p>
+			<p class="source-code">  styleUrls: ['./video.scss'],</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class VideoComponent implements OnDestroy, OnInit {</p>
+			<p class="source-code">  private youtubeIframeScript: HTMLScriptElement;</p>
+			<p class="source-code">  @Input()</p>
+			<p class="source-code">  public title!: string;</p>
+			<p class="source-code">  @Input()</p>
+			<p class="source-code">  public name!: string;</p>
+			<p class="source-code">  @Input()</p>
+			<p class="source-code">  public videoId!: string;</p>
+			<p class="source-code">  @Input()</p>
+			<p class="source-code">  public description!: string;</p>
+			<p class="source-code">  @Input()</p>
+			<p class="source-code">  public snippet!: string;</p>
+			<p class="source-code">  get youtubeLink () {</p>
+			<p class="source-code">   return this.title </p>
+			<p class="source-code">     + ": https://www.youtube.com/watch?v="+this.videoId;</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  constructor(@Inject(DOCUMENT) private document: Document) {</p>
+			<p class="source-code">    this.youtubeIframeScript = </p>
+			<p class="source-code">     this.document.createElement('script');</p>
+			<p class="source-code">    this.youtubeIframeScript.src = </p>
+			<p class="source-code">     'https://www.youtube.com/iframe_api';</p>
+			<p class="source-code">    this.youtubeIframeScript.async = true;</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  ngOnInit(): void {</p>
+			<p class="source-code">    this.document.body.appendChild(</p>
+			<p class="source-code">     this.youtubeIframeScript);</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  ngOnDestroy(): void {</p>
+			<p class="source-code">    this.document.body.removeChild(</p>
+			<p class="source-code">     this.youtubeIframeScript);</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">} </p>
+			<p>This code <a id="_idIndexMarker280"/>should be familiar <a id="_idIndexMarker281"/>to you from the introduction in <a href="B16295_04_ePub_RK.xhtml#_idTextAnchor055"><em class="italic">Chapter 4</em></a>, <em class="italic">Exploring Angular Components Features,</em> where we introduced how to use it. We can now write the template for the Video component to display the YouTube videos, like this:</p>
+			<p class="source-code">&lt;div class="container"&gt;</p>
+			<p class="source-code">  &lt;div class="tile video"&gt;</p>
+			<p class="source-code">    &lt;p&gt;</p>
+			<p class="source-code">      &lt;youtube-player videoId="{{ videoId }}"&gt;&lt;/youtube-</p>
+			<p class="source-code">       player&gt;</p>
+			<p class="source-code">    &lt;/p&gt;</p>
+			<p class="source-code">    &lt;p&gt;</p>
+			<p class="source-code">      &lt;button [cdkCopyToClipboard]="youtubeLink"&gt;Copy video </p>
+			<p class="source-code">       link to clipboard&lt;/button&gt;</p>
+			<p class="source-code">    &lt;/p&gt;</p>
+			<p class="source-code">  &lt;/div&gt;</p>
+			<p class="source-code">  &lt;div class="tile text"&gt;</p>
+			<p class="source-code">    &lt;h3&gt;</p>
+			<p class="source-code">      &lt;i&gt;{{ title }}&lt;/i&gt;</p>
+			<p class="source-code">    &lt;/h3&gt;</p>
+			<p class="source-code">    &lt;p&gt;{{ description }}&lt;/p&gt;</p>
+			<p class="source-code"> &lt;/div&gt;</p>
+			<p class="source-code">&lt;/div&gt;</p>
+			<p>Do you remember how we used the custom <strong class="source-inline">videoSize</strong> CSS property in the previous chapter to tweak the grid column's size? This effort is paying off – we just need to refer to the <strong class="source-inline">video</strong> class here (with no direct reference to dynamic sizing at all). The reference to the <strong class="source-inline">tile</strong> class lets us manipulate the tile color settings using the theme component.</p>
+			<p>Did you <a id="_idIndexMarker282"/>also notice how we introduced the <strong class="source-inline">cdkCopyToClipboard</strong> feature here? This feature can be handy in desktop <a id="_idIndexMarker283"/>applications when you want to extract data from the running application to the clipboard.</p>
+			<p>Having established the Video component, we can now use it from the Course component, like this:</p>
+			<p class="source-code">&lt;ng-container *ngIf="course$ | async as course"&gt;</p>
+			<p class="source-code">  {{ course.title }}</p>
+			<p class="source-code">  &lt;div *ngFor="let video of course.videos"&gt;</p>
+			<p class="source-code">    &lt;workspace-video</p>
+			<p class="source-code">      videoId="{{video.externalId}}"</p>
+			<p class="source-code">      title="{{video.title}}"</p>
+			<p class="source-code">      description="{{video.description}}"</p>
+			<p class="source-code">    &gt;</p>
+			<p class="source-code">    &lt;/workspace-video&gt;</p>
+			<p class="source-code">  &lt;/div&gt;</p>
+			<p class="source-code">&lt;/ng-container&gt;</p>
+			<p>Note the usage of the <strong class="source-inline">async</strong> pipe operator on <strong class="source-inline">course$</strong>. Here, we are waiting for the data to be retrieved so that we can start rendering the video using the Video component.</p>
+			<p>Now that <a id="_idIndexMarker284"/>we have covered <a id="_idIndexMarker285"/>how to display course videos using the Angular YouTube  Player, we will learn how to find a school using the Angular Google Maps component and show how the navigation from the School component to the Course component works.</p>
+			<h1 id="_idParaDest-86"><a id="_idTextAnchor088"/>Finding your school using the Angular Google Maps component</h1>
+			<p>The Schools component will allow you to find a school via Google Maps by clicking a marker <a id="_idIndexMarker286"/>where the school has been placed. This will open the <strong class="bold">MapInfo</strong> window, where you can click on the course that you can watch from school. Clicking on this course will lead you to the course overview you saw in the previous chapter. </p>
+			<p>You can find the Schools component in the Angular Academy application by clicking the <strong class="bold">Find school</strong> menu entry. This should render the Schools component, where you will see the example <strong class="bold">Angular Advanced</strong> school. </p>
+			<p>When you open the Schools component in the Angular Academy application, it should open with a red default Google Maps marker. If you click it, then your display should look like this:</p>
+			<div>
+				<div id="_idContainer031" class="IMG---Figure">
+					<img src="Images/Figure_6.1_B16295.jpg" alt="Figure 6.1 – Opening the red Google Maps marker&#13;&#10;" width="811" height="645"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 6.1 – Opening the red Google Maps marker</p>
+			<p>If you <a id="_idIndexMarker287"/>click the <strong class="bold">Angular Advanced</strong> link in the map information window, you will be transferred to the course component with the ID for the <strong class="bold">Angular Advanced</strong> course as a parameter.</p>
+			<p>We expect the incoming course data on the map info window of the Schools component to come from the Schools service as an asynchronous call, as illustrated here: </p>
+			<p class="source-code">@Component({</p>
+			<p class="source-code">  selector: 'workspace-schools',</p>
+			<p class="source-code">  templateUrl: './schools.component.html',</p>
+			<p class="source-code">  styleUrls: ['./schools.component.scss'],</p>
+			<p class="source-code">})</p>
+			<p class="source-code">export class SchoolsComponent {</p>
+			<p class="source-code">  @ViewChild(GoogleMap, { static: false }) map!: GoogleMap;</p>
+			<p class="source-code">  @ViewChild(MapInfoWindow, { static: false }) info!: </p>
+			<p class="source-code">   MapInfoWindow;</p>
+			<p class="source-code">  school!: ISchool;</p>
+			<p class="source-code">  schools$: Observable&lt;ISchool[]&gt;;</p>
+			<p class="source-code">  constructor(</p>
+			<p class="source-code">    schoolsService: SchoolsService</p>
+			<p class="source-code">  ) {</p>
+			<p class="source-code">    this.schools$ = schoolsService.getSchools();</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">  openInfo(anchor: MapAnchorPoint, school: ISchool): void {</p>
+			<p class="source-code">    this.school = school;</p>
+			<p class="source-code">    this.info.open(anchor);</p>
+			<p class="source-code">  }</p>
+			<p class="source-code">}</p>
+			<p>Here, you <a id="_idIndexMarker288"/>can see how we opened <strong class="source-inline">MapInfoWindow</strong> when clicking on the map anchor point in the <strong class="source-inline">openInfo</strong> call. </p>
+			<p>We will register the <strong class="source-inline">openInfo</strong> call on the <strong class="source-inline">mapClick</strong> function of the Angular Google Maps <a id="_idIndexMarker289"/>component, and make it open a <strong class="bold">MapInfo</strong> window that displays a link to the courses being offered by the school:</p>
+			<p class="source-code">&lt;ng-container *ngIf="schools$ | async as schools"&gt;</p>
+			<p class="source-code">  &lt;google-map [center]="{ lat: 56.783778, lng: 8.228937 }"&gt;</p>
+			<p class="source-code">    &lt;map-marker</p>
+			<p class="source-code">      *ngFor="let school of schools"</p>
+			<p class="source-code">      #marker="mapMarker"</p>
+			<p class="source-code">      [position]="{ lat: school.longitude, lng: </p>
+			<p class="source-code">       school.latitude }"</p>
+			<p class="source-code">      (mapClick)="openInfo(marker, school)"</p>
+			<p class="source-code">    &gt;&lt;/map-marker&gt;</p>
+			<p class="source-code">    &lt;map-info-window&gt;</p>
+			<p class="source-code">      &lt;div *ngFor="let course of school?.courses"&gt;</p>
+			<p class="source-code">        &lt;a href="course/{{ course.id }}"&gt; {{ course.title </p>
+			<p class="source-code">         }} &lt;/a&gt;</p>
+			<p class="source-code">      &lt;/div&gt;</p>
+			<p class="source-code">    &lt;/map-info-window&gt;</p>
+			<p class="source-code">  &lt;/google-map&gt;</p>
+			<p class="source-code">&lt;/ng-container&gt;</p>
+			<p>Note the usage of the async pipe on the <strong class="source-inline">schools$</strong> observable. This will make the school data available in the <strong class="source-inline">schools</strong> variable. Combined with <strong class="source-inline">NgIf</strong> on <strong class="source-inline">&lt;ng-container&gt;</strong>, you can stop data from being rendered until data is available.</p>
+			<p>If you have not tried it yet, I recommend that you try clicking your way through <strong class="bold">Find your school</strong> and clicking the <strong class="bold">Angular Advanced</strong> course to find your way back to the Course listing.</p>
+			<p>Did you <a id="_idIndexMarker290"/>notice how the Course listing was opened using the course ID that was retrieved from the course array in the School data model? In our example application, we have registered the <strong class="source-inline">course/:id</strong> route to open the course component with the <strong class="source-inline">id</strong> parameter. For now, we will just assume that the user only has a single course available and that this course is chosen upon startup. This simple example has helped illustrate how the basic flow of the Angular Academy is intended to be. In a more realistic scenario, we would allow for the user to log in and have chosen courses stored in a session. We will revisit this in <a href="B16295_08_ePub_RK.xhtml#_idTextAnchor094"><em class="italic">Chapter 8</em></a>, <em class="italic">Additional Provider Scopes</em>, where we will introduce user login.</p>
+			<h1 id="_idParaDest-87"><a id="_idTextAnchor089"/>Summary</h1>
+			<p>In this chapter, we gave you a basic overview of how to use the new Angular components by giving you a concrete example with the Angular Academy application. The example included a description of how to retrieve data using services and how to structure the inclusion of dependencies via Angular modules. In the next chapter, we will describe how to use a test-as-a-user approach using Angular Component Harnesses.</p>
+		</div>
+	</div></body></html>

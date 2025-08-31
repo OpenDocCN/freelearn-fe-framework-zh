@@ -1,6 +1,6 @@
-# Python 卖空算法教程
+# React18 微前端构建指南
 
-> 原文：[`zh.annas-archive.org/md5/ceefdd89e585c59c20db6a7760dc11f1`](https://zh.annas-archive.org/md5/ceefdd89e585c59c20db6a7760dc11f1)
+> 原文：[`zh.annas-archive.org/md5/df6bd0609a4c1b46c7b69478aee369a4`](https://zh.annas-archive.org/md5/df6bd0609a4c1b46c7b69478aee369a4)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

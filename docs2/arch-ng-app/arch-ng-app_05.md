@@ -1,4 +1,4 @@
-# RxJS 基础
+# 第五章：RxJS 基础
 
 **JavaScript 的响应式扩展**（**RxJS**）是由 Matt Podwysocky 创建的一系列库。库的第四版由微软维护和开发。第四版可以在以下链接找到：[`github.com/Reactive-Extensions/RxJS`](https://github.com/Reactive-Extensions/RxJS)。
 

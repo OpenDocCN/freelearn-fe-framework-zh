@@ -1,6 +1,6 @@
-# 9
 
-# Angular 和 Angular CDK
+
+# 第九章：Angular 和 Angular CDK
 
 Angular 拥有一个令人惊叹的工具和库生态系统，包括 Angular Material、**Angular 命令行界面**（**Angular CLI**）以及备受喜爱的 **Angular 组件开发工具包**（**Angular CDK**）。我称之为“备受喜爱”，因为如果你想在 Angular 应用中实现自己的自定义交互和行为，而不必依赖于整个库集，Angular CDK 将成为你的最佳拍档。在本章中，你将了解 Angular 和 Angular CDK 的惊人组合。你将了解 CDK 中内置的一些巧妙组件，并使用一些 CDK **API** 创建令人惊叹且优化的内容。
 

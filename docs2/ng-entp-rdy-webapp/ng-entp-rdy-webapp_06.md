@@ -1,6 +1,6 @@
-# 6
 
-# 表单、Observables 和 Subjects
+
+# 第六章：表单、Observables 和 Subjects
 
 到目前为止，你已经一直在构建构成 Angular 应用程序的基本元素，例如模块、组件、管道、服务、RxJS、单元测试和环境变量，甚至更进一步，学习如何使用 Docker 交付你的网络应用，并用 Angular Material 给它一个光鲜的外观。
 

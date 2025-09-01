@@ -1,4 +1,4 @@
-# TypeScript 快速入门
+# 第四章：TypeScript 快速入门
 
 在本章中，我们将开始使用 TypeScript：Angular 所使用的语言。所有 ECMAScript 2015 和 ECMAScript 2016 提供的功能，如函数、类、模块和装饰器，都已经实现或添加到 TypeScript 的路线图中。由于额外的类型注解，与 JavaScript 相比，有一些语法上的添加。
 

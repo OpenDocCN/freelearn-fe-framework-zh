@@ -1,6 +1,6 @@
-# 1
 
-# Angular 应用程序的可扩展前端架构
+
+# 第一章：Angular 应用程序的可扩展前端架构
 
 Angular 是一个强大且功能丰富的框架，用于构建 Web 应用程序。根据 2023 年 Stack Overflow 开发者调查，在专业开发者中，它排在 ReactJS、NodeJS 和 jQuery 之后，是第四大最受欢迎的 Web 技术。由于其提供的结构和工具，Angular 在构建大型 Web 应用程序或由多个应用程序和库组成的企业解决方案时经常被选中。
 

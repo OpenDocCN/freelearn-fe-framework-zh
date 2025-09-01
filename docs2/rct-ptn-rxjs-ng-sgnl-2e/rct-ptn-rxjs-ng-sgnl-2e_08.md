@@ -1,6 +1,6 @@
-# 8
 
-# 掌握使用 Angular Signals 的反应性
+
+# 第八章：掌握使用 Angular Signals 的反应性
 
 现代网络应用依赖于反应性，数据自动更改，从而触发 UI 的更新。Angular Signals 在版本 17 中引入，通过提供一种强大且简洁的方式来管理 Angular 应用程序中的反应性数据，简化了这一过程。
 

@@ -1,4 +1,4 @@
-# 部署到 Google Play
+# 第十六章：部署到 Google Play
 
 与苹果 App Store 相比，将应用部署到 Google Play 可能稍微简单一些，但仍有一些关键步骤需要我们注意。我们在第十四章（`part0154.html#4IRMK0-289fe2426d594f99a90e4363b2c9c34d`）*使用 webpack 捆绑的部署准备*和第十五章（`part0163.html#4REBM0-289fe2426d594f99a90e4363b2c9c34d`）*部署到苹果 App Store*中介绍了一些准备工作，例如使用 webpack 捆绑应用和准备应用图标和启动画面，因此我们将直接进入构建可发布的 APK。
 

@@ -1,6 +1,6 @@
-# 7
 
-# 使用 Tree、TreeTable 和 Timeline 组件
+
+# 第七章：使用 Tree、TreeTable 和 Timeline 组件
 
 应用程序中的数据展示不仅仅是表格、列表和卡片。有时，数据的本质需要更分层或按时间顺序的结构。这就是 `Tree`、`TreeTable` 和 `Timeline` 等组件发挥作用的地方。在本章中，我们将深入探讨这些专用组件，每个组件都提供独特的显示和交互方式，以使用 PrimeNG 在 Angular 应用程序中处理数据。
 

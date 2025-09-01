@@ -1,4 +1,4 @@
-# TypeScript 本地类型和功能
+# 第三章：TypeScript 本地类型和功能
 
 你已经看到了使用 TypeScript 的不同示例。希望你现在知道 TypeScript 作为开发者能为你提供什么。在使用 TypeScript 构建 Angular 2 应用之前，还有一些 TypeScript 核心概念需要学习。本章将涵盖以下 TypeScript 概念：
 

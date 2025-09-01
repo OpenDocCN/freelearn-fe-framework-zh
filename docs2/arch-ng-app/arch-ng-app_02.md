@@ -1,4 +1,4 @@
-# 1.21 吉瓦 – Flux 模式解释
+# 第二章：1.21 吉瓦 – Flux 模式解释
 
 让我们先来解释一下我们的标题。我们所说的 1.21 吉瓦是什么意思？我将引用电影《回到未来》中的角色 Doc Brown 的话（[`www.imdb.com/name/nm0000502/?ref_=tt_trv_qu`](http://www.imdb.com/name/nm0000502/?ref_=tt_trv_qu)）:
 

@@ -1,4 +1,4 @@
-# 转向 One Angular
+# 第一章：转向 One Angular
 
 虽然这本书的内容可以在没有任何先前的 AngularJS 或 Angular 经验的情况下被正确消化，但如果你熟悉 AngularJS 的基础知识并且愿意 *转向 Angular*，你将获得这本书的大部分内容。
 

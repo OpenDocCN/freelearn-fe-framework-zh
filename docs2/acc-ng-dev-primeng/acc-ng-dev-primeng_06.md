@@ -1,4 +1,4 @@
-# *第十章*：使用 Angular 兼容性编译器
+# 第七章：*第十章*：使用 Angular 兼容性编译器
 
 Angular Ivy 替换了之前一代的 Angular 编译器和渲染运行时，即 Angular View Engine。支持 View Engine 运行时的最后一个版本是 Angular 版本 11.2。
 

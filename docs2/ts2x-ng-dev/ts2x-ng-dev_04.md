@@ -1,4 +1,4 @@
-# 使用 Angular 和 TypeScript 快速入门
+# 第四章：使用 Angular 和 TypeScript 快速入门
 
 前几章旨在解释 TypeScript 的基本和最常见功能。在处理 Angular 项目时，这些功能将被广泛使用。在构建 Angular 项目时，TypeScript 完全是可选的，但请相信我，仅仅使用 JavaScript 并不是你在体验了 TypeScript 如何简化开发过程之后想要走的路。
 

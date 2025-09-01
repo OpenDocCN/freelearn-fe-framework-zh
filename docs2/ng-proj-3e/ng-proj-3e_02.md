@@ -1,6 +1,6 @@
-# 2
 
-# 使用 Scully 和 Angular Router 构建 SPA 应用程序
+
+# 第二章：使用 Scully 和 Angular Router 构建 SPA 应用程序
 
 Angular 应用程序遵循**单页应用程序（SPA）**架构，其中可以使用浏览器中的 URL 激活网页的不同视图。任何对该 URL 的更改都可以被 Angular 路由器拦截并转换为可以激活特定 Angular 组件的路由。
 

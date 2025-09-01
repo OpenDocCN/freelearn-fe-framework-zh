@@ -1,4 +1,4 @@
-# 使用 React 进行客户端开发
+# 第十三章：使用 React 进行客户端开发
 
 到目前为止，我们已经看到了如何使用 Angular 作为客户端框架构建 Web 应用程序和微服务。AngularJS 是最流行的客户端框架，直到新版本的 Angular 2 发布。由于 Angular 2 的向后不兼容架构，它导致了重大的颠覆，并让更多的人转向 React。因此，潮流已经转变，现在 React 是最受欢迎和最被寻求的客户端框架，其次是 Angular。JHipster 从 4.11 版本开始添加了对 React 的实验性支持，并且随着 JHipster 版本 5.0 的发布；React 支持将成为 BETA 并准备好用于主流使用。
 

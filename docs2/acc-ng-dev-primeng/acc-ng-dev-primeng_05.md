@@ -1,4 +1,4 @@
-# *第九章*: 使用新的 Ivy 运行时 API 进行调试
+# 第六章：*第九章*: 使用新的 Ivy 运行时 API 进行调试
 
 Angular Ivy 引入了一个新的 API，用于在运行时检查和调试我们的 Angular 应用程序。它替换了之前的`NgProbe` API，并允许`DebugElement`进行摇树优化。
 

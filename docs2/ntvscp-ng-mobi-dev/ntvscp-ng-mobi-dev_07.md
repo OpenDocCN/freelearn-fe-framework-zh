@@ -1,4 +1,4 @@
-# 构建多轨播放器
+# 第七章：构建多轨播放器
 
 我们已经到达了 NativeScript 开发的关键点：通过 TypeScript 直接访问 iOS 的 Objective-C/Swift API 和 Android 的 Java API。
 

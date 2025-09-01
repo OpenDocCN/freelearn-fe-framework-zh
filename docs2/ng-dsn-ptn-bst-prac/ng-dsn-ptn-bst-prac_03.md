@@ -1,6 +1,6 @@
-# 3
 
-# TypeScript Patterns for Angular
+
+# 第三章：TypeScript Patterns for Angular
 
 自框架的第 2 版以来，Angular 无论是内部开发还是用于构建应用程序的用户，都基于 TypeScript 进行开发。
 

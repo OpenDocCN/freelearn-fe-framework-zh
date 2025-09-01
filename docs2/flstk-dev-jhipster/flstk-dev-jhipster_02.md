@@ -1,4 +1,4 @@
-# 开始使用 JHipster
+# 第二章：开始使用 JHipster
 
 JHipster 是一个开发平台，它能帮助你从零开始，迅速成为英雄！JHipster 可以帮助你快速创建美观的 Web 应用程序和复杂的微服务架构。JHipster 还提供了各种工具，使用业务实体进一步开发应用程序，并将其部署到各种云服务和平台。在核心上，JHipster 是一个 Yeoman 生成器，用于创建基于 Spring Boot 和 Angular/React 的应用程序。它可以创建单体架构以及具有所有功能开箱即用的微服务架构。
 

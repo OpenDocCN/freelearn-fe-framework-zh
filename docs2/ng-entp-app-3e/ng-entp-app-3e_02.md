@@ -1,6 +1,6 @@
-# 2
 
-# 表单、可观察对象、信号和主题
+
+# 第二章：表单、可观察对象、信号和主题
 
 在本章中，我们将使用 Angular 和来自 [OpenWeatherMap.org](https://www.geonames.org/postal-codes) 的第三方 Web API，开发一个简单的天气应用 **LocalCast Weather**。该项目的源代码可在 GitHub 上找到，网址为 [`github.com/duluca/local-weather-app`](https://github.com/duluca/local-weather-app)，包括在 `projects` 文件夹中的各个开发阶段。
 

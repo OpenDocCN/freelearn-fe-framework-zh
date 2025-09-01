@@ -1,4 +1,4 @@
-# 在 iOS 和 Android 上运行应用
+# 第六章：在 iOS 和 Android 上运行应用
 
 有几种方法可以构建、运行和开始使用 NativeScript 应用。我们将介绍命令行工具，因为它们是目前最支持的方法，也是处理任何 NativeScript 项目的最佳方式。
 

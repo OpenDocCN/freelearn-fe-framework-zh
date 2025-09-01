@@ -1,4 +1,4 @@
-# NgRx – Reduxing that Angular App
+# 第九章：NgRx – Reduxing that Angular App
 
 我们已经到达了这本书的最后一章。现在是时候理解 NgRx 库了。到目前为止，已经涵盖了不同的主题，使您作为读者更习惯于思考诸如不可变数据结构和响应式编程等问题。我们这样做是为了使您更容易消化本章中将要介绍的内容。NgRx 是为 Angular 制作的 Redux 实现，因此诸如存储、动作创建器、动作、选择器和还原器等概念被广泛使用。您通过阅读前面的章节可能已经了解到了 Redux 的工作原理。通过阅读上一章，您将发现您所学的 Redux 知识如何转化为 NgRx 以及其代码组织原则。本章旨在描述核心库 `@ngrx-store`，如何使用 `@ngrx-effects` 处理副作用，以及如何像专业人士一样使用 `@ngrx/store-devtools` 进行调试，以及其他内容。
 

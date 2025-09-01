@@ -1,4 +1,4 @@
-# 开始使用 Angular
+# 第二章：开始使用 Angular
 
 2014 年 9 月 18 日，Google 将第一个公开提交推送到包含 Angular 的存储库。几周后，在 ng-europe 上，核心团队的 Igor 和 Tobias 给出了一个简短的概述，介绍了新框架预期的功能。当时的愿景远未最终确定；然而，有一点是肯定的：Angular 将与 AngularJS 完全不同的框架。
 

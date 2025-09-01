@@ -1,6 +1,6 @@
-# 12
 
-# Angular Material 简介
+
+# 第十二章：Angular Material 简介
 
 在开发 Web 应用程序时，您必须决定如何创建您的**用户界面**（**UI**）。它理想上应使用适当的对比色，具有一致的外观和感觉，响应式，并在不同的设备和浏览器上运行良好。简而言之，关于 UI 和 UX 有很多事情要考虑。许多开发者认为创建 UI/UX 是一项艰巨的任务，并转向 UI 框架来承担大部分繁重的工作。有些框架比其他框架使用得更多，即**Bootstrap**和**Tailwind CSS**。然而，基于 Google 的**Material Design**技术的**Angular Material**框架已经获得了流行。在本章中，我们将解释 Material Design 是什么，以及 Angular Material 如何使用它为 Angular 框架提供一个组件 UI 库。我们还将通过在我们的 e-shop 应用程序中应用它们来学习使用各种 Angular Material 组件。
 

@@ -1,6 +1,6 @@
-# Python 卖空算法教程
+# RxJS 和 Angular Signal 响应式模式
 
-> 原文：[`zh.annas-archive.org/md5/ceefdd89e585c59c20db6a7760dc11f1`](https://zh.annas-archive.org/md5/ceefdd89e585c59c20db6a7760dc11f1)
+> 原文：[`zh.annas-archive.org/md5/6b9451a708fdf5156dec14c45492969b`](https://zh.annas-archive.org/md5/6b9451a708fdf5156dec14c45492969b)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

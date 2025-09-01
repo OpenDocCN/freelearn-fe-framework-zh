@@ -1,6 +1,6 @@
-# Python 卖空算法教程
+# Angular6 示例第三版
 
-> 原文：[`zh.annas-archive.org/md5/ceefdd89e585c59c20db6a7760dc11f1`](https://zh.annas-archive.org/md5/ceefdd89e585c59c20db6a7760dc11f1)
+> 原文：[`zh.annas-archive.org/md5/ea9e0be757a76027d750b88ab0b9bedf`](https://zh.annas-archive.org/md5/ea9e0be757a76027d750b88ab0b9bedf)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

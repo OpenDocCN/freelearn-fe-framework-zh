@@ -53,6 +53,7 @@
 +   [React 挂钩学习手册](docs/lrn-react-hk/README.md)
 +   [React 和 TypeScript3 学习手册](docs/lrn-react-ts3/README.md)
 +   [VueJS2 学习指南](docs/lrn-vue2/README.md)
++   [Web 组件开发学习指南](docs/lrn-web-cmpn-dev/README.md)
 +   [React 和 Bootstrap Web 开发学习手册](docs/lrn-web-dev-react-bts/README.md)
 +   [Galio 快速移动应用开发](docs/ltnfs-mobi-app-dev-galio/README.md)
 +   [React 现代全栈项目](docs/mdn-flstk-rct-proj/README.md)

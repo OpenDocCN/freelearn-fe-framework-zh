@@ -73,81 +73,24 @@ export default {
 
     ```js
     <template>
-    ```
-
-    ```js
       <input v-model="name">
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <span>{{ error }}</span>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           name: '',
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       computed: {
-    ```
-
-    ```js
         error() {
-    ```
-
-    ```js
           return this.name ? '' : 'Name is required'
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -167,77 +110,23 @@ export default {
 
     ```js
     <template>
-    ```
-
-    ```js
         <div>{{ formalName }}</div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
         export default {
-    ```
-
-    ```js
             data() {
-    ```
-
-    ```js
                 return {
-    ```
-
-    ```js
                     title: 'Mr.',
-    ```
-
-    ```js
                     surname: 'Smith'
-    ```
-
-    ```js
                 }
-    ```
-
-    ```js
             },
-    ```
-
-    ```js
             computed: {
-    ```
-
-    ```js
                 formalName() {
-    ```
-
-    ```js
                     return `${this.title}
-    ```
-
-    ```js
                       ${this.surname}`;
-    ```
-
-    ```js
                 }
-    ```
-
-    ```js
             }
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -290,21 +179,9 @@ data() {
 
         ```js
         fullName() {
-        ```
-
-        ```js
          const { firstName, lastName } =
-        ```
-
-        ```js
            this.post.fields.author;
-        ```
-
-        ```js
          return `${firstName} ${lastName}`
-        ```
-
-        ```js
         },
         ```
 
@@ -312,13 +189,7 @@ data() {
 
         ```js
         totalEntries () {
-        ```
-
-        ```js
           return this.post.fields.entries.length
-        ```
-
-        ```js
         },
         ```
 
@@ -326,17 +197,8 @@ data() {
 
         ```js
         featuredEntries() {
-        ```
-
-        ```js
           const { entries } = this.post.fields;
-        ```
-
-        ```js
           return entries.filter(entry => !!entry.featured)
-        ```
-
-        ```js
         }
         ```
 
@@ -411,9 +273,6 @@ data() {
 
     ```js
     > cd Chapter02/Exercise2.01/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -429,25 +288,10 @@ data() {
 
     ```js
     <template>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -467,25 +311,10 @@ data() {
 
     ```js
     data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           firstName: '',
-    ```
-
-    ```js
           lastName: '',
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
     ```
 
@@ -493,21 +322,9 @@ data() {
 
     ```js
     computed: {
-    ```
-
-    ```js
         fullName() {
-    ```
-
-    ```js
           return '${this.firstName} ${this.lastName}'
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
     ```
 
@@ -545,25 +362,10 @@ data() {
 
     ```js
     const obj  = {
-    ```
-
-    ```js
       get example() {
-    ```
-
-    ```js
         return 'Getter'
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     console.log(obj.example) //Getter
     ```
 
@@ -571,37 +373,13 @@ data() {
 
     ```js
     const obj  = {
-    ```
-
-    ```js
       set example(value) {
-    ```
-
-    ```js
         this.information.push(value)
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       information: []
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     obj.example = 'hello'
-    ```
-
-    ```js
     obj.example = 'world'
-    ```
-
-    ```js
     console.log(obj.information) //['hello', 'world']
     ```
 
@@ -622,21 +400,9 @@ computed: {
 
     ```js
     myComputedDataProp: {
-    ```
-
-    ```js
       get() {
-    ```
-
-    ```js
         return this.count + 1
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     },
     ```
 
@@ -644,21 +410,9 @@ computed: {
 
     ```js
     myComputedDataProp: {
-    ```
-
-    ```js
       set(value) {
-    ```
-
-    ```js
         this.count = value - 1
-    ```
-
-    ```js
         this.callAnotherApi(this.count)
-    ```
-
-    ```js
     },
     ```
 
@@ -705,9 +459,6 @@ computed: {
 
     ```js
     > cd Chapter02/Exercise2.02/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -723,25 +474,10 @@ computed: {
 
     ```js
     <template>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -749,109 +485,31 @@ computed: {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div class="container">
-    ```
-
-    ```js
         <input type="number" v-model="incrementOne" />
-    ```
-
-    ```js
         <h3>Get input: {{ incrementOne }}</h3>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           count: -1,
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       computed: {
-    ```
-
-    ```js
         incrementOne: {
-    ```
-
-    ```js
           // getter
-    ```
-
-    ```js
           get() {
-    ```
-
-    ```js
             return this.count + 1
-    ```
-
-    ```js
           },
-    ```
-
-    ```js
           // setter
-    ```
-
-    ```js
           set(val) {
-    ```
-
-    ```js
             this.count = val - 1
-    ```
-
-    ```js
           },
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -865,73 +523,22 @@ computed: {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div class="container">
-    ```
-
-    ```js
         <input type="number" v-model="incrementOne" />
-    ```
-
-    ```js
         <h3>Get input: {{ incrementOne }}</h3>
-    ```
-
-    ```js
         <h5>Set division: {{ divideByTwo }}</h5>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           count: -1,
-    ```
-
-    ```js
           divideByTwo: 0,
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     //...
-    ```
-
-    ```js
     </script>
-    ```
-
-    ```js
     //...
     ```
 
@@ -939,17 +546,8 @@ computed: {
 
     ```js
           set(val) {
-    ```
-
-    ```js
             this.count = val - 1
-    ```
-
-    ```js
             this.divideByTwo = val / 2
-    ```
-
-    ```js
           },
     ```
 
@@ -1006,9 +604,6 @@ watch: {
 
     ```js
     > cd Chapter02/Exercise 2.03./
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -1024,25 +619,10 @@ watch: {
 
     ```js
     <template>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1050,81 +630,24 @@ watch: {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div class="container">
-    ```
-
-    ```js
         <h1>Shop Watcher</h1>
-    ```
-
-    ```js
         <div>
-    ```
-
-    ```js
           Black Friday sale
-    ```
-
-    ```js
           <strike>Was {{ oldDiscount }}%</strike>
-    ```
-
-    ```js
           <strong> Now {{ discount }}% OFF</strong>
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           oldDiscount: 0,
-    ```
-
-    ```js
           discount: 5,
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1132,21 +655,9 @@ watch: {
 
     ```js
     watch: {
-    ```
-
-    ```js
         discount(newValue, oldValue) {
-    ```
-
-    ```js
           this.oldDiscount = oldValue
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
     ```
 
@@ -1154,21 +665,9 @@ watch: {
 
     ```js
     methods: {
-    ```
-
-    ```js
         updateDiscount() {
-    ```
-
-    ```js
           this.discount = this.discount + 5
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
     ```
 
@@ -1182,73 +681,22 @@ watch: {
 
     ```js
     <style scoped>
-    ```
-
-    ```js
     .container {
-    ```
-
-    ```js
       margin: 0 auto;
-    ```
-
-    ```js
       padding: 30px;
-    ```
-
-    ```js
       max-width: 600px;
-    ```
-
-    ```js
       font-family: 'Avenir', Helvetica, Arial, sans-serif;
-    ```
-
-    ```js
       margin: 0;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     button {
-    ```
-
-    ```js
       display: inline-block;
-    ```
-
-    ```js
       background: rgb(235, 50, 50);
-    ```
-
-    ```js
       border-radius: 10px;
-    ```
-
-    ```js
       font-size: 14px;
-    ```
-
-    ```js
       color: white;
-    ```
-
-    ```js
       padding: 10px 20px;
-    ```
-
-    ```js
       text-decoration: none;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -1337,9 +785,6 @@ watch: {
 
     ```js
     > cd Chapter02/Exercise2.04/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -1355,93 +800,27 @@ watch: {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div class="container">
-    ```
-
-    ```js
         <h1>Deep Watcher</h1>
-    ```
-
-    ```js
         <div>
-    ```
-
-    ```js
             <h4>{{ product.label }}</h4>
-    ```
-
-    ```js
             <h5>${{ product.price }} (${{ discount }}
-    ```
-
-    ```js
               Off)</h5>
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           discount: 0,
-    ```
-
-    ```js
           product: {
-    ```
-
-    ```js
             price: 25,
-    ```
-
-    ```js
             label: 'Blue juice',
-    ```
-
-    ```js
           },
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1449,73 +828,22 @@ watch: {
 
     ```js
     <style scoped>
-    ```
-
-    ```js
     .container {
-    ```
-
-    ```js
       margin: 0 auto;
-    ```
-
-    ```js
       padding: 30px;
-    ```
-
-    ```js
       max-width: 600px;
-    ```
-
-    ```js
       font-family: 'Avenir', Helvetica, sans-serif;
-    ```
-
-    ```js
       margin: 0;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     button {
-    ```
-
-    ```js
       display: inline-block;
-    ```
-
-    ```js
       background: rgb(235, 50, 50);
-    ```
-
-    ```js
       border-radius: 10px;
-    ```
-
-    ```js
       font-size: 14px;
-    ```
-
-    ```js
       color: white;
-    ```
-
-    ```js
       padding: 10px 20px;
-    ```
-
-    ```js
       text-decoration: none;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -1529,61 +857,19 @@ watch: {
 
     ```js
     <template>
-    ```
-
-    ```js
     //…
-    ```
-
-    ```js
         <button @click="updatePrice">Reduce Price!</button>
-    ```
-
-    ```js
     //...
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     //...
-    ```
-
-    ```js
       methods: {
-    ```
-
-    ```js
         updatePrice() {
-    ```
-
-    ```js
           if (this.product.price < 1) return
-    ```
-
-    ```js
           this.product.price--
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     //...
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1597,21 +883,9 @@ watch: {
 
     ```js
       watch: {
-    ```
-
-    ```js
         'product.price'() {
-    ```
-
-    ```js
           this.discount++
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
     ```
 
@@ -1661,9 +935,6 @@ export default {
 
     ```js
     > cd Chapter02/Exercise2.05/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -1679,161 +950,44 @@ export default {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div class="container">
-    ```
-
-    ```js
         <h1>Async fetch</h1>
-    ```
-
-    ```js
         <button @click="fetchAdvice()">Learn something
-    ```
-
-    ```js
           profound</button>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     import axios from 'axios'
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       methods: {
-    ```
-
-    ```js
         async fetchAdvice() {
-    ```
-
-    ```js
           return   axios.get
-    ```
-
-    ```js
             ('https://api.adviceslip.com/advice').
-    ```
-
-    ```js
             then((response) => {
-    ```
-
-    ```js
             console.log(response)
-    ```
-
-    ```js
           })
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
-    ```
-
-    ```js
     <style scoped>
-    ```
-
-    ```js
     .container {
-    ```
-
-    ```js
       margin: 0 auto;
-    ```
-
-    ```js
       padding: 30px;
-    ```
-
-    ```js
       max-width: 600px;
-    ```
-
-    ```js
       font-family: 'Avenir', Helvetica, Arial, sans-serif;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     blockquote {
-    ```
-
-    ```js
       position: relative;
-    ```
-
-    ```js
       width: 100%;
-    ```
-
-    ```js
       margin: 50px auto;
-    ```
-
-    ```js
       padding: 1.2em 30px 1.2em 30px;
-    ```
-
-    ```js
       background: #ededed;
-    ```
-
-    ```js
       border-left: 8px solid #78c0a8;
-    ```
-
-    ```js
       font-size: 24px;
-    ```
-
-    ```js
       color: #555555;
-    ```
-
-    ```js
       line-height: 1.6;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -1853,65 +1007,20 @@ export default {
 
     ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           axiosResponse: {},
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       methods: {
-    ```
-
-    ```js
         async fetchAdvice() {
-    ```
-
-    ```js
           return axios.get
-    ```
-
-    ```js
             ('https://api.adviceslip.com/advice').
-    ```
-
-    ```js
             then(response => {
-    ```
-
-    ```js
             this.axiosResponse = response.data
-    ```
-
-    ```js
           })
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
     ```
 
@@ -1919,141 +1028,39 @@ export default {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div class="container">
-    ```
-
-    ```js
         <h1>Async fetch</h1>
-    ```
-
-    ```js
         <button @click="fetchAdvice()">Learn something
-    ```
-
-    ```js
           profound</button>
-    ```
-
-    ```js
         <blockquote v-if="quote">{{ quote }}</blockquote>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     import axios from 'axios'
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           axiosResponse: {},
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       computed: {
-    ```
-
-    ```js
         quote() {
-    ```
-
-    ```js
           return this.axiosResponse &&
-    ```
-
-    ```js
             this.axiosResponse.slip
-    ```
-
-    ```js
             ? this.axiosResponse.slip.advice
-    ```
-
-    ```js
             : null
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       methods: {
-    ```
-
-    ```js
         async fetchAdvice() {
-    ```
-
-    ```js
           return axios.get
-    ```
-
-    ```js
             ('https://api.adviceslip.com/advice').
-    ```
-
-    ```js
             then(response => {
-    ```
-
-    ```js
             this.axiosResponse = response.data
-    ```
-
-    ```js
           })
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2067,181 +1074,49 @@ export default {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div class="container">
-    ```
-
-    ```js
         <h1>Async fetch</h1>
-    ```
-
-    ```js
         <button @click="fetchAdvice()">{{
-    ```
-
-    ```js
           loading ? 'Loading...' : 'Learn something
-    ```
-
-    ```js
           profound'
-    ```
-
-    ```js
         }}</button>
-    ```
-
-    ```js
         <blockquote v-if="quote">{{ quote }}</blockquote>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     import axios from 'axios'
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           loading: false,
-    ```
-
-    ```js
           axiosResponse: {},
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       computed: {
-    ```
-
-    ```js
         quote() {
-    ```
-
-    ```js
           return this.axiosResponse &&
-    ```
-
-    ```js
             this.axiosResponse.slip
-    ```
-
-    ```js
             ? this.axiosResponse.slip.advice
-    ```
-
-    ```js
             : null
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       methods: {
-    ```
-
-    ```js
         async fetchAdvice() {
-    ```
-
-    ```js
           this.loading = true
-    ```
-
-    ```js
     try {
-    ```
-
-    ```js
             const response = await axios.get
-    ```
-
-    ```js
               (https://api.adviceslip.com/advice);
-    ```
-
-    ```js
             this.axiosResponse = response.data;
-    ```
-
-    ```js
           } catch (error) {
-    ```
-
-    ```js
             console.log(error);
-    ```
-
-    ```js
           } finally {
-    ```
-
-    ```js
             setTimeout(() => {
-    ```
-
-    ```js
               this.loading = false;
-    ```
-
-    ```js
             }, 4000);
-    ```
-
-    ```js
           }
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2391,9 +1266,6 @@ export default {
 
     ```js
     > cd Chapter02/Exercise 2.06/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -2409,85 +1281,25 @@ export default {
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           // Shared
-    ```
-
-    ```js
           frameworkList: [
-    ```
-
-    ```js
             'Vue',
-    ```
-
-    ```js
             'React',
-    ```
-
-    ```js
             'Backbone',
-    ```
-
-    ```js
             'Ember',
-    ```
-
-    ```js
             'Knockout',
-    ```
-
-    ```js
             'jQuery',
-    ```
-
-    ```js
             'Angular',
-    ```
-
-    ```js
           ],
-    ```
-
-    ```js
           // Method
-    ```
-
-    ```js
           input: '',
-    ```
-
-    ```js
           methodFilterList: [],
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2495,177 +1307,48 @@ export default {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div class="container">
-    ```
-
-    ```js
         <h1>Methods vs watchers vs computed props</h1>
-    ```
-
-    ```js
         <div class="col">
-    ```
-
-    ```js
           <input
-    ```
-
-    ```js
             type="text"
-    ```
-
-    ```js
             placeholder="Search with method"
-    ```
-
-    ```js
             v-model="input"
-    ```
-
-    ```js
             @keyup="searchMethod"
-    ```
-
-    ```js
           />
-    ```
-
-    ```js
           <ul>
-    ```
-
-    ```js
             <li v-for="(item, i) in methodFilterList"
-    ```
-
-    ```js
               :key="i">
-    ```
-
-    ```js
               {{ item }}</li>
-    ```
-
-    ```js
           </ul>
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           // Shared
-    ```
-
-    ```js
           frameworkList: [
-    ```
-
-    ```js
             'Vue',
-    ```
-
-    ```js
             'React',
-    ```
-
-    ```js
             'Backbone',
-    ```
-
-    ```js
             'Ember',
-    ```
-
-    ```js
             'Knockout',
-    ```
-
-    ```js
             'jQuery',
-    ```
-
-    ```js
             'Angular',
-    ```
-
-    ```js
           ],
-    ```
-
-    ```js
           // Method
-    ```
-
-    ```js
           input: '',
-    ```
-
-    ```js
           methodFilterList: [],
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       methods: {
-    ```
-
-    ```js
         searchMethod(e) {
-    ```
-
-    ```js
         console.log(e)
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2673,69 +1356,21 @@ export default {
 
     ```js
     <style scoped>
-    ```
-
-    ```js
     .container {
-    ```
-
-    ```js
       margin: 0 auto;
-    ```
-
-    ```js
       padding: 30px;
-    ```
-
-    ```js
       max-width: 600px;
-    ```
-
-    ```js
       font-family: 'Avenir', Helvetica, Arial, sans-serif;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     .col {
-    ```
-
-    ```js
       width: 33%;
-    ```
-
-    ```js
       height: 100%;
-    ```
-
-    ```js
       float: left;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     input {
-    ```
-
-    ```js
       padding: 10px 6px;
-    ```
-
-    ```js
       margin: 20px 10px 10px 0;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -2755,69 +1390,21 @@ export default {
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
       created() {
-    ```
-
-    ```js
         this.searchMethod()
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       methods: {
-    ```
-
-    ```js
         searchMethod() {
-    ```
-
-    ```js
           this.methodFilterList =
-    ```
-
-    ```js
             this.frameworkList.filter(item =>
-    ```
-
-    ```js
               item.toLowerCase().includes(this.input.
-    ```
-
-    ```js
                 toLowerCase())
-    ```
-
-    ```js
             )
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2831,153 +1418,42 @@ export default {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div class="container">
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
         <div class="col">
-    ```
-
-    ```js
           <input type="text" placeholder=
-    ```
-
-    ```js
             "Search with computed"
-    ```
-
-    ```js
             v-model="input2" />
-    ```
-
-    ```js
           <ul>
-    ```
-
-    ```js
             <li v-for="(item, i) in computedList"
-    ```
-
-    ```js
               :key="i">
-    ```
-
-    ```js
               {{ item }}</li>
-    ```
-
-    ```js
           </ul>
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           ...
-    ```
-
-    ```js
           // Computed
-    ```
-
-    ```js
           input2: '',
-    ```
-
-    ```js
           ...
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     ...
-    ```
-
-    ```js
       computed: {
-    ```
-
-    ```js
         computedList() {
-    ```
-
-    ```js
           return this.frameworkList.filter(item => {
-    ```
-
-    ```js
             return item.toLowerCase()
-    ```
-
-    ```js
               .includes(this.input2.toLowerCase())
-    ```
-
-    ```js
           })
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     ...
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2991,109 +1467,31 @@ export default {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div class="container">
-    ```
-
-    ```js
         …
-    ```
-
-    ```js
         <div class="col">
-    ```
-
-    ```js
           <input type="text" placeholder="Search with
-    ```
-
-    ```js
             watcher"
-    ```
-
-    ```js
             v-model="input3" />
-    ```
-
-    ```js
           <ul>
-    ```
-
-    ```js
             <li v-for="(item, i) in watchFilterList"
-    ```
-
-    ```js
               :key="i">
-    ```
-
-    ```js
               {{ item }}</li>
-    ```
-
-    ```js
           </ul>
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           ...
-    ```
-
-    ```js
           // Watcher
-    ```
-
-    ```js
           input3: '',
-    ```
-
-    ```js
           watchFilterList: [],
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
      ...
-    ```
-
-    ```js
     </script>
     ```
 
@@ -3101,73 +1499,22 @@ export default {
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
     ...
-    ```
-
-    ```js
       watch: {
-    ```
-
-    ```js
         input3: {
-    ```
-
-    ```js
           handler() {
-    ```
-
-    ```js
             this.watchFilterList =
-    ```
-
-    ```js
               this.frameworkList.filter(item =>
-    ```
-
-    ```js
                 item.toLowerCase()
-    ```
-
-    ```js
                   .includes(this.input3.toLowerCase())
-    ```
-
-    ```js
               )
-    ```
-
-    ```js
           },
-    ```
-
-    ```js
           immediate: true,
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     ...
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 

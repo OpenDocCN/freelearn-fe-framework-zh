@@ -97,9 +97,6 @@ const { userName } = defineProps({ userName: string }
 
     ```js
     > cd Chapter05/Exercise5.01/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -111,25 +108,10 @@ const { userName } = defineProps({ userName: string }
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>Empty</div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {}
-    ```
-
-    ```js
     </script>
     ```
 
@@ -137,37 +119,13 @@ const { userName } = defineProps({ userName: string }
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       setup() {
-    ```
-
-    ```js
         const greeting = "Hello";
-    ```
-
-    ```js
         const who = "John";
-    ```
-
-    ```js
         return { greeting, who }
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -175,13 +133,7 @@ const { userName } = defineProps({ userName: string }
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>{{ greeting }} {{ who }}</div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -201,13 +153,7 @@ const { userName } = defineProps({ userName: string }
 
     ```js
     <script setup>
-    ```
-
-    ```js
     //…
-    ```
-
-    ```js
     </script>
     ```
 
@@ -215,17 +161,8 @@ const { userName } = defineProps({ userName: string }
 
     ```js
     <script setup>
-    ```
-
-    ```js
       const greeting = "Hello";
-    ```
-
-    ```js
       const who = "John";
-    ```
-
-    ```js
     </script>
     ```
 
@@ -288,9 +225,6 @@ export default {
 
     ```js
     > cd Chapter05/Exercise5.02/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -302,25 +236,10 @@ export default {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>Empty</div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {}
-    ```
-
-    ```js
     </script>
     ```
 
@@ -328,13 +247,7 @@ export default {
 
     ```js
     export default {
-    ```
-
-    ```js
       props: ['greeting', 'who']
-    ```
-
-    ```js
     }
     ```
 
@@ -342,29 +255,11 @@ export default {
 
     ```js
     import { h } from "vue";
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       props: ["greeting", "who"],
-    ```
-
-    ```js
       setup(props) {
-    ```
-
-    ```js
         return () => h("div", `${props.greeting} ${props.who}`);
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     };
     ```
 
@@ -372,13 +267,7 @@ export default {
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import Greeting from './components/Greeting.vue'
-    ```
-
-    ```js
     </script>
     ```
 
@@ -386,21 +275,9 @@ export default {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div id="app">
-    ```
-
-    ```js
         <Greeting greeting="Hey" who="JavaScript"/>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -426,37 +303,13 @@ export default {
 
     ```js
     return () =>
-    ```
-
-    ```js
       hasValue
-    ```
-
-    ```js
         ? h("div", `${props.greeting} ${props.who}`)
-    ```
-
-    ```js
         : h(
-    ```
-
-    ```js
              "div",
-    ```
-
-    ```js
              { style: { color: "red" } },
-    ```
-
-    ```js
              "There is not enough information to
-    ```
-
-    ```js
                display"
-    ```
-
-    ```js
             );
     ```
 
@@ -464,21 +317,9 @@ export default {
 
     ```js
     <template>
-    ```
-
-    ```js
     <div id="app">
-    ```
-
-    ```js
       <Greeting who= "JavaScript"/>
-    ```
-
-    ```js
     </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -695,9 +536,6 @@ const addBook = () => {
 
     ```js
     > cd Chapter05/Exercise5.03/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -709,17 +547,8 @@ const addBook = () => {
 
     ```js
     <template>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     </script>
     ```
 
@@ -727,9 +556,6 @@ const addBook = () => {
 
     ```js
     import { ref, reactive } from 'vue';
-    ```
-
-    ```js
     const searchTerm = ref('');
     ```
 
@@ -737,125 +563,35 @@ const addBook = () => {
 
     ```js
     const blogs = reactive([{
-    ```
-
-    ```js
         title: 'Vue 3',
-    ```
-
-    ```js
         description: 'Vue 3 is awesome',
-    ```
-
-    ```js
         author: 'John Doe',
-    ```
-
-    ```js
         isFavorite: false
-    ```
-
-    ```js
     }, {
-    ```
-
-    ```js
         title: 'Vue 2',
-    ```
-
-    ```js
         description: 'Vue 2 is awesome',
-    ```
-
-    ```js
         author: 'John Doe',
-    ```
-
-    ```js
         isFavorite: false
-    ```
-
-    ```js
     }, {
-    ```
-
-    ```js
         title: 'Pinia state management',
-    ```
-
-    ```js
         description: 'Pinia is awesome',
-    ```
-
-    ```js
         author: 'Jane Smith',
-    ```
-
-    ```js
         isFavorite: false
-    ```
-
-    ```js
     }, {
-    ```
-
-    ```js
         title: 'Vue Router',
-    ```
-
-    ```js
         description: 'Vue Router is awesome',
-    ```
-
-    ```js
         author: 'Jane Smith',
-    ```
-
-    ```js
         isFavorite: false
-    ```
-
-    ```js
     }, {
-    ```
-
-    ```js
         title: 'Testing with Playwright',
-    ```
-
-    ```js
         description: 'Playwright is awesome',
-    ```
-
-    ```js
         author: 'Minnie Mouse',
-    ```
-
-    ```js
         isFavorite: false
-    ```
-
-    ```js
     }, {
-    ```
-
-    ```js
         title: 'Testing with Cypress',
-    ```
-
-    ```js
         description: 'Cypress is awesome',
-    ```
-
-    ```js
         author: 'Mickey Mouse',
-    ```
-
-    ```js
         isFavorite: false
-    ```
-
-    ```js
     }]);
     ```
 
@@ -863,33 +599,12 @@ const addBook = () => {
 
     ```js
     <label>
-    ```
-
-    ```js
        What are you searching for?
-    ```
-
-    ```js
        <input
-    ```
-
-    ```js
           type="text"
-    ```
-
-    ```js
           v-model="searchTerm"
-    ```
-
-    ```js
           placeholder="Search by blog's title"
-    ```
-
-    ```js
        />
-    ```
-
-    ```js
     </label>
     ```
 
@@ -897,41 +612,14 @@ const addBook = () => {
 
     ```js
     <ul>
-    ```
-
-    ```js
       <li v-for="(blog, index) in blogs" :key="index">
-    ```
-
-    ```js
         <article>
-    ```
-
-    ```js
             <h3>{{ blog.title }}</h3>
-    ```
-
-    ```js
             <h4>{{ blog.author }}</h4>
-    ```
-
-    ```js
               <p>{{ blog.description }}</p>
-    ```
-
-    ```js
               <button>Add to favorite</button>
-    ```
-
-    ```js
         </article>
-    ```
-
-    ```js
       </li>
-    ```
-
-    ```js
     </ul>
     ```
 
@@ -939,13 +627,7 @@ const addBook = () => {
 
     ```js
     const toggleFavorite = (index) => {
-    ```
-
-    ```js
       blogs[index].isFavorite = !blogs[index].isFavorite;
-    ```
-
-    ```js
     }
     ```
 
@@ -953,25 +635,10 @@ const addBook = () => {
 
     ```js
     <button @click="toggleFavorite(index)">
-    ```
-
-    ```js
       {{
-    ```
-
-    ```js
          blog.isFavorite ? 'Remove from favorites' : 'Add
-    ```
-
-    ```js
            to favorites'
-    ```
-
-    ```js
       }}
-    ```
-
-    ```js
     </button>
     ```
 
@@ -979,29 +646,11 @@ const addBook = () => {
 
     ```js
     const getFilteredBlogs = () => {
-    ```
-
-    ```js
         return blogs.filter(
-    ```
-
-    ```js
           blog => blog.title.toLowerCase().includes(
-    ```
-
-    ```js
             searchTerm.value.toLowerCase()
-    ```
-
-    ```js
             )
-    ```
-
-    ```js
         );
-    ```
-
-    ```js
     };
     ```
 
@@ -1015,69 +664,21 @@ const addBook = () => {
 
     ```js
     <style scoped>
-    ```
-
-    ```js
     label {
-    ```
-
-    ```js
         display: flex;
-    ```
-
-    ```js
         flex-direction: column;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     li {
-    ```
-
-    ```js
         list-style: none;
-    ```
-
-    ```js
         gap: 10px;
-    ```
-
-    ```js
         width: 200px;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     ul {
-    ```
-
-    ```js
         display: flex;
-    ```
-
-    ```js
         flex-wrap: wrap;
-    ```
-
-    ```js
         gap: 10px;
-    ```
-
-    ```js
         padding-inline-start: 0px;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -1085,13 +686,7 @@ const addBook = () => {
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import BlogGallery from "./components/BlogGallery.vue";
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1099,13 +694,7 @@ const addBook = () => {
 
     ```js
     <template>
-    ```
-
-    ```js
       <BlogGallery />
-    ```
-
-    ```js
     </template>
     ```
 
@@ -1214,9 +803,6 @@ const filteredBooks = computed(
 
     ```js
     > cd Chapter05/Exercise5.04/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -1228,25 +814,10 @@ const filteredBooks = computed(
 
     ```js
     <template>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1266,13 +837,7 @@ const filteredBooks = computed(
 
     ```js
     <input
-    ```
-
-    ```js
       placeholder="Add a language"
-    ```
-
-    ```js
       @keyup.enter="addToLanguageList" />
     ```
 
@@ -1280,25 +845,10 @@ const filteredBooks = computed(
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import { ref, reactive } from 'vue';
-    ```
-
-    ```js
     const firstName = ref('');
-    ```
-
-    ```js
     const lastName = ref('');
-    ```
-
-    ```js
     const languages = reactive([]);
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1306,21 +856,9 @@ const filteredBooks = computed(
 
     ```js
     const addToLanguageList = (event) => {
-    ```
-
-    ```js
       if (!event.target.value) return;
-    ```
-
-    ```js
       languages.push(event.target.value);
-    ```
-
-    ```js
       event.target.value = '';
-    ```
-
-    ```js
     };
     ```
 
@@ -1334,13 +872,7 @@ const filteredBooks = computed(
 
     ```js
     const fullName = computed(
-    ```
-
-    ```js
       ()=> '${firstName.value} ${lastName.value}'
-    ```
-
-    ```js
     );
     ```
 
@@ -1360,17 +892,8 @@ const filteredBooks = computed(
 
     ```js
     <p>
-    ```
-
-    ```js
       Languages({{ numberOfLanguages }}):
-    ```
-
-    ```js
         {{languages.toString()}}
-    ```
-
-    ```js
     </p>
     ```
 
@@ -1378,57 +901,18 @@ const filteredBooks = computed(
 
     ```js
     <style>
-    ```
-
-    ```js
     .container {
-    ```
-
-    ```js
       margin: 0 auto;
-    ```
-
-    ```js
       padding: 30px;
-    ```
-
-    ```js
       max-width: 600px;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     input {
-    ```
-
-    ```js
       padding: 10px 6px;
-    ```
-
-    ```js
       margin: 20px 10px 10px 0;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     .output {
-    ```
-
-    ```js
       font-size: 16px;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -1537,9 +1021,6 @@ const bookWatcher = watch(
 
     ```js
     > cd Chapter05/Exercise5.05/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -1551,25 +1032,10 @@ const bookWatcher = watch(
 
     ```js
     <template>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1577,25 +1043,10 @@ const bookWatcher = watch(
 
     ```js
     import { ref, reactive, watch } from "vue";
-    ```
-
-    ```js
     const discount = ref(5);
-    ```
-
-    ```js
     const pizza = reactive({
-    ```
-
-    ```js
       name: "Pepperoni Pizza",
-    ```
-
-    ```js
       price: 10,
-    ```
-
-    ```js
     });
     ```
 
@@ -1603,41 +1054,14 @@ const bookWatcher = watch(
 
     ```js
     watch(
-    ```
-
-    ```js
      discount,
-    ```
-
-    ```js
       (newValue) => {
-    ```
-
-    ```js
         newPrice.value = pizza.price - (pizza.price *
-    ```
-
-    ```js
           newValue)/ 100;
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         immediate: true
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     );
     ```
 
@@ -1647,13 +1071,7 @@ const bookWatcher = watch(
 
     ```js
     const updateDiscount = () => {
-    ```
-
-    ```js
       discount.value = discount.value + 5;
-    ```
-
-    ```js
     };
     ```
 
@@ -1661,41 +1079,14 @@ const bookWatcher = watch(
 
     ```js
     <template>
-    ```
-
-    ```js
       <div class="container">
-    ```
-
-    ```js
         <h1>{{ pizza.name }}</h1>
-    ```
-
-    ```js
         <div class="campaign-wrapper">
-    ```
-
-    ```js
           Monday Special: {{ discount }}% off!
-    ```
-
-    ```js
           <strike>Was ${{ pizza.price }}</strike>
-    ```
-
-    ```js
           <strong> Now at ${{ newPrice }} ONLY</strong>
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -1703,13 +1094,7 @@ const bookWatcher = watch(
 
     ```js
     <button @click="updateDiscount" class="decrease-btn">
-    ```
-
-    ```js
           Get a discount!
-    ```
-
-    ```js
     </button>
     ```
 
@@ -1719,105 +1104,30 @@ const bookWatcher = watch(
 
     ```js
     <style scoped>
-    ```
-
-    ```js
     .container {
-    ```
-
-    ```js
       margin: 0 auto;
-    ```
-
-    ```js
       padding: 30px;
-    ```
-
-    ```js
       max-width: 600px;
-    ```
-
-    ```js
       font-family: "Avenir", Helvetica, Arial, sans-serif;
-    ```
-
-    ```js
       margin: 0;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     .campaign-wrapper {
-    ```
-
-    ```js
       margin: 20px 0;
-    ```
-
-    ```js
       display: flex;
-    ```
-
-    ```js
       flex-direction: column;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     button {
-    ```
-
-    ```js
       display: inline-block;
-    ```
-
-    ```js
       border-radius: 10px;
-    ```
-
-    ```js
       font-size: 14px;
-    ```
-
-    ```js
       color: white;
-    ```
-
-    ```js
       padding: 10px 20px;
-    ```
-
-    ```js
       text-decoration: none;
-    ```
-
-    ```js
       margin-inline-end: 10px;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     .decrease-btn {
-    ```
-
-    ```js
       background: rgb(241, 34, 34);
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -1825,25 +1135,10 @@ const bookWatcher = watch(
 
     ```js
     <template>
-    ```
-
-    ```js
       <PizzaItem />
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     import PizzaItem from "./components/PizzaItem.vue";
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1863,29 +1158,11 @@ const bookWatcher = watch(
 
     ```js
     watch(
-    ```
-
-    ```js
       () => pizza.price,
-    ```
-
-    ```js
       (newValue) => {
-    ```
-
-    ```js
         newPrice.value = newValue - (newValue *
-    ```
-
-    ```js
           discount.value) / 100;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     );
     ```
 
@@ -1893,13 +1170,7 @@ const bookWatcher = watch(
 
     ```js
     const increasePrice = () => {
-    ```
-
-    ```js
       pizza.price = pizza.price + 5;
-    ```
-
-    ```js
     };
     ```
 
@@ -1907,13 +1178,7 @@ const bookWatcher = watch(
 
     ```js
     <button @click="increasePrice" class="increase-btn">
-    ```
-
-    ```js
       Increase the price!
-    ```
-
-    ```js
     </button>
     ```
 
@@ -1921,13 +1186,7 @@ const bookWatcher = watch(
 
     ```js
     .increase-btn {
-    ```
-
-    ```js
       background: rgb(34, 100, 241);
-    ```
-
-    ```js
     }
     ```
 
@@ -1985,9 +1244,6 @@ Composition API 中的所有生命周期方法都将回调函数作为其参数�
 
     ```js
     > cd Chapter05/Exercise5.06/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -2005,89 +1261,26 @@ Composition API 中的所有生命周期方法都将回调函数作为其参数�
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>Vue Lifecycle hooks</h1>
-    ```
-
-    ```js
         <ul>
-    ```
-
-    ```js
          <li v-for="(item, n) in list" :key="n">
-    ```
-
-    ```js
             {{ item }}
-    ```
-
-    ```js
          </li>
-    ```
-
-    ```js
         </ul>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     import { ref } from "vue";
-    ```
-
-    ```js
     const list = ref([
-    ```
-
-    ```js
       "Apex Legends",
-    ```
-
-    ```js
       "A Plague Tale: Innocence",
-    ```
-
-    ```js
       "ART SQOOL",
-    ```
-
-    ```js
       "Baba Is You",
-    ```
-
-    ```js
       "Devil May Cry 5",
-    ```
-
-    ```js
       "The Division 2",
-    ```
-
-    ```js
       "Hypnospace Outlaw",
-    ```
-
-    ```js
       "Katana ZERO",
-    ```
-
-    ```js
     ]);
     ```
 
@@ -2095,37 +1288,13 @@ Composition API 中的所有生命周期方法都将回调函数作为其参数�
 
     ```js
     import {
-    ```
-
-    ```js
       ref,
-    ```
-
-    ```js
       onMounted,
-    ```
-
-    ```js
       onBeforeMount,
-    ```
-
-    ```js
       onUpdated,
-    ```
-
-    ```js
       onBeforeUpdate,
-    ```
-
-    ```js
       onUnmounted,
-    ```
-
-    ```js
       onBeforeUnmount,
-    ```
-
-    ```js
     } from "vue";
     ```
 
@@ -2133,25 +1302,10 @@ Composition API 中的所有生命周期方法都将回调函数作为其参数�
 
     ```js
     onMounted(() => {
-    ```
-
-    ```js
       alert("mounted: DOM ready to use");
-    ```
-
-    ```js
     });
-    ```
-
-    ```js
     onBeforeMount(() => {
-    ```
-
-    ```js
       alert("beforeMount: DOM not ready to use");
-    ```
-
-    ```js
     });
     ```
 
@@ -2171,49 +1325,16 @@ Composition API 中的所有生命周期方法都将回调函数作为其参数�
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>Vue Lifecycle hooks</h1>
-    ```
-
-    ```js
         <ul>
-    ```
-
-    ```js
           <li v-for="(item, n) in list" :key="n">
-    ```
-
-    ```js
             {{ item }}
-    ```
-
-    ```js
             <button @click="deleteItem(item)">
-    ```
-
-    ```js
               Delete</button>
-    ```
-
-    ```js
           </li>
-    ```
-
-    ```js
         </ul>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -2221,17 +1342,8 @@ Composition API 中的所有生命周期方法都将回调函数作为其参数�
 
     ```js
     const deleteItem = (value) => {
-    ```
-
-    ```js
       list.value = list.value.filter((item) => item !==
-    ```
-
-    ```js
         value);
-    ```
-
-    ```js
     };
     ```
 
@@ -2239,41 +1351,14 @@ Composition API 中的所有生命周期方法都将回调函数作为其参数�
 
     ```js
     onUpdated(() => {
-    ```
-
-    ```js
       alert("updated: virtual DOM will update after you
-    ```
-
-    ```js
         click OK");
-    ```
-
-    ```js
     });
-    ```
-
-    ```js
     onBeforeUpdate(() => {
-    ```
-
-    ```js
       alert(
-    ```
-
-    ```js
         "beforeUpdate: we know an update is about to
-    ```
-
-    ```js
           happen, and have the data"
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     });
     ```
 
@@ -2293,33 +1378,12 @@ Composition API 中的所有生命周期方法都将回调函数作为其参数�
 
     ```js
     onUnmounted(() => {
-    ```
-
-    ```js
       alert("unmounted: this component has been
-    ```
-
-    ```js
         destroyed");
-    ```
-
-    ```js
     });
-    ```
-
-    ```js
     onBeforeUnmount(() => {
-    ```
-
-    ```js
       alert("beforeUnmount: about to blow up this
-    ```
-
-    ```js
         component");
-    ```
-
-    ```js
     });
     ```
 
@@ -2327,45 +1391,15 @@ Composition API 中的所有生命周期方法都将回调函数作为其参数�
 
     ```js
     const list = ref([
-    ```
-
-    ```js
       "Apex Legends",
-    ```
-
-    ```js
       "A Plague Tale: Innocence",
-    ```
-
-    ```js
       "ART SQOOL",
-    ```
-
-    ```js
       "Baba Is You",
-    ```
-
-    ```js
       "Devil May Cry 5",
-    ```
-
-    ```js
       "The Division 2",
-    ```
-
-    ```js
       "Hypnospace Outlaw",
-    ```
-
-    ```js
       "Katana ZERO",
-    ```
-
-    ```js
       'testing unmounted hooks',
-    ```
-
-    ```js
     ]);
     ```
 
@@ -2452,9 +1486,6 @@ const { messages, deleteMessage, addMessage } = useMessages ()
 
     ```js
     > cd Chapter05/Exercise5.07/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -2466,17 +1497,8 @@ const { messages, deleteMessage, addMessage } = useMessages ()
 
     ```js
     import { } from 'vue';
-    ```
-
-    ```js
     export const useMovies = () => {
-    ```
-
-    ```js
       return {};
-    ```
-
-    ```js
     };
     ```
 
@@ -2484,29 +1506,11 @@ const { messages, deleteMessage, addMessage } = useMessages ()
 
     ```js
     import { ref } from 'vue';
-    ```
-
-    ```js
     export const useMovies = () => {
-    ```
-
-    ```js
       const movies = ref([]);
-    ```
-
-    ```js
       const isLoading = ref(false);
-    ```
-
-    ```js
       const error = ref(null);
-    ```
-
-    ```js
       return {};
-    ```
-
-    ```js
     };
     ```
 
@@ -2514,73 +1518,22 @@ const { messages, deleteMessage, addMessage } = useMessages ()
 
     ```js
     import { ref, onBeforeMount } from 'vue';
-    ```
-
-    ```js
     export const useMovies = () => {
-    ```
-
-    ```js
     //…
-    ```
-
-    ```js
     const getMovies = async () => {
-    ```
-
-    ```js
         try {
-    ```
-
-    ```js
           const response = await fetch(
-    ```
-
-    ```js
             "https://swapi.dev/api/films");
-    ```
-
-    ```js
           if (!response.ok) {
-    ```
-
-    ```js
             throw new Error("Failed to fetch movies");
-    ```
-
-    ```js
           }
-    ```
-
-    ```js
           const data = await response.json();
-    ```
-
-    ```js
           movies.value = data.results;
-    ```
-
-    ```js
         } catch (err) {
-    ```
-
-    ```js
         } finally {}
-    ```
-
-    ```js
       };
-    ```
-
-    ```js
       onBeforeMount(getMovies);
-    ```
-
-    ```js
       //…
-    ```
-
-    ```js
     };
     ```
 
@@ -2588,45 +1541,15 @@ const { messages, deleteMessage, addMessage } = useMessages ()
 
     ```js
     const getMovies = async () => {
-    ```
-
-    ```js
         isLoading.value = true;
-    ```
-
-    ```js
         error.value = null;
-    ```
-
-    ```js
         try {
-    ```
-
-    ```js
           //…
-    ```
-
-    ```js
         } catch (err) {
-    ```
-
-    ```js
           error.value = err;
-    ```
-
-    ```js
         } finally {
-    ```
-
-    ```js
           isLoading.value = false;
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       };
     ```
 
@@ -2634,33 +1557,12 @@ const { messages, deleteMessage, addMessage } = useMessages ()
 
     ```js
     import { ref, onBeforeMount } from 'vue';
-    ```
-
-    ```js
     export const useMovies = () => {
-    ```
-
-    ```js
     return {
-    ```
-
-    ```js
         movies,
-    ```
-
-    ```js
         isLoading,
-    ```
-
-    ```js
         error,
-    ```
-
-    ```js
       };
-    ```
-
-    ```js
     };
     ```
 
@@ -2668,17 +1570,8 @@ const { messages, deleteMessage, addMessage } = useMessages ()
 
     ```js
     <template>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2686,17 +1579,8 @@ const { messages, deleteMessage, addMessage } = useMessages ()
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import { useMovies } from '../composables/useMovies.js'
-    ```
-
-    ```js
     const { movies, error, isLoading } = useMovies();
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2704,89 +1588,26 @@ const { messages, deleteMessage, addMessage } = useMessages ()
 
     ```js
     <template>
-    ```
-
-    ```js
       <h1>Movies</h1>
-    ```
-
-    ```js
       <div v-if="isLoading">
-    ```
-
-    ```js
         <p>Loading...</p>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       <div v-else-if="error">
-    ```
-
-    ```js
       <p>{{ error }}</p>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       <div v-else>
-    ```
-
-    ```js
         <ul>
-    ```
-
-    ```js
           <li v-for="movie in movies" :key="movie.id">
-    ```
-
-    ```js
             <article>
-    ```
-
-    ```js
               <h3>{{ movie.title }}</h3>
-    ```
-
-    ```js
               <h4>Released on: {{ movie.release_date }}
-    ```
-
-    ```js
               </h4>
-    ```
-
-    ```js
               <h5>Directed by: {{ movie.director }}</h5>
-    ```
-
-    ```js
               <p>{{ movie.opening_crawl }}</p>
-    ```
-
-    ```js
             </article>
-    ```
-
-    ```js
           </li>
-    ```
-
-    ```js
         </ul>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -2814,69 +1635,21 @@ const { messages, deleteMessage, addMessage } = useMessages ()
 
     ```js
     import { ref, computed } from 'vue';
-    ```
-
-    ```js
     export const useSearch = (items, filters = ['title']) => {
-    ```
-
-    ```js
       const searchTerm = ref('');
-    ```
-
-    ```js
       const filteredItems = computed(() => {
-    ```
-
-    ```js
         return items.value.filter(item => {
-    ```
-
-    ```js
           return filters.some(
-    ```
-
-    ```js
             filter => item[filter].toLowerCase().includes(
-    ```
-
-    ```js
               searchTerm.value.toLowerCase()
-    ```
-
-    ```js
             );
-    ```
-
-    ```js
           });
-    ```
-
-    ```js
         });
-    ```
-
-    ```js
       });
-    ```
-
-    ```js
       return {
-    ```
-
-    ```js
         searchTerm,
-    ```
-
-    ```js
         filteredItems,
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
     ```
 
@@ -2884,33 +1657,12 @@ const { messages, deleteMessage, addMessage } = useMessages ()
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import { useMovies } from '../composables/useMovies.js'
-    ```
-
-    ```js
     import { useSearch } from '../composables/useSearch.js'
-    ```
-
-    ```js
     const { movies, error, isLoading } = useMovies();
-    ```
-
-    ```js
     const {
-    ```
-
-    ```js
       searchTerm,
-    ```
-
-    ```js
       filteredItems: filteredMovies } = useSearch(movies);
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2918,53 +1670,17 @@ const { messages, deleteMessage, addMessage } = useMessages ()
 
     ```js
     <div v-else>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <label for="search">Search:</label>
-    ```
-
-    ```js
         <input type="text" id="search"
-    ```
-
-    ```js
           v-model="searchTerm" />
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       <ul>
-    ```
-
-    ```js
         <li v-for="movie in filteredMovies"
-    ```
-
-    ```js
           :key="movie.id">
-    ```
-
-    ```js
         <!-- … -->
-    ```
-
-    ```js
         </li>
-    ```
-
-    ```js
       </ul>
-    ```
-
-    ```js
     </div>
     ```
 

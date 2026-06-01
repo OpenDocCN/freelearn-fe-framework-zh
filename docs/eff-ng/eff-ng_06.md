@@ -64,9 +64,6 @@ Angular 应用程序的另一个重要部分是组件、指令和管道的选择
     ```js
     import { interval } from 'rxjs'
     numbers$ = interval(1000);
-    ```
-
-    ```js
 
     ```
 

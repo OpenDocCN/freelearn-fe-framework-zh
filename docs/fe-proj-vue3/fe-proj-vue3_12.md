@@ -159,25 +159,10 @@ describe('Commentator Pro', () => {
 
     ```js
     <template>
-    ```
-
-    ```js
     <h2>Commentator Pro</h2>
-    ```
-
-    ```js
     <button>
-    ```
-
-    ```js
     Add a New Comment
-    ```
-
-    ```js
     </button>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -191,25 +176,10 @@ describe('Commentator Pro', () => {
 
     ```js
     describe('Adding a New Comment', () => {
-    ```
-
-    ```js
       it('the homepage should have a button with the right
-    ```
-
-    ```js
       text', () => {
-    ```
-
-    ```js
         // test will go here
-    ```
-
-    ```js
       })
-    ```
-
-    ```js
     })
     ```
 
@@ -217,25 +187,10 @@ describe('Commentator Pro', () => {
 
     ```js
     describe('Adding a New Comment', () => {
-    ```
-
-    ```js
       it('the homepage should have a button with the right
-    ```
-
-    ```js
       text', () => {
-    ```
-
-    ```js
         cy.visit('/')
-    ```
-
-    ```js
       })
-    ```
-
-    ```js
     })
     ```
 
@@ -243,29 +198,11 @@ describe('Commentator Pro', () => {
 
     ```js
     describe('Adding a New Comment', () => {
-    ```
-
-    ```js
       it('the homepage should have a button with the right
-    ```
-
-    ```js
       text', () => {
-    ```
-
-    ```js
         cy.visit('/')
-    ```
-
-    ```js
         cy.contains('button', 'Add a New Comment')
-    ```
-
-    ```js
       })
-    ```
-
-    ```js
     })
     ```
 
@@ -384,73 +321,22 @@ describe('Adding a New Comment', () => {
 
     ```js
     <template>
-    ```
-
-    ```js
     <!-- rest of template -->
-    ```
-
-    ```js
       <p>
-    ```
-
-    ```js
       <textarea data-test-id="new-comment-editor"
-    ```
-
-    ```js
         v-model="newComment"></textarea>
-    ```
-
-    ```js
       </p>
-    ```
-
-    ```js
     <!-- rest of template -->
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           showEditor: false,
-    ```
-
-    ```js
           newComment: ''
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -458,53 +344,17 @@ describe('Adding a New Comment', () => {
 
     ```js
     <!-- rest of template -->
-    ```
-
-    ```js
     <div v-if="showEditor">
-    ```
-
-    ```js
       <p>
-    ```
-
-    ```js
       <textarea data-test-id="new-comment-editor"
-    ```
-
-    ```js
         v-model="newComment"></textarea>
-    ```
-
-    ```js
       </p>
-    ```
-
-    ```js
       <p>
-    ```
-
-    ```js
       <button data-test-id="new-comment-submit">
-    ```
-
-    ```js
         Submit
-    ```
-
-    ```js
       </button>
-    ```
-
-    ```js
       </p>
-    ```
-
-    ```js
     </div>
-    ```
-
-    ```js
     <!-- rest of template -->
     ```
 
@@ -540,65 +390,20 @@ describe('Adding a New Comment', () => {
 
     ```js
     describe('Adding a New Comment', () => {
-    ```
-
-    ```js
       // other tests
-    ```
-
-    ```js
       it('the new comment editor should have a submit
-    ```
-
-    ```js
       button', () => {
-    ```
-
-    ```js
         cy.visit('/')
-    ```
-
-    ```js
         cy.get('[data-test-id="new-comment-submit"]')
-    ```
-
-    ```js
           .should('not.exist')
-    ```
-
-    ```js
         // Get the editor to show
-    ```
-
-    ```js
         cy.get('[data-test-id="new-comment-button"]')
-    ```
-
-    ```js
           .click()
-    ```
-
-    ```js
         cy.get('[data-test-id="new-comment-submit"]')
-    ```
-
-    ```js
           .should('be.visible')
-    ```
-
-    ```js
         cy.contains('[data-test-id="new-comment-submit"]',
-    ```
-
-    ```js
                     'Submit')
-    ```
-
-    ```js
       })
-    ```
-
-    ```js
     })
     ```
 
@@ -612,17 +417,8 @@ describe('Adding a New Comment', () => {
 
     ```js
     <button data-test-id="new-comment-submit"
-    ```
-
-    ```js
       :disabled="!newComment">
-    ```
-
-    ```js
       Submit
-    ```
-
-    ```js
     </button>
     ```
 
@@ -630,73 +426,22 @@ describe('Adding a New Comment', () => {
 
     ```js
     describe('Adding a New Comment', () => {
-    ```
-
-    ```js
       // other tests
-    ```
-
-    ```js
       it('the new comment submit button should be disabled
-    ```
-
-    ```js
       based on "new comment" content', () => {
-    ```
-
-    ```js
         cy.visit('/')
-    ```
-
-    ```js
         // Get the editor to show
-    ```
-
-    ```js
         cy.get('[data-test-id="new-comment-button"]')
-    ```
-
-    ```js
           .click()
-    ```
-
-    ```js
         cy.get('[data-test-id="new-comment-submit"]')
-    ```
-
-    ```js
           .should('be.visible')
-    ```
-
-    ```js
         cy.get('[data-test-id="new-comment-submit"]')
-    ```
-
-    ```js
           .should('be.disabled')
-    ```
-
-    ```js
         cy.get('[data-test-id="new-comment-editor"]')
-    ```
-
-    ```js
           .type('Just saying...')
-    ```
-
-    ```js
         cy.get('[data-test-id="new-comment-submit"]')
-    ```
-
-    ```js
           .should('not.be.disabled')
-    ```
-
-    ```js
       })
-    ```
-
-    ```js
     })
     ```
 
@@ -726,21 +471,9 @@ describe('Adding a New Comment', () => {
 
     ```js
     <style scoped>
-    ```
-
-    ```js
     .submitting {
-    ```
-
-    ```js
       font-style: italic;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -748,41 +481,14 @@ describe('Adding a New Comment', () => {
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           // other properties
-    ```
-
-    ```js
           isSubmitting: false
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -790,57 +496,18 @@ describe('Adding a New Comment', () => {
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       // other component properties
-    ```
-
-    ```js
       methods: {
-    ```
-
-    ```js
         submitNewComment() {
-    ```
-
-    ```js
           this.isSubmitting = true
-    ```
-
-    ```js
           setTimeout(() => {
-    ```
-
-    ```js
             this.isSubmitting = false;
-    ```
-
-    ```js
             this.newComment = '';
-    ```
-
-    ```js
           }, 2500)
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -848,41 +515,14 @@ describe('Adding a New Comment', () => {
 
     ```js
     <template>
-    ```
-
-    ```js
       <!-- rest of template -->
-    ```
-
-    ```js
       <div v-if="showEditor">
-    ```
-
-    ```js
       <!-- rest of editor -->
-    ```
-
-    ```js
       <button data-test-id="new-comment-submit"
-    ```
-
-    ```js
         :disabled="!newComment"
-    ```
-
-    ```js
           @click="submitNewComment()">Submit
-    ```
-
-    ```js
       </button>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -890,25 +530,10 @@ describe('Adding a New Comment', () => {
 
     ```js
     <button data-test-id="new-comment-submit"
-    ```
-
-    ```js
     :disabled="!newComment || isSubmitting"
-    ```
-
-    ```js
     :class="{submitting:isSubmitting}"
-    ```
-
-    ```js
     @click="submitNewComment()">
-    ```
-
-    ```js
     Submit
-    ```
-
-    ```js
     </button>
     ```
 
@@ -1113,101 +738,29 @@ describe('Loading Existing Comments', () => {
 
     ```js
     <script>
-    ```
-
-    ```js
     // imports
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       // other component properties
-    ```
-
-    ```js
       data: {
-    ```
-
-    ```js
         // other data
-    ```
-
-    ```js
         email:'fakeemail@email.com'
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       methods: {
-    ```
-
-    ```js
         submitNewComment() {
-    ```
-
-    ```js
           this.isSubmitting = true
-    ```
-
-    ```js
       fetch('https://jsonplaceholder.typicode.com/comments  ', {
-    ```
-
-    ```js
            method: 'POST',
-    ```
-
-    ```js
            headers: {
-    ```
-
-    ```js
              'Content-Type': 'application/json'
-    ```
-
-    ```js
            },
-    ```
-
-    ```js
            body: JSON.stringify({
-    ```
-
-    ```js
              email: this.email,
-    ```
-
-    ```js
              body: this.newComment
-    ```
-
-    ```js
            })
-    ```
-
-    ```js
       })
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1249,21 +802,9 @@ export default {
 
     ```js
     describe('Adding a New Comment', () => {
-    ```
-
-    ```js
       beforeEach(() => {
-    ```
-
-    ```js
         cy.intercept('GET','**/comments', []);
-    ```
-
-    ```js
       })
-    ```
-
-    ```js
       // tests
     ```
 
@@ -1284,45 +825,15 @@ it('the new comment editor should show a submitting class on submit', () => {
 
     ```js
     describe('Adding a New Comment', () => {
-    ```
-
-    ```js
       // setup & tests
-    ```
-
-    ```js
       it('the new comment editor should show a spinner on
-    ```
-
-    ```js
       submit', () => {
-    ```
-
-    ```js
         // test setup
-    ```
-
-    ```js
         // click the "submit" button
-    ```
-
-    ```js
         // check the submitting class appears
-    ```
-
-    ```js
         cy.wait('@newComment')
-    ```
-
-    ```js
         // check that the submitting class is gone
-    ```
-
-    ```js
       })
-    ```
-
-    ```js
     })
     ```
 
@@ -1366,53 +877,17 @@ it('the new comment editor should show a submitting class on submit', () => {
 
     ```js
     describe('Adding a New Comment', () => {
-    ```
-
-    ```js
       // setup & other tests
-    ```
-
-    ```js
       it('submitting a new comment should POST to
-    ```
-
-    ```js
       /comments and adds response to top of comments
-    ```
-
-    ```js
       list', () => {
-    ```
-
-    ```js
         cy.intercept('GET', '**/comments', [
-    ```
-
-    ```js
           {
-    ```
-
-    ```js
             email: 'evan@vuejs.org',
-    ```
-
-    ```js
             body: 'Existing comment'
-    ```
-
-    ```js
           }
-    ```
-
-    ```js
         ]).as('newComment')
-    ```
-
-    ```js
       })
-    ```
-
-    ```js
     })
     ```
 
@@ -1420,109 +895,31 @@ it('the new comment editor should show a submitting class on submit', () => {
 
     ```js
     describe('Adding a New Comment', () => {
-    ```
-
-    ```js
       // setup & other tests
-    ```
-
-    ```js
       it('submitting a new comment should POST to
-    ```
-
-    ```js
       /comments and adds response to top of comments
-    ```
-
-    ```js
       list', () => {
-    ```
-
-    ```js
         // GET request stubbing
-    ```
-
-    ```js
         cy.intercept({
-    ```
-
-    ```js
           method: 'POST',
-    ```
-
-    ```js
           url: '**/comments',
-    ```
-
-    ```js
           response: {
-    ```
-
-    ```js
             email: 'evan@vuejs.org',
-    ```
-
-    ```js
             body: 'Just saying...',
-    ```
-
-    ```js
           },
-    ```
-
-    ```js
         }).as('newComment')
-    ```
-
-    ```js
         cy.visit('/')
-    ```
-
-    ```js
         cy.get('[data-test-id="comment-card"]').should
-    ```
-
-    ```js
           ('have.length', 1)
-    ```
-
-    ```js
         cy.get('[data-test-id="new-comment-button"]')
-    ```
-
-    ```js
           .click()
-    ```
-
-    ```js
         cy.get('[data-test-id="new-comment-editor"]')
-    ```
-
-    ```js
           .type('Just saying...')
-    ```
-
-    ```js
         cy.get('[data-test-id="new-comment-submit"]')
-    ```
-
-    ```js
           .should('not.be.disabled')
-    ```
-
-    ```js
           .click()
-    ```
-
-    ```js
         cy.wait('@newComment')
-    ```
-
-    ```js
       })
-    ```
-
-    ```js
     })
     ```
 
@@ -1530,61 +927,19 @@ it('the new comment editor should show a submitting class on submit', () => {
 
     ```js
     describe('Adding a New Comment', () => {
-    ```
-
-    ```js
       // setup & other tests
-    ```
-
-    ```js
       it('submitting a new comment should POST to
-    ```
-
-    ```js
       /comments and adds response to top of comments
-    ```
-
-    ```js
       list', () => {
-    ```
-
-    ```js
         // setup & wait for POST completion
-    ```
-
-    ```js
         cy.get('[data-test-id="comments-list"]')
-    ```
-
-    ```js
           .should('be.visible')
-    ```
-
-    ```js
         cy.get('[data-test-id="comment-card"]')
-    ```
-
-    ```js
           .should('have.length', 2).first()
-    ```
-
-    ```js
           .contains('[data-test-id="comment-card"]',
-    ```
-
-    ```js
           'Just saying...')
-    ```
-
-    ```js
           .contains('fakeemail@email.com')
-    ```
-
-    ```js
       })
-    ```
-
-    ```js
     })
     ```
 

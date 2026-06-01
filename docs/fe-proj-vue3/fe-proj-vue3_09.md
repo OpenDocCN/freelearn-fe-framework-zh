@@ -298,73 +298,22 @@ const props = defineProps({formData:Object});
 
     ```js
     <template>
-    ```
-
-    ```js
       <section class="md:w-2/3 flex flex-col p-12
-    ```
-
-    ```js
         items-center">
-    ```
-
-    ```js
        <!-- rest of template -->
-    ```
-
-    ```js
         <div class="flex flex-col mt-2">
-    ```
-
-    ```js
           <label class="flex text-gray-800 mb-2"
-    ```
-
-    ```js
             for="occupation">Occupation</label>
-    ```
-
-    ```js
           <input
-    ```
-
-    ```js
             id="occupation"
-    ```
-
-    ```js
             type="text"
-    ```
-
-    ```js
             name="occupation"
-    ```
-
-    ```js
             class="border-2 border-solid border-blue-200
-    ```
-
-    ```js
               rounded px-2 py-1"
-    ```
-
-    ```js
           />
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
        <!-- rest of template -->
-    ```
-
-    ```js
       </section>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -378,21 +327,9 @@ const props = defineProps({formData:Object});
 
     ```js
     <script setup>
-    ```
-
-    ```js
     // rest of component
-    ```
-
-    ```js
     const occupation = ref('');
-    ```
-
-    ```js
     // rest of component
-    ```
-
-    ```js
     }
     ```
 
@@ -400,45 +337,15 @@ const props = defineProps({formData:Object});
 
     ```js
     <template>
-    ```
-
-    ```js
       <!—rest of template -->
-    ```
-
-    ```js
           <input
-    ```
-
-    ```js
             id="occupation"
-    ```
-
-    ```js
             type="text"
-    ```
-
-    ```js
             name="occupation"
-    ```
-
-    ```js
             v-model="occupation"
-    ```
-
-    ```js
             class="border-2 border-solid border-blue-200
-    ```
-
-    ```js
               rounded px-2 py-1"/>
-    ```
-
-    ```js
      <!-- rest of template -->
-    ```
-
-    ```js
     </template>
     ```
 
@@ -446,49 +353,16 @@ const props = defineProps({formData:Object});
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import { ref } from 'vue'
-    ```
-
-    ```js
     const emit = defineEmits(['submit'])
-    ```
-
-    ```js
     const name = ref('');
-    ```
-
-    ```js
     const occupation = ref('');
-    ```
-
-    ```js
     function submitForm() {
-    ```
-
-    ```js
       emit('submit', {
-    ```
-
-    ```js
         name: this.name,
-    ```
-
-    ```js
         occupation: this.occupation
-    ```
-
-    ```js
       });
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -496,25 +370,10 @@ const props = defineProps({formData:Object});
 
     ```js
     <template>
-    ```
-
-    ```js
       <section class="md:w-1/3 flex flex-col p-12">
-    ```
-
-    ```js
        <!-- rest of template -->
-    ```
-
-    ```js
         <p class="mt-2">{{ formData.occupation }}</p>
-    ```
-
-    ```js
       </section>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -540,73 +399,22 @@ const props = defineProps({formData:Object});
 
     ```js
     <template>
-    ```
-
-    ```js
      <!-- rest of template -->
-    ```
-
-    ```js
         <div class="w-1/2 flex md:flex-row mt-12">
-    ```
-
-    ```js
           <button
-    ```
-
-    ```js
             class="flex md:w-1/2 justify-center"
-    ```
-
-    ```js
             type="button"
-    ```
-
-    ```js
           >
-    ```
-
-    ```js
             Clear
-    ```
-
-    ```js
           </button>
-    ```
-
-    ```js
           <button
-    ```
-
-    ```js
             class="flex md:w-1/2 justify-center"
-    ```
-
-    ```js
             type="submit"
-    ```
-
-    ```js
             @click="submitForm()">
-    ```
-
-    ```js
             Submit
-    ```
-
-    ```js
           </button>
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
      <!-- rest of template -->
-    ```
-
-    ```js
     </template>
     ```
 
@@ -614,33 +422,12 @@ const props = defineProps({formData:Object});
 
     ```js
     <script setup>
-    ```
-
-    ```js
     // rest of the component
-    ```
-
-    ```js
     function clear() {
-    ```
-
-    ```js
       this.name = '';
-    ```
-
-    ```js
       this.occupation = '';
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     // rest of the component
-    ```
-
-    ```js
     </script>
     ```
 
@@ -648,41 +435,14 @@ const props = defineProps({formData:Object});
 
     ```js
     <template>
-    ```
-
-    ```js
      <!-- rest of template -->
-    ```
-
-    ```js
           <button
-    ```
-
-    ```js
             class="flex md:w-1/2 justify-center"
-    ```
-
-    ```js
             type="button"
-    ```
-
-    ```js
             @click="clear()">
-    ```
-
-    ```js
             Clear
-    ```
-
-    ```js
           </button>
-    ```
-
-    ```js
      <!-- rest of template -->
-    ```
-
-    ```js
     </template>
     ```
 
@@ -708,37 +468,13 @@ const props = defineProps({formData:Object});
 
     ```js
     <script setup>
-    ```
-
-    ```js
     // rest of the component
-    ```
-
-    ```js
     function clear() {
-    ```
-
-    ```js
       this.name = '';
-    ```
-
-    ```js
       this.occupation = '';
-    ```
-
-    ```js
       emit('submit', {});
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     // rest of the component
-    ```
-
-    ```js
     </script>
     ```
 
@@ -770,21 +506,9 @@ const props = defineProps({formData:Object});
 
     ```js
     import { reactive } from 'vue';
-    ```
-
-    ```js
     export const store = reactive({
-    ```
-
-    ```js
       name:'',
-    ```
-
-    ```js
       occupation:''
-    ```
-
-    ```js
     });
     ```
 
@@ -794,13 +518,7 @@ const props = defineProps({formData:Object});
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import { store } from '@/store.js';
-    ```
-
-    ```js
     </script>
     ```
 
@@ -808,97 +526,28 @@ const props = defineProps({formData:Object});
 
     ```js
     <!-- rest of component -->
-    ```
-
-    ```js
     <div class="flex flex-col">
-    ```
-
-    ```js
       <label class="flex text-gray-800 mb-2" for="name">
-    ```
-
-    ```js
         Name
-    ```
-
-    ```js
       </label>
-    ```
-
-    ```js
       <input
-    ```
-
-    ```js
         id="name"
-    ```
-
-    ```js
         type="text"
-    ```
-
-    ```js
         name="name"
-    ```
-
-    ```js
         class="border-2 border-solid border-blue-200
-    ```
-
-    ```js
           rounded px-2 py-1" v-model="store.name"/>
-    ```
-
-    ```js
     </div>
-    ```
-
-    ```js
     <div class="flex flex-col mt-2">
-    ```
-
-    ```js
       <label class="flex text-gray-800 mb-2"
-    ```
-
-    ```js
         for="occupation">Occupation</label>
-    ```
-
-    ```js
       <input
-    ```
-
-    ```js
         id="occupation"
-    ```
-
-    ```js
         type="text"
-    ```
-
-    ```js
         name="occupation"
-    ```
-
-    ```js
         v-model="store.occupation"
-    ```
-
-    ```js
         class="border-2 border-solid border-blue-200
-    ```
-
-    ```js
           rounded px-2 py-1"
-    ```
-
-    ```js
       />
-    ```
-
-    ```js
     </div>
     ```
 
@@ -906,29 +555,11 @@ const props = defineProps({formData:Object});
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import { store } from '@/store.js';
-    ```
-
-    ```js
     function clear() {
-    ```
-
-    ```js
       store.name = '';
-    ```
-
-    ```js
       store.occupation = '';
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -936,13 +567,7 @@ const props = defineProps({formData:Object});
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import { store } from '@/store.js';
-    ```
-
-    ```js
     </script>
     ```
 
@@ -976,45 +601,15 @@ const props = defineProps({formData:Object});
 
     ```js
     <template>
-    ```
-
-    ```js
       <header class="w-full flex flex-row p-4 border-b
-    ```
-
-    ```js
         bg-blue-300 border-gray-700">
-    ```
-
-    ```js
         <h2 class="text-xl flex text-gray-800">
-    ```
-
-    ```js
           Profile Card Generator</h2>
-    ```
-
-    ```js
         <button class="flex ml-auto text-gray-800
-    ```
-
-    ```js
           items-center">
-    ```
-
-    ```js
           Reset
-    ```
-
-    ```js
         </button>
-    ```
-
-    ```js
       </header>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -1022,37 +617,13 @@ const props = defineProps({formData:Object});
 
     ```js
     import { reactive } from 'vue';
-    ```
-
-    ```js
     export const store = reactive({
-    ```
-
-    ```js
          name:'',
-    ```
-
-    ```js
          occupation:'',
-    ```
-
-    ```js
          clear() {
-    ```
-
-    ```js
               this.name = '';
-    ```
-
-    ```js
               this.occupation = '';
-    ```
-
-    ```js
          }
-    ```
-
-    ```js
     });
     ```
 
@@ -1060,13 +631,7 @@ const props = defineProps({formData:Object});
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import { store } from '@/store.js';
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1074,25 +639,10 @@ const props = defineProps({formData:Object});
 
     ```js
     <!-- rest of template -->
-    ```
-
-    ```js
     <button class="flex ml-auto text-gray-800
-    ```
-
-    ```js
       items-center" @click="store.clear()">
-    ```
-
-    ```js
       Reset
-    ```
-
-    ```js
     </button>
-    ```
-
-    ```js
     <script>
     ```
 
@@ -1100,49 +650,16 @@ const props = defineProps({formData:Object});
 
     ```js
     <template>
-    ```
-
-    ```js
       <!-- rest of template -->
-    ```
-
-    ```js
         <div class="w-1/2 flex md:flex-row mt-12">
-    ```
-
-    ```js
         <button
-    ```
-
-    ```js
           class="flex md:w-1/2 justify-center"
-    ```
-
-    ```js
           type="submit"
-    ```
-
-    ```js
           @click="submitForm()">
-    ```
-
-    ```js
           Submit
-    ```
-
-    ```js
         </button>
-    ```
-
-    ```js
     </div>
-    ```
-
-    ```js
       <!-- rest of template -->
-    ```
-
-    ```js
     </template>
     ```
 

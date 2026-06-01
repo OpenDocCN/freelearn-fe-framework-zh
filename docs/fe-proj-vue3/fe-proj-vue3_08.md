@@ -66,21 +66,9 @@ Vue.js 实现了基于 CSS 和基于类的 `leave` 和 `enter` 过渡效果—�
 
     ```js
     <style>
-    ```
-
-    ```js
     .fade-in-enter-from {
-    ```
-
-    ```js
       opacity: 0;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -88,13 +76,7 @@ Vue.js 实现了基于 CSS 和基于类的 `leave` 和 `enter` 过渡效果—�
 
     ```js
     .fade-in-enter-active {
-    ```
-
-    ```js
       transition: opacity 3s ease-in;
-    ```
-
-    ```js
     }
     ```
 
@@ -108,13 +90,7 @@ Vue.js 实现了基于 CSS 和基于类的 `leave` 和 `enter` 过渡效果—�
 
     ```js
     .fade-in-enter-active, .fade-in-leave-active {
-    ```
-
-    ```js
       transition: opacity 3s ease-in;
-    ```
-
-    ```js
     }
     ```
 
@@ -122,13 +98,7 @@ Vue.js 实现了基于 CSS 和基于类的 `leave` 和 `enter` 过渡效果—�
 
     ```js
     .fade-in-enter-from, .fade-in-leave-to {
-    ```
-
-    ```js
       opacity: 0;
-    ```
-
-    ```js
     }
     ```
 
@@ -336,13 +306,7 @@ export default {
 
     ```js
     npm install velocity-animate
-    ```
-
-    ```js
     #Or
-    ```
-
-    ```js
     yarn add velocity-animate
     ```
 
@@ -350,13 +314,7 @@ export default {
 
     ```js
     npm install gsap
-    ```
-
-    ```js
     #or
-    ```
-
-    ```js
     yarn add gsap
     ```
 
@@ -478,9 +436,6 @@ gsap.timeline().to(<element>, { <effect properties>, <time position> })
 
     ```js
     > cd Chapter08/Exercise8.01/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -494,53 +449,17 @@ gsap.timeline().to(<element>, { <effect properties>, <time position> })
 
         ```js
         <template>
-        ```
-
-        ```js
           <div>
-        ```
-
-        ```js
             <div class="editor--wrapper">
-        ```
-
-        ```js
               <textarea ref="textArea" class="editor" />
-        ```
-
-        ```js
               <button @click="onSendClick()"
-        ```
-
-        ```js
                 class="editor--submit">Submit</button>
-        ```
-
-        ```js
             </div>
-        ```
-
-        ```js
             <section v-if="message" class="message--display">
-        ```
-
-        ```js
               <h4>Your saved message: </h4>
-        ```
-
-        ```js
               <span>{{message}}</span>
-        ```
-
-        ```js
             </section>
-        ```
-
-        ```js
           </div>
-        ```
-
-        ```js
         </template>
         ```
 
@@ -548,25 +467,10 @@ gsap.timeline().to(<element>, { <effect properties>, <time position> })
 
     ```js
     <transition name="slide-right">
-    ```
-
-    ```js
         <section v-if="message" class="message--display">
-    ```
-
-    ```js
             <h4>Your saved message: </h4>
-    ```
-
-    ```js
             <span>{{message}}</span>
-    ```
-
-    ```js
         </section>
-    ```
-
-    ```js
     </transition>
     ```
 
@@ -574,65 +478,20 @@ gsap.timeline().to(<element>, { <effect properties>, <time position> })
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           message: ''
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       methods: {
-    ```
-
-    ```js
         onSendClick() {
-    ```
-
-    ```js
           const message = this.$refs.textArea.value;
-    ```
-
-    ```js
           this.message = message;
-    ```
-
-    ```js
           this.$refs.textArea.value = '';
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -640,29 +499,11 @@ gsap.timeline().to(<element>, { <effect properties>, <time position> })
 
     ```js
     <style scoped>
-    ```
-
-    ```js
     @keyframes slide-right {
-    ```
-
-    ```js
       100% {
-    ```
-
-    ```js
         transform: translateX(0)
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -672,37 +513,13 @@ gsap.timeline().to(<element>, { <effect properties>, <time position> })
 
     ```js
     .slide-right {
-    ```
-
-    ```js
       animation: 1s slide-right 1s forwards;
-    ```
-
-    ```js
       transform:translateX(-100%);
-    ```
-
-    ```js
       transition: border-top 2s ease;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     .slide-left {
-    ```
-
-    ```js
       animation: 1s slide-right 1s reverse;
-    ```
-
-    ```js
       transform:translateX(-100%);
-    ```
-
-    ```js
     }
     ```
 
@@ -710,13 +527,7 @@ gsap.timeline().to(<element>, { <effect properties>, <time position> })
 
     ```js
     .slide-right-enter-from {
-    ```
-
-    ```js
       border-top: 0;
-    ```
-
-    ```js
     }
     ```
 
@@ -724,21 +535,9 @@ gsap.timeline().to(<element>, { <effect properties>, <time position> })
 
     ```js
     <transition
-    ```
-
-    ```js
           name="slide-right"
-    ```
-
-    ```js
           enter-active-class="slide-right"
-    ```
-
-    ```js
           leave-active-class="slide-left"
-    ```
-
-    ```js
     >
     ```
 
@@ -746,65 +545,20 @@ gsap.timeline().to(<element>, { <effect properties>, <time position> })
 
     ```js
     .editor--wrapper {
-    ```
-
-    ```js
       display: flex;
-    ```
-
-    ```js
       flex-direction: column;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     .editor {
-    ```
-
-    ```js
       align-self: center;
-    ```
-
-    ```js
       width: 200px;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     .editor--submit {
-    ```
-
-    ```js
       margin: 0.5rem auto;
-    ```
-
-    ```js
       align-self: center;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     .message--display {
-    ```
-
-    ```js
       margin-top: 1rem;
-    ```
-
-    ```js
       border-top: 1px solid lightgray;
-    ```
-
-    ```js
     }
     ```
 
@@ -1027,9 +781,6 @@ show: false,
 
     ```js
     > cd Chapter08/Exercise8.02/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -1039,49 +790,16 @@ show: false,
 
     ```js
     <transition-group
-    ```
-
-    ```js
       name="flip"
-    ```
-
-    ```js
       tag="div"
-    ```
-
-    ```js
     >
-    ```
-
-    ```js
       <p
-    ```
-
-    ```js
         v-for="message in messages"
-    ```
-
-    ```js
         :key="message"
-    ```
-
-    ```js
         class="message--item"
-    ```
-
-    ```js
       >
-    ```
-
-    ```js
         {{message}}
-    ```
-
-    ```js
       </p>
-    ```
-
-    ```js
     </transition-group>
     ```
 
@@ -1089,29 +807,11 @@ show: false,
 
     ```js
     <transition-group
-    ```
-
-    ```js
         appear
-    ```
-
-    ```js
         name="flip"
-    ```
-
-    ```js
         tag="div"
-    ```
-
-    ```js
     >
-    ```
-
-    ```js
       //…
-    ```
-
-    ```js
     </transition-group>
     ```
 
@@ -1131,25 +831,10 @@ show: false,
 
     ```js
     <style scoped>
-    ```
-
-    ```js
       .flip-enter-from, .flip-leave-to {
-    ```
-
-    ```js
         opacity: 0;
-    ```
-
-    ```js
         transform: translateY(20px);
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -1157,13 +842,7 @@ show: false,
 
     ```js
     .message--item {
-    ```
-
-    ```js
       transition: all 2s;
-    ```
-
-    ```js
     }
     ```
 
@@ -1171,25 +850,10 @@ show: false,
 
     ```js
     .flip-leave-active {
-    ```
-
-    ```js
       position: absolute;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     .flip-move {
-    ```
-
-    ```js
       transition: transform 1s;
-    ```
-
-    ```js
     }
     ```
 
@@ -1197,13 +861,7 @@ show: false,
 
     ```js
     <button @click="sorting()">Sort A-Z</button>
-    ```
-
-    ```js
     <button @click="sorting(true)">Sort Z-A</button>
-    ```
-
-    ```js
     <button @click="shuffle()">Shuffle</button>
     ```
 
@@ -1211,69 +869,21 @@ show: false,
 
     ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           messages: [
-    ```
-
-    ```js
             "Hello, how are you?",
-    ```
-
-    ```js
             "The weather is nice",
-    ```
-
-    ```js
             "This is the message feed",
-    ```
-
-    ```js
             "And I am the fourth message",
-    ```
-
-    ```js
             "Chapter 8 is fun",
-    ```
-
-    ```js
             "Animation is super awesome",
-    ```
-
-    ```js
             "Sorry, I didn't know you called",
-    ```
-
-    ```js
             "Be patient, animation comes right up",
-    ```
-
-    ```js
           ],
-    ```
-
-    ```js
           show: false,
-    ```
-
-    ```js
         };
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     };
     ```
 
@@ -1281,37 +891,13 @@ show: false,
 
     ```js
       methods: {
-    ```
-
-    ```js
         sorting(isDescending) {
-    ```
-
-    ```js
           this.messages.sort();
-    ```
-
-    ```js
           if (isDescending) { this.messages.reverse(); }
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
         shuffle() {
-    ```
-
-    ```js
           this.messages.sort(() => Math.random() - 0.5);
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       }
     ```
 
@@ -1385,9 +971,6 @@ show: false,
 
     ```js
     > cd Chapter08/Exercise8.03/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -1399,77 +982,23 @@ show: false,
 
     ```js
     const router = createRouter({
-    ```
-
-    ```js
       history: createWebHistory(import.meta.env.BASE_URL),
-    ```
-
-    ```js
       routes: [
-    ```
-
-    ```js
         {
-    ```
-
-    ```js
           path: "/",
-    ```
-
-    ```js
           name: "home",
-    ```
-
-    ```js
           component: HomeView,
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
         {
-    ```
-
-    ```js
           path: "/messages",
-    ```
-
-    ```js
           name: "messages",
-    ```
-
-    ```js
           meta: {
-    ```
-
-    ```js
             transition: "zoom",
-    ```
-
-    ```js
           },
-    ```
-
-    ```js
           component: () =>
-    ```
-
-    ```js
             import("../views/Messages.vue"),
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       ],
-    ```
-
-    ```js
     });
     ```
 
@@ -1477,17 +1006,8 @@ show: false,
 
     ```js
     <nav>
-    ```
-
-    ```js
       <RouterLink to="/">Home</RouterLink>
-    ```
-
-    ```js
       <RouterLink to="/messages">Messages</RouterLink>
-    ```
-
-    ```js
     </nav>
     ```
 
@@ -1495,25 +1015,10 @@ show: false,
 
     ```js
     <router-view v-slot="{ Component, route }">
-    ```
-
-    ```js
       <transition :name="route.meta.transition ||
-    ```
-
-    ```js
         transition" :mode="mode">
-    ```
-
-    ```js
         <component :is="Component" />
-    ```
-
-    ```js
       </transition>
-    ```
-
-    ```js
     </router-view>
     ```
 
@@ -1521,21 +1026,9 @@ show: false,
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import { RouterLink, RouterView } from "vue-router";
-    ```
-
-    ```js
     let transition = "fade";
-    ```
-
-    ```js
     const mode = "out-in";
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1543,33 +1036,12 @@ show: false,
 
     ```js
     <style>
-    ```
-
-    ```js
       .fade-enter-from, .fade-leave-to {
-    ```
-
-    ```js
         opacity: 0;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       .fade-enter-active, .fade-leave-active {
-    ```
-
-    ```js
         transition: opacity 1s ease-in;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -1577,77 +1049,23 @@ show: false,
 
     ```js
     /**Zoom animation */
-    ```
-
-    ```js
     .zoom-enter-active,
-    ```
-
-    ```js
     .zoom-leave-active {
-    ```
-
-    ```js
       animation-duration: 0.5s;
-    ```
-
-    ```js
       animation-fill-mode: both;
-    ```
-
-    ```js
       animation-name: zoom;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     .zoom-leave-active {
-    ```
-
-    ```js
       animation-direction: reverse;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     @keyframes zoom {
-    ```
-
-    ```js
      from {
-    ```
-
-    ```js
         opacity: 0;
-    ```
-
-    ```js
         transform: scale3d(0.4, 0.4, 0.4);
-    ```
-
-    ```js
      }
-    ```
-
-    ```js
       100% {
-    ```
-
-    ```js
         opacity: 1;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
     ```
 
@@ -1655,69 +1073,21 @@ show: false,
 
     ```js
     #app {
-    ```
-
-    ```js
       font-family: 'Avenir', Helvetica, Arial, sans-serif;
-    ```
-
-    ```js
       -webkit-font-smoothing: antialiased;
-    ```
-
-    ```js
       -moz-osx-font-smoothing: grayscale;
-    ```
-
-    ```js
       text-align: center;
-    ```
-
-    ```js
       color: #2c3e50;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     #nav {
-    ```
-
-    ```js
       padding: 30px;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     #nav a {
-    ```
-
-    ```js
       font-weight: bold;
-    ```
-
-    ```js
       color: #2c3e50;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     #nav a.router-link-exact-active {
-    ```
-
-    ```js
       color: #42b983;
-    ```
-
-    ```js
     }
     ```
 
@@ -1725,33 +1095,12 @@ show: false,
 
     ```js
       {
-    ```
-
-    ```js
         path: '/messages',
-    ```
-
-    ```js
         name: 'messages',
-    ```
-
-    ```js
         meta: {
-    ```
-
-    ```js
           transition: 'zoom',
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
         component: () => import '../views/Messages.vue')
-    ```
-
-    ```js
       }
     ```
 
@@ -1759,77 +1108,23 @@ show: false,
 
     ```js
     const router = createRouter({
-    ```
-
-    ```js
       history: createWebHistory(import.meta.env.BASE_URL),
-    ```
-
-    ```js
       routes: [
-    ```
-
-    ```js
         {
-    ```
-
-    ```js
           path: "/",
-    ```
-
-    ```js
           name: "home",
-    ```
-
-    ```js
           component: HomeView,
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
         {
-    ```
-
-    ```js
           path: "/messages",
-    ```
-
-    ```js
           name: "messages",
-    ```
-
-    ```js
           meta: {
-    ```
-
-    ```js
             transition: "zoom",
-    ```
-
-    ```js
           },
-    ```
-
-    ```js
           component: () =>
-    ```
-
-    ```js
             import("../views/Messages.vue"),
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       ],
-    ```
-
-    ```js
     });
     ```
 
@@ -1949,9 +1244,6 @@ gsap.fromTo(".grey",
 
     ```js
     > cd Chapter08/Exercise8.04/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -1961,13 +1253,7 @@ gsap.fromTo(".grey",
 
     ```js
     yarn add gsap
-    ```
-
-    ```js
     # OR
-    ```
-
-    ```js
     npm install gsap
     ```
 
@@ -1987,9 +1273,6 @@ gsap.fromTo(".grey",
 
     ```js
     import { ref } from 'vue'
-    ```
-
-    ```js
     const logo = ref();
     ```
 
@@ -1997,21 +1280,9 @@ gsap.fromTo(".grey",
 
     ```js
     import { onMounted, ref } from 'vue'
-    ```
-
-    ```js
     onMounted(() => {
-    ```
-
-    ```js
       gsap.from(logo.value, { duration: 30, rotation: 3600
-    ```
-
-    ```js
       });
-    ```
-
-    ```js
     });
     ```
 

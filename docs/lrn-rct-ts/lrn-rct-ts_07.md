@@ -58,29 +58,11 @@
 
     ```js
     module.exports = {
-    ```
-
-    ```js
       content: ['./src/**/*.{js,jsx,ts,tsx}'],
-    ```
-
-    ```js
       theme: {
-    ```
-
-    ```js
         extend: {},
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       plugins: [require('@tailwindcss/forms')],
-    ```
-
-    ```js
     };
     ```
 
@@ -102,25 +84,10 @@
 
     ```js
     type Contact = {
-    ```
-
-    ```js
       name: string;
-    ```
-
-    ```js
       email: string;
-    ```
-
-    ```js
       reason: string;
-    ```
-
-    ```js
       notes: string;
-    ```
-
-    ```js
     };
     ```
 
@@ -128,49 +95,16 @@
 
     ```js
     export function ContactPage() {
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <div className="flex flex-col py-10 max-w-md       mx-auto">
-    ```
-
-    ```js
           <h2 className="text-3xl font-bold underline         mb-3">Contact Us</h2>
-    ```
-
-    ```js
           <p className="mb-3">
-    ```
-
-    ```js
             If you enter your details we'll get back to you           as soon as we
-    ```
-
-    ```js
             can.
-    ```
-
-    ```js
           </p>
-    ```
-
-    ```js
           <form></form>
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -180,93 +114,27 @@
 
     ```js
     <form ...>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <label htmlFor="name">Your name</label>
-    ```
-
-    ```js
         <input type="text" id="name" />
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <label htmlFor="email">Your email address</label>
-    ```
-
-    ```js
         <input type="email" id="email" />
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <label htmlFor="reason">Reason you need to contact       us</label>
-    ```
-
-    ```js
         <select id="reason">
-    ```
-
-    ```js
           <option value=""></option>
-    ```
-
-    ```js
           <option value="Support">Support</option>
-    ```
-
-    ```js
           <option value="Feedback">Feedback</option>
-    ```
-
-    ```js
           <option value="Other">Other</option>
-    ```
-
-    ```js
         </select>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <label htmlFor="notes">Additional notes</label>
-    ```
-
-    ```js
         <textarea id="notes" />
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </form>
     ```
 
@@ -276,45 +144,15 @@
 
     ```js
     <form ...>
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <button
-    ```
-
-    ```js
           type="submit"
-    ```
-
-    ```js
           className="mt-2 h-10 px-6 font-semibold bg-black         text-white"
-    ```
-
-    ```js
         >
-    ```
-
-    ```js
           Submit
-    ```
-
-    ```js
         </button>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </form>
     ```
 
@@ -322,81 +160,24 @@
 
     ```js
     const fieldStyle = "flex flex-col mb-2";
-    ```
-
-    ```js
     return (
-    ```
-
-    ```js
       <div ...>
-    ```
-
-    ```js
         ...
-    ```
-
-    ```js
         <form ...>
-    ```
-
-    ```js
           <div className={fieldStyle}>...</div>
-    ```
-
-    ```js
           <div className={fieldStyle}>...</div>
-    ```
-
-    ```js
           <div className={fieldStyle}>...</div>
-    ```
-
-    ```js
           <div className={fieldStyle}>...</div>
-    ```
-
-    ```js
           <div>
-    ```
-
-    ```js
             <button
-    ```
-
-    ```js
               type="submit"
-    ```
-
-    ```js
               className="mt-2 h-10 px-6 font-semibold             bg-black text-white"
-    ```
-
-    ```js
             >
-    ```
-
-    ```js
               Submit
-    ```
-
-    ```js
             </button>
-    ```
-
-    ```js
           </div>
-    ```
-
-    ```js
         </form>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     );
     ```
 
@@ -406,41 +187,14 @@
 
     ```js
     export function ContactPage() {
-    ```
-
-    ```js
       const [contact, setContact] = useState<Contact>({
-    ```
-
-    ```js
         name: "",
-    ```
-
-    ```js
         email: "",
-    ```
-
-    ```js
         reason: "",
-    ```
-
-    ```js
         notes: "",
-    ```
-
-    ```js
       });
-    ```
-
-    ```js
       const fieldStyle = ...;
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
     }
     ```
 
@@ -450,45 +204,15 @@
 
     ```js
     <div className={fieldStyle}>
-    ```
-
-    ```js
       <label htmlFor="name">Your name</label>
-    ```
-
-    ```js
       <input
-    ```
-
-    ```js
         type="text"
-    ```
-
-    ```js
         id="name"
-    ```
-
-    ```js
         value={contact.name}
-    ```
-
-    ```js
         onChange={(e) =>
-    ```
-
-    ```js
           setContact({ ...contact, name: e.target.value })
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       />
-    ```
-
-    ```js
     </div>
     ```
 
@@ -498,133 +222,37 @@
 
     ```js
     <div className={fieldStyle}>
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
       <input
-    ```
-
-    ```js
         type="email"
-    ```
-
-    ```js
         id="email"
-    ```
-
-    ```js
         value={contact.email}
-    ```
-
-    ```js
         onChange={(e) =>
-    ```
-
-    ```js
           setContact({ ...contact, email: e.target.value })
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       />
-    ```
-
-    ```js
     </div>
-    ```
-
-    ```js
     <div className={fieldStyle}>
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
       <select
-    ```
-
-    ```js
         id="reason"
-    ```
-
-    ```js
         value={contact.reason}
-    ```
-
-    ```js
         onChange={(e) =>
-    ```
-
-    ```js
           setContact({ ...contact, reason: e.target.value })
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       >
-    ```
-
-    ```js
         ...
-    ```
-
-    ```js
       </select>
-    ```
-
-    ```js
     </div>
-    ```
-
-    ```js
     <div className={fieldStyle}>
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
       <textarea
-    ```
-
-    ```js
         id="notes"
-    ```
-
-    ```js
         value={contact.notes}
-    ```
-
-    ```js
         onChange={(e) =>
-    ```
-
-    ```js
           setContact({ ...contact, notes: e.target.value })
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       />
-    ```
-
-    ```js
     </div>
     ```
 
@@ -632,53 +260,17 @@
 
     ```js
     function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    ```
-
-    ```js
       e.preventDefault();
-    ```
-
-    ```js
       console.log('Submitted details:', contact);
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     const fieldStyle = ...;
-    ```
-
-    ```js
     return (
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         ...
-    ```
-
-    ```js
         <form onSubmit={handleSubmit}>
-    ```
-
-    ```js
           ...
-    ```
-
-    ```js
         </form>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     );
     ```
 
@@ -688,21 +280,9 @@
 
     ```js
     import { ContactPage } from './ContactPage';
-    ```
-
-    ```js
     function App() {
-    ```
-
-    ```js
       return <ContactPage />;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     export default App;
     ```
 
@@ -754,93 +334,27 @@
 
     ```js
     <form onSubmit={handleSubmit}>
-    ```
-
-    ```js
       <div className={fieldStyle}>
-    ```
-
-    ```js
         <label htmlFor="name">Your name</label>
-    ```
-
-    ```js
         <input type="text" id="name" name="name" />
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       <div className={fieldStyle}>
-    ```
-
-    ```js
         <label htmlFor="email">Your email address</label>
-    ```
-
-    ```js
         <input type="email" id="email" name="email" />
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       <div className={fieldStyle}>
-    ```
-
-    ```js
         <label htmlFor="reason">
-    ```
-
-    ```js
           Reason you need to contact us
-    ```
-
-    ```js
         </label>
-    ```
-
-    ```js
         <select id="reason" name="reason">
-    ```
-
-    ```js
           ...
-    ```
-
-    ```js
         </select>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       <div className={fieldStyle}>
-    ```
-
-    ```js
         <label htmlFor="notes">Additional notes</label>
-    ```
-
-    ```js
         <textarea id="notes" name="notes" />
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
     </form>;
     ```
 
@@ -850,45 +364,15 @@
 
     ```js
     function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    ```
-
-    ```js
       e.preventDefault();
-    ```
-
-    ```js
       const formData = new FormData(e.currentTarget);
-    ```
-
-    ```js
       const contact = {
-    ```
-
-    ```js
         name: formData.get('name'),
-    ```
-
-    ```js
         email: formData.get('email'),
-    ```
-
-    ```js
         reason: formData.get('reason'),
-    ```
-
-    ```js
         notes: formData.get('notes'),
-    ```
-
-    ```js
       } as Contact;
-    ```
-
-    ```js
       console.log('Submitted details:', contact);
-    ```
-
-    ```js
     }
     ```
 
@@ -930,57 +414,18 @@
 
     ```js
     import { useParams } from 'react-router-dom';
-    ```
-
-    ```js
     export function ThankYouPage() {
-    ```
-
-    ```js
       const { name } = useParams<{ name: string }>();
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <div className="flex flex-col py-10 max-w-md       mx-auto">
-    ```
-
-    ```js
           <div
-    ```
-
-    ```js
             role="alert"
-    ```
-
-    ```js
             className="bg-green-100 py-5 px-6 text-base text-          green-700 "
-    ```
-
-    ```js
           >
-    ```
-
-    ```js
             Thanks {name}, we will be in touch shortly
-    ```
-
-    ```js
           </div>
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -990,21 +435,9 @@
 
     ```js
     import {
-    ```
-
-    ```js
       createBrowserRouter,
-    ```
-
-    ```js
       RouterProvider,
-    ```
-
-    ```js
       Navigate
-    ```
-
-    ```js
     } from 'react-router-dom';
     ```
 
@@ -1014,21 +447,9 @@
 
     ```js
     import {
-    ```
-
-    ```js
       ContactPage,
-    ```
-
-    ```js
       contactPageAction
-    ```
-
-    ```js
     } from './ContactPage';
-    ```
-
-    ```js
     import { ThankYouPage } from './ThankYouPage';
     ```
 
@@ -1038,61 +459,19 @@
 
     ```js
     const router = createBrowserRouter([
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         path: '/',
-    ```
-
-    ```js
         element: <Navigate to="contact" />,
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         path: '/contact',
-    ```
-
-    ```js
         element: <ContactPage />,
-    ```
-
-    ```js
         action: contactPageAction,
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         path: '/thank-you/:name',
-    ```
-
-    ```js
         element: <ThankYouPage />,
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     ]);
     ```
 
@@ -1102,13 +481,7 @@
 
     ```js
     function App() {
-    ```
-
-    ```js
       return <RouterProvider router={router} />;
-    ```
-
-    ```js
     }
     ```
 
@@ -1116,21 +489,9 @@
 
     ```js
     import {
-    ```
-
-    ```js
       Form,
-    ```
-
-    ```js
       ActionFunctionArgs,
-    ```
-
-    ```js
       redirect,
-    ```
-
-    ```js
     } from 'react-router-dom';
     ```
 
@@ -1138,13 +499,7 @@
 
     ```js
     <Form method="post">
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
     </Form>
     ```
 
@@ -1154,53 +509,17 @@
 
     ```js
     export async function contactPageAction(
-    ```
-
-    ```js
       e: FormEvent<HTMLFormElement>
-    ```
-
-    ```js
     ) {
-    ```
-
-    ```js
       e.preventDefault();
-    ```
-
-    ```js
       const formData = new FormData(e.currentTarget);
-    ```
-
-    ```js
       const contact = {
-    ```
-
-    ```js
         name: formData.get('name'),
-    ```
-
-    ```js
         email: formData.get('email'),
-    ```
-
-    ```js
         reason: formData.get('reason'),
-    ```
-
-    ```js
         notes: formData.get('notes'),
-    ```
-
-    ```js
       } as Contact;
-    ```
-
-    ```js
       console.log('Submitted details:', contact);
-    ```
-
-    ```js
     }
     ```
 
@@ -1210,13 +529,7 @@
 
     ```js
     export async function contactPageAction({
-    ```
-
-    ```js
       request,
-    ```
-
-    ```js
     }: ActionFunctionArgs)
     ```
 
@@ -1234,33 +547,12 @@
 
     ```js
     export async function contactPageAction({
-    ```
-
-    ```js
       request,
-    ```
-
-    ```js
     }: ActionFunctionArgs) {
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
       return redirect(
-    ```
-
-    ```js
         `/thank-you/${formData.get('name')}`
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -1300,61 +592,19 @@ React Router 的 `Form` 组件的关键点如下：
 
     ```js
     <Form method="post">
-    ```
-
-    ```js
       <div className={fieldStyle}>
-    ```
-
-    ```js
         ...
-    ```
-
-    ```js
         <input type="text" id="name" name="name" required />
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       <div className={fieldStyle}>
-    ```
-
-    ```js
         ...
-    ```
-
-    ```js
         <input type="email" id="email" name="email" required />
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       <div className={fieldStyle}>
-    ```
-
-    ```js
         ...
-    ```
-
-    ```js
         <select id="reason" name="reason" required >...</      select>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
     </Form>
     ```
 
@@ -1362,29 +612,11 @@ React Router 的 `Form` 组件的关键点如下：
 
     ```js
     <input
-    ```
-
-    ```js
       type="email"
-    ```
-
-    ```js
       id="email"
-    ```
-
-    ```js
       name="email"
-    ```
-
-    ```js
       required
-    ```
-
-    ```js
       pattern="\S+@\S+\.\S+"
-    ```
-
-    ```js
     />
     ```
 
@@ -1572,17 +804,8 @@ React Hook Form 中还有许多其他功能，但这些都是常用的基本函�
 
     ```js
     export function ContactPage() {
-    ```
-
-    ```js
       const { register, handleSubmit } = useForm<Contact>();
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
     }
     ```
 
@@ -1590,17 +813,8 @@ React Hook Form 中还有许多其他功能，但这些都是常用的基本函�
 
     ```js
     export function ContactPage() {
-    ```
-
-    ```js
       const { register, handleSubmit } = useForm<Contact>();
-    ```
-
-    ```js
       const navigate = useNavigate();
-    ```
-
-    ```js
     }
     ```
 
@@ -1608,13 +822,7 @@ React Hook Form 中还有许多其他功能，但这些都是常用的基本函�
 
     ```js
     <form onSubmit={handleSubmit(onSubmit)}>
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
     </form>
     ```
 
@@ -1624,21 +832,9 @@ React Hook Form 中还有许多其他功能，但这些都是常用的基本函�
 
     ```js
     const navigate = useNavigate();
-    ```
-
-    ```js
     function onSubmit(contact: Contact) {
-    ```
-
-    ```js
       console.log('Submitted details:', contact);
-    ```
-
-    ```js
       navigate(`/thank-you/${contact.name}`);
-    ```
-
-    ```js
     }
     ```
 
@@ -1650,85 +846,25 @@ React Hook Form 中还有许多其他功能，但这些都是常用的基本函�
 
     ```js
     <form onSubmit={handleSubmit(onSubmit)}>
-    ```
-
-    ```js
       <div className={fieldStyle}>
-    ```
-
-    ```js
         <label htmlFor="name">Your name</label>
-    ```
-
-    ```js
         <input ... {...register('name')} />
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       <div className={fieldStyle}>
-    ```
-
-    ```js
         <label htmlFor="email">Your email address</label>
-    ```
-
-    ```js
         <input ... {...register('email')} />
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       <div className={fieldStyle}>
-    ```
-
-    ```js
         <label htmlFor="reason">Reason you need to contact       us</label>
-    ```
-
-    ```js
         <select ... {...register('reason')}>
-    ```
-
-    ```js
           ...
-    ```
-
-    ```js
         </select>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       <div className={fieldStyle}>
-    ```
-
-    ```js
         <label htmlFor="notes">Additional notes</label>
-    ```
-
-    ```js
         <textarea ... {...register('notes')} />
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
     </Form>
     ```
 
@@ -1738,65 +874,20 @@ React Hook Form 现在将能够跟踪这些字段。
 
     ```js
     import { ContactPage } from './ContactPage';
-    ```
-
-    ```js
     ...
-    ```
-
-    ```js
     const router = createBrowserRouter([
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         path: '/',
-    ```
-
-    ```js
         element: <Navigate to="contact" />,
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         path: '/contact',
-    ```
-
-    ```js
         element: <ContactPage />
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         path: '/thank-you/:name',
-    ```
-
-    ```js
         element: <ThankYouPage />,
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     ]);
     ```
 
@@ -1826,21 +917,9 @@ React Hook Form 现在将能够跟踪这些字段。
 
     ```js
     const {
-    ```
-
-    ```js
       register,
-    ```
-
-    ```js
       handleSubmit,
-    ```
-
-    ```js
       formState: { errors }
-    ```
-
-    ```js
     } = useForm<Contact>();
     ```
 
@@ -1858,125 +937,35 @@ React Hook Form 现在将能够跟踪这些字段。
 
     ```js
     <div className={fieldStyle}>
-    ```
-
-    ```js
       <label htmlFor="name">Your name</label>
-    ```
-
-    ```js
       <input
-    ```
-
-    ```js
         type="text"
-    ```
-
-    ```js
         id="name"
-    ```
-
-    ```js
         {...register('name', {
-    ```
-
-    ```js
           required: 'You must enter your name'
-    ```
-
-    ```js
         })}
-    ```
-
-    ```js
       />
-    ```
-
-    ```js
     </div>
-    ```
-
-    ```js
     <div className={fieldStyle}>
-    ```
-
-    ```js
       <label htmlFor="email">Your email address</label>
-    ```
-
-    ```js
       <input
-    ```
-
-    ```js
         type="email"
-    ```
-
-    ```js
         id="email"
-    ```
-
-    ```js
         {...register('email', {
-    ```
-
-    ```js
           required: 'You must enter your email address'
-    ```
-
-    ```js
         })}
-    ```
-
-    ```js
       />
-    ```
-
-    ```js
     </div>
-    ```
-
-    ```js
     <div className={fieldStyle}>
-    ```
-
-    ```js
       <label htmlFor="reason">Reason you need to contact us</label>
-    ```
-
-    ```js
       <select
-    ```
-
-    ```js
         id="reason"
-    ```
-
-    ```js
         {...register('reason', {
-    ```
-
-    ```js
           required: 'You must enter the reason for contacting         us'
-    ```
-
-    ```js
         })}
-    ```
-
-    ```js
       >
-    ```
-
-    ```js
         ...
-    ```
-
-    ```js
       </select>
-    ```
-
-    ```js
     </div>
     ```
 
@@ -1986,45 +975,15 @@ React Hook Form 现在将能够跟踪这些字段。
 
     ```js
     <input
-    ```
-
-    ```js
       type="email"
-    ```
-
-    ```js
       id="email"
-    ```
-
-    ```js
       {...register('email', {
-    ```
-
-    ```js
         required: 'You must enter your email address',
-    ```
-
-    ```js
         pattern: {
-    ```
-
-    ```js
           value: /\S+@\S+\.\S+/,
-    ```
-
-    ```js
           message: 'Entered value does not match email         format',
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       })}
-    ```
-
-    ```js
     />
     ```
 
@@ -2032,33 +991,12 @@ React Hook Form 现在将能够跟踪这些字段。
 
     ```js
     function getEditorStyle(fieldError: FieldError | undefined) {
-    ```
-
-    ```js
       return fieldError ? 'border-red-500' : '';
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     return (
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         ...
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     );
     ```
 
@@ -2068,57 +1006,18 @@ React Hook Form 现在将能够跟踪这些字段。
 
     ```js
     <div className={fieldStyle}>
-    ```
-
-    ```js
       <label htmlFor="name">Your name</label>
-    ```
-
-    ```js
       <input ... className={getEditorStyle(errors.name)} />
-    ```
-
-    ```js
     </div>
-    ```
-
-    ```js
     <div className={fieldStyle}>
-    ```
-
-    ```js
       <label htmlFor="email">Your email address</label>
-    ```
-
-    ```js
       <input ... className={getEditorStyle(errors.email)} />
-    ```
-
-    ```js
     </div>
-    ```
-
-    ```js
     <div className={fieldStyle}>
-    ```
-
-    ```js
       <label htmlFor="reason">Reason you need to contact us</label>
-    ```
-
-    ```js
       <select ... className={getEditorStyle(errors.reason)} >
-    ```
-
-    ```js
         ...
-    ```
-
-    ```js
       </select>
-    ```
-
-    ```js
     </div>
     ```
 
@@ -2128,57 +1027,18 @@ React Hook Form 的 `errors` 状态包含一个属性，用于包含具有验证
 
     ```js
     import { FieldError } from 'react-hook-form';
-    ```
-
-    ```js
     type Props = {
-    ```
-
-    ```js
       fieldError: FieldError | undefined;
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     export function ValidationError({ fieldError }: Props) {
-    ```
-
-    ```js
       if (!fieldError) {
-    ```
-
-    ```js
         return null;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <div role="alert" className="text-red-500 text-xs       mt-1">
-    ```
-
-    ```js
           {fieldError.message}
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2194,61 +1054,19 @@ React Hook Form 的 `errors` 状态包含一个属性，用于包含具有验证
 
     ```js
     <div className={fieldStyle}>
-    ```
-
-    ```js
       <label htmlFor="name">Your name</label>
-    ```
-
-    ```js
       <input ... />
-    ```
-
-    ```js
       <ValidationError fieldError={errors.name} />
-    ```
-
-    ```js
     </div>
-    ```
-
-    ```js
     <div className={fieldStyle}>
-    ```
-
-    ```js
       <label htmlFor="email">Your email address</label>
-    ```
-
-    ```js
       <input ... />
-    ```
-
-    ```js
       <ValidationError fieldError={errors.email} />
-    ```
-
-    ```js
     </div>
-    ```
-
-    ```js
     <div className={fieldStyle}>
-    ```
-
-    ```js
       <label htmlFor="reason">Reason you need to contact us</label>
-    ```
-
-    ```js
       <select ... >...</select>
-    ```
-
-    ```js
       <ValidationError fieldError={errors.reason} />
-    ```
-
-    ```js
     </div>
     ```
 
@@ -2276,33 +1094,12 @@ React Hook Form 的 `errors` 状态包含一个属性，用于包含具有验证
 
     ```js
     const {
-    ```
-
-    ```js
       register,
-    ```
-
-    ```js
       handleSubmit,
-    ```
-
-    ```js
       formState: { errors },
-    ```
-
-    ```js
     } = useForm<Contact>({
-    ```
-
-    ```js
       mode: "onBlur",
-    ```
-
-    ```js
       reValidateMode: "onBlur"
-    ```
-
-    ```js
     });
     ```
 
@@ -2342,69 +1139,21 @@ React Hook Form 的 `errors` 状态包含一个属性，用于包含具有验证
 
     ```js
     function ControlledForm () {
-    ```
-
-    ```js
       const [name, setName] = useState('');
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <form
-    ```
-
-    ```js
           onSubmit={(e) => {
-    ```
-
-    ```js
             e.preventDefault();
-    ```
-
-    ```js
             console.log(name);
-    ```
-
-    ```js
           }}
-    ```
-
-    ```js
         >
-    ```
-
-    ```js
           <input
-    ```
-
-    ```js
             placeholder="Enter your name"
-    ```
-
-    ```js
             value={name}
-    ```
-
-    ```js
             onChange={(e) => setName(e.target.value)}
-    ```
-
-    ```js
           />
-    ```
-
-    ```js
         </form>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2412,57 +1161,18 @@ React Hook Form 的 `errors` 状态包含一个属性，用于包含具有验证
 
     ```js
     function UnControlledForm() {
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <form
-    ```
-
-    ```js
           onSubmit={(e) => {
-    ```
-
-    ```js
             e.preventDefault();
-    ```
-
-    ```js
             console.log(
-    ```
-
-    ```js
               new FormData(e.currentTarget).get('name')
-    ```
-
-    ```js
             );
-    ```
-
-    ```js
           }}
-    ```
-
-    ```js
         >
-    ```
-
-    ```js
           <input placeholder="Enter your name" name="name" />
-    ```
-
-    ```js
         </form>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2470,57 +1180,18 @@ React Hook Form 的 `errors` 状态包含一个属性，用于包含具有验证
 
     ```js
     function SearchForm() {
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <form
-    ```
-
-    ```js
           onSubmit={(e) => {
-    ```
-
-    ```js
             e.preventDefault();
-    ```
-
-    ```js
             console.log(
-    ```
-
-    ```js
               new FormData(e.currentTarget).get('search')
-    ```
-
-    ```js
             );
-    ```
-
-    ```js
           }}
-    ```
-
-    ```js
         >
-    ```
-
-    ```js
           <input type="search" placeholder="Search ..." />
-    ```
-
-    ```js
         </form>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2528,41 +1199,14 @@ React Hook Form 的 `errors` 状态包含一个属性，用于包含具有验证
 
     ```js
     function SearchReactHookForm() {
-    ```
-
-    ```js
       const { handleSubmit } = useForm();
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <form
-    ```
-
-    ```js
           onSubmit={handleSubmit((search) => console.        log(search))}
-    ```
-
-    ```js
         >
-    ```
-
-    ```js
           <input type="search" placeholder="Search ..." />
-    ```
-
-    ```js
         </form>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2570,65 +1214,20 @@ React Hook Form 的 `errors` 状态包含一个属性，用于包含具有验证
 
     ```js
     function SearchReactHookForm() {
-    ```
-
-    ```js
       const { handleSubmit, register } = useForm();
-    ```
-
-    ```js
       async function onSubmit(search) {
-    ```
-
-    ```js
         console.log(search.criteria);
-    ```
-
-    ```js
         // send to web server to perform the search
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <form onSubmit={handleSubmit(onSubmit)}>
-    ```
-
-    ```js
           <input
-    ```
-
-    ```js
             type="search"
-    ```
-
-    ```js
             placeholder="Search ..."
-    ```
-
-    ```js
             {...register('criteria')}
-    ```
-
-    ```js
           />
-    ```
-
-    ```js
         </form>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2652,57 +1251,18 @@ React Hook Form 的 `errors` 状态包含一个属性，用于包含具有验证
 
     ```js
     function SearchReactHookForm() {
-    ```
-
-    ```js
       const { handleSubmit, register } = useForm();
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <form
-    ```
-
-    ```js
           onSubmit={handleSubmit((search) => console.        log(search))}
-    ```
-
-    ```js
         >
-    ```
-
-    ```js
           <input
-    ```
-
-    ```js
             type="search"
-    ```
-
-    ```js
             placeholder="Search ..."
-    ```
-
-    ```js
             {...register('criteria')}
-    ```
-
-    ```js
           />
-    ```
-
-    ```js
         </form>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2710,41 +1270,14 @@ React Hook Form 的 `errors` 状态包含一个属性，用于包含具有验证
 
     ```js
     type Search = {
-    ```
-
-    ```js
       criteria: string;
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     function SearchReactHookForm() {
-    ```
-
-    ```js
       const { handleSubmit, register } = useForm<Search>();
-    ```
-
-    ```js
       async function onSubmit(search: Search) {
-    ```
-
-    ```js
         ...
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       return ...
-    ```
-
-    ```js
     }
     ```
 
@@ -2752,73 +1285,22 @@ React Hook Form 的 `errors` 状态包含一个属性，用于包含具有验证
 
     ```js
     function SearchReactHookForm() {
-    ```
-
-    ```js
       const {
-    ```
-
-    ```js
         handleSubmit,
-    ```
-
-    ```js
         register,
-    ```
-
-    ```js
         formState: { isSubmitting },
-    ```
-
-    ```js
       } = useForm<Search>();
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <form onSubmit={handleSubmit(onSubmit)}>
-    ```
-
-    ```js
           <input
-    ```
-
-    ```js
             type="search"
-    ```
-
-    ```js
             placeholder="Search ..."
-    ```
-
-    ```js
             {...register('criteria')}
-    ```
-
-    ```js
             disabled={isSubmitting}
-    ```
-
-    ```js
           />
-    ```
-
-    ```js
         </form>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2826,25 +1308,10 @@ React Hook Form 的 `errors` 状态包含一个属性，用于包含具有验证
 
     ```js
     <input
-    ```
-
-    ```js
       type="search"
-    ```
-
-    ```js
       placeholder="Search ..."
-    ```
-
-    ```js
       {...register('criteria', { required: true })}
-    ```
-
-    ```js
       disabled={isSubmitting}
-    ```
-
-    ```js
     />
     ```
 

@@ -233,17 +233,8 @@ Create React App 需要一两分钟来创建项目。在后续命令中，应用
 
     ```js
     {
-    ```
-
-    ```js
       "editor.formatOnSave": true,
-    ```
-
-    ```js
       "editor.defaultFormatter": "esbenp.prettier-vscode"
-    ```
-
-    ```js
     }
     ```
 
@@ -251,45 +242,15 @@ Create React App 需要一两分钟来创建项目。在后续命令中，应用
 
     ```js
     {
-    ```
-
-    ```js
       ...,
-    ```
-
-    ```js
       "eslintConfig": {
-    ```
-
-    ```js
         "extends": [
-    ```
-
-    ```js
           "react-app",
-    ```
-
-    ```js
           "react-app/jest",
-    ```
-
-    ```js
           "plugin:prettier/recommended"
-    ```
-
-    ```js
         ]
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
     }
     ```
 
@@ -297,33 +258,12 @@ Create React App 需要一两分钟来创建项目。在后续命令中，应用
 
     ```js
     {
-    ```
-
-    ```js
       "printWidth": 100,
-    ```
-
-    ```js
       "singleQuote": true,
-    ```
-
-    ```js
       "semi": true,
-    ```
-
-    ```js
       "tabWidth": 2,
-    ```
-
-    ```js
       "trailingComma": "all",
-    ```
-
-    ```js
       "endOfLine": "auto"
-    ```
-
-    ```js
     }
     ```
 
@@ -339,25 +279,10 @@ Create React App 需要一两分钟来创建项目。在后续命令中，应用
 
     ```js
     import React from 'react';
-    ```
-
-    ```js
     import './App.css';
-    ```
-
-    ```js
     function App() {
-    ```
-
-    ```js
       return <div className="App"></div>;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     export default App;
     ```
 
@@ -373,33 +298,12 @@ Create React App 需要一两分钟来创建项目。在后续命令中，应用
 
     ```js
     type Person = {
-    ```
-
-    ```js
       name: string,
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     export function getPerson(): Promise<Person> {
-    ```
-
-    ```js
       return new Promise((resolve) =>
-    ```
-
-    ```js
         setTimeout(() => resolve({ name: "Bob" }), 1000)
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -411,21 +315,9 @@ Create React App 需要一两分钟来创建项目。在后续命令中，应用
 
     ```js
     import { useEffect } from 'react';
-    ```
-
-    ```js
     import { getPerson } from './getPerson';
-    ```
-
-    ```js
     export function PersonScore() {
-    ```
-
-    ```js
       return null;
-    ```
-
-    ```js
     }
     ```
 
@@ -435,25 +327,10 @@ Create React App 需要一两分钟来创建项目。在后续命令中，应用
 
     ```js
     export function PersonScore() {
-    ```
-
-    ```js
       useEffect(() => {
-    ```
-
-    ```js
         getPerson().then((person) => console.log(person));
-    ```
-
-    ```js
       }, []);
-    ```
-
-    ```js
       return null;
-    ```
-
-    ```js
     }
     ```
 
@@ -463,45 +340,15 @@ Create React App 需要一两分钟来创建项目。在后续命令中，应用
 
     ```js
     import React from 'react';
-    ```
-
-    ```js
     import './App.css';
-    ```
-
-    ```js
     import { PersonScore } from './PersonScore';
-    ```
-
-    ```js
     function App() {
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <div className="App">
-    ```
-
-    ```js
           <PersonScore />
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     export default App;
     ```
 
@@ -517,17 +364,8 @@ Create React App 需要一两分钟来创建项目。在后续命令中，应用
 
     ```js
     useEffect(async () => {
-    ```
-
-    ```js
       const person = await getPerson();
-    ```
-
-    ```js
       console.log(person);
-    ```
-
-    ```js
     }, []);
     ```
 
@@ -547,29 +385,11 @@ Create React App 需要一两分钟来创建项目。在后续命令中，应用
 
     ```js
     useEffect(() => {
-    ```
-
-    ```js
       async function getThePerson() {
-    ```
-
-    ```js
         const person = await getPerson();
-    ```
-
-    ```js
         console.log(person);
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       getThePerson();
-    ```
-
-    ```js
     }, []);
     ```
 
@@ -613,29 +433,11 @@ const [state, setState] = useState(initialState);
 
     ```js
     export function PersonScore() {
-    ```
-
-    ```js
       const [name, setName] = useState<string | undefined>();
-    ```
-
-    ```js
       const [score, setScore] = useState(0);
-    ```
-
-    ```js
       const [loading, setLoading] = useState(true);
-    ```
-
-    ```js
       useEffect( ... );
-    ```
-
-    ```js
       return null;
-    ```
-
-    ```js
     }
     ```
 
@@ -645,25 +447,10 @@ const [state, setState] = useState(initialState);
 
     ```js
     useEffect(() => {
-    ```
-
-    ```js
       getPerson().then((person) => {
-    ```
-
-    ```js
         setLoading(false);
-    ```
-
-    ```js
         setName(person.name);
-    ```
-
-    ```js
       });
-    ```
-
-    ```js
     }, []);
     ```
 
@@ -673,21 +460,9 @@ const [state, setState] = useState(initialState);
 
     ```js
     useEffect( ... );
-    ```
-
-    ```js
     if (loading) {
-    ```
-
-    ```js
       return <div>Loading ...</div>;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     return ...
     ```
 
@@ -697,53 +472,17 @@ const [state, setState] = useState(initialState);
 
     ```js
     if (loading) {
-    ```
-
-    ```js
       return <div>Loading ...</div>;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     return (
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h3>
-    ```
-
-    ```js
           {name}, {score}
-    ```
-
-    ```js
         </h3>
-    ```
-
-    ```js
         <button>Add</button>
-    ```
-
-    ```js
         <button>Subtract</button>
-    ```
-
-    ```js
         <button>Reset</button>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     );
     ```
 
@@ -773,9 +512,6 @@ setScore(previousScore => previousScore + 1)
 
     ```js
     <button onClick={() => setScore(score - 1)}>Subtract</button>
-    ```
-
-    ```js
     <button onClick={() => setScore(0)}>Reset</button>
     ```
 
@@ -789,29 +525,11 @@ setScore(previousScore => previousScore + 1)
 
     ```js
     useEffect(() => {
-    ```
-
-    ```js
       getPerson().then((person) => {
-    ```
-
-    ```js
         setLoading(false);
-    ```
-
-    ```js
         setName(person.name);
-    ```
-
-    ```js
         console.log("State values", loading, name);
-    ```
-
-    ```js
       });
-    ```
-
-    ```js
     }, []);
     ```
 
@@ -899,21 +617,9 @@ const [state, dispatch] = useReducer<Reducer<State, Action>>(
 
     ```js
     type State = {
-    ```
-
-    ```js
       name: string | undefined;
-    ```
-
-    ```js
       score: number;
-    ```
-
-    ```js
       loading: boolean;
-    ```
-
-    ```js
     };
     ```
 
@@ -921,57 +627,18 @@ const [state, dispatch] = useReducer<Reducer<State, Action>>(
 
     ```js
     type Action =
-    ```
-
-    ```js
       | {
-    ```
-
-    ```js
           type: 'initialize';
-    ```
-
-    ```js
           name: string;
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       | {
-    ```
-
-    ```js
           type: 'increment';
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       | {
-    ```
-
-    ```js
           type: 'decrement';
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       | {
-    ```
-
-    ```js
           type: 'reset';
-    ```
-
-    ```js
         };
     ```
 
@@ -981,57 +648,18 @@ const [state, dispatch] = useReducer<Reducer<State, Action>>(
 
     ```js
     function reducer(state: State, action: Action): State {
-    ```
-
-    ```js
       switch (action.type) {
-    ```
-
-    ```js
         case 'initialize':
-    ```
-
-    ```js
           return { name: action.name, score: 0, loading: false };
-    ```
-
-    ```js
         case 'increment':
-    ```
-
-    ```js
           return { ...state, score: state.score + 1 };
-    ```
-
-    ```js
         case 'decrement':
-    ```
-
-    ```js
           return { ...state, score: state.score - 1 };
-    ```
-
-    ```js
         case 'reset':
-    ```
-
-    ```js
           return { ...state, score: 0 };
-    ```
-
-    ```js
         default:
-    ```
-
-    ```js
           return state;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
     ```
 
@@ -1047,33 +675,12 @@ const [state, dispatch] = useReducer<Reducer<State, Action>>(
 
     ```js
     const [{ name, score, loading }, dispatch] = useReducer(
-    ```
-
-    ```js
       reducer,
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         name: undefined,
-    ```
-
-    ```js
         score: 0,
-    ```
-
-    ```js
         loading: true,
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     );
     ```
 
@@ -1085,21 +692,9 @@ const [state, dispatch] = useReducer<Reducer<State, Action>>(
 
     ```js
     useEffect(() => {
-    ```
-
-    ```js
       getPerson().then(({ name }) =>
-    ```
-
-    ```js
         dispatch({ type: 'initialize', name })
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }, []);
     ```
 
@@ -1107,37 +702,13 @@ const [state, dispatch] = useReducer<Reducer<State, Action>>(
 
     ```js
     <button onClick={() => dispatch({ type: 'increment' })}>
-    ```
-
-    ```js
       Add
-    ```
-
-    ```js
     </button>
-    ```
-
-    ```js
     <button onClick={() => dispatch({ type: 'decrement' })}>
-    ```
-
-    ```js
       Subtract
-    ```
-
-    ```js
     </button>
-    ```
-
-    ```js
     <button onClick={() => dispatch({ type: 'reset' })}>
-    ```
-
-    ```js
       Reset
-    ```
-
-    ```js
     </button>
     ```
 
@@ -1216,13 +787,7 @@ function MyComponent() {
 
     ```js
     const [ ... ] = useReducer( ... );
-    ```
-
-    ```js
     const addButtonRef = useRef<HTMLButtonElement>(null);
-    ```
-
-    ```js
     useEffect( ... )
     ```
 
@@ -1236,25 +801,10 @@ function MyComponent() {
 
     ```js
     <button
-    ```
-
-    ```js
       ref={addButtonRef}
-    ```
-
-    ```js
       onClick={() => dispatch({ type: 'increment' })}
-    ```
-
-    ```js
     >
-    ```
-
-    ```js
       Add
-    ```
-
-    ```js
     </button>
     ```
 
@@ -1262,53 +812,17 @@ function MyComponent() {
 
     ```js
     useEffect(() => {
-    ```
-
-    ```js
       getPerson().then(({ name }) =>
-    ```
-
-    ```js
         dispatch({ type: 'initialize', name })
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }, []);
-    ```
-
-    ```js
     useEffect(() => {
-    ```
-
-    ```js
       if (!loading) {
-    ```
-
-    ```js
         addButtonRef.current?.focus();
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }, [loading]);
-    ```
-
-    ```js
     if (loading) {
-    ```
-
-    ```js
       return <div>Loading ...</div>;
-    ```
-
-    ```js
     }
     ```
 
@@ -1387,25 +901,10 @@ const memoizedValue = useMemo(
 
     ```js
     import {
-    ```
-
-    ```js
       useEffect,
-    ```
-
-    ```js
       useReducer,
-    ```
-
-    ```js
       useRef,
-    ```
-
-    ```js
       useMemo
-    ```
-
-    ```js
     } from 'react';
     ```
 
@@ -1413,33 +912,12 @@ const memoizedValue = useMemo(
 
     ```js
     function sillyExpensiveFunction() {
-    ```
-
-    ```js
       console.log("Executing silly function");
-    ```
-
-    ```js
       let sum = 0;
-    ```
-
-    ```js
       for (let i = 0; i < 10000; i++) {
-    ```
-
-    ```js
         sum += i;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       return sum;
-    ```
-
-    ```js
     }
     ```
 
@@ -1449,21 +927,9 @@ const memoizedValue = useMemo(
 
     ```js
     useEffect( ... );
-    ```
-
-    ```js
     const expensiveCalculation = sillyExpensiveFunction();
-    ```
-
-    ```js
     if (loading) {
-    ```
-
-    ```js
       return <div>Loading ...</div>;
-    ```
-
-    ```js
     }
     ```
 
@@ -1471,29 +937,11 @@ const memoizedValue = useMemo(
 
     ```js
     <h3>
-    ```
-
-    ```js
       {name}, {score}
-    ```
-
-    ```js
     </h3>
-    ```
-
-    ```js
     <p>{expensiveCalculation}</p>
-    ```
-
-    ```js
     <button ... >
-    ```
-
-    ```js
       Add
-    ```
-
-    ```js
     </button>
     ```
 
@@ -1511,17 +959,8 @@ const memoizedValue = useMemo(
 
     ```js
     const expensiveCalculation = useMemo(
-    ```
-
-    ```js
       () => sillyExpensiveFunction(),
-    ```
-
-    ```js
       []
-    ```
-
-    ```js
     );
     ```
 
@@ -1628,29 +1067,11 @@ export const ChildComponent = memo(() => {
 
     ```js
     type Props = {
-    ```
-
-    ```js
       onClick: () => void,
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     export function Reset({ onClick }: Props) {
-    ```
-
-    ```js
       console.log("render Reset");
-    ```
-
-    ```js
       return <button onClick={onClick}>Reset</button>;
-    ```
-
-    ```js
     }
     ```
 
@@ -1666,29 +1087,11 @@ export const ChildComponent = memo(() => {
 
     ```js
     <div>
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
       <button onClick={() => dispatch({ type: 'decrement' })}>
-    ```
-
-    ```js
         Subtract
-    ```
-
-    ```js
       </button>
-    ```
-
-    ```js
       <Reset onClick={() => dispatch({ type: 'reset' })} />
-    ```
-
-    ```js
     </div>;
     ```
 
@@ -1722,17 +1125,8 @@ export const ChildComponent = memo(() => {
 
     ```js
     export const Reset = memo(({ onClick }: Props) => {
-    ```
-
-    ```js
       console.log("render Reset");
-    ```
-
-    ```js
       return <button onClick={onClick}>Reset</button>;
-    ```
-
-    ```js
     });
     ```
 
@@ -1764,49 +1158,16 @@ export const ChildComponent = memo(() => {
 
     ```js
     function handleReset() {
-    ```
-
-    ```js
       dispatch({ type: 'reset' });
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     if (loading) {
-    ```
-
-    ```js
       return <div>Loading ...</div>;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     return (
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         ...
-    ```
-
-    ```js
         <Reset onClick={handleReset} />
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     );
     ```
 
@@ -1814,29 +1175,11 @@ export const ChildComponent = memo(() => {
 
     ```js
     import {
-    ```
-
-    ```js
       useEffect,
-    ```
-
-    ```js
       useReducer,
-    ```
-
-    ```js
       useRef,
-    ```
-
-    ```js
       useMemo,
-    ```
-
-    ```js
       useCallback
-    ```
-
-    ```js
     } from 'react';
     ```
 
@@ -1844,17 +1187,8 @@ export const ChildComponent = memo(() => {
 
     ```js
     const handleReset = useCallback(
-    ```
-
-    ```js
       () => dispatch({ type: 'reset' }),
-    ```
-
-    ```js
       []
-    ```
-
-    ```js
     );
     ```
 
@@ -1896,41 +1230,14 @@ export const ChildComponent = memo(() => {
 
     ```js
     export function TextVanish({ text }: Props) {
-    ```
-
-    ```js
       if (!text) {
-    ```
-
-    ```js
         return null;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       const [textToRender, setTextToRender] = useState(text);
-    ```
-
-    ```js
       useEffect(() => {
-    ```
-
-    ```js
         setTimeout(() => setTextToRender(""), 5000);
-    ```
-
-    ```js
       }, []);
-    ```
-
-    ```js
       return <span>{textToRender}</span>;
-    ```
-
-    ```js
     }
     ```
 
@@ -1938,21 +1245,9 @@ export const ChildComponent = memo(() => {
 
     ```js
     const [data, setData] = useState([]);
-    ```
-
-    ```js
     useEffect(async () => {
-    ```
-
-    ```js
       const data = await getData();
-    ```
-
-    ```js
       setData(data);
-    ```
-
-    ```js
     });
     ```
 
@@ -1960,57 +1255,18 @@ export const ChildComponent = memo(() => {
 
     ```js
     export function Counter() {
-    ```
-
-    ```js
       const [count, setCount] = useState(0);
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <button
-    ```
-
-    ```js
           onClick={() => {
-    ```
-
-    ```js
             setCount(count + 1);
-    ```
-
-    ```js
             setCount(count + 1);
-    ```
-
-    ```js
             setCount(count + 1);
-    ```
-
-    ```js
           }}
-    ```
-
-    ```js
         >
-    ```
-
-    ```js
           {count}
-    ```
-
-    ```js
         </button>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2018,49 +1274,16 @@ export const ChildComponent = memo(() => {
 
     ```js
     export function CounterRef() {
-    ```
-
-    ```js
       const count = useRef(0);
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <button
-    ```
-
-    ```js
           onClick={() => {
-    ```
-
-    ```js
             count.current = count.current + 1;
-    ```
-
-    ```js
           }}
-    ```
-
-    ```js
         >
-    ```
-
-    ```js
           {count.current}
-    ```
-
-    ```js
         </button>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2068,57 +1291,18 @@ export const ChildComponent = memo(() => {
 
     ```js
     type State = { steps: number };
-    ```
-
-    ```js
     type Action =
-    ```
-
-    ```js
       | { type: 'forward'; steps: number }
-    ```
-
-    ```js
       | { type: 'backwards'; steps: number };
-    ```
-
-    ```js
     function reducer(state: State, action: Action): State {
-    ```
-
-    ```js
       switch (action.type) {
-    ```
-
-    ```js
         case 'forward':
-    ```
-
-    ```js
           return { ...state, steps: state.steps + action.steps };
-    ```
-
-    ```js
         case 'backwards':
-    ```
-
-    ```js
           return { ...state, steps: state.steps - action.        steps };
-    ```
-
-    ```js
         default:
-    ```
-
-    ```js
           return state;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
     ```
 
@@ -2128,45 +1312,15 @@ export const ChildComponent = memo(() => {
 
     ```js
     export function Counter() {
-    ```
-
-    ```js
       const [count, setCount] = useState(0);
-    ```
-
-    ```js
       const memoCount = useMemo(() => count, []);
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <div>
-    ```
-
-    ```js
           <button onClick={() => setCount(count + 1)}>
-    ```
-
-    ```js
             {memoCount}
-    ```
-
-    ```js
           </button>
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2176,45 +1330,15 @@ export const ChildComponent = memo(() => {
 
     ```js
     export function Counter() {
-    ```
-
-    ```js
       const [count, setCount] = useState(0);
-    ```
-
-    ```js
       const handleClick = useCallback(() => {
-    ```
-
-    ```js
         setCount(count + 1);
-    ```
-
-    ```js
       }, []);
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <div>
-    ```
-
-    ```js
           <button onClick={handleClick}>{count}</button>
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2226,41 +1350,14 @@ export const ChildComponent = memo(() => {
 
     ```js
     export function TextVanish({ text }: Props) {
-    ```
-
-    ```js
       const [textToRender, setTextToRender] = useState(text);
-    ```
-
-    ```js
       useEffect(() => {
-    ```
-
-    ```js
         setTimeout(() => setTextToRender(""), 5000);
-    ```
-
-    ```js
       }, []);
-    ```
-
-    ```js
       if (!text) {
-    ```
-
-    ```js
         return null;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       return <span>{textToRender}</span>;
-    ```
-
-    ```js
     }
     ```
 
@@ -2268,17 +1365,8 @@ export const ChildComponent = memo(() => {
 
     ```js
     const [data, setData] = useState([]);
-    ```
-
-    ```js
     useEffect(() => {
-    ```
-
-    ```js
       getData().then((theData) => setData(theData));
-    ```
-
-    ```js
     });
     ```
 

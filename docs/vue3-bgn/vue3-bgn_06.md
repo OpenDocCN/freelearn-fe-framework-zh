@@ -513,13 +513,7 @@ const onDelete = () => {
 
     ```js
     <SocialPost
-    ```
-
-    ```js
       v-for="(post, index) in posts"
-    ```
-
-    ```js
       :username="post.username"
     ```
 
@@ -527,29 +521,11 @@ const onDelete = () => {
 
     ```js
     <SocialPost
-    ```
-
-    ```js
       v-for="(post, index) in posts"
-    ```
-
-    ```js
       :username="post.username"
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
       :key="post.userId"
-    ```
-
-    ```js
       @delete="onDelete(index)"
-    ```
-
-    ```js
     ></SocialPost>
     ```
 
@@ -557,13 +533,7 @@ const onDelete = () => {
 
     ```js
     const onDelete = ( postIndex ) => {
-    ```
-
-    ```js
       posts.splice(postIndex, 1);
-    ```
-
-    ```js
     }
     ```
 

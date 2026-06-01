@@ -138,25 +138,10 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     type Props<Data> = {
-    ```
-
-    ```js
       data: Data[];
-    ```
-
-    ```js
       id: keyof Data;
-    ```
-
-    ```js
       primary: keyof Data;
-    ```
-
-    ```js
       secondary: keyof Data;
-    ```
-
-    ```js
     };
     ```
 
@@ -176,53 +161,17 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     export function Checklist<Data>({
-    ```
-
-    ```js
       data,
-    ```
-
-    ```js
       id,
-    ```
-
-    ```js
       primary,
-    ```
-
-    ```js
       secondary,
-    ```
-
-    ```js
     }: Props<Data>) {
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <ul className="bg-gray-300 rounded p-10">
-    ```
-
-    ```js
           {data.map((item) => {
-    ```
-
-    ```js
           })}
-    ```
-
-    ```js
         </ul>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -232,57 +181,18 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     {data.map((item) => {
-    ```
-
-    ```js
       const idValue = item[id] as unknown;
-    ```
-
-    ```js
       if (
-    ```
-
-    ```js
         typeof idValue !== 'string' &&
-    ```
-
-    ```js
         typeof idValue !== 'number'
-    ```
-
-    ```js
       ) {
-    ```
-
-    ```js
         return null;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       const primaryText = item[primary] as unknown;
-    ```
-
-    ```js
       if (typeof primaryText !== 'string') {
-    ```
-
-    ```js
         return null;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       const secondaryText = item[secondary] as unknown;
-    ```
-
-    ```js
     }
     ```
 
@@ -290,73 +200,22 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     {data.map((item) => {
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <li
-    ```
-
-    ```js
           key={idValue}
-    ```
-
-    ```js
           className="bg-white p-6 shadow rounded mb-4         last:mb-0"
-    ```
-
-    ```js
         >
-    ```
-
-    ```js
           <div className="text-xl text-gray-800 pb-1">
-    ```
-
-    ```js
             {primaryText}
-    ```
-
-    ```js
           </div>
-    ```
-
-    ```js
           {typeof secondaryText === 'string' && (
-    ```
-
-    ```js
             <div className="text-sm text-gray-500">
-    ```
-
-    ```js
               {secondaryText}
-    ```
-
-    ```js
             </div>
-    ```
-
-    ```js
           )}
-    ```
-
-    ```js
         </li>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     })}
     ```
 
@@ -374,69 +233,21 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     import { Checklist } from './Checklist';
-    ```
-
-    ```js
     function App() {
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <div className="p-10">
-    ```
-
-    ```js
           <Checklist
-    ```
-
-    ```js
             data={[
-    ```
-
-    ```js
               { id: 1, name: 'Lucy', role: 'Manager' },
-    ```
-
-    ```js
               { id: 2, name: 'Bob', role: 'Developer' },
-    ```
-
-    ```js
             ]}
-    ```
-
-    ```js
             id="id"
-    ```
-
-    ```js
             primary="name"
-    ```
-
-    ```js
             secondary="role"
-    ```
-
-    ```js
           />
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     export default App;
     ```
 
@@ -482,25 +293,10 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     type Props<Data> = {
-    ```
-
-    ```js
       data: Data[];
-    ```
-
-    ```js
       id: keyof Data;
-    ```
-
-    ```js
       primary: keyof Data;
-    ```
-
-    ```js
       secondary: keyof Data;
-    ```
-
-    ```js
     } & ComponentPropsWithoutRef<'ul'>;
     ```
 
@@ -508,37 +304,13 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     export function Checklist<Data>({
-    ```
-
-    ```js
       data,
-    ```
-
-    ```js
       id,
-    ```
-
-    ```js
       primary,
-    ```
-
-    ```js
       secondary,
-    ```
-
-    ```js
       ...ulProps
-    ```
-
-    ```js
     }: Props<Data>) {
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
     }
     ```
 
@@ -548,57 +320,18 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     export function Checklist<Data>({
-    ```
-
-    ```js
       data,
-    ```
-
-    ```js
       id,
-    ```
-
-    ```js
       primary,
-    ```
-
-    ```js
       secondary,
-    ```
-
-    ```js
       ...ulProps
-    ```
-
-    ```js
     }: Props<Data>) {
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <ul
-    ```
-
-    ```js
           className="bg-gray-300 rounded p-10"
-    ```
-
-    ```js
           {...ulProps}
-    ```
-
-    ```js
         >...</ul>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -606,73 +339,22 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     <Checklist
-    ```
-
-    ```js
       data={[
-    ```
-
-    ```js
         { id: 1, name: 'Lucy', role: 'Manager' },
-    ```
-
-    ```js
         { id: 2, name: 'Bob', role: 'Developer' },
-    ```
-
-    ```js
         { id: 3, name: 'Bill', role: 'Developer' },
-    ```
-
-    ```js
         { id: 4, name: 'Tara', role: 'Developer' },
-    ```
-
-    ```js
         { id: 5, name: 'Sara', role: 'UX' },
-    ```
-
-    ```js
         { id: 6, name: 'Derik', role: 'QA' }
-    ```
-
-    ```js
       ]}
-    ```
-
-    ```js
       id="id"
-    ```
-
-    ```js
       primary="name"
-    ```
-
-    ```js
       secondary="role"
-    ```
-
-    ```js
       style={{
-    ```
-
-    ```js
         width: '300px',
-    ```
-
-    ```js
         maxHeight: '380px',
-    ```
-
-    ```js
         overflowY: 'auto'
-    ```
-
-    ```js
       }}
-    ```
-
-    ```js
     />
     ```
 
@@ -743,29 +425,11 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     type Props<Data> = {
-    ```
-
-    ```js
       data: Data[];
-    ```
-
-    ```js
       id: keyof Data;
-    ```
-
-    ```js
       primary: keyof Data;
-    ```
-
-    ```js
       secondary: keyof Data;
-    ```
-
-    ```js
       renderItem?: (item: Data) => ReactNode;
-    ```
-
-    ```js
     } & React.ComponentPropsWithoutRef<'ul'>;
     ```
 
@@ -775,41 +439,14 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     export function Checklist<Data>({
-    ```
-
-    ```js
       data,
-    ```
-
-    ```js
       id,
-    ```
-
-    ```js
       primary,
-    ```
-
-    ```js
       secondary,
-    ```
-
-    ```js
       renderItem,
-    ```
-
-    ```js
       ...ulProps
-    ```
-
-    ```js
     }: Props<Data>) {
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
     }
     ```
 
@@ -817,37 +454,13 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     <ul ...>
-    ```
-
-    ```js
       {data.map((item) => {
-    ```
-
-    ```js
         if (renderItem) {
-    ```
-
-    ```js
           return renderItem(item);
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
         const idValue = item[id] as unknown;
-    ```
-
-    ```js
         ...
-    ```
-
-    ```js
       })}
-    ```
-
-    ```js
     </ul>
     ```
 
@@ -857,45 +470,15 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     <Checklist
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
       renderItem={(item) => (
-    ```
-
-    ```js
         <li key={item.id} className="bg-white p-4       border-b-2">
-    ```
-
-    ```js
           <div className="text-xl text-slate-800 pb-1">
-    ```
-
-    ```js
             {item.name}
-    ```
-
-    ```js
           </div>
-    ```
-
-    ```js
           <div className="text-slate-500">{item.role}</div>
-    ```
-
-    ```js
         </li>
-    ```
-
-    ```js
       )}
-    ```
-
-    ```js
     />
     ```
 
@@ -929,21 +512,9 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     import {
-    ```
-
-    ```js
       ComponentPropsWithoutRef,
-    ```
-
-    ```js
       ReactNode,
-    ```
-
-    ```js
       useState
-    ```
-
-    ```js
     } from 'react';
     ```
 
@@ -961,89 +532,26 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     <li
-    ```
-
-    ```js
       key={idValue}
-    ```
-
-    ```js
       className="bg-white p-6 shadow rounded mb-4 last:mb-0"
-    ```
-
-    ```js
     >
-    ```
-
-    ```js
       <label className="flex items-center">
-    ```
-
-    ```js
         <input
-    ```
-
-    ```js
           type="checkbox"
-    ```
-
-    ```js
           checked={checkedIds.includes(idValue)}
-    ```
-
-    ```js
           onChange={handleCheckChange(idValue)}
-    ```
-
-    ```js
         />
-    ```
-
-    ```js
         <div className="ml-2">
-    ```
-
-    ```js
           <div className="text-xl text-gray-800 pb-1">
-    ```
-
-    ```js
             {primaryText}
-    ```
-
-    ```js
           </div>
-    ```
-
-    ```js
           {typeof secondaryText === 'string' && (
-    ```
-
-    ```js
             <div className="text-sm text-gray-500">
-    ```
-
-    ```js
               {secondaryText}
-    ```
-
-    ```js
             </div>
-    ```
-
-    ```js
           )}
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       </label>
-    ```
-
-    ```js
     </li>
     ```
 
@@ -1055,13 +563,7 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     const [checkedIds, setCheckedIds] = useState<IdValue[]>([]);
-    ```
-
-    ```js
     const handleCheckChange = (checkedId: IdValue) => () => {};
-    ```
-
-    ```js
     return ...
     ```
 
@@ -1071,37 +573,13 @@ export function List<Item>({ items }: Props<Item>) {
 
     ```js
     const handleCheckChange = (checkedId: IdValue) => () => {
-    ```
-
-    ```js
       const isChecked = checkedIds.includes(checkedId);
-    ```
-
-    ```js
       let newCheckedIds = isChecked
-    ```
-
-    ```js
         ? checkedIds.filter(
-    ```
-
-    ```js
             (itemCheckedid) => itemCheckedid !== checkedId
-    ```
-
-    ```js
           )
-    ```
-
-    ```js
         : checkedIds.concat(checkedId);
-    ```
-
-    ```js
       setCheckedIds(newCheckedIds);
-    ```
-
-    ```js
     };
     ```
 
@@ -1210,9 +688,6 @@ const { toggleValue, toggle } = useToggle({
 
     ```js
     import { useState } from 'react';
-    ```
-
-    ```js
     import { IdValue } from './types';
     ```
 
@@ -1222,13 +697,7 @@ const { toggleValue, toggle } = useToggle({
 
     ```js
     export function useChecked() {
-    ```
-
-    ```js
       const [checkedIds, setCheckedIds] =     useState<IdValue[]>([]);
-    ```
-
-    ```js
     }
     ```
 
@@ -1238,49 +707,16 @@ const { toggleValue, toggle } = useToggle({
 
     ```js
     export function useChecked() {
-    ```
-
-    ```js
       const [checkedIds, setCheckedIds] =     useState<IdValue[]>([]);
-    ```
-
-    ```js
       const handleCheckChange = (checkedId: IdValue) => () => {
-    ```
-
-    ```js
         const isChecked = checkedIds.includes(checkedId);
-    ```
-
-    ```js
         let newCheckedIds = isChecked
-    ```
-
-    ```js
           ? checkedIds.filter(
-    ```
-
-    ```js
               (itemCheckedid) => itemCheckedid !== checkedId
-    ```
-
-    ```js
             )
-    ```
-
-    ```js
           : checkedIds.concat(checkedId);
-    ```
-
-    ```js
         setCheckedIds(newCheckedIds);
-    ```
-
-    ```js
       };
-    ```
-
-    ```js
     }
     ```
 
@@ -1288,17 +724,8 @@ const { toggleValue, toggle } = useToggle({
 
     ```js
     export function useChecked() {
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
       return { handleCheckChange, checkedIds };
-    ```
-
-    ```js
     }
     ```
 
@@ -1314,17 +741,8 @@ const { toggleValue, toggle } = useToggle({
 
     ```js
     export function Checklist<Data>({ ... }: Props<Data>) {
-    ```
-
-    ```js
       const { checkedIds, handleCheckChange } = useChecked();
-    ```
-
-    ```js
       return ...
-    ```
-
-    ```js
     }
     ```
 
@@ -1462,41 +880,14 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     type Params = {
-    ```
-
-    ```js
       checkedIds?: IdValue[];
-    ```
-
-    ```js
       onCheckedIdsChange?: (checkedIds: IdValue[]) => void;
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     export function useChecked({
-    ```
-
-    ```js
       checkedIds,
-    ```
-
-    ```js
       onCheckedIdsChange,
-    ```
-
-    ```js
     }: Params) {
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
     }
     ```
 
@@ -1504,69 +895,21 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     export function useChecked({
-    ```
-
-    ```js
       checkedIds,
-    ```
-
-    ```js
       onCheckedIdsChange,
-    ```
-
-    ```js
     }: Params) {
-    ```
-
-    ```js
       const [resolvedCheckedIds, setResolvedCheckedIds] =
-    ```
-
-    ```js
         useState<IdValue[]>(checkedIds || []);
-    ```
-
-    ```js
       const handleCheckChange = (checkedId: IdValue) => () => {
-    ```
-
-    ```js
         const isChecked = resolvedCheckedIds.      includes(checkedId);
-    ```
-
-    ```js
         let newCheckedIds = isChecked
-    ```
-
-    ```js
           ? resolvedCheckedIds.filter(
-    ```
-
-    ```js
               (itemCheckedid) => itemCheckedid !== checkedId
-    ```
-
-    ```js
             )
-    ```
-
-    ```js
           : resolvedCheckedIds.concat(checkedId);
-    ```
-
-    ```js
         setResolvedCheckedIds(newCheckedIds);
-    ```
-
-    ```js
       };
-    ```
-
-    ```js
       return { handleCheckChange, resolvedCheckedIds };
-    ```
-
-    ```js
     }
     ```
 
@@ -1574,53 +917,17 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     const handleCheckChange = (checkedId: IdValue) => () => {
-    ```
-
-    ```js
       const isChecked = resolvedCheckedIds.    includes(checkedId);
-    ```
-
-    ```js
       let newCheckedIds = isChecked
-    ```
-
-    ```js
         ? resolvedCheckedIds.filter(
-    ```
-
-    ```js
             (itemCheckedid) => itemCheckedid !== checkedId
-    ```
-
-    ```js
           )
-    ```
-
-    ```js
         : resolvedCheckedIds.concat(checkedId);
-    ```
-
-    ```js
       if (onCheckedIdsChange) {
-    ```
-
-    ```js
         onCheckedIdsChange(newCheckedIds);
-    ```
-
-    ```js
       } else {
-    ```
-
-    ```js
         setResolvedCheckedIds(newCheckedIds);
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     };
     ```
 
@@ -1628,25 +935,10 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     useEffect(() => {
-    ```
-
-    ```js
       const isControlled = checkedIds !== undefined;
-    ```
-
-    ```js
       if (isControlled) {
-    ```
-
-    ```js
         setResolvedCheckedIds(checkedIds);
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }, [checkedIds]);
     ```
 
@@ -1660,77 +952,23 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     type Props<Data> = {
-    ```
-
-    ```js
       data: Data[];
-    ```
-
-    ```js
       id: keyof Data;
-    ```
-
-    ```js
       primary: keyof Data;
-    ```
-
-    ```js
       secondary: keyof Data;
-    ```
-
-    ```js
       renderItem?: (item: Data) => ReactNode;
-    ```
-
-    ```js
       checkedIds?: IdValue[];
-    ```
-
-    ```js
       onCheckedIdsChange?: (checkedIds: IdValue[]) => void;
-    ```
-
-    ```js
     } & ComponentPropsWithoutRef<'ul'>;
-    ```
-
-    ```js
     export function Checklist<Data>({
-    ```
-
-    ```js
       data,
-    ```
-
-    ```js
       id,
-    ```
-
-    ```js
       primary,
-    ```
-
-    ```js
       secondary,
-    ```
-
-    ```js
       renderItem,
-    ```
-
-    ```js
       checkedIds,
-    ```
-
-    ```js
       onCheckedIdsChange,
-    ```
-
-    ```js
       ...ulProps
-    ```
-
-    ```js
     }: Props<Data>) {}
     ```
 
@@ -1738,93 +976,27 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     const { resolvedCheckedIds, handleCheckChange } = useChecked({
-    ```
-
-    ```js
       checkedIds,
-    ```
-
-    ```js
       onCheckedIdsChange,
-    ```
-
-    ```js
     });
-    ```
-
-    ```js
     return (
-    ```
-
-    ```js
       <ul className="bg-gray-300 rounded p-10" {...ulProps}>
-    ```
-
-    ```js
         {data.map((item) => {
-    ```
-
-    ```js
           ...
-    ```
-
-    ```js
           return (
-    ```
-
-    ```js
             <li ... >
-    ```
-
-    ```js
               <label className="flex items-center">
-    ```
-
-    ```js
                 <input
-    ```
-
-    ```js
                   type="checkbox"
-    ```
-
-    ```js
                   checked={resolvedCheckedIds.                includes(idValue)}
-    ```
-
-    ```js
                   onChange={handleCheckChange(idValue)}
-    ```
-
-    ```js
                 />
-    ```
-
-    ```js
                 ...
-    ```
-
-    ```js
               </label>
-    ```
-
-    ```js
             </li>
-    ```
-
-    ```js
           );
-    ```
-
-    ```js
         })}
-    ```
-
-    ```js
       </ul>
-    ```
-
-    ```js
     );
     ```
 
@@ -1840,21 +1012,9 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     import { useState } from 'react';
-    ```
-
-    ```js
     import {
-    ```
-
-    ```js
       Checklist,
-    ```
-
-    ```js
       IdValue
-    ```
-
-    ```js
     } from './Checklist';
     ```
 
@@ -1862,25 +1022,10 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     function App() {
-    ```
-
-    ```js
       const [checkedId, setCheckedId] = useState<IdValue |     null>(
-    ```
-
-    ```js
         null
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
     }
     ```
 
@@ -1890,41 +1035,14 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     function handleCheckedIdsChange(newCheckedIds: IdValue[]) {
-    ```
-
-    ```js
       const newCheckedIdArr = newCheckedIds.filter(
-    ```
-
-    ```js
         (id) => id !== checkedId
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
       if (newCheckedIdArr.length === 1) {
-    ```
-
-    ```js
         setCheckedId(newCheckedIdArr[0]);
-    ```
-
-    ```js
       } else {
-    ```
-
-    ```js
         setCheckedId(null);
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
     ```
 
@@ -1934,21 +1052,9 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     <Checklist
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
       checkedIds={checkedId === null ? [] : [checkedId]}
-    ```
-
-    ```js
       onCheckedIdsChange={handleCheckedIdsChange}
-    ```
-
-    ```js
     />;
     ```
 
@@ -1988,49 +1094,16 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     type Props<TOption> = {
-    ```
-
-    ```js
       options: TOption[];
-    ```
-
-    ```js
       value: string;
-    ```
-
-    ```js
       label: string;
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     export function Select({
-    ```
-
-    ```js
       options,
-    ```
-
-    ```js
       value,
-    ```
-
-    ```js
       label,
-    ```
-
-    ```js
     }: Props<TOption>) {
-    ```
-
-    ```js
       return ...
-    ```
-
-    ```js
     }
     ```
 
@@ -2042,81 +1115,24 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     type Props<TOption> = {
-    ```
-
-    ```js
       ...,
-    ```
-
-    ```js
       option: ReactNode;
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     export function Select<TOption>({
-    ```
-
-    ```js
       ...,
-    ```
-
-    ```js
       option
-    ```
-
-    ```js
     }: Props<TOption>) {
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <div>
-    ```
-
-    ```js
           <input />
-    ```
-
-    ```js
           {options.map((option) => {
-    ```
-
-    ```js
             if (option) {
-    ```
-
-    ```js
               return option;
-    ```
-
-    ```js
             }
-    ```
-
-    ```js
             return ...
-    ```
-
-    ```js
           })}
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2126,45 +1142,15 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     type Props = {
-    ```
-
-    ```js
       label: string;
-    ```
-
-    ```js
     } & ComponentPropsWithoutRef<'input'>;
-    ```
-
-    ```js
     export function Field({ ...inputProps, label }: Props) {
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <>
-    ```
-
-    ```js
           <label>{label}</label>
-    ```
-
-    ```js
           <input {...inputProps} />
-    ```
-
-    ```js
         </>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2176,97 +1162,28 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     export function useValid() {
-    ```
-
-    ```js
       function validate(value: string) {
-    ```
-
-    ```js
         return (
-    ```
-
-    ```js
           value !== undefined && value !== null && value !==         ''
-    ```
-
-    ```js
         );
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       return validate;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     export function Field({ ... }: Props) {
-    ```
-
-    ```js
       const [valid, setValid] = useState(true);
-    ```
-
-    ```js
       const validate = useValid();
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <>
-    ```
-
-    ```js
           <label {...labelProps}>{label}</label>
-    ```
-
-    ```js
           <input
-    ```
-
-    ```js
             {...inputProps}
-    ```
-
-    ```js
             onBlur={(e) => {
-    ```
-
-    ```js
               setValid(validate(e.target.value));
-    ```
-
-    ```js
             }}
-    ```
-
-    ```js
           />
-    ```
-
-    ```js
           {!valid && <span>Please enter something</span>}
-    ```
-
-    ```js
         </>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2280,29 +1197,11 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     export function Select<TOption>({
-    ```
-
-    ```js
       options,
-    ```
-
-    ```js
       value,
-    ```
-
-    ```js
       label,
-    ```
-
-    ```js
     }: Props<TOption>) {
-    ```
-
-    ```js
       return ...
-    ```
-
-    ```js
     }
     ```
 
@@ -2310,21 +1209,9 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     type Props<TOption> = {
-    ```
-
-    ```js
       options: TOption[];
-    ```
-
-    ```js
       value: keyof TOption;
-    ```
-
-    ```js
       label: keyof TOption;
-    ```
-
-    ```js
     };
     ```
 
@@ -2332,85 +1219,25 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     type Props<TOption> = {
-    ```
-
-    ```js
       ...,
-    ```
-
-    ```js
       renderOption: (option: TOption) => ReactNode;
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     export function Select<TOption>({
-    ```
-
-    ```js
       options,
-    ```
-
-    ```js
       value,
-    ```
-
-    ```js
       label,
-    ```
-
-    ```js
       renderOption,
-    ```
-
-    ```js
     }: Props<TOption>) {
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <div>
-    ```
-
-    ```js
           <input />
-    ```
-
-    ```js
           {options.map((option) => {
-    ```
-
-    ```js
             if (renderOption) {
-    ```
-
-    ```js
               return renderOption(option);
-    ```
-
-    ```js
             }
-    ```
-
-    ```js
             return ...
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2418,13 +1245,7 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     export function Field({ label, ...inputProps }: Props) {
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
     }
     ```
 
@@ -2432,65 +1253,20 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     type Props = {
-    ```
-
-    ```js
       label: string;
-    ```
-
-    ```js
       labelProps: ComponentPropsWithoutRef<'label'>;
-    ```
-
-    ```js
     } & ComponentPropsWithoutRef<'input'>;
-    ```
-
-    ```js
     export function Field({
-    ```
-
-    ```js
       label,
-    ```
-
-    ```js
       labelProps,
-    ```
-
-    ```js
       ...inputProps
-    ```
-
-    ```js
     }: Props) {
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <>
-    ```
-
-    ```js
           <label {...labelProps}>{label}</label>
-    ```
-
-    ```js
           <input {...inputProps} />
-    ```
-
-    ```js
         </>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -2498,97 +1274,28 @@ const { resolvedToggleValue, toggle } = useToggle({
 
     ```js
     export function useValid() {
-    ```
-
-    ```js
       const [valid, setValid] = useState(true);
-    ```
-
-    ```js
       function validate(value: string) {
-    ```
-
-    ```js
         setValid(
-    ```
-
-    ```js
           value !== undefined && value !== null && value !== ''
-    ```
-
-    ```js
         );
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       return { valid, validate };
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     export function Field({ ... }: Props) {
-    ```
-
-    ```js
       const { valid, validate } = useValid();
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <>
-    ```
-
-    ```js
           <label {...labelProps}>{label}</label>
-    ```
-
-    ```js
           <input
-    ```
-
-    ```js
             {...inputProps}
-    ```
-
-    ```js
             onBlur={(e) => {
-    ```
-
-    ```js
               validate(e.target.value);
-    ```
-
-    ```js
             }}
-    ```
-
-    ```js
           />
-    ```
-
-    ```js
           {!valid && <span>Please enter something</span>}
-    ```
-
-    ```js
         </>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 

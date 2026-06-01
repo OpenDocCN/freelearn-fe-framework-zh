@@ -306,13 +306,7 @@ const logo = `<svg
 
     ```js
     <SocialPostComments
-    ```
-
-    ```js
       v-if="showComments"
-    ```
-
-    ```js
       :comments="comments"/>
     ```
 
@@ -320,17 +314,8 @@ const logo = `<svg
 
     ```js
     <button
-    ```
-
-    ```js
       v-show="comments.length > 0"
-    ```
-
-    ```js
       @click="showComments = true"
-    ```
-
-    ```js
     >Show Comments</button>
     ```
 

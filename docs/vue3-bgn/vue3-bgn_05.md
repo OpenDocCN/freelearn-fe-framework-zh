@@ -297,13 +297,7 @@ const fullName = computed( () => {
 
     ```js
     const hasComments = computed(() => {
-    ```
-
-    ```js
       return props.comments.length > 0;
-    ```
-
-    ```js
     });
     ```
 
@@ -311,25 +305,10 @@ const fullName = computed( () => {
 
     ```js
     <button
-    ```
-
-    ```js
       v-show="hasComments"
-    ```
-
-    ```js
       @click="onShowCommentClick"
-    ```
-
-    ```js
     >
-    ```
-
-    ```js
       Show Comments
-    ```
-
-    ```js
     </button>
     ```
 
@@ -379,57 +358,18 @@ const fullName = computed( () => {
 
     ```js
     { username: "Username one",
-    ```
-
-    ```js
       userId: "usernameId1",
-    ```
-
-    ```js
       avatar: "https://i.pravatar.cc/40",
-    ```
-
-    ```js
       post: "This is my post",
-    ```
-
-    ```js
       comments: [
-    ```
-
-    ```js
         "great post",
-    ```
-
-    ```js
         "amazing post"
-    ```
-
-    ```js
       ],
-    ```
-
-    ```js
       likes: 2,
-    ```
-
-    ```js
       retweets: 1,
-    ```
-
-    ```js
       tags: [
-    ```
-
-    ```js
         "tag 1"
-    ```
-
-    ```js
       ]
-    ```
-
-    ```js
       }
     ```
 
@@ -441,37 +381,13 @@ const fullName = computed( () => {
 
     ```js
     <SocialPost
-    ```
-
-    ```js
     :username="posts[0].username"
-    ```
-
-    ```js
     :userId="posts[0].userId"
-    ```
-
-    ```js
     :avatarSrc="posts[0].avatar"
-    ```
-
-    ```js
     :post="posts[0].post"
-    ```
-
-    ```js
     :comments="posts[0].comments"
-    ```
-
-    ```js
     :likes="posts[0].likes"
-    ```
-
-    ```js
     :retweets="posts[0].retweets"
-    ```
-
-    ```js
     ></SocialPost>
     ```
 
@@ -483,37 +399,13 @@ const fullName = computed( () => {
 
     ```js
     const props = defineProps({
-    ```
-
-    ```js
       username: String,
-    ```
-
-    ```js
       userId: Number,
-    ```
-
-    ```js
       avatarSrc: String,
-    ```
-
-    ```js
       post: String,
-    ```
-
-    ```js
       comments: Array,
-    ```
-
-    ```js
       likes: Number,
-    ```
-
-    ```js
       retweets: Number,
-    ```
-
-    ```js
     });
     ```
 
@@ -523,17 +415,8 @@ const fullName = computed( () => {
 
     ```js
     const interactions = computed( ()=> {
-    ```
-
-    ```js
       const comments = props.comments.length;
-    ```
-
-    ```js
       return comments + props.likes + props.retweets;
-    ```
-
-    ```js
     });
     ```
 
@@ -553,17 +436,8 @@ const fullName = computed( () => {
 
     ```js
     .interactions {
-    ```
-
-    ```js
       font-weight: bold;
-    ```
-
-    ```js
       margin-top: 8px;
-    ```
-
-    ```js
     }
     ```
 

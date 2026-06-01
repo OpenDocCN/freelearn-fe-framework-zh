@@ -54,37 +54,13 @@
 
     ```js
     export type User = {
-    ```
-
-    ```js
       id: string;
-    ```
-
-    ```js
       name: string;
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     export function authenticate(): Promise<User | undefined> {
-    ```
-
-    ```js
       return new Promise((resolve) =>
-    ```
-
-    ```js
         setTimeout(() => resolve({ id: "1", name: "Bob" }),       1000)
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -94,21 +70,9 @@
 
     ```js
     export function authorize(id: string): Promise<string[]> {
-    ```
-
-    ```js
       return new Promise((resolve) =>
-    ```
-
-    ```js
         setTimeout(() => resolve(["admin"]), 1000)
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -118,25 +82,10 @@
 
     ```js
     import { User } from './api/authenticate';
-    ```
-
-    ```js
     type Props = {
-    ```
-
-    ```js
       user: undefined | User;
-    ```
-
-    ```js
       onSignInClick: () => void;
-    ```
-
-    ```js
       loading: boolean;
-    ```
-
-    ```js
     };
     ```
 
@@ -146,93 +95,27 @@
 
     ```js
     export function Header({
-    ```
-
-    ```js
       user,
-    ```
-
-    ```js
       onSignInClick,
-    ```
-
-    ```js
       loading,
-    ```
-
-    ```js
     }: Props) {
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <header className="flex justify-between items-center       border-b-2 border-gray-100 py-6">
-    ```
-
-    ```js
           {user ? (
-    ```
-
-    ```js
             <span className="ml-auto font-bold">
-    ```
-
-    ```js
               {user.name} has signed in
-    ```
-
-    ```js
             </span>
-    ```
-
-    ```js
           ) : (
-    ```
-
-    ```js
             <button
-    ```
-
-    ```js
               onClick={onSignInClick}
-    ```
-
-    ```js
               className="whitespace-nowrap inline-flex items-            center justify-center ml-auto px-4 py-2 w-36             border border-transparent rounded-md             shadow-sm text-base font-medium text-white             bg-indigo-600 hover:bg-indigo-700"
-    ```
-
-    ```js
               disabled={loading}
-    ```
-
-    ```js
             >
-    ```
-
-    ```js
               {loading ? '...' : 'Sign in'}
-    ```
-
-    ```js
             </button>
-    ```
-
-    ```js
           )}
-    ```
-
-    ```js
         </header>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -242,25 +125,10 @@
 
     ```js
     import { User } from './api/authenticate';
-    ```
-
-    ```js
     import { Content } from './Content';
-    ```
-
-    ```js
     type Props = {
-    ```
-
-    ```js
       user: undefined | User;
-    ```
-
-    ```js
       permissions: undefined | string[];
-    ```
-
-    ```js
     };
     ```
 
@@ -270,45 +138,15 @@
 
     ```js
     export function Main({ user, permissions }: Props) {
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <main className="py-8">
-    ```
-
-    ```js
           <h1 className="text-3xl text-center font-bold         underline">Welcome</h1>
-    ```
-
-    ```js
           <p className="mt-8 text-xl text-center">
-    ```
-
-    ```js
             {user ? `Hello ${user.name}!` : "Please sign in"}
-    ```
-
-    ```js
           </p>
-    ```
-
-    ```js
           <Content permissions={permissions} />
-    ```
-
-    ```js
         </main>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -318,69 +156,21 @@
 
     ```js
     type Props = {
-    ```
-
-    ```js
       permissions: undefined | string[];
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     export function Content({ permissions }: Props) {
-    ```
-
-    ```js
       if (permissions === undefined) {
-    ```
-
-    ```js
         return null;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       return permissions.includes('admin') ? (
-    ```
-
-    ```js
         <p className="mt-4 text-l text-center">
-    ```
-
-    ```js
           Some important stuff that only an admin can do
-    ```
-
-    ```js
         </p>
-    ```
-
-    ```js
       ) : (
-    ```
-
-    ```js
         <p className="mt-4 text-l text-center">
-    ```
-
-    ```js
           Insufficient permissions
-    ```
-
-    ```js
         </p>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -400,21 +190,9 @@
 
     ```js
     import { useReducer } from 'react';
-    ```
-
-    ```js
     import { Header } from './Header';
-    ```
-
-    ```js
     import { Main } from './Main';
-    ```
-
-    ```js
     import { authenticate, User } from './api/authenticate';
-    ```
-
-    ```js
     import { authorize } from './api/authorize';
     ```
 
@@ -424,41 +202,14 @@
 
     ```js
     type State = {
-    ```
-
-    ```js
       user: undefined | User,
-    ```
-
-    ```js
       permissions: undefined | string[],
-    ```
-
-    ```js
       loading: boolean,
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     const initialState: State = {
-    ```
-
-    ```js
       user: undefined,
-    ```
-
-    ```js
       permissions: undefined,
-    ```
-
-    ```js
       loading: false,
-    ```
-
-    ```js
     };
     ```
 
@@ -466,61 +217,19 @@
 
     ```js
     type Action =
-    ```
-
-    ```js
       | {
-    ```
-
-    ```js
           type: "authenticate",
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       | {
-    ```
-
-    ```js
           type: "authenticated",
-    ```
-
-    ```js
           user: User | undefined,
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       | {
-    ```
-
-    ```js
           type: "authorize",
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       | {
-    ```
-
-    ```js
           type: "authorized",
-    ```
-
-    ```js
           permissions: string[],
-    ```
-
-    ```js
         };
     ```
 
@@ -530,73 +239,22 @@
 
     ```js
     function reducer(state: State, action: Action): State {
-    ```
-
-    ```js
       switch (action.type) {
-    ```
-
-    ```js
         case "authenticate":
-    ```
-
-    ```js
           return { ...state, loading: true };
-    ```
-
-    ```js
         case "authenticated":
-    ```
-
-    ```js
           return { ...state, loading: false, user: action.        user };
-    ```
-
-    ```js
         case "authorize":
-    ```
-
-    ```js
           return { ...state, loading: true };
-    ```
-
-    ```js
         case "authorized":
-    ```
-
-    ```js
           return {
-    ```
-
-    ```js
             ...state,
-    ```
-
-    ```js
             loading: false,
-    ```
-
-    ```js
             permissions: action.permissions,
-    ```
-
-    ```js
           };
-    ```
-
-    ```js
         default:
-    ```
-
-    ```js
           return state;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
     ```
 
@@ -606,61 +264,19 @@
 
     ```js
     function App() {
-    ```
-
-    ```js
       const [{ user, permissions, loading }, dispatch] =
-    ```
-
-    ```js
         useReducer(reducer, initialState);
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <div className="max-w-7xl mx-auto px-4">
-    ```
-
-    ```js
           <Header
-    ```
-
-    ```js
             user={user}
-    ```
-
-    ```js
             onSignInClick={handleSignInClick}
-    ```
-
-    ```js
             loading={loading}
-    ```
-
-    ```js
           />
-    ```
-
-    ```js
           <Main user={user} permissions={permissions} />
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     export default App;
     ```
 
@@ -670,73 +286,22 @@
 
     ```js
     async function handleSignInClick() {
-    ```
-
-    ```js
       dispatch({ type: "authenticate" });
-    ```
-
-    ```js
       const authenticatedUser = await authenticate();
-    ```
-
-    ```js
       dispatch({
-    ```
-
-    ```js
         type: "authenticated",
-    ```
-
-    ```js
         user: authenticatedUser,
-    ```
-
-    ```js
       });
-    ```
-
-    ```js
       if (authenticatedUser !== undefined) {
-    ```
-
-    ```js
         dispatch({ type: "authorize" });
-    ```
-
-    ```js
         const authorizedPermissions = await authorize(
-    ```
-
-    ```js
           authenticatedUser.id
-    ```
-
-    ```js
         );
-    ```
-
-    ```js
         dispatch({
-    ```
-
-    ```js
           type: "authorized",
-    ```
-
-    ```js
           permissions: authorizedPermissions,
-    ```
-
-    ```js
         });
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
     ```
 
@@ -839,29 +404,11 @@ export function SomeComponent() {
 
     ```js
     import {
-    ```
-
-    ```js
       createContext,
-    ```
-
-    ```js
       useContext,
-    ```
-
-    ```js
       useReducer,
-    ```
-
-    ```js
       ReactNode,
-    ```
-
-    ```js
     } from 'react';
-    ```
-
-    ```js
     import { User } from './api/authenticate';
     ```
 
@@ -871,41 +418,14 @@ export function SomeComponent() {
 
     ```js
     type State = {
-    ```
-
-    ```js
       user: undefined | User,
-    ```
-
-    ```js
       permissions: undefined | string[],
-    ```
-
-    ```js
       loading: boolean,
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     const initialState = {
-    ```
-
-    ```js
       user: undefined,
-    ```
-
-    ```js
       permissions: undefined,
-    ```
-
-    ```js
       loading: false,
-    ```
-
-    ```js
     };
     ```
 
@@ -913,117 +433,33 @@ export function SomeComponent() {
 
     ```js
     type Action =
-    ```
-
-    ```js
       | {
-    ```
-
-    ```js
           type: "authenticate",
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       | {
-    ```
-
-    ```js
           type: "authenticated",
-    ```
-
-    ```js
           user: User | undefined,
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       | {
-    ```
-
-    ```js
           type: "authorize",
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       | {
-    ```
-
-    ```js
           type: "authorized",
-    ```
-
-    ```js
           permissions: string[],
-    ```
-
-    ```js
         };
-    ```
-
-    ```js
     function reducer(state: State, action: Action): State {
-    ```
-
-    ```js
       switch (action.type) {
-    ```
-
-    ```js
         case "authenticate":
-    ```
-
-    ```js
           return { ...state, loading: true };
-    ```
-
-    ```js
         case "authenticated":
-    ```
-
-    ```js
           return { ...state, loading: false, user: action.        user };
-    ```
-
-    ```js
         case "authorize":
-    ```
-
-    ```js
           return { ...state, loading: true };
-    ```
-
-    ```js
         case "authorized":
-    ```
-
-    ```js
           return { ...state, loading: false, permissions:         action.permissions };
-    ```
-
-    ```js
         default:
-    ```
-
-    ```js
           return state;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
     ```
 
@@ -1033,13 +469,7 @@ export function SomeComponent() {
 
     ```js
     type AppContextType = State & {
-    ```
-
-    ```js
       dispatch: React.Dispatch<Action>,
-    ```
-
-    ```js
     };
     ```
 
@@ -1049,17 +479,8 @@ export function SomeComponent() {
 
     ```js
     const AppContext = createContext<AppContextType>({
-    ```
-
-    ```js
       ...initialState,
-    ```
-
-    ```js
       dispatch: () => {},
-    ```
-
-    ```js
     });
     ```
 
@@ -1069,77 +490,23 @@ export function SomeComponent() {
 
     ```js
     type Props = {
-    ```
-
-    ```js
       children: ReactNode;
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     export function AppProvider({ children }: Props) {
-    ```
-
-    ```js
       const [{ user, permissions, loading }, dispatch] =
-    ```
-
-    ```js
         useReducer(reducer, initialState);
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <AppContext.Provider
-    ```
-
-    ```js
           value={{
-    ```
-
-    ```js
             user,
-    ```
-
-    ```js
             permissions,
-    ```
-
-    ```js
             loading,
-    ```
-
-    ```js
             dispatch,
-    ```
-
-    ```js
           }}
-    ```
-
-    ```js
         >
-    ```
-
-    ```js
           {children}
-    ```
-
-    ```js
         </AppContext.Provider>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -1161,25 +528,10 @@ export function SomeComponent() {
 
     ```js
     import { authenticate } from './api/authenticate';
-    ```
-
-    ```js
     import { authorize } from './api/authorize';
-    ```
-
-    ```js
     import { useAppContext } from './AppContext';
-    ```
-
-    ```js
     export function Header() {
-    ```
-
-    ```js
       return ...
-    ```
-
-    ```js
     }
     ```
 
@@ -1187,85 +539,25 @@ export function SomeComponent() {
 
     ```js
     export function Header() {
-    ```
-
-    ```js
       async function handleSignInClick() {
-    ```
-
-    ```js
         dispatch({ type: 'authenticate' });
-    ```
-
-    ```js
         const authenticatedUser = await authenticate();
-    ```
-
-    ```js
         dispatch({
-    ```
-
-    ```js
           type: 'authenticated',
-    ```
-
-    ```js
           user: authenticatedUser,
-    ```
-
-    ```js
         });
-    ```
-
-    ```js
         if (authenticatedUser !== undefined) {
-    ```
-
-    ```js
           dispatch({ type: 'authorize' });
-    ```
-
-    ```js
           const authorizedPermissions = await authorize(
-    ```
-
-    ```js
             authenticatedUser.id
-    ```
-
-    ```js
           );
-    ```
-
-    ```js
           dispatch({
-    ```
-
-    ```js
             type: 'authorized',
-    ```
-
-    ```js
             permissions: authorizedPermissions,
-    ```
-
-    ```js
           });
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       return ...
-    ```
-
-    ```js
     }
     ```
 
@@ -1273,29 +565,11 @@ export function SomeComponent() {
 
     ```js
     <button
-    ```
-
-    ```js
       onClick={handleSignInClick}
-    ```
-
-    ```js
       className=...
-    ```
-
-    ```js
       disabled={loading}
-    ```
-
-    ```js
     >
-    ```
-
-    ```js
       {loading ? '...' : 'Sign in'}
-    ```
-
-    ```js
     </button>
     ```
 
@@ -1303,17 +577,8 @@ export function SomeComponent() {
 
     ```js
     export function Header() {
-    ```
-
-    ```js
       const { user, loading, dispatch } = useAppContext();
-    ```
-
-    ```js
       ...
-    ```
-
-    ```js
     }
     ```
 
@@ -1321,9 +586,6 @@ export function SomeComponent() {
 
     ```js
     import { Content } from './Content';
-    ```
-
-    ```js
     import { useAppContext } from './AppContext';
     ```
 
@@ -1331,17 +593,8 @@ export function SomeComponent() {
 
     ```js
     export function Main() {
-    ```
-
-    ```js
       const { user } = useAppContext();
-    ```
-
-    ```js
       return ...
-    ```
-
-    ```js
     }
     ```
 
@@ -1361,29 +614,11 @@ export function SomeComponent() {
 
     ```js
     export function Content() {
-    ```
-
-    ```js
       const { permissions } = useAppContext();
-    ```
-
-    ```js
       if (permissions === undefined) {
-    ```
-
-    ```js
         return null;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       return ...
-    ```
-
-    ```js
     }
     ```
 
@@ -1391,13 +626,7 @@ export function SomeComponent() {
 
     ```js
     import { Header } from './Header';
-    ```
-
-    ```js
     import { Main } from './Main';
-    ```
-
-    ```js
     import { AppProvider } from './AppContext';
     ```
 
@@ -1405,33 +634,12 @@ export function SomeComponent() {
 
     ```js
     function App() {
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <div className="max-w-7xl mx-auto px-4">
-    ```
-
-    ```js
           <Header />
-    ```
-
-    ```js
           <Main />
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -1439,41 +647,14 @@ export function SomeComponent() {
 
     ```js
     function App() {
-    ```
-
-    ```js
       return (
-    ```
-
-    ```js
         <div className="max-w-7xl mx-auto px-4">
-    ```
-
-    ```js
           <AppProvider>
-    ```
-
-    ```js
             <Header />
-    ```
-
-    ```js
             <Main />
-    ```
-
-    ```js
           </AppProvider>
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
     }
     ```
 
@@ -1612,13 +793,7 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     import { createSlice } from '@reduxjs/toolkit';
-    ```
-
-    ```js
     import type { PayloadAction } from '@reduxjs/toolkit';
-    ```
-
-    ```js
     import { User } from '../api/authenticate';
     ```
 
@@ -1628,41 +803,14 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     type State = {
-    ```
-
-    ```js
       user: undefined | User;
-    ```
-
-    ```js
       permissions: undefined | string[];
-    ```
-
-    ```js
       loading: boolean;
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     const initialState: State = {
-    ```
-
-    ```js
       user: undefined,
-    ```
-
-    ```js
       permissions: undefined,
-    ```
-
-    ```js
       loading: false,
-    ```
-
-    ```js
     };
     ```
 
@@ -1670,25 +818,10 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     export const userSlice = createSlice({
-    ```
-
-    ```js
       name: 'user',
-    ```
-
-    ```js
       initialState,
-    ```
-
-    ```js
       reducers: {
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     });
     ```
 
@@ -1698,89 +831,26 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     reducers: {
-    ```
-
-    ```js
       authenticateAction: (state) => {
-    ```
-
-    ```js
         state.loading = true;
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       authenticatedAction: (
-    ```
-
-    ```js
         state,
-    ```
-
-    ```js
         action: PayloadAction<User | undefined>
-    ```
-
-    ```js
       ) => {
-    ```
-
-    ```js
         state.user = action.payload;
-    ```
-
-    ```js
         state.loading = false;
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       authorizeAction: (state) => {
-    ```
-
-    ```js
         state.loading = true;
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       authorizedAction: (
-    ```
-
-    ```js
         state,
-    ```
-
-    ```js
         action: PayloadAction<string[]>
-    ```
-
-    ```js
       ) => {
-    ```
-
-    ```js
         state.permissions = action.payload;
-    ```
-
-    ```js
         state.loading = false;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
     ```
 
@@ -1790,29 +860,11 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     export const {
-    ```
-
-    ```js
       authenticateAction,
-    ```
-
-    ```js
       authenticatedAction,
-    ```
-
-    ```js
       authorizeAction,
-    ```
-
-    ```js
       authorizedAction,
-    ```
-
-    ```js
     } = userSlice.actions;
-    ```
-
-    ```js
     export default userSlice.reducer;
     ```
 
@@ -1828,9 +880,6 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     import { configureStore } from '@reduxjs/toolkit';
-    ```
-
-    ```js
     import userReducer from './userSlice';
     ```
 
@@ -1838,13 +887,7 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     export const store = configureStore({
-    ```
-
-    ```js
       reducer: { user: userReducer }
-    ```
-
-    ```js
     });
     ```
 
@@ -1870,9 +913,6 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     import { Provider } from 'react-redux';
-    ```
-
-    ```js
     import { store } from './store/store';
     ```
 
@@ -1880,25 +920,10 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     <div className="max-w-7xl mx-auto px-4">
-    ```
-
-    ```js
       <Provider store={store}>
-    ```
-
-    ```js
         <Header />
-    ```
-
-    ```js
         <Main />
-    ```
-
-    ```js
       </Provider>
-    ```
-
-    ```js
     </div>
     ```
 
@@ -1916,33 +941,12 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     import { useSelector, useDispatch } from 'react-redux';
-    ```
-
-    ```js
     import type { RootState } from './store/store';
-    ```
-
-    ```js
     import {
-    ```
-
-    ```js
       authenticateAction,
-    ```
-
-    ```js
       authenticatedAction,
-    ```
-
-    ```js
       authorizeAction,
-    ```
-
-    ```js
       authorizedAction,
-    ```
-
-    ```js
     } from './store/userSlice';
     ```
 
@@ -1952,49 +956,16 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     export function Header() {
-    ```
-
-    ```js
       const user = useSelector(
-    ```
-
-    ```js
         (state: RootState) => state.user.user
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
       const loading = useSelector(
-    ```
-
-    ```js
         (state: RootState) => state.user.loading
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
       async function handleSignInClick() {
-    ```
-
-    ```js
         ...
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       return ...
-    ```
-
-    ```js
     }
     ```
 
@@ -2002,53 +973,17 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     export function Header() {
-    ```
-
-    ```js
       const user = useSelector(
-    ```
-
-    ```js
         (state: RootState) => state.user.user
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
       const loading = useSelector(
-    ```
-
-    ```js
         (state: RootState) => state.user.loading
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
       const dispatch = useDispatch();
-    ```
-
-    ```js
       async function handleSignInClick() {
-    ```
-
-    ```js
         ...
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       return ...
-    ```
-
-    ```js
     }
     ```
 
@@ -2056,49 +991,16 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     async function handleSignInClick() {
-    ```
-
-    ```js
       dispatch(authenticateAction());
-    ```
-
-    ```js
       const authenticatedUser = await authenticate();
-    ```
-
-    ```js
       dispatch(authenticatedAction(authenticatedUser));
-    ```
-
-    ```js
       if (authenticatedUser !== undefined) {
-    ```
-
-    ```js
         dispatch(authorizeAction());
-    ```
-
-    ```js
         const authorizedPermissions = await authorize(
-    ```
-
-    ```js
           authenticatedUser.id
-    ```
-
-    ```js
         );
-    ```
-
-    ```js
         dispatch(authorizedAction(authorizedPermissions));
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
     ```
 
@@ -2106,9 +1008,6 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     import { useSelector } from 'react-redux';
-    ```
-
-    ```js
     import { RootState } from './store/store';
     ```
 
@@ -2116,25 +1015,10 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     export function Main() {
-    ```
-
-    ```js
       const user = useSelector(
-    ```
-
-    ```js
         (state: RootState) => state.user.user
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
       return ...
-    ```
-
-    ```js
     }
     ```
 
@@ -2142,9 +1026,6 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     import { useSelector } from 'react-redux';
-    ```
-
-    ```js
     import { RootState } from './store/store';
     ```
 
@@ -2152,37 +1033,13 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     export function Content() {
-    ```
-
-    ```js
       const permissions = useSelector(
-    ```
-
-    ```js
         (state: RootState) => state.user.permissions
-    ```
-
-    ```js
       );
-    ```
-
-    ```js
       if (permissions === undefined) {
-    ```
-
-    ```js
         return null;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       return ...
-    ```
-
-    ```js
     }
     ```
 
@@ -2220,45 +1077,15 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     type Theme = {
-    ```
-
-    ```js
       name: string;
-    ```
-
-    ```js
       color: 'dark' | 'light';
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     type ThemeContextType = Theme & {
-    ```
-
-    ```js
       changeTheme: (
-    ```
-
-    ```js
         name: string,
-    ```
-
-    ```js
         color: 'dark' | 'light'
-    ```
-
-    ```js
       ) => void;
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     const ThemeContext = createContext<ThemeContextType>();
     ```
 
@@ -2268,21 +1095,9 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     <ThemeProvider>
-    ```
-
-    ```js
       <Header />
-    ```
-
-    ```js
       <Main />
-    ```
-
-    ```js
     </ThemeProvider>
-    ```
-
-    ```js
     <Footer />
     ```
 
@@ -2296,13 +1111,7 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     function handleChangeTheme({ name, color }: Theme) {
-    ```
-
-    ```js
       useDispatch(changeThemeAction(name, color));
-    ```
-
-    ```js
     }
     ```
 
@@ -2314,29 +1123,11 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     authorizedAction: (
-    ```
-
-    ```js
       state,
-    ```
-
-    ```js
       action: PayloadAction<string[]>
-    ```
-
-    ```js
     ) => {
-    ```
-
-    ```js
       state.permissions = action.payload;
-    ```
-
-    ```js
       state.loading = false;
-    ```
-
-    ```js
     }
     ```
 
@@ -2348,21 +1139,9 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     const ThemeContext = createContext<ThemeContextType>({
-    ```
-
-    ```js
       name: 'standard',
-    ```
-
-    ```js
       color: 'light',
-    ```
-
-    ```js
       changeTheme: (name: string, color: 'dark' | 'light') => {},
-    ```
-
-    ```js
     });
     ```
 
@@ -2370,21 +1149,9 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     <ThemeProvider>
-    ```
-
-    ```js
       <Header />
-    ```
-
-    ```js
       <Main />
-    ```
-
-    ```js
       <Footer />
-    ```
-
-    ```js
     </ThemeProvider>
     ```
 
@@ -2396,17 +1163,8 @@ npm i @reduxjs/toolkit react-redux
 
     ```js
     const dispatch = useDispatch();
-    ```
-
-    ```js
     function handleChangeTheme({ name, color }: Theme) {
-    ```
-
-    ```js
       dispatch(changeThemeAction(name, color));
-    ```
-
-    ```js
     }
     ```
 

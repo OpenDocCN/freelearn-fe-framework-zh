@@ -439,10 +439,6 @@ Now that you have a good idea of how `combineLatest()` works and how to use RxJS
 
     ```js
 
-    ```
-
-    ```js
-
 You now know how to create Observables with creational operators. You know there are creational operators such as `of()` and `from()` to create simple Observables and creational operators such as `combineLatest()` to create a new Observable based on multiple inner Observables.
 Next, we will learn about pipeable operators and how they can be used to filter, modify, and transform Observable streams.
 Pipeable operators

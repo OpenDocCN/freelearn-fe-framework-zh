@@ -221,17 +221,8 @@ counter.increment()
 
     ```js
     const toggleSidebar = () => {
-    ```
-
-    ```js
       closed.value = !closed.value;
-    ```
-
-    ```js
       window.localStorage.setItem("sidebar", closed.value);
-    ```
-
-    ```js
     }
     ```
 
@@ -239,17 +230,8 @@ counter.increment()
 
     ```js
     onBeforeMount( () => {
-    ```
-
-    ```js
       const sidebarState = window.localStorage.getItem("sidebar");
-    ```
-
-    ```js
       closed.value = sidebarState === "true";
-    ```
-
-    ```js
     });
     ```
 
@@ -536,13 +518,7 @@ export const usePostsStore = defineStore('posts', {
 
     ```js
     import { usePostsStore } from '../../stores/posts';
-    ```
-
-    ```js
     import { storeToRefs } from 'pinia'
-    ```
-
-    ```js
     const postsStore = usePostsStore();
     ```
 
@@ -564,33 +540,12 @@ export const usePostsStore = defineStore('posts', {
 
     ```js
     watch(
-    ```
-
-    ```js
       posts.value,
-    ```
-
-    ```js
       (newValue) => {
-    ```
-
-    ```js
         if( newValue.length <= 3 ) {
-    ```
-
-    ```js
           fetchPosts(true);
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     )
     ```
 

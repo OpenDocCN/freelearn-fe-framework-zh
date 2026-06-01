@@ -111,9 +111,6 @@
     ```js
     { path: '', redirectTo: '/posts', pathMatch: 'full'},
     { path: 'posts', loadChildren: './posts/posts.module#PostsModule' },
-    ```
-
-    ```js
     const routes: Routes = [
       { path: '', component: LayoutComponent, children: [
         { path: '', redirectTo: '/posts', pathMatch: 'full'},

@@ -391,9 +391,6 @@ Expo CLI 启动 Metro Bundler，这是一个编译我们应用 JavaScript 代码
 
     ```js
     $ yarn add @react-navigation/stack
-    ```
-
-    ```js
     $ expo install react-native-gesture-handler
     ```
 

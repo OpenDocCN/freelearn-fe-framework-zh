@@ -296,9 +296,6 @@ SFC 架构将外观和行为的责任集中到单个文件中，从而简化了�
 
     ```js
     > cd Chapter01/Exercise1.01/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -320,37 +317,13 @@ SFC 架构将外观和行为的责任集中到单个文件中，从而简化了�
 
     ```js
     /** src/App.vue **/
-    ```
-
-    ```js
     <template>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
-    ```
-
-    ```js
     <style>
-    ```
-
-    ```js
     </style>
     ```
 
@@ -358,37 +331,13 @@ SFC 架构将外观和行为的责任集中到单个文件中，从而简化了�
 
     ```js
     // src/components/Exercise1-01.vue
-    ```
-
-    ```js
     <template>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
-    ```
-
-    ```js
     <style>
-    ```
-
-    ```js
     </style>
     ```
 
@@ -396,21 +345,9 @@ SFC 架构将外观和行为的责任集中到单个文件中，从而简化了�
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>My first component!</h1>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -418,37 +355,13 @@ SFC 架构将外观和行为的责任集中到单个文件中，从而简化了�
 
     ```js
     <style>
-    ```
-
-    ```js
       h1 {
-    ```
-
-    ```js
         font-family: 'Avenir', Helvetica, Arial,
-    ```
-
-    ```js
         sans-serif;
-    ```
-
-    ```js
         text-align: center;
-    ```
-
-    ```js
         color: #2c3e50;
-    ```
-
-    ```js
         margin-top: 60px;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -456,45 +369,15 @@ SFC 架构将外观和行为的责任集中到单个文件中，从而简化了�
 
     ```js
     <template>
-    ```
-
-    ```js
       <Exercise />
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     import Exercise from './components/Exercise1-01'
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       components: {
-    ```
-
-    ```js
         Exercise,
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -623,9 +506,6 @@ const color = 'red';
 
     ```js
     > cd Chapter01/Exercise1.02/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -643,37 +523,13 @@ const color = 'red';
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           title: 'My first component!',
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -681,21 +537,9 @@ const color = 'red';
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>{{ title }}</h1>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -705,21 +549,9 @@ const color = 'red';
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>{{ title.toUpperCase() }}</h1>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -733,61 +565,19 @@ const color = 'red';
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>{{ isUppercase ? title.toUpperCase() : title }}</h1>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           title: 'My first component!',
-    ```
-
-    ```js
           isUppercase: false,
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -801,41 +591,14 @@ const color = 'red';
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           title: 'My first component!',
-    ```
-
-    ```js
           isUppercase: true,
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -849,17 +612,8 @@ const color = 'red';
 
     ```js
     <script setup>
-    ```
-
-    ```js
     const title ='My first component!';
-    ```
-
-    ```js
     const isUppercase = true;
-    ```
-
-    ```js
     </script>
     ```
 
@@ -877,25 +631,10 @@ const color = 'red';
 
     ```js
     <template>
-    ```
-
-    ```js
       <div v-text="msg">My placeholder</div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     const msg = "My message"
-    ```
-
-    ```js
     </script>
     ```
 
@@ -907,25 +646,10 @@ const color = 'red';
 
     ```js
     <template>
-    ```
-
-    ```js
       <img v-bind:src="img/logo" />
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     const logo = '../assets/logo.png';
-    ```
-
-    ```js
     </script>
     ```
 
@@ -943,25 +667,10 @@ const color = 'red';
 
     ```js
     <template>
-    ```
-
-    ```js
     <div v-if="count === 2">Two</div>
-    ```
-
-    ```js
     <div v-else-if="count === 4">Four</div>
-    ```
-
-    ```js
     <div v-else-if="count === 6">Six</div>
-    ```
-
-    ```js
     <div v-else>Others</div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -983,9 +692,6 @@ const color = 'red';
 
     ```js
     > cd Chapter01/Exercise1.03/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -1003,33 +709,12 @@ const color = 'red';
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>{{ text }}</h1>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     const text = 'Directive text';
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1037,21 +722,9 @@ const color = 'red';
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1 v-text="text">Loading...</h1>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -1065,21 +738,9 @@ const color = 'red';
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1 v-once v-text="text">Loading...</h1>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -1087,41 +748,14 @@ const color = 'red';
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1 v-once v-text="text">Loading...</h1>
-    ```
-
-    ```js
         <h2 v-html="html" />
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     const text = 'Directive text';
-    ```
-
-    ```js
     const html = 'Stylise</br>HTML in<br/><b>your data</b>'
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1135,85 +769,25 @@ const color = 'red';
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1 v-once v-text="text">Loading...</h1>
-    ```
-
-    ```js
         <h2 v-html="html" />
-    ```
-
-    ```js
         <a
-    ```
-
-    ```js
           :href="link.url"
-    ```
-
-    ```js
           :target="link.target"
-    ```
-
-    ```js
           :tabindex="link.tabindex"
-    ```
-
-    ```js
           >{{ link.title }}</a>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     const text = 'Directive text';
-    ```
-
-    ```js
     const html = 'Stylise</br>HTML in<br/><b>your data</b>'
-    ```
-
-    ```js
     const link = {
-    ```
-
-    ```js
       title: "Go to Google",
-    ```
-
-    ```js
       url: https://google.com,
-    ```
-
-    ```js
       tabindex: 1,
-    ```
-
-    ```js
       target: '_blank',
-    ```
-
-    ```js
     };
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1227,53 +801,17 @@ const color = 'red';
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1 v-if="false" v-once v-text="text">Loading...
-    ```
-
-    ```js
         </h1>
-    ```
-
-    ```js
         <h2 v-html="html" v-else-if="false" />
-    ```
-
-    ```js
         <a
-    ```
-
-    ```js
           v-else
-    ```
-
-    ```js
           :href="link.url"
-    ```
-
-    ```js
           :target="link.target"
-    ```
-
-    ```js
           :tabindex="link.tabindex"
-    ```
-
-    ```js
           >{{ link.title }}</a>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -1289,49 +827,16 @@ const color = 'red';
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1 v-show="true" v-once v-text="text">Loading...
-    ```
-
-    ```js
         </h1>
-    ```
-
-    ```js
         <h2 v-html="html" v-show="false" />
-    ```
-
-    ```js
         <a
-    ```
-
-    ```js
           :href="link.url"
-    ```
-
-    ```js
           :target="link.target"
-    ```
-
-    ```js
           :tabindex="link.tabindex"
-    ```
-
-    ```js
           >{{ link.title }}</a>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -1396,9 +901,6 @@ Vue 通过创建一个专门用于监视 Vue 组件内部数据属性的指令�
 
     ```js
     > cd Chapter01/Exercise 1.04/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -1416,25 +918,10 @@ Vue 通过创建一个专门用于监视 Vue 组件内部数据属性的指令�
 
     ```js
     <div class="form">
-    ```
-
-    ```js
        <label>
-    ```
-
-    ```js
          Name
-    ```
-
-    ```js
          <input type="text" v-model="name" />
-    ```
-
-    ```js
        </label>
-    ```
-
-    ```js
     </div>
     ```
 
@@ -1442,37 +929,13 @@ Vue 通过创建一个专门用于监视 Vue 组件内部数据属性的指令�
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           name: '',
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1480,73 +943,22 @@ Vue 通过创建一个专门用于监视 Vue 组件内部数据属性的指令�
 
     ```js
         <div class="form">
-    ```
-
-    ```js
           <label>
-    ```
-
-    ```js
             Name
-    ```
-
-    ```js
             <input type="text" v-model="name" />
-    ```
-
-    ```js
           </label>
-    ```
-
-    ```js
           <label>
-    ```
-
-    ```js
             Preferred JavaScript style
-    ```
-
-    ```js
             <select name="language" v-model="language">
-    ```
-
-    ```js
               <option value="Javascript">JavaScript
-    ```
-
-    ```js
               </option>
-    ```
-
-    ```js
               <option value="TypeScript">TypeScript
-    ```
-
-    ```js
               </option>
-    ```
-
-    ```js
               <option value="CoffeeScript">CoffeeScript
-    ```
-
-    ```js
               </option>
-    ```
-
-    ```js
               <option value="Dart">Dart</option>
-    ```
-
-    ```js
             </select>
-    ```
-
-    ```js
           </label>
-    ```
-
-    ```js
         </div>
     ```
 
@@ -1554,41 +966,14 @@ Vue 通过创建一个专门用于监视 Vue 组件内部数据属性的指令�
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           name: '',
-    ```
-
-    ```js
           language: '',
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1630,109 +1015,31 @@ Vue 通过创建一个专门用于监视 Vue 组件内部数据属性的指令�
 
     ```js
     <style>
-    ```
-
-    ```js
     .form {
-    ```
-
-    ```js
       display: flex;
-    ```
-
-    ```js
       justify-content: space-evenly;
-    ```
-
-    ```js
       max-width: 800px;
-    ```
-
-    ```js
       padding: 40px 20px;
-    ```
-
-    ```js
       border-radius: 10px;
-    ```
-
-    ```js
       margin: 0 auto;
-    ```
-
-    ```js
       background: #ececec;
-    ```
-
-    ```js
      }
-    ```
-
-    ```js
      .overview {
-    ```
-
-    ```js
       display: flex;
-    ```
-
-    ```js
       flex-direction: column;
-    ```
-
-    ```js
       justify-content: space-evenly;
-    ```
-
-    ```js
       max-width: 300px;
-    ```
-
-    ```js
       margin: 40px auto;
-    ```
-
-    ```js
       padding: 40px 20px;
-    ```
-
-    ```js
       border-radius: 10px;
-    ```
-
-    ```js
       border: 1px solid #ececec;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     .overview > li {
-    ```
-
-    ```js
       list-style: none;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     .overview > li + li {
-    ```
-
-    ```js
       margin-top: 20px;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -1806,9 +1113,6 @@ v-for="(item, index) in items" :key="index"
 
     ```js
     > cd Chapter01/Exercise1.05/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -1826,25 +1130,10 @@ v-for="(item, index) in items" :key="index"
 
     ```js
     <template>
-    ```
-
-    ```js
     <h1>Looping through arrays</h1>
-    ```
-
-    ```js
     <ul>
-    ```
-
-    ```js
       <li></li>
-    ```
-
-    ```js
     </ul>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -1852,13 +1141,7 @@ v-for="(item, index) in items" :key="index"
 
     ```js
     <script setup>
-    ```
-
-    ```js
     const interests = ['TV', 'Games', 'Sports']
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1866,29 +1149,11 @@ v-for="(item, index) in items" :key="index"
 
     ```js
     <template>
-    ```
-
-    ```js
     <h1>Looping through arrays</h1>
-    ```
-
-    ```js
     <ul>
-    ```
-
-    ```js
       <li v-for="(item, index) in interests"
-    ```
-
-    ```js
          :key="index">{{ item }}</li>
-    ```
-
-    ```js
     </ul>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -1984,9 +1249,6 @@ const items = [{
 
     ```js
     > cd Chapter01/Exercise1.06/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -2004,69 +1266,21 @@ const items = [{
 
     ```js
     <script setup>
-    ```
-
-    ```js
     const interests = [
-    ```
-
-    ```js
             {
-    ```
-
-    ```js
               title: "TV",
-    ```
-
-    ```js
               favorites: ["Designated Survivor",
-    ```
-
-    ```js
                           "Spongebob"],
-    ```
-
-    ```js
             },
-    ```
-
-    ```js
             {
-    ```
-
-    ```js
               title: "Games",
-    ```
-
-    ```js
               favorites: ["CS:GO"],
-    ```
-
-    ```js
             },
-    ```
-
-    ```js
             {
-    ```
-
-    ```js
               title: "Sports",
-    ```
-
-    ```js
               favorites: [],
-    ```
-
-    ```js
             },
-    ```
-
-    ```js
           ];
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2074,41 +1288,14 @@ const items = [{
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>Looping through array of objects</h1>
-    ```
-
-    ```js
         <ul>
-    ```
-
-    ```js
           <li v-for="(item, n) in interests" :key="n">
-    ```
-
-    ```js
             {{ item.title }}
-    ```
-
-    ```js
           </li>
-    ```
-
-    ```js
         </ul>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -2122,61 +1309,19 @@ const items = [{
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>Looping through array of objects</h1>
-    ```
-
-    ```js
         <ul>
-    ```
-
-    ```js
           <li v-for="(item, n) in interests" :key="n">
-    ```
-
-    ```js
             {{ item.title }}
-    ```
-
-    ```js
             <ol>
-    ```
-
-    ```js
               <li v-for="(fav, m) in item.favorites"
-    ```
-
-    ```js
                 :key="m">
-    ```
-
-    ```js
                 {{ fav }}</li>
-    ```
-
-    ```js
             </ol>
-    ```
-
-    ```js
           </li>
-    ```
-
-    ```js
         </ul>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -2196,21 +1341,9 @@ const items = [{
 
     ```js
     <ol v-if="item.favorites.length > 0">
-    ```
-
-    ```js
       <li v-for="(fav, m) in item.favorites" :key="m">
-    ```
-
-    ```js
         {{ fav }}
-    ```
-
-    ```js
       </li>
-    ```
-
-    ```js
     </ol>
     ```
 
@@ -2282,9 +1415,6 @@ const course = {
 
     ```js
     > cd Chapter01/Exercise1.07/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -2302,29 +1432,11 @@ const course = {
 
     ```js
     <script setup>
-    ```
-
-    ```js
     const information = {
-    ```
-
-    ```js
           title: "My list component information",
-    ```
-
-    ```js
           subtitle: "Vue JS basics",
-    ```
-
-    ```js
           items: ["Looping", "Data", "Methods"],
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2332,33 +1444,12 @@ const course = {
 
     ```js
     <template>
-    ```
-
-    ```js
         <div>
-    ```
-
-    ```js
           <div v-for="(value, key) in information"
-    ```
-
-    ```js
             :key="key">
-    ```
-
-    ```js
             {{key}}: {{ value }}
-    ```
-
-    ```js
           </div>
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -2372,33 +1463,12 @@ const course = {
 
     ```js
     <template>
-    ```
-
-    ```js
         <div>
-    ```
-
-    ```js
           <div v-for="(value, key) in information"
-    ```
-
-    ```js
             :key="key">
-    ```
-
-    ```js
             {{key}}: {{ value.toString() }}
-    ```
-
-    ```js
           </div>
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -2459,9 +1529,6 @@ const course = {
 
     ```js
     > cd Chapter01/Exercise1.08/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -2479,21 +1546,9 @@ const course = {
 
     ```js
     <script setup>
-    ```
-
-    ```js
     const triggerAlert = (index) => {
-    ```
-
-    ```js
           alert(`${index} has been clicked`)
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2501,41 +1556,14 @@ const course = {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>Triggering Vue Methods</h1>
-    ```
-
-    ```js
         <ul>
-    ```
-
-    ```js
           <li v-for="index in 5":key="index">
-    ```
-
-    ```js
             <button>Trigger {{index}}</button>
-    ```
-
-    ```js
           </li>
-    ```
-
-    ```js
         </ul>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -2543,45 +1571,15 @@ const course = {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>Triggering Vue Methods</h1>
-    ```
-
-    ```js
         <ul>
-    ```
-
-    ```js
           <li v-for="index in 5" :key="index">
-    ```
-
-    ```js
             <button @click="triggerAlert(index)">Trigger
-    ```
-
-    ```js
               {{ index }}</a>
-    ```
-
-    ```js
           </li>
-    ```
-
-    ```js
         </ul>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -2589,21 +1587,9 @@ const course = {
 
     ```js
     <style>
-    ```
-
-    ```js
     button {
-    ```
-
-    ```js
       margin: 10px;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -2639,9 +1625,6 @@ const course = {
 
     ```js
     > cd Chapter01/Exercise1.09/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -2659,41 +1642,14 @@ const course = {
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data(){
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           totalCost: 0,
-    ```
-
-    ```js
           totalItems: 0
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2701,25 +1657,10 @@ const course = {
 
     ```js
     <template>
-    ```
-
-    ```js
      <div>
-    ```
-
-    ```js
        <h1>Returning Methods</h1>
-    ```
-
-    ```js
        <div>Cart({{ totalItems }}) {{ totalCost }} </div>
-    ```
-
-    ```js
      </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -2727,53 +1668,17 @@ const course = {
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         /*…*/
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       methods: {
-    ```
-
-    ```js
         addToCart(n) {
-    ```
-
-    ```js
           this.totalItems = this.totalItems + 1
-    ```
-
-    ```js
           this.totalCost = this.totalCost + n
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2781,49 +1686,16 @@ const course = {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>Returning Methods</h1>
-    ```
-
-    ```js
         <div>Cart({{ totalItems }}) {{ totalCost }} </div>
-    ```
-
-    ```js
         <ul>
-    ```
-
-    ```js
           <li v-for="n in 5" :key="n">
-    ```
-
-    ```js
             <button @click="addToCart(n)">Add {{ n }}
-    ```
-
-    ```js
               </button>
-    ```
-
-    ```js
           </li>
-    ```
-
-    ```js
         </ul>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -2831,21 +1703,9 @@ const course = {
 
     ```js
     <style>
-    ```
-
-    ```js
     button {
-    ```
-
-    ```js
       margin: 10px;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -2865,53 +1725,17 @@ const course = {
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         /*…*/
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       methods: {
-    ```
-
-    ```js
         addToCart(n) { /*…*/},
-    ```
-
-    ```js
         formatCurrency(val) {
-    ```
-
-    ```js
           return `$${val.toFixed(2)}`
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2919,57 +1743,18 @@ const course = {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>Returning Methods</h1>
-    ```
-
-    ```js
         <div>Cart({{ totalItems }}) {{
-    ```
-
-    ```js
           formatCurrency(totalCost) }}
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
         <ul>
-    ```
-
-    ```js
           <li v-for="n in 5" :key="n">
-    ```
-
-    ```js
             <button @click="addToCart(n)">Add {{
-    ```
-
-    ```js
               formatCurrency(n) }}</button>
-    ```
-
-    ```js
           </li>
-    ```
-
-    ```js
         </ul>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -3021,9 +1806,6 @@ Vue 按顺序执行事件，如下所示：
 
     ```js
     > cd Chapter01/Exercise1.10/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -3041,113 +1823,32 @@ Vue 按顺序执行事件，如下所示：
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>Vue Lifecycle hooks</h1>
-    ```
-
-    ```js
         <ul>
-    ```
-
-    ```js
           <li v-for="(item, n) in list" :key="n">
-    ```
-
-    ```js
             {{ item }}
-    ```
-
-    ```js
           </li>
-    ```
-
-    ```js
         </ul>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           list: [
-    ```
-
-    ```js
             'Apex Legends',
-    ```
-
-    ```js
             'A Plague Tale: Innocence',
-    ```
-
-    ```js
             'ART SQOOL',
-    ```
-
-    ```js
             'Baba Is You',
-    ```
-
-    ```js
             'Devil May Cry 5',
-    ```
-
-    ```js
             'The Division 2',
-    ```
-
-    ```js
             'Hypnospace Outlaw',
-    ```
-
-    ```js
             'Katana ZERO',
-    ```
-
-    ```js
           ],
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -3155,49 +1856,16 @@ Vue 按顺序执行事件，如下所示：
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data(){ /*…*/ },
-    ```
-
-    ```js
       beforeCreate() {
-    ```
-
-    ```js
         alert('beforeCreate: data is static, thats it')
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       created() {
-    ```
-
-    ```js
         alert('created: data and events ready, but no
-    ```
-
-    ```js
                DOM')
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -3217,49 +1885,16 @@ Vue 按顺序执行事件，如下所示：
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() { /*…*/ },
-    ```
-
-    ```js
       /*…*/
-    ```
-
-    ```js
       beforeMount() {
-    ```
-
-    ```js
         alert('beforeMount: $el not ready')
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       mounted() {
-    ```
-
-    ```js
         alert('mounted: DOM ready to use')
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -3279,45 +1914,15 @@ Vue 按顺序执行事件，如下所示：
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>Vue Lifecycle hooks</h1>
-    ```
-
-    ```js
         <ul>
-    ```
-
-    ```js
           <li v-for="(item, n) in list" :key="n">
-    ```
-
-    ```js
             {{ item }}
-    ```
-
-    ```js
             <button @click="deleteItem(item)">Delete</button>
-    ```
-
-    ```js
           </li>
-    ```
-
-    ```js
         </ul>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -3325,49 +1930,16 @@ Vue 按顺序执行事件，如下所示：
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() { /*…*/ },
-    ```
-
-    ```js
       /*…*/
-    ```
-
-    ```js
       methods: {
-    ```
-
-    ```js
         deleteItem(value) {
-    ```
-
-    ```js
           this.list = this.list.filter(item => item !==
-    ```
-
-    ```js
             value)
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -3375,53 +1947,17 @@ Vue 按顺序执行事件，如下所示：
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
         /*...*/
-    ```
-
-    ```js
       beforeUpdate() {
-    ```
-
-    ```js
         alert('beforeUpdate: we know an update is about to
-    ```
-
-    ```js
           happen, and have the data')
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       updated() {
-    ```
-
-    ```js
         alert('updated: virtual DOM will update after you
-    ```
-
-    ```js
           click OK')
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -3441,53 +1977,17 @@ Vue 按顺序执行事件，如下所示：
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       /*...*/
-    ```
-
-    ```js
       beforeUnmount() {
-    ```
-
-    ```js
         alert('beforeUnmount: about to blow up this
-    ```
-
-    ```js
           component')
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       unmounted() {
-    ```
-
-    ```js
         alert('unmounted: this component has been
-    ```
-
-    ```js
           destroyed')
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -3495,69 +1995,21 @@ Vue 按顺序执行事件，如下所示：
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           list: [
-    ```
-
-    ```js
             'Apex Legends',
-    ```
-
-    ```js
             'A Plague Tale: Innocence',
-    ```
-
-    ```js
             'ART SQOOL',
-    ```
-
-    ```js
             'Baba Is You',
-    ```
-
-    ```js
             'Devil May Cry 5',
-    ```
-
-    ```js
             'The Division 2',
-    ```
-
-    ```js
             'Hypnospace Outlaw',
-    ```
-
-    ```js
             'Katana ZERO',
-    ```
-
-    ```js
             'testing unmounted hooks',
-    ```
-
-    ```js
           ],
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
     ```
 
@@ -3618,9 +2070,6 @@ ul
 
     ```js
     > cd Chapter01/Exercise1.11/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -3638,89 +2087,26 @@ ul
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>{{ title }}</h1>
-    ```
-
-    ```js
         <h2>{{ subtitle }}</h2>
-    ```
-
-    ```js
         <ul>
-    ```
-
-    ```js
           <li>{{ items[0] }}</li>
-    ```
-
-    ```js
           <li>{{ items[1] }}</li>
-    ```
-
-    ```js
           <li>{{ items[2] }}</li>
-    ```
-
-    ```js
         </ul>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           title: 'My list component!',
-    ```
-
-    ```js
           subtitle: 'Vue JS basics',
-    ```
-
-    ```js
           items: ['Item 1', 'Item 2', 'Item 3']
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -3746,97 +2132,28 @@ ul
 
     ```js
     /* typography.scss */
-    ```
-
-    ```js
     $color-green: #4fc08d;
-    ```
-
-    ```js
     $color-grey: #2c3e50;
-    ```
-
-    ```js
     $color-blue: #003366;
-    ```
-
-    ```js
     h1 {
-    ```
-
-    ```js
       margin-top: 60px;
-    ```
-
-    ```js
       text-align: center;
-    ```
-
-    ```js
       color: $color-grey;
-    ```
-
-    ```js
       + h2 {
-    ```
-
-    ```js
         text-align: center;
-    ```
-
-    ```js
         color: $color-green;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     ul {
-    ```
-
-    ```js
       display: block;
-    ```
-
-    ```js
       margin: 0 auto;
-    ```
-
-    ```js
       max-width: 400px;
-    ```
-
-    ```js
       padding: 30px;
-    ```
-
-    ```js
       border: 1px solid rgba(0,0,0,0.25);
-    ```
-
-    ```js
       > li {
-    ```
-
-    ```js
         color: $color-grey;
-    ```
-
-    ```js
         margin-bottom: 4px;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
     ```
 
@@ -3874,13 +2191,7 @@ ul {
 
     ```js
     <style lang="scss">
-    ```
-
-    ```js
     @import '../styles/typography.scss';
-    ```
-
-    ```js
     </style>
     ```
 
@@ -3894,29 +2205,11 @@ ul {
 
     ```js
     <style lang="scss" scoped>
-    ```
-
-    ```js
     @import '../styles/typography';
-    ```
-
-    ```js
     h1 {
-    ```
-
-    ```js
       font-size: 50px;
-    ```
-
-    ```js
       color: $color-blue; // Use variables from imported stylesheets
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -3938,25 +2231,10 @@ ul {
 
     ```js
     /* /src/styles/global.scss */
-    ```
-
-    ```js
     body {
-    ```
-
-    ```js
         font-family: 'Avenir', Helvetica, Arial,
-    ```
-
-    ```js
           sans-serif;
-    ```
-
-    ```js
         margin: 0;
-    ```
-
-    ```js
     }
     ```
 
@@ -3964,13 +2242,7 @@ ul {
 
     ```js
     <style lang="scss">
-    ```
-
-    ```js
     @import './styles/global.scss';
-    ```
-
-    ```js
     </style>
     ```
 
@@ -4111,9 +2383,6 @@ h1 {
 
     ```js
     > cd Chapter01/Exercise1.12/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -4131,65 +2400,20 @@ h1 {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h1>{{ title }}</h1>
-    ```
-
-    ```js
         <h2>{{ subtitle }}</h2>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           title: 'CSS module component!',
-    ```
-
-    ```js
           subtitle: 'The fourth exercise',
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -4197,65 +2421,20 @@ h1 {
 
     ```js
     <style module>
-    ```
-
-    ```js
     h1,
-    ```
-
-    ```js
     h2 {
-    ```
-
-    ```js
       font-family: 'Avenir', Helvetica, Arial, sans-serif;
-    ```
-
-    ```js
       text-align: center;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     .title {
-    ```
-
-    ```js
       font-family: 'Avenir', Helvetica, Arial, sans-serif;
-    ```
-
-    ```js
       color: #2c3e50;
-    ```
-
-    ```js
       margin-top: 60px;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     .subtitle {
-    ```
-
-    ```js
       color: #4fc08d;
-    ```
-
-    ```js
       font-style: italic;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -4263,9 +2442,6 @@ h1 {
 
     ```js
     <h1 :class="$style.title">{{ title }}</h1>
-    ```
-
-    ```js
     <h2 :class="$style.subtitle">{{ subtitle }}</h2>
     ```
 

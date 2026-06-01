@@ -96,61 +96,19 @@ app.mount('#app')
 
     ```js
     import { defineStore } from 'pinia'
-    ```
-
-    ```js
     export const useCounterStore = defineStore({
-    ```
-
-    ```js
       id: 'counter',
-    ```
-
-    ```js
       state: () => ({
-    ```
-
-    ```js
         counter: 1
-    ```
-
-    ```js
       }),
-    ```
-
-    ```js
       getters: {
-    ```
-
-    ```js
         doubleCount: (state) => state.counter * 2
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       actions: {
-    ```
-
-    ```js
         increment() {
-    ```
-
-    ```js
           this.counter++
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     })
     ```
 
@@ -160,21 +118,9 @@ app.mount('#app')
 
     ```js
     <template>
-    ```
-
-    ```js
       <p>
-    ```
-
-    ```js
       Counter: {{ store.counter }}
-    ```
-
-    ```js
       </p>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -182,17 +128,8 @@ app.mount('#app')
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import { useCounterStore } from './stores/counter'
-    ```
-
-    ```js
     const store = useCounterStore()
-    ```
-
-    ```js
     </script>
     ```
 
@@ -206,33 +143,12 @@ app.mount('#app')
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import { useCounterStore } from '@/stores/counter';
-    ```
-
-    ```js
     const store = useCounterStore()
-    ```
-
-    ```js
     </script>
-    ```
-
-    ```js
     <template>
-    ```
-
-    ```js
       <h2>Edit Counter</h2>
-    ```
-
-    ```js
       <input type="text" v-model="store.counter">
-    ```
-
-    ```js
     </template>
     ```
 
@@ -240,45 +156,15 @@ app.mount('#app')
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import EditCounter from './components/EditCounter.vue'
-    ```
-
-    ```js
     import { useCounterStore } from './stores/counter'
-    ```
-
-    ```js
     const store = useCounterStore();
-    ```
-
-    ```js
     </script>
-    ```
-
-    ```js
     <template>
-    ```
-
-    ```js
       <p>
-    ```
-
-    ```js
       Counter: {{ store.counter }}
-    ```
-
-    ```js
       </p>
-    ```
-
-    ```js
       <EditCounter></EditCounter>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -300,85 +186,25 @@ app.mount('#app')
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import RGBEdit from './components/RGBEdit.vue'
-    ```
-
-    ```js
     import PreviewColor from './components/PreviewColor.vue'
-    ```
-
-    ```js
     </script>
-    ```
-
-    ```js
     <template>
-    ```
-
-    ```js
     <h1>Color Editor</h1>
-    ```
-
-    ```js
     <p>
-    ```
-
-    ```js
     Use the sliders below to set the red, green, and blue values for a color.
-    ```
-
-    ```js
     </p>
-    ```
-
-    ```js
     <div class="twocol">
-    ```
-
-    ```js
       <RGBEdit></RGBEdit>
-    ```
-
-    ```js
       <PreviewColor></PreviewColor>
-    ```
-
-    ```js
     </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <style>
-    ```
-
-    ```js
     .twocol {
-    ```
-
-    ```js
       display: grid;
-    ```
-
-    ```js
       grid-template-columns: 1fr 1fr;
-    ```
-
-    ```js
       column-gap: 10px;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -388,21 +214,9 @@ app.mount('#app')
 
     ```js
     <template>
-    ```
-
-    ```js
     <div>
-    ```
-
-    ```js
       <h2>Edit RGB</h2>
-    ```
-
-    ```js
     </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -426,37 +240,13 @@ app.mount('#app')
 
     ```js
     import { defineStore } from 'pinia'
-    ```
-
-    ```js
     export const useColorStore = defineStore({
-    ```
-
-    ```js
       id: 'color',
-    ```
-
-    ```js
       state: () => ({
-    ```
-
-    ```js
         red: 0,
-    ```
-
-    ```js
         blue: 0,
-    ```
-
-    ```js
         green: 0
-    ```
-
-    ```js
       })
-    ```
-
-    ```js
     })
     ```
 
@@ -466,17 +256,8 @@ app.mount('#app')
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import { useColorStore } from '@/stores/color';
-    ```
-
-    ```js
     const store = useColorStore()
-    ```
-
-    ```js
     </script>
     ```
 
@@ -520,17 +301,8 @@ label {
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import { useColorStore } from '@/stores/color';
-    ```
-
-    ```js
     const store = useColorStore()
-    ```
-
-    ```js
     </script>
     ```
 
@@ -635,77 +407,23 @@ export const useCounterStore = defineStore({
 
     ```js
     import { defineStore } from 'pinia'
-    ```
-
-    ```js
     export const useColorStore = defineStore({
-    ```
-
-    ```js
       id: 'color',
-    ```
-
-    ```js
       state: () => ({
-    ```
-
-    ```js
         red: 0,
-    ```
-
-    ```js
         blue: 0,
-    ```
-
-    ```js
         green: 0
-    ```
-
-    ```js
       }),
-    ```
-
-    ```js
       getters: {
-    ```
-
-    ```js
         hex: (state) => {
-    ```
-
-    ```js
           return  "#" + Number(state.red).toString(16)
-    ```
-
-    ```js
             .padStart(2, '0') +
-    ```
-
-    ```js
           Number(state.green).toString(16)
-    ```
-
-    ```js
             .padStart(2, '0') +
-    ```
-
-    ```js
           Number(state.blue).toString(16)
-    ```
-
-    ```js
             .padStart(2, '0');
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     })
     ```
 
@@ -715,45 +433,15 @@ export const useCounterStore = defineStore({
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import { computed } from 'vue'
-    ```
-
-    ```js
     import { useColorStore } from '@/stores/color';
-    ```
-
-    ```js
     const store = useColorStore()
-    ```
-
-    ```js
     const previewRGB = computed(() => {
-    ```
-
-    ```js
       return {
-    ```
-
-    ```js
         backgroundColor: store.hex
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     });
-    ```
-
-    ```js
     </script>
-    ```
-
-    ```js
     // Rest of component, unchanged
     ```
 
@@ -842,9 +530,6 @@ decrement() {
 
     ```js
     actions: {
-    ```
-
-    ```js
     }
     ```
 
@@ -852,29 +537,11 @@ decrement() {
 
     ```js
     lighten() {
-    ```
-
-    ```js
       let newHex = pSBC(0.4, this.hex);
-    ```
-
-    ```js
       // parse out hex back to dec
-    ```
-
-    ```js
       this.red = parseInt(newHex.substring(1,3), 16);
-    ```
-
-    ```js
       this.green = parseInt(newHex.substring(3,5), 16);
-    ```
-
-    ```js
       this.blue = parseInt(newHex.substring(5,), 16);
-    ```
-
-    ```js
     },
     ```
 
@@ -882,29 +549,11 @@ decrement() {
 
     ```js
     darken() {
-    ```
-
-    ```js
       let newHex = pSBC(-0.4, this.hex);
-    ```
-
-    ```js
       // parse out hex back to dec
-    ```
-
-    ```js
       this.red = parseInt(newHex.substring(1,3), 16);
-    ```
-
-    ```js
       this.green = parseInt(newHex.substring(3,5), 16);
-    ```
-
-    ```js
       this.blue = parseInt(newHex.substring(5,), 16);
-    ```
-
-    ```js
     }
     ```
 
@@ -912,17 +561,8 @@ decrement() {
 
     ```js
     <p>
-    ```
-
-    ```js
     <button @click="store.darken()">Darken</button>
-    ```
-
-    ```js
     <button @click="store.lighten()">Lighten</button>
-    ```
-
-    ```js
     </p>
     ```
 
@@ -984,29 +624,11 @@ decrement() {
 
     ```js
         products: [
-    ```
-
-    ```js
           { name: "Widgets", price: 10 },
-    ```
-
-    ```js
           { name: "Doodads", price: 8 },
-    ```
-
-    ```js
           { name: "Roundtuits", price: 12 },
-    ```
-
-    ```js
           { name: "Fluff", price: 4 },
-    ```
-
-    ```js
           { name: "Goobers", price: 7 }
-    ```
-
-    ```js
         ],
     ```
 

@@ -171,9 +171,6 @@ export default {
 
     ```js
     > cd Chapter06/Exercise6.01/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -189,29 +186,11 @@ export default {
 
     ```js
     export default {
-    ```
-
-    ```js
       methods: {
-    ```
-
-    ```js
         debug(obj) {
-    ```
-
-    ```js
           return JSON.stringify(obj, null, 2)
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
     ```
 
@@ -219,25 +198,10 @@ export default {
 
     ```js
     <script>
-    ```
-
-    ```js
     import debug from './mixins/debugger.js'
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       mixins: [debugger],
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -245,69 +209,21 @@ export default {
 
     ```js
     <script>
-    ```
-
-    ```js
     // imports
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       // other component properties
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return {
-    ```
-
-    ```js
           myObj: {
-    ```
-
-    ```js
             some: 'data',
-    ```
-
-    ```js
             other: 'values'
-    ```
-
-    ```js
           }
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       created() {
-    ```
-
-    ```js
         console.log(this.debug(this.myObj))
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -321,21 +237,9 @@ export default {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div id="app">
-    ```
-
-    ```js
         <pre>{{ debug(myObj) }}</pre>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -407,9 +311,6 @@ app.use(plugin, { optionProperty: true })
 
     ```js
     > cd Chapter06/Exercise6.02/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -419,17 +320,8 @@ app.use(plugin, { optionProperty: true })
 
     ```js
     import axios from 'axios'
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       install(app, options) {}
-    ```
-
-    ```js
     }
     ```
 
@@ -437,25 +329,10 @@ app.use(plugin, { optionProperty: true })
 
     ```js
     // other imports
-    ```
-
-    ```js
     import axiosPlugin from './plugins/axios.js'
-    ```
-
-    ```js
     // Vue instantiation code
-    ```
-
-    ```js
     const app = createApp(App)
-    ```
-
-    ```js
     app.use(axiosPlugin)
-    ```
-
-    ```js
     app.mount('#app')
     ```
 
@@ -469,25 +346,10 @@ app.use(plugin, { optionProperty: true })
 
     ```js
     import axios from 'axios'
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       install(app) {
-    ```
-
-    ```js
         app.config.globalProperties.$axios = axios
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
     ```
 
@@ -495,105 +357,30 @@ app.use(plugin, { optionProperty: true })
 
     ```js
     <template>
-    ```
-
-    ```js
       <div id="app">
-    ```
-
-    ```js
         <div v-for="todo in todos" :key="todo.id">
-    ```
-
-    ```js
           <ul>
-    ```
-
-    ```js
             <li>Title: {{ todo.title }}</li>
-    ```
-
-    ```js
             <li>Status: {{ todo.completed ? "Completed" :
-    ```
-
-    ```js
               "Not Completed" }}</li>
-    ```
-
-    ```js
           </ul>
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script>
-    ```
-
-    ```js
     import Vue from 'vue'
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       async mounted() {
-    ```
-
-    ```js
         const { data: todos } = await
-    ```
-
-    ```js
           this.$axios(
-    ```
-
-    ```js
             'https://jsonplaceholder.typicode.com/todos'
-    ```
-
-    ```js
           )
-    ```
-
-    ```js
         this.todos = todos
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return { todos: [] }
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -607,29 +394,11 @@ app.use(plugin, { optionProperty: true })
 
     ```js
     // imports
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       install(app, options) {
-    ```
-
-    ```js
         // other plugin code
-    ```
-
-    ```js
         app.provide('axios', axios)
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
     ```
 
@@ -637,57 +406,18 @@ app.use(plugin, { optionProperty: true })
 
     ```js
     <script>
-    ```
-
-    ```js
     export default {
-    ```
-
-    ```js
       inject: ['axios'],
-    ```
-
-    ```js
       async mounted() {
-    ```
-
-    ```js
         const { data: todos } = await this.axios(
-    ```
-
-    ```js
            'https://jsonplaceholder.typicode.com/todos'
-    ```
-
-    ```js
           )
-    ```
-
-    ```js
         this.todos = todos
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       data() {
-    ```
-
-    ```js
         return { todos: [] }
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1258,9 +988,6 @@ const address = ref("");
 
     ```js
     > cd Chapter06/Exercise6.03/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -1270,101 +997,29 @@ const address = ref("");
 
     ```js
     <template>
-    ```
-
-    ```js
       <div class="card">
-    ```
-
-    ```js
         <img :src="img/url" width="200" />
-    ```
-
-    ```js
         <h3>{{ title }}</h3>
-    ```
-
-    ```js
         <p>{{ description }}</p>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     import { defineProps } from 'vue'
-    ```
-
-    ```js
     const { url, title, description } = defineProps(
-    ```
-
-    ```js
         ['url', 'title', 'description']
-    ```
-
-    ```js
     )
-    ```
-
-    ```js
     </script>
-    ```
-
-    ```js
     <style scoped>
-    ```
-
-    ```js
     .card {
-    ```
-
-    ```js
       display: flex;
-    ```
-
-    ```js
       flex-direction: column;
-    ```
-
-    ```js
       max-width: 200px;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     h3 {
-    ```
-
-    ```js
       font-weight: normal;
-    ```
-
-    ```js
       margin-bottom: 0;
-    ```
-
-    ```js
       padding-bottom: 0;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -1372,97 +1027,28 @@ const address = ref("");
 
     ```js
     <template>
-    ```
-
-    ```js
       <div id="app">
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     const items = [
-    ```
-
-    ```js
            {
-    ```
-
-    ```js
              id: '10',
-    ```
-
-    ```js
              title: 'Forest Shot',
-    ```
-
-    ```js
              description: 'Recent shot of a forest
-    ```
-
-    ```js
                overlooking a lake',
-    ```
-
-    ```js
              url:
-    ```
-
-    ```js
              'https://picsum.photos/id/10/1000/750.jpg',
-    ```
-
-    ```js
            },
-    ```
-
-    ```js
            {
-    ```
-
-    ```js
              id: '1000',
-    ```
-
-    ```js
              title: 'Cold cross',
-    ```
-
-    ```js
              description: 'Mountaintop cross with
-    ```
-
-    ```js
                snowfall from Jan 2018',
-    ```
-
-    ```js
              url:
-    ```
-
-    ```js
              'https://picsum.photos/id/1000/1000/750.jpg',
-    ```
-
-    ```js
            },
-    ```
-
-    ```js
          ]
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1470,17 +1056,8 @@ const address = ref("");
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import Rich from './components/Rich.vue'
-    ```
-
-    ```js
     // other component properties, eg. "data"
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1488,69 +1065,21 @@ const address = ref("");
 
     ```js
     <template>
-    ```
-
-    ```js
       <!-- rest of template -->
-    ```
-
-    ```js
           <component
-    ```
-
-    ```js
             v-for="item in items"
-    ```
-
-    ```js
             :key="item.id"
-    ```
-
-    ```js
             :is="layout"
-    ```
-
-    ```js
             :title="item.title"
-    ```
-
-    ```js
             :description="item.description"
-    ```
-
-    ```js
             :url="item.url"
-    ```
-
-    ```js
           />
-    ```
-
-    ```js
       <!-- rest of template -->
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
       import { shallowRef } from 'vue'
-    ```
-
-    ```js
       const layout = shallowRef(Rich)
-    ```
-
-    ```js
       // other data definitions eg. 'items'
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1558,77 +1087,23 @@ const address = ref("");
 
     ```js
     <template>
-    ```
-
-    ```js
       <!-- rest of template -->
-    ```
-
-    ```js
         <div class="grid">
-    ```
-
-    ```js
           <component
-    ```
-
-    ```js
             v-for="item in items"
-    ```
-
-    ```js
             :key="item.id"
-    ```
-
-    ```js
             :is="layout"
-    ```
-
-    ```js
             :title="item.title"
-    ```
-
-    ```js
             :description="item.description"
-    ```
-
-    ```js
             :url="item.url"
-    ```
-
-    ```js
           />
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       <!-- rest of template -->
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <style scoped>
-    ```
-
-    ```js
     .grid {
-    ```
-
-    ```js
       display: flex;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -1642,105 +1117,30 @@ const address = ref("");
 
     ```js
     <template>
-    ```
-
-    ```js
       <div class="card">
-    ```
-
-    ```js
         <h3>{{ title }}</h3>
-    ```
-
-    ```js
         <p>{{ description }}</p>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     import { defineProps } from 'vue'
-    ```
-
-    ```js
     const { title, description } = defineProps(
-    ```
-
-    ```js
         ['title', 'description']
-    ```
-
-    ```js
     )
-    ```
-
-    ```js
     </script>
-    ```
-
-    ```js
     <style scoped>
-    ```
-
-    ```js
     .card {
-    ```
-
-    ```js
       display: flex;
-    ```
-
-    ```js
       flex-direction: column;
-    ```
-
-    ```js
       min-width: 200px;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     h3 {
-    ```
-
-    ```js
       font-weight: normal;
-    ```
-
-    ```js
       padding-bottom: 0;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     p {
-    ```
-
-    ```js
      margin: 0;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -1748,49 +1148,16 @@ const address = ref("");
 
     ```js
     <script setup>
-    ```
-
-    ```js
     // other imports
-    ```
-
-    ```js
     import Compressed from './components/Compressed.vue'
-    ```
-
-    ```js
     const layoutOptions = [ {
-    ```
-
-    ```js
       name: 'Rich',
-    ```
-
-    ```js
       component: Rich
-    ```
-
-    ```js
     }, {
-    ```
-
-    ```js
       name: 'Compressed',
-    ```
-
-    ```js
       component: Compressed
-    ```
-
-    ```js
     }]
-    ```
-
-    ```js
       // other component properties
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1798,45 +1165,15 @@ const address = ref("");
 
     ```js
     <template>
-    ```
-
-    ```js
       <!-- rest of template -->
-    ```
-
-    ```js
       Layout: <select v-model="layout">
-    ```
-
-    ```js
         <option
-    ```
-
-    ```js
           v-for="(option, index) in layoutOptions"
-    ```
-
-    ```js
           :key="index"
-    ```
-
-    ```js
           :value="option.component"
-    ```
-
-    ```js
           >{{option.name}}</option>
-    ```
-
-    ```js
         </select>
-    ```
-
-    ```js
       <!-- rest of template -->
-    ```
-
-    ```js
     </template>
     ```
 
@@ -1850,53 +1187,17 @@ const address = ref("");
 
     ```js
     <template>
-    ```
-
-    ```js
       <h3>{{ title }}</h3>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     import { defineProps } from 'vue'
-    ```
-
-    ```js
     const { title } = defineProps(['title'])
-    ```
-
-    ```js
     </script>
-    ```
-
-    ```js
     <style scoped>
-    ```
-
-    ```js
     h3 {
-    ```
-
-    ```js
       width: 100%;
-    ```
-
-    ```js
       font-weight: normal;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -1904,61 +1205,19 @@ const address = ref("");
 
     ```js
     <script setup>
-    ```
-
-    ```js
     // other imports
-    ```
-
-    ```js
     import List from './components/List.vue'
-    ```
-
-    ```js
     const layoutOptions = [ {
-    ```
-
-    ```js
       name: 'Rich',
-    ```
-
-    ```js
       component: Rich
-    ```
-
-    ```js
     }, {
-    ```
-
-    ```js
       name: 'Compressed',
-    ```
-
-    ```js
       component: Compressed
-    ```
-
-    ```js
     }, {
-    ```
-
-    ```js
       name: 'List',
-    ```
-
-    ```js
       component: List
-    ```
-
-    ```js
     }]
-    ```
-
-    ```js
       // other component properties
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1972,57 +1231,18 @@ const address = ref("");
 
     ```js
     <template>
-    ```
-
-    ```js
       <!-- rest of template -->
-    ```
-
-    ```js
         <div class="grid" :class="{ 'grid-column': layout
-    ```
-
-    ```js
           === List }">
-    ```
-
-    ```js
           <!-- grid using component tag -->
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
       <!-- rest of template -->
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <style scoped>
-    ```
-
-    ```js
     /* existing rules */
-    ```
-
-    ```js
     .grid-column {
-    ```
-
-    ```js
       flex-direction: column;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 

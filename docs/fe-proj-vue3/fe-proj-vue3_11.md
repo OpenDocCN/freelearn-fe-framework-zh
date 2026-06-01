@@ -383,109 +383,31 @@ it('PostListItem renders tags with a # prepended to them', () => {
 
     ```js
     <script setup>
-    ```
-
-    ```js
     defineProps({
-    ```
-
-    ```js
       title: {
-    ```
-
-    ```js
         type: String
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       description: {
-    ```
-
-    ```js
         type: String
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       tags: {
-    ```
-
-    ```js
         type: Array,
-    ```
-
-    ```js
         default: () => []
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     })
-    ```
-
-    ```js
     </script>
-    ```
-
-    ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
       <h3>{{ title }}</h3>
-    ```
-
-    ```js
       <p>{{ description }}</p>
-    ```
-
-    ```js
       <ul>
-    ```
-
-    ```js
         <li
-    ```
-
-    ```js
         v-for="tag in tags"
-    ```
-
-    ```js
         :key="tag">
-    ```
-
-    ```js
         #{{ tag }}
-    ```
-
-    ```js
         </li>
-    ```
-
-    ```js
       </ul>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -537,29 +459,11 @@ it('PostList renders tags for each post', () => {
 
     ```js
     <!-- rest of template -->
-    ```
-
-    ```js
     <PostListItem v-for="post in posts"
-    ```
-
-    ```js
       :key="post.slug"
-    ```
-
-    ```js
       :title="post.title"
-    ```
-
-    ```js
       :description="post.description"
-    ```
-
-    ```js
       :tags="post.tags"
-    ```
-
-    ```js
     />
     ```
 
@@ -679,81 +583,24 @@ describe('ellipsis', () => {
 
     ```js
     <script setup>
-    ```
-
-    ```js
     // rest of script
-    ```
-
-    ```js
     const ellipsis = computed(() => {
-    ```
-
-    ```js
       return props.description && props.description.length
-    ```
-
-    ```js
         > 50 ? `${props.description.slice(0,50)}...` :
-    ```
-
-    ```js
           props.description;
-    ```
-
-    ```js
     })
-    ```
-
-    ```js
     defineExpose({ truncated, ellipsis })
-    ```
-
-    ```js
     </script>
-    ```
-
-    ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
       <h3>{{ title }}</h3>
-    ```
-
-    ```js
       <p>{{ ellipsis }}</p>
-    ```
-
-    ```js
       <ul>
-    ```
-
-    ```js
         <li v-for="tag in tags" :key="tag">
-    ```
-
-    ```js
         #{{ tag }}
-    ```
-
-    ```js
         </li>
-    ```
-
-    ```js
       </ul>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -1056,49 +903,16 @@ describe('SinglePost', () => {
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import PostList from './PostList.vue';
-    ```
-
-    ```js
     defineProps({
-    ```
-
-    ```js
       posts: {
-    ```
-
-    ```js
         type: Array,
-    ```
-
-    ```js
           default: () => []
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     })
-    ```
-
-    ```js
     </script>
-    ```
-
-    ```js
     <template>
-    ```
-
-    ```js
       <h3>#INSERT_TAG_NAME</h3>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -1106,41 +920,14 @@ describe('SinglePost', () => {
 
     ```js
     // other imports
-    ```
-
-    ```js
     import TagPage from '@/components/TagPage.vue';
-    ```
-
-    ```js
     const routes = [
-    ```
-
-    ```js
       // other routes
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         path:'/tags/:tagName',
-    ```
-
-    ```js
         component: TagPage
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     ];
-    ```
-
-    ```js
     // router instantiation and export
     ```
 
@@ -1148,65 +935,20 @@ describe('SinglePost', () => {
 
     ```js
     import { computed } from 'vue';
-    ```
-
-    ```js
     import { useRoute } from 'vue-router';
-    ```
-
-    ```js
     const props = defineProps({
-    ```
-
-    ```js
       posts: {
-    ```
-
-    ```js
         type: Array,
-    ```
-
-    ```js
           default: () => []
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     })
-    ```
-
-    ```js
     const route = useRoute();
-    ```
-
-    ```js
     const tagName = computed(() => {
-    ```
-
-    ```js
       return route.params.tagName;
-    ```
-
-    ```js
     })
-    ```
-
-    ```js
     const tagPosts = computed(() => {
-    ```
-
-    ```js
       return props.posts.filter(p =>
-    ```
-
-    ```js
         p.tags.includes(route.params.tagName));
-    ```
-
-    ```js
     })
     ```
 
@@ -1214,17 +956,8 @@ describe('SinglePost', () => {
 
     ```js
     <template>
-    ```
-
-    ```js
       <h3># {{ tagName }}</h3>
-    ```
-
-    ```js
       <PostLists :posts="tagPosts" />
-    ```
-
-    ```js
     </template>
     ```
 
@@ -1238,17 +971,8 @@ describe('SinglePost', () => {
 
     ```js
       <router-link :to="`/tags/${tag}`"
-    ```
-
-    ```js
       v-for="tag in tags" :key="tags">
-    ```
-
-    ```js
       #{{ tag }}
-    ```
-
-    ```js
       </router-link>
     ```
 
@@ -1256,109 +980,31 @@ describe('SinglePost', () => {
 
     ```js
     // rest of test...
-    ```
-
-    ```js
     describe('TagPage', () => {
-    ```
-
-    ```js
       it('Router renders tag page when clicking a tag in
-    ```
-
-    ```js
       the post list item', async () => {
-    ```
-
-    ```js
         router.push('/');
-    ```
-
-    ```js
         await router.isReady();
-    ```
-
-    ```js
         const wrapper = mount(App, {
-    ```
-
-    ```js
           global: {
-    ```
-
-    ```js
           plugins: [router]
-    ```
-
-    ```js
           }
-    ```
-
-    ```js
         })
-    ```
-
-    ```js
         expect(wrapper.text()).toMatch("Vue.js for React
-    ```
-
-    ```js
                                         developers");
-    ```
-
-    ```js
         expect(wrapper.text()).toMatch("Migrating an
-    ```
-
-    ```js
                                         AngularJS app to
-    ```
-
-    ```js
                                         Vue.js");
-    ```
-
-    ```js
         await wrapper.find('a[href="/tags/angularjs"]')
-    ```
-
-    ```js
           .trigger('click');
-    ```
-
-    ```js
         await flushPromises();
-    ```
-
-    ```js
         expect(wrapper.text()).toMatch("Migrating an
-    ```
-
-    ```js
                                         AngularJS app to
-    ```
-
-    ```js
                                         Vue.js");
-    ```
-
-    ```js
         expect(wrapper.text()).not.toMatch("Vue.js for
-    ```
-
-    ```js
                                             React
-    ```
-
-    ```js
                                             developers");
-    ```
-
-    ```js
       })
-    ```
-
-    ```js
     })
     ```
 
@@ -1366,69 +1012,21 @@ describe('SinglePost', () => {
 
     ```js
     // rest of test...
-    ```
-
-    ```js
       it('Router renders tag page when a URL is set',
-    ```
-
-    ```js
       async () => {
-    ```
-
-    ```js
         await router.replace('/');
-    ```
-
-    ```js
         await router.push('/tags/angularjs');
-    ```
-
-    ```js
         const wrapper = mount(App, {
-    ```
-
-    ```js
           global: {
-    ```
-
-    ```js
           plugins: [router]
-    ```
-
-    ```js
           }
-    ```
-
-    ```js
         })
-    ```
-
-    ```js
         expect(wrapper.text()).toMatch("Migrating an
-    ```
-
-    ```js
                                         AngularJS app to
-    ```
-
-    ```js
                                         Vue.js");
-    ```
-
-    ```js
         expect(wrapper.text()).not.toMatch("Vue.js for
-    ```
-
-    ```js
                                             React
-    ```
-
-    ```js
                                             developers");
-    ```
-
-    ```js
       })
     ```
 
@@ -1753,73 +1351,22 @@ it('Newsletter Banner should not display if store is initialised with it dismiss
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
       <strong>Cookies Disclaimer</strong>
-    ```
-
-    ```js
         We use cookies to improve our experience.
-    ```
-
-    ```js
       <button>I agree</button>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <style scoped>
-    ```
-
-    ```js
     div {
-    ```
-
-    ```js
       background-color: green;
-    ```
-
-    ```js
       size: 100%;
-    ```
-
-    ```js
       padding: 10px;
-    ```
-
-    ```js
       margin-top: 50px;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     div button {
-    ```
-
-    ```js
       float: right;
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     </style>
     ```
 
@@ -1827,53 +1374,17 @@ it('Newsletter Banner should not display if store is initialised with it dismiss
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import NewsletterBanner from './components/NewsletterBanner.vue';
-    ```
-
-    ```js
     import CookieBanner from './components/CookieBanner.vue';
-    ```
-
-    ```js
     </script>
-    ```
-
-    ```js
     <template>
-    ```
-
-    ```js
       <NewsletterBanner />
-    ```
-
-    ```js
       <header>
-    ```
-
-    ```js
       <h1>The Vue.js Workshop Blog</h1>
-    ```
-
-    ```js
       </header>
-    ```
-
-    ```js
       <router-view :posts="posts"></router-view>
-    ```
-
-    ```js
       <CookieBanner />
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <!-- rest of template -->
     ```
 
@@ -1881,25 +1392,10 @@ it('Newsletter Banner should not display if store is initialised with it dismiss
 
     ```js
     // rest of Pinia store...
-    ```
-
-    ```js
     state: () => ({
-    ```
-
-    ```js
       dismissedSubscriberBanner: false,
-    ```
-
-    ```js
       acceptedCookie: false
-    ```
-
-    ```js
     }),
-    ```
-
-    ```js
     // rest of Pinia store...
     ```
 
@@ -1907,41 +1403,14 @@ it('Newsletter Banner should not display if store is initialised with it dismiss
 
     ```js
     // rest of Pinia store...
-    ```
-
-    ```js
     actions: {
-    ```
-
-    ```js
       dismissSubscriberBanner() {
-    ```
-
-    ```js
         this.dismissedSubscriberBanner = true;
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       acceptCookie() {
-    ```
-
-    ```js
         this.acceptedCookie = true;
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     }
-    ```
-
-    ```js
     // rest of Pinia store...
     ```
 
@@ -1949,33 +1418,12 @@ it('Newsletter Banner should not display if store is initialised with it dismiss
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import { computed } from 'vue';
-    ```
-
-    ```js
     import { userPreferencesStore } from '@/store.js';
-    ```
-
-    ```js
     const store = userPreferencesStore();
-    ```
-
-    ```js
     const acceptedCookie = computed(() => {
-    ```
-
-    ```js
       return store.acceptedCookie;
-    ```
-
-    ```js
     })
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1983,29 +1431,11 @@ it('Newsletter Banner should not display if store is initialised with it dismiss
 
     ```js
     <template>
-    ```
-
-    ```js
       <div v-if="!acceptedCookie">
-    ```
-
-    ```js
       <strong>Cookies Disclaimer</strong>
-    ```
-
-    ```js
         We use cookies to improve our experience.
-    ```
-
-    ```js
       <button @click="store.acceptCookie">I agree</button>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -2019,73 +1449,22 @@ it('Newsletter Banner should not display if store is initialised with it dismiss
 
     ```js
     import { describe, it, expect, vi } from 'vitest'
-    ```
-
-    ```js
     import { shallowMount } from '@vue/test-utils';
-    ```
-
-    ```js
     import CookieBanner from '../src/components/CookieBanner.vue';
-    ```
-
-    ```js
     import { createTestingPinia } from '@pinia/testing'
-    ```
-
-    ```js
     import { userPreferencesStore } from '@/store.js';
-    ```
-
-    ```js
     describe('CookieBanner', () => {
-    ```
-
-    ```js
       it('Cookie Banner should display if store is
-    ```
-
-    ```js
       initialized with it not dismissed', () => {
-    ```
-
-    ```js
         const wrapper = shallowMount(CookieBanner, {
-    ```
-
-    ```js
           global: {
-    ```
-
-    ```js
             plugins:
-    ```
-
-    ```js
               [createTestingPinia({createSpy:vi.fn})]
-    ```
-
-    ```js
           }
-    ```
-
-    ```js
         })
-    ```
-
-    ```js
         expect(wrapper.text()).toMatch("Cookies
-    ```
-
-    ```js
                                         Disclaimer");
-    ```
-
-    ```js
       })
-    ```
-
-    ```js
     })
     ```
 
@@ -2093,65 +1472,20 @@ it('Newsletter Banner should not display if store is initialised with it dismiss
 
     ```js
     it('Cookie Banner should not display if store is initialised with it dismissed', () => {
-    ```
-
-    ```js
       const wrapper = shallowMount(CookieBanner, {
-    ```
-
-    ```js
         global: {
-    ```
-
-    ```js
           plugins: [createTestingPinia({
-    ```
-
-    ```js
             initialState: {
-    ```
-
-    ```js
               userPreferences: {
-    ```
-
-    ```js
                 acceptedCookie: true
-    ```
-
-    ```js
               }
-    ```
-
-    ```js
             },
-    ```
-
-    ```js
             createSpy:vi.fn
-    ```
-
-    ```js
           })]
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       })
-    ```
-
-    ```js
       expect(wrapper.text()).not.toMatch("Cookies
-    ```
-
-    ```js
                                           Disclaimer");
-    ```
-
-    ```js
     })
     ```
 
@@ -2159,49 +1493,16 @@ it('Newsletter Banner should not display if store is initialised with it dismiss
 
     ```js
     it('Cookie Banner should hide on "I agree" button click', async () => {
-    ```
-
-    ```js
       const wrapper = shallowMount(CookieBanner, {
-    ```
-
-    ```js
         global: {
-    ```
-
-    ```js
           plugins:
-    ```
-
-    ```js
             [createTestingPinia({ createSpy:vi.fn })]
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       })
-    ```
-
-    ```js
         const store = userPreferencesStore();
-    ```
-
-    ```js
         await wrapper.find('button').trigger('click');
-    ```
-
-    ```js
         expect(store.acceptCookie)
-    ```
-
-    ```js
           .toHaveBeenCalledTimes(1);
-    ```
-
-    ```js
     })
     ```
 

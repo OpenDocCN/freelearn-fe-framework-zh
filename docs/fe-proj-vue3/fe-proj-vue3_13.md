@@ -283,37 +283,13 @@ test:
 
     ```js
     {
-    ```
-
-    ```js
       "// other": "properties",
-    ```
-
-    ```js
       "scripts": {
-    ```
-
-    ```js
         "// other": "scripts",
-    ```
-
-    ```js
         "lint": "eslint --ext .js,.vue src",
-    ```
-
-    ```js
         "// other": "scripts"
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       "// more": "properties"
-    ```
-
-    ```js
     }
     ```
 
@@ -321,13 +297,7 @@ test:
 
     ```js
     lint:
-    ```
-
-    ```js
       image: node:lts
-    ```
-
-    ```js
       stage: test
     ```
 
@@ -335,25 +305,10 @@ test:
 
     ```js
     lint:
-    ```
-
-    ```js
       image: node:lts
-    ```
-
-    ```js
       stage: test
-    ```
-
-    ```js
       script:
-    ```
-
-    ```js
         - npm ci
-    ```
-
-    ```js
         - npm run lint
     ```
 
@@ -361,13 +316,7 @@ test:
 
     ```js
     git add .
-    ```
-
-    ```js
     git commit -m "add linting"
-    ```
-
-    ```js
     git push
     ```
 
@@ -563,65 +512,20 @@ CloudFront 是 AWS 的**内容分发网络**（**CDN**）。CDN 可以通过从*
 
     ```js
     {
-    ```
-
-    ```js
         "Version": "2012-10-17",
-    ```
-
-    ```js
         "Statement": [
-    ```
-
-    ```js
             {
-    ```
-
-    ```js
                 "Sid": "PublicReadGetObject",
-    ```
-
-    ```js
                 "Effect": "Allow",
-    ```
-
-    ```js
                 "Principal": "*",
-    ```
-
-    ```js
                 "Action": [
-    ```
-
-    ```js
                     "s3:GetObject"
-    ```
-
-    ```js
                 ],
-    ```
-
-    ```js
                 "Resource": [
-    ```
-
-    ```js
                     "arn:aws:s3:::vue-workshop-ray/*"
-    ```
-
-    ```js
                 ]
-    ```
-
-    ```js
             }
-    ```
-
-    ```js
         ]
-    ```
-
-    ```js
     }
     ```
 
@@ -715,33 +619,12 @@ S3 是一种非常经济高效且性能出色的解决方案，用于大规模�
 
     ```js
     build:
-    ```
-
-    ```js
       # other properties
-    ```
-
-    ```js
       cache:
-    ```
-
-    ```js
         key: $CI_COMMIT_REF_SLUG
-    ```
-
-    ```js
         paths:
-    ```
-
-    ```js
           - dist
-    ```
-
-    ```js
       # other properties
-    ```
-
-    ```js
     # other jobs
     ```
 
@@ -749,49 +632,16 @@ S3 是一种非常经济高效且性能出色的解决方案，用于大规模�
 
     ```js
     # other jobs
-    ```
-
-    ```js
     deploy:
-    ```
-
-    ```js
       image: python:latest
-    ```
-
-    ```js
       stage: deploy
-    ```
-
-    ```js
       cache:
-    ```
-
-    ```js
         key: $CI_COMMIT_REF_SLUG
-    ```
-
-    ```js
         paths:
-    ```
-
-    ```js
           - dist
-    ```
-
-    ```js
       before_script:
-    ```
-
-    ```js
         - pip install awscli
-    ```
-
-    ```js
       script:
-    ```
-
-    ```js
         - aws s3 sync ./dist s3://vue-workshop-ray --acl=public-read
     ```
 

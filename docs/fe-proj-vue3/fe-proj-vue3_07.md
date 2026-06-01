@@ -432,9 +432,6 @@ app.mount('#app')
 
     ```js
     > cd Chapter07/Exercise7.01/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -471,9 +468,6 @@ const messages = [
 
     ```js
     import { createRouter, createWebHistory } from 'vue-router'
-    ```
-
-    ```js
     import HomeView from '../views/HomeView.vue'
     ```
 
@@ -481,73 +475,22 @@ const messages = [
 
     ```js
     export const routes = [
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         path: '/',
-    ```
-
-    ```js
         name: 'home',
-    ```
-
-    ```js
         component: HomeView
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         path: '/about',
-    ```
-
-    ```js
         name: 'about',
-    ```
-
-    ```js
         component: () => import('../views/AboutView.vue')
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         path: '/messages',
-    ```
-
-    ```js
         name: 'messageFeed',
-    ```
-
-    ```js
         component: () =>
-    ```
-
-    ```js
           import('../views/MessageFeed.vue')
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     ]
     ```
 
@@ -555,21 +498,9 @@ const messages = [
 
     ```js
     const router = createRouter({
-    ```
-
-    ```js
       history: createWebHistory(import.meta.env.BASE_URL),
-    ```
-
-    ```js
       routes
-    ```
-
-    ```js
     })
-    ```
-
-    ```js
     export default router
     ```
 
@@ -577,17 +508,8 @@ const messages = [
 
     ```js
     import router from './router'
-    ```
-
-    ```js
     const app = createApp(App)
-    ```
-
-    ```js
     app.use(router)
-    ```
-
-    ```js
     app.mount('#app')
     ```
 
@@ -595,13 +517,7 @@ const messages = [
 
     ```js
     <template>
-    ```
-
-    ```js
       <RouterView />
-    ```
-
-    ```js
     </template>
     ```
 
@@ -716,9 +632,6 @@ router.go(-1); //back one page
 
     ```js
     > cd Chapter07/Exercise7.02/
-    ```
-
-    ```js
     > yarn
     ```
 
@@ -730,45 +643,15 @@ router.go(-1); //back one page
 
     ```js
     <template>
-    ```
-
-    ```js
       <header>
-    ```
-
-    ```js
         <nav>
-    ```
-
-    ```js
           <RouterLink to="/">Home</RouterLink>
-    ```
-
-    ```js
           <RouterLink to="/about">About</RouterLink>
-    ```
-
-    ```js
           <RouterLink to="/messages">Message Feed
-    ```
-
-    ```js
             </RouterLink>
-    ```
-
-    ```js
         </nav>
-    ```
-
-    ```js
       </header>
-    ```
-
-    ```js
       <RouterView />
-    ```
-
-    ```js
     </template>
     ```
 
@@ -788,9 +671,6 @@ router.go(-1); //back one page
 
     ```js
     <RouterLink :to="{ name: 'messageFeed' }">Message Feed
-    ```
-
-    ```js
       </RouterLink>
     ```
 
@@ -804,73 +684,22 @@ router.go(-1); //back one page
 
     ```js
     export const routes = [
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         path: '/',
-    ```
-
-    ```js
         name: 'home',
-    ```
-
-    ```js
         component: HomeView
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         path: '/about',
-    ```
-
-    ```js
         name: 'about',
-    ```
-
-    ```js
         component: () => import('../views/AboutView.vue')
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         path: '/messagesFeed',
-    ```
-
-    ```js
         name: 'messageFeed',
-    ```
-
-    ```js
         component: () =>
-    ```
-
-    ```js
           import('../views/MessageFeed.vue')
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     ]
     ```
 
@@ -1335,57 +1164,18 @@ const props = defineProps({
 
     ```js
     <template>
-    ```
-
-    ```js
         <div>
-    ```
-
-    ```js
             <p>{{content}}</p>
-    ```
-
-    ```js
         </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     import { defineProps } from 'vue'
-    ```
-
-    ```js
     const props = defineProps({
-    ```
-
-    ```js
         content: {
-    ```
-
-    ```js
             default: '',
-    ```
-
-    ```js
             type: String
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
     })
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1393,33 +1183,12 @@ const props = defineProps({
 
     ```js
     export const routes = [
-    ```
-
-    ```js
       //…,
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         path: '/message',
-    ```
-
-    ```js
         name: 'message',
-    ```
-
-    ```js
         component: () => import('../views/Message.vue'),
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     ]
     ```
 
@@ -1444,33 +1213,12 @@ const props = defineProps({
 
     ```js
     <script setup>
-    ```
-
-    ```js
     const messages = [
-    ```
-
-    ```js
         'Hello, how are you?',
-    ```
-
-    ```js
         'The weather is nice',
-    ```
-
-    ```js
         'This is the message feed',
-    ```
-
-    ```js
         'And I am the fourth message'
-    ```
-
-    ```js
       ]
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1478,37 +1226,13 @@ const props = defineProps({
 
     ```js
     export const routes = [
-    ```
-
-    ```js
       //…,
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         path: '/message',
-    ```
-
-    ```js
         name: 'message',
-    ```
-
-    ```js
         component: () => import('../views/Message.vue'),
-    ```
-
-    ```js
         props: route => ({ content: route.query.content })
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     ]
     ```
 
@@ -1528,37 +1252,13 @@ const props = defineProps({
 
     ```js
       <div>
-    ```
-
-    ```js
       <h2> Message Feed </h2>
-    ```
-
-    ```js
       <div v-for="(m, i) in messages" :key="i" >
-    ```
-
-    ```js
         <RouterLink :to="`/message?content=${m}`">
-    ```
-
-    ```js
           {{ m }}
-    ```
-
-    ```js
         </RouterLink>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </div>
-    ```
-
-    ```js
     </template>
     ```
 
@@ -1572,29 +1272,11 @@ const props = defineProps({
 
     ```js
     const messages = [
-    ```
-
-    ```js
       'Hello, how are you?',
-    ```
-
-    ```js
       'The weather is nice',
-    ```
-
-    ```js
       'This is the message feed',
-    ```
-
-    ```js
       'And I am the fourth message'
-    ```
-
-    ```js
     ];
-    ```
-
-    ```js
     export default messages;
     ```
 
@@ -1602,37 +1284,13 @@ const props = defineProps({
 
     ```js
     <script setup>
-    ```
-
-    ```js
     import { defineProps } from 'vue'
-    ```
-
-    ```js
     const props = defineProps({
-    ```
-
-    ```js
         messages: {
-    ```
-
-    ```js
             default: [],
-    ```
-
-    ```js
             type: Array
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
     })
-    ```
-
-    ```js
     </script>
     ```
 
@@ -1640,53 +1298,17 @@ const props = defineProps({
 
     ```js
     {
-    ```
-
-    ```js
         path: '/messages',
-    ```
-
-    ```js
         name: 'messageFeed',
-    ```
-
-    ```js
         component: () =>
-    ```
-
-    ```js
           import('../views/MessageFeed.vue'),
-    ```
-
-    ```js
         props: route => ({
-    ```
-
-    ```js
         messages: route.query.messages?.length > 0
-    ```
-
-    ```js
                 ? route.query.messages : []
-    ```
-
-    ```js
         }),
-    ```
-
-    ```js
         async beforeEnter(to, from, next) {
-    ```
-
-    ```js
           next()
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
     ```
 
@@ -1700,17 +1322,8 @@ const props = defineProps({
 
     ```js
       const messages = module.default;
-    ```
-
-    ```js
       if (messages && messages.length > 0) {
-    ```
-
-    ```js
         to.query.messages = messages;
-    ```
-
-    ```js
       }
     ```
 
@@ -1718,85 +1331,25 @@ const props = defineProps({
 
     ```js
     {
-    ```
-
-    ```js
         path: '/messages',
-    ```
-
-    ```js
         name: 'messageFeed',
-    ```
-
-    ```js
         component: () =>
-    ```
-
-    ```js
           import('../views/MessageFeed.vue'),
-    ```
-
-    ```js
         props: route => ({
-    ```
-
-    ```js
           messages: route.query.messages?.length > 0
-    ```
-
-    ```js
             ? route.query.messages : []
-    ```
-
-    ```js
         }),
-    ```
-
-    ```js
         async beforeEnter(to, from, next) {
-    ```
-
-    ```js
           if (!to.query || !to.query.messages) {
-    ```
-
-    ```js
             const module = await import
-    ```
-
-    ```js
               ('../assets/messages.js');
-    ```
-
-    ```js
             const messages = module.default;
-    ```
-
-    ```js
             if (messages && messages.length > 0) {
-    ```
-
-    ```js
               to.query.messages = messages;
-    ```
-
-    ```js
             }
-    ```
-
-    ```js
           }
-    ```
-
-    ```js
           next()
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       },
     ```
 
@@ -1913,25 +1466,10 @@ age.value = users[props.id - 1].age;
 
     ```js
     {
-    ```
-
-    ```js
         path: '/message/:id',
-    ```
-
-    ```js
         name: 'message',
-    ```
-
-    ```js
         component: () => import('../views/Message.vue'),
-    ```
-
-    ```js
         //…
-    ```
-
-    ```js
     }
     ```
 
@@ -1945,53 +1483,17 @@ age.value = users[props.id - 1].age;
 
     ```js
     async beforeEnter(to, from, next) {
-    ```
-
-    ```js
       if (to.params && to.params.id) {
-    ```
-
-    ```js
         const id = to.params.id;
-    ```
-
-    ```js
         const module = await import
-    ```
-
-    ```js
           ('../assets/messages.js');
-    ```
-
-    ```js
         const messages = module.default;
-    ```
-
-    ```js
         if (messages && messages.length > 0 && id <
-    ```
-
-    ```js
           messages.length) {
-    ```
-
-    ```js
           to.query.content = messages[id];
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       next()
-    ```
-
-    ```js
     },
     ```
 
@@ -1999,17 +1501,8 @@ age.value = users[props.id - 1].age;
 
     ```js
     props: route => ({
-    ```
-
-    ```js
       id: route.params.id,
-    ```
-
-    ```js
       content: route.query.content
-    ```
-
-    ```js
     }),
     ```
 
@@ -2058,77 +1551,23 @@ const routes = [
 
     ```js
     {
-    ```
-
-    ```js
       path: '/message/:id',
-    ```
-
-    ```js
         name: 'message',
-    ```
-
-    ```js
         component: () => import('../views/Message.vue'),
-    ```
-
-    ```js
         props: true,
-    ```
-
-    ```js
         async beforeEnter(to, from, next) {
-    ```
-
-    ```js
           if (to.params && to.params.id) {
-    ```
-
-    ```js
             const id = to.params.id;
-    ```
-
-    ```js
             const module = await import
-    ```
-
-    ```js
               ('../assets/messages.js');
-    ```
-
-    ```js
             const messages = module.default;
-    ```
-
-    ```js
             if (messages && messages.length > 0 && id <
-    ```
-
-    ```js
               messages.length) {
-    ```
-
-    ```js
               to.params.content = messages[id];
-    ```
-
-    ```js
             }
-    ```
-
-    ```js
           }
-    ```
-
-    ```js
           next()
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
     }
     ```
 
@@ -2253,85 +1692,25 @@ onBeforeRouteUpdate((to, from, next) => {
 
     ```js
     const messages = [
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         content: 'Hello, how are you?',
-    ```
-
-    ```js
         author: 'John',
-    ```
-
-    ```js
         sent: '12 May 2019'
-    ```
-
-    ```js
       }, {
-    ```
-
-    ```js
         content: 'The weather is nice',
-    ```
-
-    ```js
         author: 'Lily',
-    ```
-
-    ```js
         sent: '12 Jun 2019'
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         content: 'This is message feed',
-    ```
-
-    ```js
         author: 'Smith',
-    ```
-
-    ```js
         sent: '10 Jan 2020'
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       {
-    ```
-
-    ```js
         content: 'And I am the fourth message',
-    ```
-
-    ```js
         author: 'Chuck',
-    ```
-
-    ```js
         sent: '1 Apr 2021'
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
     ];
     ```
 
@@ -2339,13 +1718,7 @@ onBeforeRouteUpdate((to, from, next) => {
 
     ```js
     <RouterLink :to="`/message/${i}`">
-    ```
-
-    ```js
       {{ m.content }}
-    ```
-
-    ```js
     </RouterLink>
     ```
 
@@ -2353,69 +1726,21 @@ onBeforeRouteUpdate((to, from, next) => {
 
     ```js
     <template>
-    ```
-
-    ```js
       <h3>Author:</h3>
-    ```
-
-    ```js
       <p>{{message.author}}</p>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     import { defineProps } from 'vue'
-    ```
-
-    ```js
     const { message } = defineProps({
-    ```
-
-    ```js
       id: {
-    ```
-
-    ```js
         default: '',
-    ```
-
-    ```js
         type: String
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       message: {
-    ```
-
-    ```js
         default: () => ({ author: '' }),
-    ```
-
-    ```js
         type: Object
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     })
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2423,77 +1748,23 @@ onBeforeRouteUpdate((to, from, next) => {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <h3>Message info: </h3>
-    ```
-
-    ```js
         <p>{{message.sent}}</p>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     import { defineProps } from 'vue'
-    ```
-
-    ```js
     const { message } = defineProps({
-    ```
-
-    ```js
       id: {
-    ```
-
-    ```js
         default: '',
-    ```
-
-    ```js
         type: String
-    ```
-
-    ```js
       },
-    ```
-
-    ```js
       message: {
-    ```
-
-    ```js
         default: () => ({ sent: '' }),
-    ```
-
-    ```js
         type: Object
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
     })
-    ```
-
-    ```js
     </script>
     ```
 
@@ -2501,81 +1772,24 @@ onBeforeRouteUpdate((to, from, next) => {
 
     ```js
     {
-    ```
-
-    ```js
         path: '/message/:id',
-    ```
-
-    ```js
         name: 'message',
-    ```
-
-    ```js
         component: () => import('../views/Message.vue'),
-    ```
-
-    ```js
         async beforeEnter(to, from, next) { ... },
-    ```
-
-    ```js
         props: true,
-    ```
-
-    ```js
         children: [{
-    ```
-
-    ```js
           path: 'author',
-    ```
-
-    ```js
           name: 'messageAuthor',
-    ```
-
-    ```js
           props: true,
-    ```
-
-    ```js
           component: () =>
-    ```
-
-    ```js
             import('../views/MessageAuthor.vue'),
-    ```
-
-    ```js
         }, {
-    ```
-
-    ```js
           path: 'info',
-    ```
-
-    ```js
           props: true,
-    ```
-
-    ```js
           name: 'messageInfo',
-    ```
-
-    ```js
           component: () =>
-    ```
-
-    ```js
             import('../views/MessageInfo.vue'),
-    ```
-
-    ```js
         }]
-    ```
-
-    ```js
       }
     ```
 
@@ -2583,45 +1797,15 @@ onBeforeRouteUpdate((to, from, next) => {
 
     ```js
     async function beforeEnterMessage(to, from, next) {
-    ```
-
-    ```js
       const id = to.params.id;
-    ```
-
-    ```js
       const module = await import
-    ```
-
-    ```js
         ('../assets/messages.js');
-    ```
-
-    ```js
       const messages = module.default;
-    ```
-
-    ```js
       if (messages && messages.length > 0 && id <
-    ```
-
-    ```js
         messages.length) {
-    ```
-
-    ```js
         to.params.message = messages[id];
-    ```
-
-    ```js
       }
-    ```
-
-    ```js
       next()
-    ```
-
-    ```js
     }
     ```
 
@@ -2629,89 +1813,26 @@ onBeforeRouteUpdate((to, from, next) => {
 
     ```js
     {
-    ```
-
-    ```js
         path: '/message/:id',
-    ```
-
-    ```js
         name: 'message',
-    ```
-
-    ```js
         component: () => import('../views/Message.vue'),
-    ```
-
-    ```js
         beforeEnter: beforeEnterMessage,
-    ```
-
-    ```js
         props: true,
-    ```
-
-    ```js
         children: [{
-    ```
-
-    ```js
           path: 'author',
-    ```
-
-    ```js
           name: 'messageAuthor',
-    ```
-
-    ```js
           props: true,
-    ```
-
-    ```js
           component: () =>
-    ```
-
-    ```js
             import('../views/MessageAuthor.vue'),
-    ```
-
-    ```js
             beforeEnter: beforeEnterMessage,
-    ```
-
-    ```js
         }, {
-    ```
-
-    ```js
           path: 'info',
-    ```
-
-    ```js
           props: true,
-    ```
-
-    ```js
           name: 'messageInfo',
-    ```
-
-    ```js
           component: () =>
-    ```
-
-    ```js
             import('../views/MessageInfo.vue'),
-    ```
-
-    ```js
             beforeEnter: beforeEnterMessage,
-    ```
-
-    ```js
         }]
-    ```
-
-    ```js
       }
     ```
 
@@ -2719,101 +1840,29 @@ onBeforeRouteUpdate((to, from, next) => {
 
     ```js
     <template>
-    ```
-
-    ```js
       <div>
-    ```
-
-    ```js
         <p>Message content: {{message.content}}</p>
-    ```
-
-    ```js
         <RouterLink :to="{ name: 'messageAuthor'}">
-    ```
-
-    ```js
     Author
-    ```
-
-    ```js
     </RouterLink> |
-    ```
-
-    ```js
         <RouterLink :to="{ name: 'messageInfo'}">
-    ```
-
-    ```js
           Info
-    ```
-
-    ```js
         </RouterLink>
-    ```
-
-    ```js
         <RouterView/>
-    ```
-
-    ```js
       </div>
-    ```
-
-    ```js
     </template>
-    ```
-
-    ```js
     <script setup>
-    ```
-
-    ```js
     import { defineProps } from 'vue'
-    ```
-
-    ```js
     const { message } = defineProps({
-    ```
-
-    ```js
         message: {
-    ```
-
-    ```js
             default: () => ({ content: '' }),
-    ```
-
-    ```js
             type: Object
-    ```
-
-    ```js
         },
-    ```
-
-    ```js
         id: {
-    ```
-
-    ```js
             default: '',
-    ```
-
-    ```js
             type: String
-    ```
-
-    ```js
         }
-    ```
-
-    ```js
     })
-    ```
-
-    ```js
     </script>
     ```
 
